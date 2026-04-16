@@ -85,10 +85,11 @@ export default async function HomePage() {
   return (
     <div className="relative">
       <HeroPattern />
-      
-      {/* Hero Section */}
-      <div className="relative pb-16 pt-10 sm:pb-24">
-        <div className="max-w-4xl">
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-14">
+        {/* Hero Section */}
+        <div className="relative pb-16 pt-10 sm:pb-24">
+          <div className="max-w-4xl">
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl dark:text-white">
             Yorkshire Businesswoman
           </h1>
@@ -367,8 +368,9 @@ export default async function HomePage() {
             </defs>
           </svg>
         </section>
-
+      </div>
       </div>
     </div>
-  )
+  );
 }
+
