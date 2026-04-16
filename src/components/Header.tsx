@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { forwardRef } from 'react'
 
 import { Button } from '@/components/Button'
@@ -42,6 +43,9 @@ export const Header = forwardRef<
 >(function Header({ className, ...props }, ref) {
   let { isOpen: mobileNavIsOpen } = useMobileNavigationStore()
   let isInsideMobileNavigation = useIsInsideMobileNavigation()
+  let pathname = usePathname()
+
+  const isFullWidthRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/members') || pathname === '/' || pathname.startsWith('/news') || pathname.startsWith('/login') || pathname.startsWith('/register');
 
   let { scrollY } = useScroll()
   let bgOpacityLight = useTransform(scrollY, [0, 72], ['50%', '90%'])
@@ -62,9 +66,10 @@ export const Header = forwardRef<
       ref={ref}
       className={clsx(
         className,
-        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:left-72 lg:z-30 lg:px-8 xl:left-80',
-        !isInsideMobileNavigation &&
-          'backdrop-blur-xs lg:left-72 xl:left-80 dark:backdrop-blur-sm',
+        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:z-30 lg:px-8',
+        !isFullWidthRoute && 'lg:left-72 xl:left-80',
+        !isInsideMobileNavigation && 'backdrop-blur-xs dark:backdrop-blur-sm',
+        !isInsideMobileNavigation && !isFullWidthRoute && 'lg:left-72 xl:left-80',
         isInsideMobileNavigation
           ? 'bg-white dark:bg-zinc-900'
           : 'bg-white/(--bg-opacity-light) dark:bg-zinc-900/(--bg-opacity-dark)',
@@ -83,7 +88,17 @@ export const Header = forwardRef<
             'bg-zinc-900/7.5 dark:bg-white/7.5',
         )}
       />
-      <Search />
+      
+      {/* Search and Logo */}
+      <div className="flex items-center gap-5">
+        <div className={clsx("hidden lg:flex", !isFullWidthRoute && "lg:hidden")}>
+          <Link href="/" aria-label="Home">
+            <Logo className="h-6" />
+          </Link>
+        </div>
+        <Search />
+      </div>
+
       <div className="flex items-center gap-5 lg:hidden">
         <MobileNavigation />
         <CloseButton as={Link} href="/" aria-label="Home">

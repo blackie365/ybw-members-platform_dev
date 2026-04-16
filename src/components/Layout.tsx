@@ -19,6 +19,21 @@ export function Layout({
 }) {
   let pathname = usePathname()
 
+  // For the dashboard and members areas, we want a full-width layout without the documentation sidebar
+  const isFullWidthRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/members') || pathname === '/' || pathname.startsWith('/news') || pathname.startsWith('/login') || pathname.startsWith('/register');
+
+  if (isFullWidthRoute) {
+    return (
+      <SectionProvider sections={allSections[pathname] ?? []}>
+        <div className="flex min-h-screen flex-col">
+          <Header className="relative" />
+          <main className="flex-auto">{children}</main>
+          <Footer />
+        </div>
+      </SectionProvider>
+    );
+  }
+
   return (
     <SectionProvider sections={allSections[pathname] ?? []}>
       <div className="h-full lg:ml-72 xl:ml-80">

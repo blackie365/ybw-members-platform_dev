@@ -3,14 +3,14 @@ import Link from 'next/link';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-white py-12 sm:py-16 dark:bg-zinc-900">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+    <div className="bg-white py-12 sm:py-16 dark:bg-zinc-900 min-h-screen">
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white mb-8">
           Member Dashboard
         </h1>
         
-        {/* 3 Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_300px] gap-8 mb-12">
+        {/* 3 Column Grid -> Expanded to be full width */}
+        <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-6 lg:gap-8 mb-12">
           
           {/* Left Sidebar Navigation */}
           <aside className="lg:sticky lg:top-8 h-fit">
