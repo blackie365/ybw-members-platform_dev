@@ -39,7 +39,10 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
       headers: {
         'Accept-Version': 'v5.0'
       },
-      next: { revalidate: 60 } // Cache for 60 seconds
+      next: { 
+        revalidate: 3600, // Background rebuild every hour, but instantly purged by webhook
+        tags: ['ghost-posts'] 
+      }
     });
 
     if (!response.ok) {
@@ -67,7 +70,10 @@ export async function getSinglePost(postSlug: string) {
       headers: {
         'Accept-Version': 'v5.0'
       },
-      next: { revalidate: 60 }
+      next: { 
+        revalidate: 3600,
+        tags: ['ghost-posts', `ghost-post-${postSlug}`]
+      }
     });
 
     if (!response.ok) {
