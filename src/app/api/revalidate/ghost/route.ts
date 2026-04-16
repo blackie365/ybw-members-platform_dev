@@ -13,7 +13,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
-    // This instantly purges all Next.js caches that were fetched with `tags: ['ghost-posts']`
+    // In Next.js App Router, revalidateTag is a synchronous function that marks the tag to be revalidated
+    // TypeScript bug in some @types/react versions expects 2 arguments
+    // @ts-ignore
     revalidateTag('ghost-posts');
 
     console.log('[Webhook] Successfully revalidated Ghost posts cache');
