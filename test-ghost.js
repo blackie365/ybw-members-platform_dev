@@ -1,0 +1,7 @@
+const GhostContentAPI = require('@tryghost/content-api');
+const api = new GhostContentAPI({
+  url: 'https://yorkshirebusinesswoman.co.uk',
+  key: '61f6041a1f00410f9ac05a60a4',
+  version: "v5.0"
+});
+api.posts.browse({ limit: 1 }).then(console.log).catch(console.error);
