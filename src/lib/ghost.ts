@@ -21,7 +21,7 @@ if (process.env.GHOST_ADMIN_API_KEY) {
 /**
  * Fetch posts from Ghost using native fetch for better Next.js App Router support
  */
-export async function getPosts(options?: { limit?: number | string; filter?: string; page?: number }) {
+export async function getPosts(options?: { limit?: number | string; filter?: string; page?: number; order?: string }) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
     url.searchParams.append('key', GHOST_CONTENT_API_KEY);
@@ -33,6 +33,9 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
     }
     if (options?.page) {
       url.searchParams.append('page', options.page.toString());
+    }
+    if (options?.order) {
+      url.searchParams.append('order', options.order);
     }
 
     const response = await fetch(url.toString(), {
@@ -86,6 +89,47 @@ export async function getSinglePost(postSlug: string) {
   } catch (err) {
     console.error("Error fetching single post:", err);
     return null;
+  }
+}
+
+/**
+ * Fetch public tags from Ghost, optionally ordered by post count
+ */
+export async function getTags(options?: { limit?: number | string; include?: string; order?: string; filter?: string }) {
+  try {
+    const url = new URL(`${GHOST_API_URL}/ghost/api/content/tags/`);
+    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.append('limit', options?.limit?.toString() || 'all');
+    
+    if (options?.include) {
+      url.searchParams.append('include', options.include);
+    }
+    if (options?.order) {
+      url.searchParams.append('order', options.order);
+    }
+    if (options?.filter) {
+      url.searchParams.append('filter', options.filter);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept-Version': 'v5.0'
+      },
+      next: { 
+        revalidate: 3600,
+        tags: ['ghost-tags']
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ghost API responded with status: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.tags || [];
+  } catch (err) {
+    console.error("Error fetching tags:", err);
+    return [];
   }
 }
 

@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 
 import { Button } from '@/components/Button'
 import { HeroPattern } from '@/components/HeroPattern'
-import { getPosts } from '@/lib/ghost'
+import { getPosts, getTags } from '@/lib/ghost'
 import { ENDPOINTS } from '@/lib/firebase-functions'
 import { MemberCard } from '@/components/MemberCard'
 import { getExternalNews } from '@/lib/externalNews'
@@ -12,6 +12,7 @@ import { getLatestMarketInsight } from '@/lib/marketInsights'
 // Import components that use client-side state
 import MarketInsightsWidget from '@/components/MarketInsightsWidget';
 import VideoNewsWidget from '@/components/VideoNewsWidget';
+import { CategorySection } from '@/components/CategorySection';
 
 export const metadata = {
   title: 'Yorkshire Businesswoman | Home',
@@ -54,13 +55,25 @@ function getFeaturedMedia(html?: string) {
 }
 
 export default async function HomePage() {
-  const [events, news, allMembers, externalNews, marketInsight] = await Promise.all([
+  const [events, news, allMembers, externalNews, marketInsight, topTags] = await Promise.all([
     getPosts({ limit: 4, filter: 'tag:events' }),
-    getPosts({ limit: 14, filter: 'tag:news' }),
+    getPosts({ limit: 6, filter: 'tag:news' }), // Reduced to 6 for the top featured block
     getMembers(),
     getExternalNews(8),
-    getLatestMarketInsight()
+    getLatestMarketInsight(),
+    getTags({ limit: 6, include: 'count.posts', order: 'count.posts DESC', filter: 'visibility:public' })
   ]);
+
+  // Filter out system/common tags like 'news' or 'events' to get the actual content categories
+  const displayTags = topTags.filter((t: any) => t.slug !== 'news' && t.slug !== 'events').slice(0, 4);
+
+  // Fetch the latest posts for each of the top categories
+  const categoryBlocks = await Promise.all(
+    displayTags.map(async (tag: any) => {
+      const posts = await getPosts({ limit: 4, filter: `tag:${tag.slug}` });
+      return { tag, posts };
+    })
+  );
 
   // Get a few members for the spotlight section
   const featuredMembers = allMembers.slice(0, 4);
@@ -68,8 +81,6 @@ export default async function HomePage() {
   // Extract featured article from news
   const featuredArticle = news.length > 0 ? news[0] : null;
   const mainNews = news.length > 1 ? news.slice(1, 6) : [];
-  // Sidebar ghost news is now optional if we have external news, but let's keep it as fallback or below external news
-  const sidebarNews = news.length > 6 ? news.slice(6, 14) : [];
 
   return (
     <div className="relative">
@@ -248,6 +259,11 @@ export default async function HomePage() {
             </div>
           </section>
         )}
+
+        {/* Dynamic Category Sections */}
+        {categoryBlocks.map((block: any) => (
+          <CategorySection key={block.tag.slug} tag={block.tag} posts={block.posts} />
+        ))}
 
         {/* Video News Section */}
         <VideoNewsWidget />
