@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db, storage } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 
@@ -31,17 +31,16 @@ export default function DashboardProfile() {
 
   useEffect(() => {
     async function loadProfile() {
-      if (!user?.email) {
+      if (!user?.uid) {
         setLoading(false);
         return;
       }
       
       try {
-        const q = query(collection(db, 'newMemberCollection'), where('email', '==', user.email));
-        const querySnapshot = await getDocs(q);
+        const docRef = doc(db, 'members', user.uid);
+        const docSnap = await getDoc(docRef);
         
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
+        if (docSnap.exists()) {
           setDocId(docSnap.id);
           const data = docSnap.data();
           
@@ -122,30 +121,20 @@ export default function DashboardProfile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.email) return;
+    if (!user?.uid) return;
     
     setSaving(true);
     setMessage({ type: '', text: '' });
     
     try {
-      if (docId) {
-        // Update existing document
-        const docRef = doc(db, 'newMemberCollection', docId);
-        await updateDoc(docRef, {
-          ...formData,
-          lastUpdated: new Date().toISOString()
-        });
-      } else {
-        // Create new document with user's email if they don't exist in collection
-        const newDocRef = doc(collection(db, 'newMemberCollection'));
-        await setDoc(newDocRef, {
-          ...formData,
-          email: user.email,
-          joinDate: new Date().toISOString(),
-          lastUpdated: new Date().toISOString()
-        });
-        setDocId(newDocRef.id);
-      }
+      const docRef = doc(db, 'members', user.uid);
+      
+      // Merge new data into the existing document, or create it if missing
+      await setDoc(docRef, {
+        ...formData,
+        email: user.email,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (error) {
