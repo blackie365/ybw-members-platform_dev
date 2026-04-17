@@ -55,9 +55,9 @@ function getFeaturedMedia(html?: string) {
 }
 
 export default async function HomePage() {
-  const [events, news, allMembers, externalNews, marketInsight, topTags] = await Promise.all([
+  const [events, allPosts, allMembers, externalNews, marketInsight, topTags] = await Promise.all([
     getPosts({ limit: 4, filter: 'tag:events' }),
-    getPosts({ limit: 6, filter: 'tag:news' }), // Reduced to 6 for the top featured block
+    getPosts({ limit: 6 }), // Fetch the 6 absolute newest posts across all categories
     getMembers(),
     getExternalNews(8),
     getLatestMarketInsight(),
@@ -78,9 +78,9 @@ export default async function HomePage() {
   // Get a few members for the spotlight section
   const featuredMembers = allMembers.slice(0, 4);
 
-  // Extract featured article from news
-  const featuredArticle = news.length > 0 ? news[0] : null;
-  const mainNews = news.length > 1 ? news.slice(1, 6) : [];
+  // Extract featured article from the newest posts overall
+  const featuredArticle = allPosts.length > 0 ? allPosts[0] : null;
+  const mainNews = allPosts.length > 1 ? allPosts.slice(1, 6) : [];
 
   return (
     <div className="relative">
@@ -111,12 +111,12 @@ export default async function HomePage() {
       <div className="space-y-20 pb-20">
         
         {/* Latest News Section */}
-        {news.length > 0 && (
+        {allPosts.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Latest News</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Latest Posts</h2>
               <Link href="/news" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                View all news <span aria-hidden="true">&rarr;</span>
+                View all posts <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
             

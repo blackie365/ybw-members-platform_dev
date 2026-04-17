@@ -53,7 +53,14 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
     }
 
     const data = await response.json();
-    return data.posts || [];
+    
+    // Attach pagination metadata to the array so we can access it without breaking existing map() calls
+    const posts = data.posts || [];
+    if (data.meta && data.meta.pagination) {
+      posts.meta = data.meta.pagination;
+    }
+    
+    return posts;
   } catch (err) {
     console.error("Error fetching posts:", err);
     return [];
