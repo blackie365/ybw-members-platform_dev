@@ -19,7 +19,7 @@ export const metadata = {
   description: 'Welcome to the Yorkshire Businesswoman community. Connect with local professionals, stay up to date with the latest business news, and discover exclusive events.',
 }
 
-export const revalidate = 60
+export const revalidate = 3600 // 1 hour (Cache is purged instantly by webhook anyway)
 
 async function getMembers() {
   try {
@@ -127,9 +127,9 @@ export default async function HomePage() {
                 {/* Featured Article (spans 2 columns) */}
                 {featuredArticle && (
                   <div key={featuredArticle.id} className="sm:col-span-2 lg:col-span-2 group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-                    <div className="relative w-full mb-4">
+                    <div className="relative w-full mb-4 flex-grow">
                       {getFeaturedMedia(featuredArticle.html) ? (
-                        <div className="aspect-[16/9] w-full rounded-lg bg-black flex items-center justify-center overflow-hidden relative">
+                        <div className="aspect-[16/9] w-full rounded-xl bg-black flex items-center justify-center overflow-hidden relative h-full">
                           <div dangerouslySetInnerHTML={{ __html: getFeaturedMedia(featuredArticle.html) as string }} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:border-0" />
                         </div>
                       ) : featuredArticle.feature_image ? (
@@ -137,9 +137,9 @@ export default async function HomePage() {
                           src={featuredArticle.feature_image}
                           alt={featuredArticle.title}
                           width={800}
-                          height={400}
-                          priority={true}
-                          className="aspect-[16/9] w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
+                          height={500}
+                          priority
+                          className="aspect-[16/9] w-full rounded-xl bg-zinc-100 object-cover dark:bg-zinc-800 h-full"
                         />
                       ) : (
                         <div className="aspect-[16/9] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">

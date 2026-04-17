@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { notFound } from 'next/navigation';
 
-export const revalidate = 60; // Revalidate every 60 seconds
+export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
 // Optional: Helper function to get related posts based on tags
 async function getRelatedPosts(currentPostId: string, tags: any[]) {

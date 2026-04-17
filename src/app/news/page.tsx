@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
-export const revalidate = 60; // Revalidate every 60 seconds
+export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
 export default async function NewsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
