@@ -106,16 +106,18 @@ export const Header = forwardRef<
         </CloseButton>
       </div>
       <div className="flex items-center gap-5">
-        <nav className="hidden md:block">
-          <ul role="list" className="flex items-center gap-8">
-            <TopLevelNavItem href="/">API</TopLevelNavItem>
-            <TopLevelNavItem href="/news">News</TopLevelNavItem>
-            <TopLevelNavItem href="/members">Community</TopLevelNavItem>
-            <TopLevelNavItem href="#">Documentation</TopLevelNavItem>
-            <TopLevelNavItem href="#">Support</TopLevelNavItem>
+        <nav className="hidden lg:block">
+          <ul role="list" className="flex items-center gap-6 xl:gap-8">
+            <TopLevelNavItem href="/">Home</TopLevelNavItem>
+            <TopLevelNavItem href="/news">Latest Issue</TopLevelNavItem>
+            <TopLevelNavItem href="/news?tag=about">About</TopLevelNavItem>
+            <TopLevelNavItem href="/news?tag=contact">Contact</TopLevelNavItem>
+            <TopLevelNavItem href="/dashboard">Members Hub</TopLevelNavItem>
+            <TopLevelNavItem href="/news?tag=events">Events</TopLevelNavItem>
+            <TopLevelNavItem href="/members">Members Directory</TopLevelNavItem>
           </ul>
         </nav>
-        <div className="hidden md:block md:h-5 md:w-px md:bg-zinc-900/10 md:dark:bg-white/15" />
+        <div className="hidden lg:block lg:h-5 lg:w-px lg:bg-zinc-900/10 lg:dark:bg-white/15" />
         <div className="flex gap-4">
           <MobileSearch />
           <ThemeToggle />
@@ -123,9 +125,6 @@ export const Header = forwardRef<
         <div className="hidden min-[416px]:contents">
           {!loading && user ? (
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-sm font-medium text-zinc-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400">
-                Dashboard
-              </Link>
               <Button variant="outline" onClick={handleSignOut}>
                 Sign out
               </Button>

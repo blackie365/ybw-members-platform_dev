@@ -237,25 +237,20 @@ function NavigationGroup({
 
 export const navigation: Array<NavGroup> = [
   {
-    title: 'Discover',
+    title: 'Yorkshire Businesswoman',
     links: [
       { title: 'Home', href: '/' },
-      { title: 'Latest News', href: '/news' },
-      { title: 'Upcoming Events', href: '/news?tag=events' },
+      { title: 'Latest Issue', href: '/news' },
+      { title: 'About', href: '/news?tag=about' },
+      { title: 'Contact', href: '/news?tag=contact' },
     ],
   },
   {
     title: 'Community',
     links: [
+      { title: 'Members Hub', href: '/dashboard' },
+      { title: 'Events', href: '/news?tag=events' },
       { title: 'Members Directory', href: '/members' },
-      { title: 'Member Offers', href: '/dashboard/offers' },
-    ],
-  },
-  {
-    title: 'My Account',
-    links: [
-      { title: 'Dashboard', href: '/dashboard' },
-      { title: 'Edit Profile', href: '/dashboard/profile' },
     ],
   },
 ]
@@ -275,10 +270,6 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     <nav {...props}>
       <ul role="list">
         {navigation.map((group, groupIndex) => {
-          // Hide 'My Account' section if user is not logged in and not loading
-          if (group.title === 'My Account' && !loading && !user) {
-            return null;
-          }
           return (
             <NavigationGroup
               key={group.title}
