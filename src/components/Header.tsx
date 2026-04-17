@@ -45,7 +45,7 @@ export const Header = forwardRef<
   let isInsideMobileNavigation = useIsInsideMobileNavigation()
   let pathname = usePathname()
 
-  const isFullWidthRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/members') || pathname === '/' || pathname.startsWith('/news') || pathname.startsWith('/login') || pathname.startsWith('/register');
+  const isFullWidthRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/members') || pathname === '/' || pathname.startsWith('/news') || pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/membership');
 
   let { scrollY } = useScroll()
   let bgOpacityLight = useTransform(scrollY, [0, 72], ['50%', '90%'])

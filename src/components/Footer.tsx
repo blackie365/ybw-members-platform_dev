@@ -129,7 +129,7 @@ export function Footer() {
                     <Link href="/news?tag=advertise" className="text-sm leading-6 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Advertise</Link>
                   </li>
                   <li>
-                    <Link href="/register" className="text-sm leading-6 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Join Us</Link>
+                    <Link href="/membership" className="text-sm leading-6 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Join Us</Link>
                   </li>
                 </ul>
               </div>
