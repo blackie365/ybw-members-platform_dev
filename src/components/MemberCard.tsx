@@ -20,7 +20,7 @@ export function MemberCard({ member }: { member: any }) {
               sizes="64px"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl font-medium text-zinc-500 dark:text-zinc-400 bg-emerald-100 dark:bg-emerald-900/30">
+            <div className="flex h-full w-full items-center justify-center text-xl font-medium text-zinc-500 dark:text-zinc-400 bg-indigo-100 dark:bg-indigo-900/30">
               {initial}
             </div>
           )}
@@ -30,7 +30,7 @@ export function MemberCard({ member }: { member: any }) {
             {firstName} {lastName}
           </h2>
           {member.companyName && (
-            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 truncate">
+            <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
               {member.companyName}
             </p>
           )}
@@ -44,7 +44,7 @@ export function MemberCard({ member }: { member: any }) {
       <div className="mt-4 w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
         <a
           href={`/members/${member.memberSlug || member.slug}`}
-          className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
+          className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
         >
           View Profile &rarr;
         </a>

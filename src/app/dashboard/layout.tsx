@@ -9,11 +9,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           Member Dashboard
         </h1>
         
-        {/* 3 Column Grid -> Expanded to be full width */}
-        <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)_250px] xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-6 lg:gap-8 mb-12">
+        {/* 2 Column Grid -> Gives the center content much more room */}
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] gap-8 lg:gap-12 mb-12">
           
-          {/* Left Sidebar Navigation */}
-          <aside className="lg:sticky lg:top-8 h-fit">
+          {/* Left Sidebar Navigation & Actions */}
+          <aside className="lg:sticky lg:top-8 h-fit space-y-6">
             <nav className="bg-zinc-50 border border-zinc-200 rounded-xl p-6 dark:bg-zinc-800/50 dark:border-zinc-700/50">
               <ul className="space-y-4">
                 <li>
@@ -38,15 +38,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </li>
               </ul>
             </nav>
-          </aside>
 
-          {/* Central Column */}
-          <main className="min-w-0">
-            {children}
-          </main>
-
-          {/* Right Sidebar */}
-          <aside className="space-y-6">
             <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6 dark:bg-zinc-800/50 dark:border-zinc-700/50">
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-4">Quick Actions</h3>
               <ul className="space-y-3 text-sm">
@@ -56,13 +48,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   </button>
                 </li>
                 <li>
-                  <button className="w-full text-left text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                  <Link href="/dashboard/profile" className="w-full text-left text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 block">
                     Update Profile Picture
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </div>
           </aside>
+
+          {/* Central Column */}
+          <main className="min-w-0">
+            {children}
+          </main>
 
         </div>
       </div>
