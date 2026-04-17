@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { notFound } from 'next/navigation';
+import { EventTicketCard } from '@/components/EventTicketCard';
 
 export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
@@ -24,102 +25,115 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   const relatedPosts = await getRelatedPosts(post.id, post.tags);
+  const isEvent = post.tags?.some((t: any) => t.slug === 'events');
 
   return (
     <div className="bg-white py-16 sm:py-24 lg:py-32 dark:bg-zinc-900">
-      <article className="mx-auto max-w-3xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto flex flex-col lg:flex-row gap-16 max-w-3xl lg:max-w-none">
+          {/* Main Article Content */}
+          <article className="flex-1 lg:max-w-[700px] xl:max-w-[800px]">
         <header className="flex flex-col mb-12">
-          {post.primary_tag && (
-            <Link 
-              href={`/news?tag=${post.primary_tag.slug}`}
-              className="text-sm font-semibold tracking-wide uppercase text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 mb-4 inline-block"
-            >
-              {post.primary_tag.name}
-            </Link>
-          )}
-          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 sm:text-5xl dark:text-white leading-tight mb-6">
-            {post.title}
-          </h1>
-          {(post.custom_excerpt || post.excerpt) && (
-            <p className="text-xl leading-8 text-zinc-500 dark:text-zinc-400 mb-8">
-              {post.custom_excerpt || post.excerpt}
-            </p>
-          )}
+              {post.primary_tag && (
+                <Link 
+                  href={`/news?tag=${post.primary_tag.slug}`}
+                  className="text-sm font-semibold tracking-wide uppercase text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 mb-4 inline-block"
+                >
+                  {post.primary_tag.name}
+                </Link>
+              )}
+              <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 sm:text-5xl dark:text-white leading-tight mb-6">
+                {post.title}
+              </h1>
+              {(post.custom_excerpt || post.excerpt) && (
+                <p className="text-xl leading-8 text-zinc-500 dark:text-zinc-400 mb-8">
+                  {post.custom_excerpt || post.excerpt}
+                </p>
+              )}
 
-          <div className="flex items-center gap-x-4 border-t border-b border-zinc-200 py-6 dark:border-zinc-800">
-            {post.primary_author?.profile_image ? (
-              <Image
-                src={post.primary_author.profile_image}
-                alt={post.primary_author.name || 'Author'}
-                width={48}
-                height={48}
-                className="h-12 w-12 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
-              />
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                <span className="text-zinc-500 text-sm font-medium">
-                  {post.primary_author?.name?.charAt(0) || 'A'}
-                </span>
-              </div>
-            )}
-            <div className="text-sm leading-6">
-              <p className="font-semibold text-zinc-900 dark:text-white">
-                {post.primary_author?.name || 'Yorkshire Businesswoman'}
-              </p>
-              <div className="flex gap-x-2 text-zinc-500 dark:text-zinc-400">
-                <time dateTime={post.published_at}>
-                  {post.published_at ? format(new Date(post.published_at), 'MMMM d, yyyy') : ''}
-                </time>
-                {post.reading_time && (
-                  <>
-                    <span>&middot;</span>
-                    <span>{post.reading_time} min read</span>
-                  </>
+              <div className="flex items-center gap-x-4 border-t border-b border-zinc-200 py-6 dark:border-zinc-800">
+                {post.primary_author?.profile_image ? (
+                  <Image
+                    src={post.primary_author.profile_image}
+                    alt={post.primary_author.name || 'Author'}
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-full bg-zinc-100 object-cover dark:bg-zinc-800"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                    <span className="text-zinc-500 text-sm font-medium">
+                      {post.primary_author?.name?.charAt(0) || 'A'}
+                    </span>
+                  </div>
                 )}
+                <div className="text-sm leading-6">
+                  <p className="font-semibold text-zinc-900 dark:text-white">
+                    {post.primary_author?.name || 'Yorkshire Businesswoman'}
+                  </p>
+                  <div className="flex gap-x-2 text-zinc-500 dark:text-zinc-400">
+                    <time dateTime={post.published_at}>
+                      {post.published_at ? format(new Date(post.published_at), 'MMMM d, yyyy') : ''}
+                    </time>
+                    {post.reading_time && (
+                      <>
+                        <span>&middot;</span>
+                        <span>{post.reading_time} min read</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {post.feature_image && (
+              <figure className="mb-14 -mx-6 sm:mx-0">
+                <Image
+                  src={post.feature_image}
+                  alt={post.title || 'Feature image'}
+                  width={1200}
+                  height={800}
+                  priority
+                  className="w-full sm:rounded-2xl bg-zinc-50 object-cover aspect-[16/9] shadow-md dark:bg-zinc-800"
+                />
+                {post.feature_image_caption && (
+                  <figcaption 
+                    className="mt-4 text-center text-sm leading-6 text-zinc-500 dark:text-zinc-400" 
+                    dangerouslySetInnerHTML={{ __html: post.feature_image_caption }} 
+                  />
+                )}
+              </figure>
+            )}
+
+            {/* Prose automatically styles standard HTML tags (p, h2, a, blockquote) nicely */}
+            <div 
+              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md"
+              dangerouslySetInnerHTML={{ __html: post.html || '' }}
+            />
+
+            <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
+              <div className="flex gap-2 flex-wrap">
+                {post.tags?.filter((t: any) => t.visibility === 'public').map((tag: any) => (
+                  <Link 
+                    key={tag.slug} 
+                    href={`/news?tag=${tag.slug}`}
+                    className="inline-flex items-center rounded-full bg-zinc-50 px-3 py-1 text-sm font-medium text-zinc-600 ring-1 ring-inset ring-zinc-500/10 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10 dark:hover:bg-zinc-700"
+                  >
+                    {tag.name}
+                  </Link>
+                ))}
               </div>
             </div>
-          </div>
-        </header>
+          </article>
 
-        {post.feature_image && (
-          <figure className="mb-14 -mx-6 sm:mx-0">
-            <Image
-              src={post.feature_image}
-              alt={post.title || 'Feature image'}
-              width={1200}
-              height={800}
-              priority
-              className="w-full sm:rounded-2xl bg-zinc-50 object-cover aspect-[16/9] shadow-md dark:bg-zinc-800"
-            />
-            {post.feature_image_caption && (
-              <figcaption 
-                className="mt-4 text-center text-sm leading-6 text-zinc-500 dark:text-zinc-400" 
-                dangerouslySetInnerHTML={{ __html: post.feature_image_caption }} 
-              />
-            )}
-          </figure>
-        )}
-
-        {/* Prose automatically styles standard HTML tags (p, h2, a, blockquote) nicely */}
-        <div 
-          className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md"
-          dangerouslySetInnerHTML={{ __html: post.html || '' }}
-        />
-
-        <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
-          <div className="flex gap-2 flex-wrap">
-            {post.tags?.filter((t: any) => t.visibility === 'public').map((tag: any) => (
-              <Link 
-                key={tag.slug} 
-                href={`/news?tag=${tag.slug}`}
-                className="inline-flex items-center rounded-full bg-zinc-50 px-3 py-1 text-sm font-medium text-zinc-600 ring-1 ring-inset ring-zinc-500/10 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10 dark:hover:bg-zinc-700"
-              >
-                {tag.name}
-              </Link>
-            ))}
-          </div>
+          {/* Sticky Sidebar for Event Tickets */}
+          {isEvent && (
+            <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+              <EventTicketCard post={post} />
+            </aside>
+          )}
         </div>
-      </article>
+      </div>
 
       {/* Related Posts Section */}
       {relatedPosts.length > 0 && (
