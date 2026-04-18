@@ -6,6 +6,7 @@ import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -51,7 +52,7 @@ export default function RegisterPage() {
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration error:', err);
-      setError(err.message || 'Failed to create an account.');
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export default function RegisterPage() {
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Google Registration error:', err);
-      setError(err.message || 'Failed to sign up with Google.');
+      setError(getFriendlyAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
