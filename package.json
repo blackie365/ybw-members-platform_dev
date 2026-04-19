@@ -46,6 +46,7 @@
     "rss-parser": "^3.13.0",
     "shiki": "^0.14.7",
     "simple-functional-loader": "^1.2.1",
+    "stripe": "^22.0.2",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.8.3",
     "unist-util-filter": "^5.0.1",

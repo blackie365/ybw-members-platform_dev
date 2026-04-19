@@ -9,6 +9,24 @@ export function EventTicketCard({ post }: { post: any }) {
   const { user } = useAuth();
   const router = useRouter();
 
+  // Extract price from Ghost tags (e.g., "#ticket-price-50" or "ticket-price-50")
+  // If no tag is found, we default to £50.00
+  let priceAmount = 5000; // in pence
+  let displayPrice = '£50';
+
+  if (post.tags) {
+    const priceTag = post.tags.find((t: any) => t.slug.startsWith('ticket-price-') || t.slug.startsWith('hash-ticket-price-'));
+    if (priceTag) {
+      // Extract the number part from the slug
+      const priceString = priceTag.slug.split('-').pop();
+      if (priceString && !isNaN(parseInt(priceString, 10))) {
+        const numericPrice = parseInt(priceString, 10);
+        priceAmount = numericPrice * 100; // Stripe expects pence
+        displayPrice = `£${numericPrice}`;
+      }
+    }
+  }
+
   const handleCheckout = async () => {
     // If they aren't logged in, force them to login or register first so we know who bought the ticket!
     if (!user) {
@@ -31,8 +49,7 @@ export function EventTicketCard({ post }: { post: any }) {
           postTitle: post.title,
           userEmail: user.email,
           userId: user.uid,
-          // We can eventually pull the real price from Ghost custom fields, but let's default to £50 for now
-          priceAmount: 5000, 
+          priceAmount: priceAmount, 
         }),
       });
 
@@ -62,7 +79,7 @@ export function EventTicketCard({ post }: { post: any }) {
       <div className="flex items-end justify-between mb-6">
         <div>
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Ticket Price</p>
-          <p className="text-3xl font-extrabold text-zinc-900 dark:text-white">£50</p>
+          <p className="text-3xl font-extrabold text-zinc-900 dark:text-white">{displayPrice}</p>
         </div>
       </div>
 
