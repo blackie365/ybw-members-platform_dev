@@ -2,6 +2,7 @@ import { ENDPOINTS } from '@/lib/firebase-functions';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 async function getMemberBySlug(slug: string) {
   try {
@@ -20,6 +21,40 @@ async function getMemberBySlug(slug: string) {
     console.error('Error fetching member by slug:', error);
     return null;
   }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const member = await getMemberBySlug(resolvedParams.slug);
+
+  if (!member) {
+    return { title: 'Member Not Found' };
+  }
+
+  const firstName = member.firstName || member['First Name'] || '';
+  const lastName = member.lastName || member['Last Name'] || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
+  const title = member.jobTitle ? `${member.jobTitle} at ${member.companyName}` : (member.companyName || '');
+  const description = member.bio || member['Bio'] || `View ${fullName}'s profile on Yorkshire Businesswoman.`;
+
+  return {
+    title: `${fullName} | Member Directory`,
+    description: description,
+    openGraph: {
+      title: `${fullName} - ${title}`,
+      description: description,
+      url: `/members/${resolvedParams.slug}`,
+      type: 'profile',
+      images: profileImage ? [{ url: profileImage }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${fullName} - ${title}`,
+      description: description,
+      images: profileImage ? [profileImage] : [],
+    },
+  };
 }
 
 export default async function MemberProfilePage({

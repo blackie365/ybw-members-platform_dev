@@ -166,12 +166,56 @@ export default function DashboardProfile() {
     );
   }
 
+  const handleBillingPortal = async () => {
+    if (!user?.email) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userEmail: user.email })
+      });
+      
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage({ type: 'error', text: 'Failed to open billing portal.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Failed to open billing portal.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-zinc-200 rounded-xl p-6 dark:bg-zinc-900 dark:border-zinc-800">
-      <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">My Profile</h2>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-8">
-        Update your personal details, professional information, and bio here. This information will be visible in the member directory.
-      </p>
+    <div className="bg-white border border-zinc-200 rounded-xl p-6 lg:p-10 shadow-sm dark:bg-zinc-900/50 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-800">
+        <div>
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">My Profile</h2>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+            Update your personal details and how you appear in the member directory.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={handleBillingPortal}
+            disabled={loading}
+            className="inline-flex justify-center items-center rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Manage Billing'}
+          </button>
+          <a 
+            href={`/members/${docId}`} 
+            className="inline-flex justify-center items-center rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+          >
+            View Public Profile
+          </a>
+        </div>
+      </div>
 
       {message.text && (
         <div className={`mb-6 p-4 rounded-md text-sm ${

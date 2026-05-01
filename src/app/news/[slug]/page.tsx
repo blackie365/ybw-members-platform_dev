@@ -4,8 +4,40 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { notFound } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
+import { Metadata } from 'next';
 
 export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const post = await getSinglePost(resolvedParams.slug);
+
+  if (!post) {
+    return { title: 'Not Found' };
+  }
+
+  const excerpt = post.custom_excerpt || post.excerpt || 'Read this article on Yorkshire Businesswoman.';
+
+  return {
+    title: post.title,
+    description: excerpt,
+    openGraph: {
+      title: post.title,
+      description: excerpt,
+      url: `/news/${post.slug}`,
+      type: 'article',
+      publishedTime: post.published_at,
+      authors: post.primary_author ? [post.primary_author.name] : undefined,
+      images: post.feature_image ? [{ url: post.feature_image }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: excerpt,
+      images: post.feature_image ? [post.feature_image] : [],
+    },
+  };
+}
 
 // Optional: Helper function to get related posts based on tags
 async function getRelatedPosts(currentPostId: string, tags: any[]) {
@@ -27,8 +59,37 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const relatedPosts = await getRelatedPosts(post.id, post.tags);
   const isEvent = post.tags?.some((t: any) => t.slug === 'events');
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': isEvent ? 'Event' : 'Article',
+    headline: post.title,
+    name: post.title,
+    image: post.feature_image ? [post.feature_image] : [],
+    datePublished: post.published_at,
+    dateModified: post.updated_at || post.published_at,
+    author: [{
+      '@type': 'Person',
+      name: post.primary_author?.name || 'Yorkshire Businesswoman',
+      url: post.primary_author?.website || `https://yorkshirebusinesswoman.co.uk`
+    }],
+    ...(isEvent && {
+      startDate: post.published_at, // Fallback to published date if exact event date isn't in Ghost metadata
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      eventStatus: 'https://schema.org/EventScheduled',
+      location: {
+        '@type': 'Place',
+        name: 'Yorkshire',
+        address: 'Yorkshire, UK'
+      }
+    })
+  };
+
   return (
     <div className="bg-white py-16 sm:py-24 lg:py-32 dark:bg-zinc-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto flex flex-col lg:flex-row gap-16 max-w-3xl lg:max-w-none">
           {/* Main Article Content */}

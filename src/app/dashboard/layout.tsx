@@ -1,7 +1,12 @@
+'use client';
+
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <div className="bg-white py-12 sm:py-16 dark:bg-zinc-900 min-h-screen">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -17,22 +22,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <nav className="bg-zinc-50 border border-zinc-200 rounded-xl p-6 dark:bg-zinc-800/50 dark:border-zinc-700/50">
               <ul className="space-y-4">
                 <li>
-                  <Link href="/dashboard" className="block text-zinc-900 font-medium hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400">
+                  <Link href="/dashboard" className={`block hover:text-indigo-600 dark:hover:text-indigo-400 ${pathname === '/dashboard' ? 'text-zinc-900 font-medium dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                     Upcoming Events
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/profile" className="block text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
+                  <Link href="/dashboard/profile" className={`block hover:text-indigo-600 dark:hover:text-indigo-400 ${pathname === '/dashboard/profile' ? 'text-zinc-900 font-medium dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                     My Profile
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/offers" className="block text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
+                  <Link href="/dashboard/offers" className={`block hover:text-indigo-600 dark:hover:text-indigo-400 ${pathname === '/dashboard/offers' ? 'text-zinc-900 font-medium dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                     Member Offers
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/directory" className="block text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
+                  <Link href="/dashboard/directory" className={`block hover:text-indigo-600 dark:hover:text-indigo-400 ${pathname === '/dashboard/directory' ? 'text-zinc-900 font-medium dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                     Directory
                   </Link>
                 </li>

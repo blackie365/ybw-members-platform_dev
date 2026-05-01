@@ -8,6 +8,7 @@ import { type Section } from '@/components/SectionProvider'
 import '@/styles/tailwind.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
   title: {
     template: '%s - Yorkshire Businesswoman',
     default: 'Yorkshire Businesswoman | Local Business News & Community',
