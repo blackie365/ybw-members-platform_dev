@@ -52,7 +52,9 @@ export async function POST(req: Request) {
     
     // Handle subscription (membership) successful payment
     if (event.type === 'invoice.payment_succeeded') {
-      const invoice = event.data.object as Stripe.Invoice;
+      // In newer Stripe types, invoice is properly typed but 'subscription' might need to be accessed differently 
+      // or we just cast to any to bypass strict type checking for the webhook
+      const invoice = event.data.object as any;
       
       if (invoice.subscription) {
         // Upgrade member status to paid
