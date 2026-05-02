@@ -37,18 +37,12 @@ export default function DashboardProfile() {
       }
       
       try {
-      // Try to read from newMemberCollection first, fallback to members
-      let docRef = doc(db, 'newMemberCollection', user.uid);
-      let docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        docRef = doc(db, 'members', user.uid);
-        docSnap = await getDoc(docRef);
-      }
-      
-      if (docSnap.exists()) {
-        setDocId(docSnap.id);
-        const data = docSnap.data();
+        const docRef = doc(db, 'newMemberCollection', user.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setDocId(docSnap.id);
+          const data = docSnap.data();
           
           setFormData({
             firstName: data.firstName || data['First Name'] || '',
@@ -133,20 +127,7 @@ export default function DashboardProfile() {
     setMessage({ type: '', text: '' });
     
     try {
-      // First try to determine which collection they belong to
-      let collectionName = 'newMemberCollection';
-      const newMemberRef = doc(db, 'newMemberCollection', user.uid);
-      const newMemberSnap = await getDoc(newMemberRef);
-      
-      if (!newMemberSnap.exists()) {
-        const oldMemberRef = doc(db, 'members', user.uid);
-        const oldMemberSnap = await getDoc(oldMemberRef);
-        if (oldMemberSnap.exists()) {
-          collectionName = 'members';
-        }
-      }
-
-      const docRef = doc(db, collectionName, user.uid);
+      const docRef = doc(db, 'newMemberCollection', user.uid);
       
       // Merge new data into the existing document, or create it if missing
       await setDoc(docRef, {

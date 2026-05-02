@@ -60,7 +60,7 @@ export async function POST(req: Request) {
         // Upgrade member status to paid
         const customerEmail = invoice.customer_email;
         if (customerEmail) {
-          const usersRef = adminDb.collection('users');
+          const usersRef = adminDb.collection('newMemberCollection');
           const snapshot = await usersRef.where('email', '==', customerEmail).get();
           
           if (!snapshot.empty) {

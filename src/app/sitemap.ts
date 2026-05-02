@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getPosts } from '@/lib/ghost';
-import { ENDPOINTS } from '@/lib/firebase-functions';
+import { adminDb } from '@/lib/firebase-admin';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
@@ -54,20 +54,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 3. Fetch all public Member Profiles
   let memberPages: MetadataRoute.Sitemap = [];
   try {
-    const res = await fetch(ENDPOINTS.getMembers, { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.members) {
-        memberPages = data.members.map((member: any) => ({
-          url: `${siteUrl}/members/${member.slug || member.id}`,
-          lastModified: new Date(member.updatedAt || Date.now()),
-          changeFrequency: 'monthly',
-          priority: 0.6,
-        }));
-      }
-    }
+    const snapshot = await adminDb.collection('newMemberCollection').get();
+    memberPages = snapshot.docs.map(doc => {
+      const member = doc.data();
+      return {
+        url: `${siteUrl}/members/${member.slug || doc.id}`,
+        lastModified: new Date(member.updatedAt || Date.now()),
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      };
+    });
   } catch (error) {
-    console.error('Sitemap: Error fetching members', error);
+    console.error('Sitemap: Error fetching members from newMemberCollection', error);
   }
 
   return [...staticPages, ...postPages, ...memberPages];

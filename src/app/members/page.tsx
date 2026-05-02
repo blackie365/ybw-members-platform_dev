@@ -1,14 +1,30 @@
-import { ENDPOINTS } from '@/lib/firebase-functions';
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
+import { adminDb } from '@/lib/firebase-admin';
 
 async function getMembers() {
-  const res = await fetch(ENDPOINTS.getMembers);
-  if (!res.ok) {
-    throw new Error('Failed to fetch members');
+  try {
+    const snapshot = await adminDb.collection('newMemberCollection').get();
+    const members = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Map common fields in case they differ slightly
+        name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
+        company: data.companyName || data.company,
+        role: data.jobTitle || data.role,
+        bio: data.bio,
+        location: data.location || data.city,
+        image: data.profileImage || data.image,
+        linkedin: data.linkedinUrl || data.linkedin,
+        website: data.websiteUrl || data.website
+      };
+    });
+    return members;
+  } catch (error) {
+    console.error('Failed to fetch members from newMemberCollection:', error);
+    return [];
   }
-  const data = await res.json();
-  const members = data.members || [];
-  return members;
 }
 
 export default async function MembersPage() {

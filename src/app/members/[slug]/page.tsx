@@ -1,4 +1,4 @@
-import { ENDPOINTS } from '@/lib/firebase-functions';
+import { adminDb } from '@/lib/firebase-admin';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -6,19 +6,25 @@ import { Metadata } from 'next';
 
 async function getMemberBySlug(slug: string) {
   try {
-    const url = `${ENDPOINTS.getMembers}?slug=${encodeURIComponent(slug)}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) {
-      console.error(`Failed to fetch member: ${res.status} ${res.statusText}`);
-      return null;
+    // Attempt to find the member by slug in newMemberCollection
+    const snapshot = await adminDb.collection('newMemberCollection')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+      
+    if (!snapshot.empty) {
+      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
     }
-    const data = await res.json();
-    if (data.success && data.members && data.members.length > 0) {
-      return data.members[0];
+    
+    // Fallback: check if the slug is actually the document ID
+    const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
+    if (docRef.exists) {
+      return { id: docRef.id, ...docRef.data() } as any;
     }
+
     return null;
   } catch (error) {
-    console.error('Error fetching member by slug:', error);
+    console.error('Error fetching member by slug from newMemberCollection:', error);
     return null;
   }
 }
