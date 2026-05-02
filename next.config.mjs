@@ -36,6 +36,20 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/**/*': ['./src/app/**/*.mdx'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/members-dashboard',
+        destination: '/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/members-dashboard/:path*',
+        destination: '/dashboard/:path*',
+        permanent: true,
+      }
+    ];
+  },
 }
 
 export default withSearch(withMDX(nextConfig))
