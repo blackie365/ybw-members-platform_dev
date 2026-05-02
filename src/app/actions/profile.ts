@@ -4,6 +4,9 @@ import { adminDb } from '@/lib/firebase-admin';
 
 export async function getProfile(uid: string) {
   try {
+    if (!process.env.FIREBASE_PRIVATE_KEY) {
+      throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
+    }
     if (!uid) throw new Error('User ID is required');
     
     const docRef = adminDb.collection('newMemberCollection').doc(uid);
@@ -32,6 +35,9 @@ export async function getProfile(uid: string) {
 
 export async function updateProfile(uid: string, email: string, profileData: any) {
   try {
+    if (!process.env.FIREBASE_PRIVATE_KEY) {
+      throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
+    }
     if (!uid) throw new Error('User ID is required');
     
     const docRef = adminDb.collection('newMemberCollection').doc(uid);
