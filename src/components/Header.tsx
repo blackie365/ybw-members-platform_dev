@@ -66,7 +66,8 @@ export const Header = forwardRef<
       ref={ref}
       className={clsx(
         className,
-        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:z-30 lg:px-8',
+        isFullWidthRoute ? 'sticky top-0 inset-x-0' : 'fixed inset-x-0 top-0',
+        'z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:z-30 lg:px-8',
         !isFullWidthRoute && 'lg:left-72 xl:left-80',
         !isInsideMobileNavigation && 'backdrop-blur-xs dark:backdrop-blur-sm',
         !isInsideMobileNavigation && !isFullWidthRoute && 'lg:left-72 xl:left-80',

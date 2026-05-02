@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { Logo } from '@/components/Logo'
 import { Navigation } from '@/components/Navigation'
+import { TopBanner } from '@/components/TopBanner'
 import { SectionProvider, type Section } from '@/components/SectionProvider'
 
 export function Layout({
@@ -26,7 +27,8 @@ export function Layout({
     return (
       <SectionProvider sections={allSections[pathname] ?? []}>
         <div className="flex min-h-screen flex-col">
-          <Header className="relative" />
+          <TopBanner />
+          <Header />
           <main className="flex-auto">{children}</main>
           <Footer />
         </div>
