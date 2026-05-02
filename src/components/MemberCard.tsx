@@ -4,14 +4,14 @@ export function MemberCard({ member }: { member: any }) {
   const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
   const firstName = member.firstName || member['First Name'] || '';
   const lastName = member.lastName || member['Last Name'] || '';
-  const initial = firstName ? firstName[0] : '?';
+  const initial = firstName ? firstName[0].toUpperCase() : '?';
   const bio = member.bio || member['Bio'] || '';
 
   return (
     <div className="group relative flex flex-col items-start justify-between rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 p-6 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
       <div className="flex items-center gap-4 mb-4 w-full">
         <div className="relative h-16 w-16 flex-none overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-          {profileImage ? (
+          {profileImage && !profileImage.includes('gravatar.com/avatar') ? (
             <Image
               src={profileImage}
               alt={firstName || 'Member'}
@@ -43,7 +43,7 @@ export function MemberCard({ member }: { member: any }) {
 
       <div className="mt-4 w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
         <a
-          href={`/members/${member.memberSlug || member.slug}`}
+          href={`/members/${member.memberSlug || member.slug || member.id}`}
           className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
         >
           View Profile &rarr;

@@ -7,11 +7,21 @@ import { Metadata } from 'next';
 async function getMemberBySlug(slug: string) {
   try {
     // Attempt to find the member by slug in newMemberCollection
-    const snapshot = await adminDb.collection('newMemberCollection')
+    let snapshot = await adminDb.collection('newMemberCollection')
       .where('slug', '==', slug)
       .limit(1)
       .get();
       
+    if (!snapshot.empty) {
+      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+    }
+    
+    // Also check 'memberSlug' as some documents use that field
+    snapshot = await adminDb.collection('newMemberCollection')
+      .where('memberSlug', '==', slug)
+      .limit(1)
+      .get();
+
     if (!snapshot.empty) {
       return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
     }
@@ -79,7 +89,7 @@ export default async function MemberProfilePage({
     member.avatarUrl || member.profileImage || member['Profile Image'];
   const firstName = member.firstName || member['First Name'] || '';
   const lastName = member.lastName || member['Last Name'] || '';
-  const initial = firstName ? firstName[0] : '?';
+  const initial = firstName ? firstName[0].toUpperCase() : '?';
   const bio = member.bio || member['Bio'] || '';
 
   return (
@@ -101,7 +111,7 @@ export default async function MemberProfilePage({
         <div className="px-6 sm:px-10 pb-12">
           <div className="relative flex justify-between items-end -mt-12 sm:-mt-16 mb-6">
             <div className="relative h-24 w-24 sm:h-32 sm:w-32 rounded-full ring-4 ring-white dark:ring-zinc-900 bg-emerald-100 dark:bg-emerald-900/30 overflow-hidden shadow-md flex-shrink-0">
-              {profileImage ? (
+              {profileImage && !profileImage.includes('gravatar.com/avatar') ? (
                 <Image
                   src={profileImage}
                   alt={firstName}
