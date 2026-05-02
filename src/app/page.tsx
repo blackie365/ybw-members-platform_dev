@@ -89,19 +89,19 @@ export default async function HomePage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-14">
         {/* Hero Section */}
         <div className="relative pb-16 pt-10 sm:pb-24">
-          <div className="max-w-4xl">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl dark:text-white">
-            Yorkshire Businesswoman
+          <div className="max-w-4xl text-center sm:text-left mx-auto sm:mx-0">
+          <h1 className="text-5xl font-extrabold tracking-tight text-zinc-900 sm:text-7xl dark:text-white mb-2">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-pink-500">Yorkshire</span> Businesswoman
           </h1>
-          <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Welcome to the online platform for the region's most inspiring and ambitious women. 
+          <p className="mt-6 text-lg sm:text-xl leading-8 text-zinc-600 dark:text-zinc-300">
+            Welcome to the premier online platform for the region's most inspiring and ambitious women. 
             Connect with local professionals, stay up to date with the latest business news, and discover exclusive events.
           </p>
-          <div className="mt-8 flex gap-4">
-            <Button href="/register" arrow="right">
+          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center sm:justify-start">
+            <Button href="/register" arrow="right" className="text-base px-6 py-3">
               Join the Community
             </Button>
-            <Button href="/news" variant="outline">
+            <Button href="/news" variant="outline" className="text-base px-6 py-3">
               Read Latest News
             </Button>
           </div>
@@ -126,10 +126,10 @@ export default async function HomePage() {
               <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8 lg:grid-cols-3">
                 {/* Featured Article (spans 2 columns) */}
                 {featuredArticle && (
-                  <div key={featuredArticle.id} className="sm:col-span-2 lg:col-span-2 group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-                    <div className="relative w-full mb-4 flex-grow">
+                  <div key={featuredArticle.id} className="sm:col-span-2 lg:col-span-2 group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl p-6 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-lg hover:ring-indigo-500/30 dark:hover:ring-indigo-400/30">
+                    <div className="relative w-full mb-5 flex-grow overflow-hidden rounded-2xl">
                       {getFeaturedMedia(featuredArticle.html) ? (
-                        <div className="aspect-[16/9] w-full rounded-xl bg-black flex items-center justify-center overflow-hidden relative h-full">
+                        <div className="aspect-[16/9] w-full bg-black flex items-center justify-center overflow-hidden relative h-full">
                           <div dangerouslySetInnerHTML={{ __html: getFeaturedMedia(featuredArticle.html) as string }} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:border-0" />
                         </div>
                       ) : featuredArticle.feature_image ? (
@@ -139,27 +139,33 @@ export default async function HomePage() {
                           width={800}
                           height={500}
                           priority
-                          className="aspect-[16/9] w-full rounded-xl bg-zinc-100 object-cover dark:bg-zinc-800 h-full"
+                          className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 h-full group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="aspect-[16/9] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                        <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
                           <span className="text-zinc-400 dark:text-zinc-500 text-sm">No featured media</span>
                         </div>
                       )}
+                      
+                      <div className="absolute top-4 left-4">
+                        <span className="inline-flex items-center rounded-full bg-indigo-600/90 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                          Featured
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-x-4 text-xs mb-2">
-                      <time dateTime={featuredArticle.published_at} className="text-zinc-500 dark:text-zinc-400">
-                        {featuredArticle.published_at ? format(new Date(featuredArticle.published_at), 'MMM d, yyyy') : ''}
+                    <div className="flex items-center gap-x-4 text-sm mb-3">
+                      <time dateTime={featuredArticle.published_at} className="text-zinc-500 dark:text-zinc-400 font-medium">
+                        {featuredArticle.published_at ? format(new Date(featuredArticle.published_at), 'MMMM d, yyyy') : ''}
                       </time>
                     </div>
-                    <h3 className="text-lg sm:text-xl font-semibold leading-7 text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
+                    <h3 className="text-2xl sm:text-3xl font-bold leading-tight text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400 transition-colors">
                       <Link href={`/news/${featuredArticle.slug}`}>
                         <span className="absolute inset-0" />
                         {featuredArticle.title}
                       </Link>
                     </h3>
                     {(featuredArticle.custom_excerpt || featuredArticle.excerpt) && (
-                      <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400 line-clamp-3">
+                      <p className="mt-4 text-base leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3">
                         {featuredArticle.custom_excerpt || featuredArticle.excerpt}
                       </p>
                     )}
@@ -170,18 +176,18 @@ export default async function HomePage() {
                 {mainNews.length > 0 && (
                   <div className="col-span-full lg:col-span-1 flex flex-col gap-6">
                     {mainNews.slice(0, 2).map((item: any) => (
-                      <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20 flex-1">
-                        <div className="relative w-full mb-3">
+                      <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-md hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20 flex-1">
+                        <div className="relative w-full mb-3 overflow-hidden rounded-lg">
                           {item.feature_image ? (
                             <Image
                               src={item.feature_image}
                               alt={item.title}
                               width={400}
                               height={200}
-                              className="aspect-[16/9] lg:aspect-[2/1] w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
+                              className="aspect-[16/9] lg:aspect-[2/1] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="aspect-[16/9] lg:aspect-[2/1] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                            <div className="aspect-[16/9] lg:aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
                               <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
                             </div>
                           )}
@@ -206,18 +212,18 @@ export default async function HomePage() {
 
                 {/* Other Main News Articles */}
                 {mainNews.slice(2).map((item: any) => (
-                  <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-                    <div className="relative w-full mb-4">
+                  <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-md hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20">
+                    <div className="relative w-full mb-4 overflow-hidden rounded-lg">
                       {item.feature_image ? (
                         <Image
                           src={item.feature_image}
                           alt={item.title}
                           width={400}
                           height={250}
-                          className="aspect-[16/9] w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
+                          className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
-                        <div className="aspect-[16/9] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                        <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
                           <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
                         </div>
                       )}
@@ -271,49 +277,60 @@ export default async function HomePage() {
 
         {/* Upcoming Events Section */}
         {events.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Upcoming Events</h2>
-              <Link href="/news?tag=events" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+          <section className="bg-zinc-50 dark:bg-zinc-800/20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 sm:py-24 rounded-3xl ring-1 ring-zinc-200 dark:ring-zinc-800">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Upcoming Events</h2>
+                <p className="mt-2 text-zinc-600 dark:text-zinc-400">Join us for our upcoming exclusive networking and business events.</p>
+              </div>
+              <Link href="/news?tag=events" className="hidden sm:block text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
                 View all events <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {events.map((event: any) => (
-                <div key={event.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-                  <div className="relative w-full mb-4">
+                <div key={event.id} className="group relative flex flex-col items-start justify-between bg-white dark:bg-zinc-800/80 rounded-2xl p-5 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-lg hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20">
+                  <div className="relative w-full mb-5 overflow-hidden rounded-xl">
                     {event.feature_image ? (
                       <Image
                         src={event.feature_image}
                         alt={event.title}
                         width={400}
                         height={250}
-                        className="aspect-[16/9] w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
+                        className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="aspect-[16/9] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                      <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
                         <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
                       </div>
                     )}
+                    <div className="absolute top-3 right-3 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-2.5 py-1 rounded-md shadow-sm">
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Event</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-x-4 text-xs mb-2">
-                    <time dateTime={event.published_at} className="text-zinc-500 dark:text-zinc-400">
+                  <div className="flex items-center gap-x-4 text-xs mb-3">
+                    <time dateTime={event.published_at} className="text-zinc-500 dark:text-zinc-400 font-medium">
                       {event.published_at ? format(new Date(event.published_at), 'MMM d, yyyy') : ''}
                     </time>
                   </div>
-                  <h3 className="text-sm font-semibold leading-6 text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
+                  <h3 className="text-lg font-bold leading-tight text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
                     <Link href={`/news/${event.slug}`}>
                       <span className="absolute inset-0" />
                       {event.title}
                     </Link>
                   </h3>
                   {(event.custom_excerpt || event.excerpt) && (
-                    <p className="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-2">
                       {event.custom_excerpt || event.excerpt}
                     </p>
                   )}
                 </div>
               ))}
+            </div>
+            <div className="mt-8 sm:hidden">
+              <Link href="/news?tag=events" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+                View all events <span aria-hidden="true">&rarr;</span>
+              </Link>
             </div>
           </section>
         )}
