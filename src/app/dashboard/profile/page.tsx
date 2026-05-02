@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { db, storage } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
+import { getProfile, updateProfile } from '@/app/actions/profile';
 
 export default function DashboardProfile() {
   const { user, loading: authLoading } = useAuth();
@@ -37,12 +37,11 @@ export default function DashboardProfile() {
       }
       
       try {
-        const docRef = doc(db, 'newMemberCollection', user.uid);
-        const docSnap = await getDoc(docRef);
+        const result = await getProfile(user.uid);
         
-        if (docSnap.exists()) {
-          setDocId(docSnap.id);
-          const data = docSnap.data();
+        if (result.success && result.data) {
+          setDocId(result.id || user.uid);
+          const data = result.data;
           
           setFormData({
             firstName: data.firstName || data['First Name'] || '',
@@ -121,29 +120,22 @@ export default function DashboardProfile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.uid) return;
+    if (!user?.uid || !user?.email) return;
     
     setSaving(true);
     setMessage({ type: '', text: '' });
     
     try {
-      const docRef = doc(db, 'newMemberCollection', user.uid);
+      const result = await updateProfile(user.uid, user.email, formData);
       
-      // Merge new data into the existing document, or create it if missing
-      await setDoc(docRef, {
-        ...formData,
-        email: user.email,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-      
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to update profile. Please try again.' });
+      }
     } catch (error: any) {
       console.error('Error saving profile:', error);
-      if (error.code === 'permission-denied') {
-        setMessage({ type: 'error', text: 'Permission denied. Please ensure your account has the correct permissions to update.' });
-      } else {
-        setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
-      }
+      setMessage({ type: 'error', text: 'An unexpected error occurred. Please try again.' });
     } finally {
       setSaving(false);
       

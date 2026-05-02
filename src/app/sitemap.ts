@@ -57,9 +57,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const snapshot = await adminDb.collection('newMemberCollection').get();
     memberPages = snapshot.docs.map(doc => {
       const member = doc.data();
+      let lastMod = new Date();
+      if (member.updatedAt) {
+        if (typeof member.updatedAt === 'object' && '_seconds' in member.updatedAt) {
+          lastMod = new Date(member.updatedAt._seconds * 1000);
+        } else if (typeof member.updatedAt === 'string' || typeof member.updatedAt === 'number') {
+          lastMod = new Date(member.updatedAt);
+        }
+      }
+
       return {
         url: `${siteUrl}/members/${member.slug || doc.id}`,
-        lastModified: new Date(member.updatedAt || Date.now()),
+        lastModified: isNaN(lastMod.getTime()) ? new Date() : lastMod,
         changeFrequency: 'monthly',
         priority: 0.6,
       };

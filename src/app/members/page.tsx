@@ -6,18 +6,27 @@ async function getMembers() {
     const snapshot = await adminDb.collection('newMemberCollection').get();
     const members = snapshot.docs.map(doc => {
       const data = doc.data();
+      
+      // Sanitize the data to remove non-serializable objects (like Firebase Timestamps)
+      const sanitizedData = JSON.parse(JSON.stringify(data, (key, value) => {
+        if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
+          return new Date(value._seconds * 1000).toISOString();
+        }
+        return value;
+      }));
+
       return {
         id: doc.id,
-        ...data,
+        ...sanitizedData,
         // Map common fields in case they differ slightly
-        name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
-        company: data.companyName || data.company,
-        role: data.jobTitle || data.role,
-        bio: data.bio,
-        location: data.location || data.city,
-        image: data.profileImage || data.image,
-        linkedin: data.linkedinUrl || data.linkedin,
-        website: data.websiteUrl || data.website
+        name: sanitizedData.displayName || `${sanitizedData.firstName || ''} ${sanitizedData.lastName || ''}`.trim() || sanitizedData.name,
+        company: sanitizedData.companyName || sanitizedData.company,
+        role: sanitizedData.jobTitle || sanitizedData.role,
+        bio: sanitizedData.bio,
+        location: sanitizedData.location || sanitizedData.city,
+        image: sanitizedData.profileImage || sanitizedData.image,
+        linkedin: sanitizedData.linkedinUrl || sanitizedData.linkedin,
+        website: sanitizedData.websiteUrl || sanitizedData.website
       };
     });
     return members;
