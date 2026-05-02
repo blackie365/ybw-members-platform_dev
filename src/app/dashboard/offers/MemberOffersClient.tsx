@@ -25,12 +25,12 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
             Exclusive discounts, perks, and opportunities provided by our partners and fellow Yorkshire Businesswoman members.
           </p>
         </div>
-        <a 
-          href="/news?tag=contact" 
+        <Link 
+          href="/dashboard/offers/create" 
           className="inline-flex justify-center items-center rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
         >
           Submit an Offer
-        </a>
+        </Link>
       </div>
 
       {initialOffers.length > 0 && (
