@@ -16,7 +16,9 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app, "ybm-db20032026");
+// Use the provided database ID from env, or default to '(default)'
+const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)";
+const db = getFirestore(app, dbId);
 const storage = getStorage(app);
 
 export { app, auth, db, storage };

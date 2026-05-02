@@ -8,6 +8,24 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 
+// Function to call our new secure API route to sync with Ghost
+async function syncToGhost(email: string, name: string) {
+  try {
+    await fetch('/api/revalidate/ghost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_member',
+        email,
+        name,
+        labels: ['firebase-synced']
+      })
+    });
+  } catch (err) {
+    console.error('Failed to sync to Ghost, but Firebase registration succeeded', err);
+  }
+}
+
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -40,7 +58,7 @@ export default function RegisterPage() {
       });
 
       // Create member document in Firestore
-      await setDoc(doc(db, 'members', user.uid), {
+      await setDoc(doc(db, 'newMemberCollection', user.uid), {
         firstName,
         lastName,
         email,
@@ -48,6 +66,10 @@ export default function RegisterPage() {
         status: 'active',
         createdAt: new Date().toISOString(),
       });
+
+      // Silently sync this new user to the Ghost Admin API
+      // so they receive newsletters instantly
+      await syncToGhost(email, `${firstName} ${lastName}`.trim());
 
       router.push('/dashboard');
     } catch (err: any) {
@@ -73,7 +95,7 @@ export default function RegisterPage() {
       const fName = nameParts[0] || '';
       const lName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-      await setDoc(doc(db, 'members', user.uid), {
+      await setDoc(doc(db, 'newMemberCollection', user.uid), {
         firstName: fName,
         lastName: lName,
         email: user.email,

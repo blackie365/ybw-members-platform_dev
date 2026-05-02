@@ -27,5 +27,6 @@ if (!admin.apps.length) {
 }
 
 // Specify the correct database ID used by the production project
-export const adminDb = getFirestore(admin.app(), 'ybm-db20032026');
+const dbId = process.env.FIREBASE_DATABASE_ID || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
+export const adminDb = getFirestore(admin.app(), dbId);
 export const adminAuth = admin.auth();

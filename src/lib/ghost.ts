@@ -163,3 +163,44 @@ export async function getGhostMembers(options?: { limit?: number | string; filte
   }
 }
 
+/**
+ * Add a new member to Ghost via Admin API
+ */
+export async function addGhostMember(data: { email: string; name?: string; note?: string; labels?: string[] }) {
+  if (!ghostAdmin) {
+    console.warn("Ghost Admin API is not initialized. Cannot sync member to Ghost.");
+    return null;
+  }
+
+  try {
+    const member = await ghostAdmin.members.add(data);
+    return member;
+  } catch (err: any) {
+    // If the member already exists, we can safely ignore the error
+    if (err.context && err.context.includes('Validation error, cannot save member. Validation failed for email.')) {
+      console.log(`Ghost member ${data.email} already exists, skipping creation.`);
+      return null;
+    }
+    console.error("Error adding Ghost member via Admin API:", err);
+    throw err;
+  }
+}
+
+/**
+ * Update an existing member in Ghost via Admin API (e.g. to mark as paid via Stripe ID)
+ */
+export async function editGhostMember(id: string, data: any) {
+  if (!ghostAdmin) {
+    console.warn("Ghost Admin API is not initialized. Cannot edit member in Ghost.");
+    return null;
+  }
+
+  try {
+    const member = await ghostAdmin.members.edit(Object.assign({}, data, { id }));
+    return member;
+  } catch (err) {
+    console.error("Error editing Ghost member via Admin API:", err);
+    throw err;
+  }
+}
+
