@@ -37,12 +37,18 @@ export default function DashboardProfile() {
       }
       
       try {
-        const docRef = doc(db, 'members', user.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setDocId(docSnap.id);
-          const data = docSnap.data();
+      // Try to read from newMemberCollection first, fallback to members
+      let docRef = doc(db, 'newMemberCollection', user.uid);
+      let docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        docRef = doc(db, 'members', user.uid);
+        docSnap = await getDoc(docRef);
+      }
+      
+      if (docSnap.exists()) {
+        setDocId(docSnap.id);
+        const data = docSnap.data();
           
           setFormData({
             firstName: data.firstName || data['First Name'] || '',
@@ -127,7 +133,20 @@ export default function DashboardProfile() {
     setMessage({ type: '', text: '' });
     
     try {
-      const docRef = doc(db, 'members', user.uid);
+      // First try to determine which collection they belong to
+      let collectionName = 'newMemberCollection';
+      const newMemberRef = doc(db, 'newMemberCollection', user.uid);
+      const newMemberSnap = await getDoc(newMemberRef);
+      
+      if (!newMemberSnap.exists()) {
+        const oldMemberRef = doc(db, 'members', user.uid);
+        const oldMemberSnap = await getDoc(oldMemberRef);
+        if (oldMemberSnap.exists()) {
+          collectionName = 'members';
+        }
+      }
+
+      const docRef = doc(db, collectionName, user.uid);
       
       // Merge new data into the existing document, or create it if missing
       await setDoc(docRef, {
@@ -137,9 +156,13 @@ export default function DashboardProfile() {
       }, { merge: true });
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving profile:', error);
-      setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+      if (error.code === 'permission-denied') {
+        setMessage({ type: 'error', text: 'Permission denied. Please ensure your account has the correct permissions to update.' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+      }
     } finally {
       setSaving(false);
       
