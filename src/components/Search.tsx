@@ -22,8 +22,9 @@ import {
 import Highlighter from 'react-highlight-words'
 
 import { navigation } from '@/components/Navigation'
-import { type Result } from '@/mdx/search.mjs'
 import { useMobileNavigationStore } from './MobileNavigation'
+
+type Result = { url: string; title: string; pageTitle?: string; content?: string }
 
 type EmptyObject = Record<string, never>
 
@@ -68,22 +69,20 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
       navigator: {
         navigate,
       },
-      getSources({ query }) {
-        return import('@/mdx/search.mjs').then(({ search }) => {
-          return [
-            {
-              sourceId: 'documentation',
-              getItems() {
-                return search(query, { limit: 5 })
-              },
-              getItemUrl({ item }) {
-                return item.url
-              },
-              onSelect: navigate,
-            },
-          ]
-        })
-      },
+    getSources({ query }) {
+      return [
+        {
+          sourceId: 'documentation',
+          getItems() {
+            return [] // Disabled MDX search
+          },
+          getItemUrl({ item }) {
+            return item.url as string
+          },
+          onSelect: navigate,
+        },
+      ]
+    },
     }),
   )
 

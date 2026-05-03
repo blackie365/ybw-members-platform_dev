@@ -1,18 +1,35 @@
-import Link from 'next/link'
 import Image from 'next/image'
+import Link from 'next/link'
 import { format } from 'date-fns'
-
-import { Button } from '@/components/Button'
-import { HeroPattern } from '@/components/HeroPattern'
+import { Button } from '@/components/ui/button'
 import { getPosts, getTags } from '@/lib/ghost'
-import { ENDPOINTS } from '@/lib/firebase-functions'
+import { adminDb } from '@/lib/firebase-admin'
 import { MemberCard } from '@/components/MemberCard'
-import { getExternalNews } from '@/lib/externalNews'
+import { CategorySection } from '@/components/CategorySection'
 import { getLatestMarketInsight } from '@/lib/marketInsights'
-// Import components that use client-side state
-import MarketInsightsWidget from '@/components/MarketInsightsWidget';
-import VideoNewsWidget from '@/components/VideoNewsWidget';
-import { CategorySection } from '@/components/CategorySection';
+import { getExternalNews } from '@/lib/externalNews'
+import MarketInsightsWidget from '@/components/MarketInsightsWidget'
+import VideoNewsWidget from '@/components/VideoNewsWidget'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+
+async function getFeaturedMembers() {
+  try {
+    const snapshot = await adminDb.collection('newMemberCollection').limit(4).get();
+    return snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?._seconds ? new Date(data.createdAt._seconds * 1000).toISOString() : null,
+        updatedAt: data.updatedAt?._seconds ? new Date(data.updatedAt._seconds * 1000).toISOString() : null,
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching featured members:", error);
+    return [];
+  }
+}
 
 export const metadata = {
   title: 'Yorkshire Businesswoman | Home',
@@ -20,20 +37,6 @@ export const metadata = {
 }
 
 export const revalidate = 3600 // 1 hour (Cache is purged instantly by webhook anyway)
-
-async function getMembers() {
-  try {
-    const res = await fetch(ENDPOINTS.getMembers);
-    if (!res.ok) {
-      return [];
-    }
-    const data = await res.json();
-    return data.members || [];
-  } catch (error) {
-    console.error('Failed to fetch members:', error);
-    return [];
-  }
-}
 
 function getFeaturedMedia(html?: string) {
   if (!html) return null;
@@ -55,10 +58,10 @@ function getFeaturedMedia(html?: string) {
 }
 
 export default async function HomePage() {
-  const [events, allPosts, allMembers, externalNews, marketInsight, topTags] = await Promise.all([
+  const [events, allPosts, featuredMembers, externalNews, marketInsight, topTags] = await Promise.all([
     getPosts({ limit: 4, filter: 'tag:events' }),
     getPosts({ limit: 6 }), // Fetch the 6 absolute newest posts across all categories
-    getMembers(),
+    getFeaturedMembers(),
     getExternalNews(8),
     getLatestMarketInsight(),
     getTags({ limit: 6, include: 'count.posts', order: 'count.posts DESC', filter: 'visibility:public' })
@@ -75,262 +78,209 @@ export default async function HomePage() {
     })
   );
 
-  // Get a few members for the spotlight section
-  const featuredMembers = allMembers.slice(0, 4);
-
   // Extract featured article from the newest posts overall
   const featuredArticle = allPosts.length > 0 ? allPosts[0] : null;
   const mainNews = allPosts.length > 1 ? allPosts.slice(1, 6) : [];
 
   return (
-    <div className="relative">
-      <HeroPattern />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-14">
-        {/* Hero Section */}
-        <div className="relative pb-16 pt-10 sm:pb-24">
-          <div className="max-w-4xl text-center sm:text-left mx-auto sm:mx-0">
-          <h1 className="text-5xl font-extrabold tracking-tight text-zinc-900 sm:text-7xl dark:text-white mb-2">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-pink-500">Yorkshire</span> Businesswoman
+    <div className="bg-background text-foreground pb-24">
+      {/* Magazine Header / Title */}
+      <div className="border-b border-border bg-card">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-20 text-center">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter uppercase mb-6 text-primary font-serif">
+            Yorkshire <span className="text-foreground">Businesswoman</span>
           </h1>
-          <p className="mt-6 text-lg sm:text-xl leading-8 text-zinc-600 dark:text-zinc-300">
-            Welcome to the premier online platform for the region's most inspiring and ambitious women. 
-            Connect with local professionals, stay up to date with the latest business news, and discover exclusive events.
+          <p className="max-w-2xl mx-auto text-xl text-muted-foreground leading-relaxed">
+            The premier community and news platform for ambitious professionals across the region.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center sm:justify-start">
-            <Button href="/register" arrow="right" className="text-base px-6 py-3">
-              Join the Community
-            </Button>
-            <Button href="/news" variant="outline" className="text-base px-6 py-3">
-              Read Latest News
-            </Button>
-          </div>
         </div>
       </div>
 
-      <div className="space-y-20 pb-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 space-y-24">
         
-        {/* Latest News Section */}
-        {allPosts.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Latest Posts</h2>
-              <Link href="/news" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                View all posts <span aria-hidden="true">&rarr;</span>
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              
-              {/* Left Content Area (Cols 1-3) */}
-              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-8 lg:grid-cols-3">
-                {/* Featured Article (spans 2 columns) */}
-                {featuredArticle && (
-                  <div key={featuredArticle.id} className="sm:col-span-2 lg:col-span-2 group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl p-6 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-lg hover:ring-indigo-500/30 dark:hover:ring-indigo-400/30">
-                    <div className="relative w-full mb-5 flex-grow overflow-hidden rounded-2xl">
-                      {getFeaturedMedia(featuredArticle.html) ? (
-                        <div className="aspect-[16/9] w-full bg-black flex items-center justify-center overflow-hidden relative h-full">
-                          <div dangerouslySetInnerHTML={{ __html: getFeaturedMedia(featuredArticle.html) as string }} className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:top-0 [&>iframe]:left-0 [&>iframe]:border-0" />
-                        </div>
-                      ) : featuredArticle.feature_image ? (
-                        <Image
-                          src={featuredArticle.feature_image}
-                          alt={featuredArticle.title}
-                          width={800}
-                          height={500}
-                          priority
-                          className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 h-full group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                          <span className="text-zinc-400 dark:text-zinc-500 text-sm">No featured media</span>
-                        </div>
-                      )}
-                      
-                      <div className="absolute top-4 left-4">
-                        <span className="inline-flex items-center rounded-full bg-indigo-600/90 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                          Featured
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-x-4 text-sm mb-3">
-                      <time dateTime={featuredArticle.published_at} className="text-zinc-500 dark:text-zinc-400 font-medium">
-                        {featuredArticle.published_at ? format(new Date(featuredArticle.published_at), 'MMMM d, yyyy') : ''}
-                      </time>
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-bold leading-tight text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400 transition-colors">
-                      <Link href={`/news/${featuredArticle.slug}`}>
-                        <span className="absolute inset-0" />
-                        {featuredArticle.title}
-                      </Link>
-                    </h3>
-                    {(featuredArticle.custom_excerpt || featuredArticle.excerpt) && (
-                      <p className="mt-4 text-base leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3">
-                        {featuredArticle.custom_excerpt || featuredArticle.excerpt}
-                      </p>
-                    )}
+        {/* Featured Hero Article */}
+        <section>
+          {featuredArticle && (
+            <article className="group relative grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+              <div className="relative w-full aspect-[4/3] lg:aspect-[4/3] lg:h-full overflow-hidden rounded-2xl bg-muted order-1 lg:order-2 shadow-lg">
+                {featuredArticle.feature_image ? (
+                  <Image
+                    src={featuredArticle.feature_image}
+                    alt={featuredArticle.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                    No image available
                   </div>
                 )}
+              </div>
 
-                {/* Third Column Top: 2 Stacked Articles (compact to match featured article height) */}
-                {mainNews.length > 0 && (
-                  <div className="col-span-full lg:col-span-1 flex flex-col gap-6">
-                    {mainNews.slice(0, 2).map((item: any) => (
-                      <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-md hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20 flex-1">
-                        <div className="relative w-full mb-3 overflow-hidden rounded-lg">
-                          {item.feature_image ? (
-                            <Image
-                              src={item.feature_image}
-                              alt={item.title}
-                              width={400}
-                              height={200}
-                              className="aspect-[16/9] lg:aspect-[2/1] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="aspect-[16/9] lg:aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                              <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col justify-end flex-1 w-full">
-                          <div className="flex items-center gap-x-4 text-xs mb-1">
-                            <time dateTime={item.published_at} className="text-zinc-500 dark:text-zinc-400">
-                              {item.published_at ? format(new Date(item.published_at), 'MMM d, yyyy') : ''}
-                            </time>
-                          </div>
-                          <h3 className="text-sm font-semibold leading-6 text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400 line-clamp-3">
-                            <Link href={`/news/${item.slug}`}>
-                              <span className="absolute inset-0" />
-                              {item.title}
-                            </Link>
-                          </h3>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex flex-col justify-center space-y-6 lg:space-y-8 order-2 lg:order-1 py-4 lg:py-12">
+                <div className="flex items-center gap-4">
+                  <Badge variant="default" className="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary text-primary-foreground">
+                    Featured
+                  </Badge>
+                  <time dateTime={featuredArticle.published_at} className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
+                    {featuredArticle.published_at ? format(new Date(featuredArticle.published_at), 'MMMM d, yyyy') : ''}
+                  </time>
+                </div>
+
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] text-foreground group-hover:text-primary transition-colors duration-300">
+                  <Link href={`/news/${featuredArticle.slug}`}>
+                    <span className="absolute inset-0 z-10" />
+                    {featuredArticle.title}
+                  </Link>
+                </h2>
+
+                {(featuredArticle.custom_excerpt || featuredArticle.excerpt) && (
+                  <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed line-clamp-3">
+                    {featuredArticle.custom_excerpt || featuredArticle.excerpt}
+                  </p>
                 )}
 
-                {/* Other Main News Articles */}
-                {mainNews.slice(2).map((item: any) => (
-                  <div key={item.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-md hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20">
-                    <div className="relative w-full mb-4 overflow-hidden rounded-lg">
-                      {item.feature_image ? (
+                <div className="pt-4 flex items-center">
+                  <span className="inline-flex items-center text-sm font-bold text-primary uppercase tracking-widest group-hover:translate-x-2 transition-transform duration-300">
+                    Read Story <span className="ml-2 text-lg leading-none">&rarr;</span>
+                  </span>
+                </div>
+              </div>
+            </article>
+          )}
+        </section>
+
+        <Separator className="my-12" />
+
+        {/* Latest News Section with Sidebar */}
+        <section>
+          <div className="flex items-end justify-between mb-8">
+            <h2 className="text-3xl font-bold tracking-tight uppercase border-b-4 border-primary pb-2 inline-block">
+              Latest News
+            </h2>
+            <Button variant="link" asChild className="hidden sm:inline-flex">
+              <Link href="/news">View all posts &rarr;</Link>
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+            {/* Left Content Area (Cols 1-3) */}
+            <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {mainNews.map((post: any) => (
+                  <div key={post.id} className="group overflow-hidden rounded-xl border border-border/50 bg-background hover:border-primary/50 transition-colors duration-300">
+                    <div className="relative aspect-[16/9] overflow-hidden bg-muted">
+                      {post.feature_image ? (
                         <Image
-                          src={item.feature_image}
-                          alt={item.title}
-                          width={400}
-                          height={250}
-                          className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
+                          src={post.feature_image}
+                          alt={post.title}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       ) : (
-                        <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                          <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
+                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+                          No image
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-x-4 text-xs mb-2">
-                      <time dateTime={item.published_at} className="text-zinc-500 dark:text-zinc-400">
-                        {item.published_at ? format(new Date(item.published_at), 'MMM d, yyyy') : ''}
+                    
+                    <div className="p-5">
+                      <time dateTime={post.published_at} className="text-xs font-medium text-muted-foreground mb-2 block">
+                        {post.published_at ? format(new Date(post.published_at), 'MMMM d, yyyy') : ''}
                       </time>
+                      <h3 className="text-xl font-bold leading-tight group-hover:text-primary transition-colors line-clamp-2 mb-3">
+                        <Link href={`/news/${post.slug}`}>
+                          <span className="absolute inset-0" />
+                          {post.title}
+                        </Link>
+                      </h3>
+                      {(post.custom_excerpt || post.excerpt) && (
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {post.custom_excerpt || post.excerpt}
+                        </p>
+                      )}
                     </div>
-                    <h3 className="text-sm font-semibold leading-6 text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
-                      <Link href={`/news/${item.slug}`}>
-                        <span className="absolute inset-0" />
-                        {item.title}
-                      </Link>
-                    </h3>
-                    {(item.custom_excerpt || item.excerpt) && (
-                      <p className="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                        {item.custom_excerpt || item.excerpt}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
-
-              {/* Right Sidebar (Col 4) */}
-              <div className="lg:col-span-1 space-y-8">
-                {/* Market Insights Widget */}
-                <MarketInsightsWidget insight={marketInsight} />
-
-                {/* Web Ad Space */}
-                <div className="w-full aspect-square sm:aspect-auto sm:h-[250px] bg-zinc-100 dark:bg-zinc-800/80 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex flex-col items-center justify-center p-4 text-center">
-                  <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Advertisement</span>
-                  <div className="w-full h-full border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg flex items-center justify-center">
-                    <span className="text-zinc-400 dark:text-zinc-500 text-sm">Ad Space</span>
-                  </div>
-                </div>
-
-              </div>
-
             </div>
-          </section>
-        )}
+
+            {/* Right Sidebar (Col 4) */}
+            <div className="lg:col-span-1 space-y-8">
+              <MarketInsightsWidget insight={marketInsight} />
+
+              {/* Web Ad Space */}
+              <div className="w-full h-[250px] bg-muted rounded-xl border border-border flex flex-col items-center justify-center p-4 text-center shadow-sm">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Advertisement</span>
+                <div className="w-full h-full border-2 border-dashed border-border/50 rounded-lg flex items-center justify-center">
+                  <span className="text-muted-foreground text-sm">Ad Space</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 text-center sm:hidden">
+            <Button variant="outline" asChild className="w-full">
+              <Link href="/news">View all posts</Link>
+            </Button>
+          </div>
+        </section>
 
         {/* Dynamic Category Sections */}
         {categoryBlocks.map((block: any) => (
           <CategorySection key={block.tag.slug} tag={block.tag} posts={block.posts} />
         ))}
 
-        {/* Video News Section */}
         <VideoNewsWidget />
 
         {/* Upcoming Events Section */}
         {events.length > 0 && (
-          <section className="bg-zinc-50 dark:bg-zinc-800/20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 sm:py-24 rounded-3xl ring-1 ring-zinc-200 dark:ring-zinc-800">
-            <div className="flex items-center justify-between mb-10">
+          <section className="bg-muted/50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 sm:py-24 rounded-none lg:rounded-3xl border-y lg:border border-border">
+            <div className="flex items-end justify-between mb-10">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">Upcoming Events</h2>
-                <p className="mt-2 text-zinc-600 dark:text-zinc-400">Join us for our upcoming exclusive networking and business events.</p>
+                <h2 className="text-3xl font-bold tracking-tight uppercase border-b-4 border-primary pb-2 inline-block">
+                  Upcoming Events
+                </h2>
+                <p className="mt-4 text-muted-foreground max-w-xl">Join us for our upcoming exclusive networking and business events across Yorkshire.</p>
               </div>
-              <Link href="/news?tag=events" className="hidden sm:block text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                View all events <span aria-hidden="true">&rarr;</span>
-              </Link>
+              <Button variant="outline" asChild className="hidden sm:inline-flex">
+                <Link href="/news?tag=events">View all events</Link>
+              </Button>
             </div>
+            
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {events.map((event: any) => (
-                <div key={event.id} className="group relative flex flex-col items-start justify-between bg-white dark:bg-zinc-800/80 rounded-2xl p-5 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-lg hover:ring-indigo-500/20 dark:hover:ring-indigo-400/20">
-                  <div className="relative w-full mb-5 overflow-hidden rounded-xl">
+                <div key={event.id} className="group relative flex flex-col items-start justify-between bg-card rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-border">
+                  <div className="relative w-full aspect-[16/9] overflow-hidden bg-muted">
                     {event.feature_image ? (
                       <Image
                         src={event.feature_image}
                         alt={event.title}
-                        width={400}
-                        height={250}
-                        className="aspect-[16/9] w-full bg-zinc-100 object-cover dark:bg-zinc-800 group-hover:scale-105 transition-transform duration-300"
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="aspect-[16/9] w-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                        <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
+                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">
+                        No image
                       </div>
                     )}
-                    <div className="absolute top-3 right-3 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-2.5 py-1 rounded-md shadow-sm">
-                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Event</span>
-                    </div>
+                    <Badge className="absolute top-3 right-3 shadow-sm bg-primary/90 hover:bg-primary">Event</Badge>
                   </div>
-                  <div className="flex items-center gap-x-4 text-xs mb-3">
-                    <time dateTime={event.published_at} className="text-zinc-500 dark:text-zinc-400 font-medium">
+                  <div className="p-5 flex flex-col flex-1">
+                    <time dateTime={event.published_at} className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
                       {event.published_at ? format(new Date(event.published_at), 'MMM d, yyyy') : ''}
                     </time>
+                    <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors">
+                      <Link href={`/news/${event.slug}`}>
+                        <span className="absolute inset-0" />
+                        {event.title}
+                      </Link>
+                    </h3>
                   </div>
-                  <h3 className="text-lg font-bold leading-tight text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
-                    <Link href={`/news/${event.slug}`}>
-                      <span className="absolute inset-0" />
-                      {event.title}
-                    </Link>
-                  </h3>
-                  {(event.custom_excerpt || event.excerpt) && (
-                    <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                      {event.custom_excerpt || event.excerpt}
-                    </p>
-                  )}
                 </div>
               ))}
-            </div>
-            <div className="mt-8 sm:hidden">
-              <Link href="/news?tag=events" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                View all events <span aria-hidden="true">&rarr;</span>
-              </Link>
             </div>
           </section>
         )}
@@ -338,13 +288,15 @@ export default async function HomePage() {
         {/* Member Spotlight */}
         {featuredMembers.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Member Spotlight</h2>
-              <Link href="/members" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                View directory <span aria-hidden="true">&rarr;</span>
-              </Link>
+            <div className="flex items-end justify-between mb-10">
+              <h2 className="text-3xl font-bold tracking-tight uppercase border-b-4 border-primary pb-2 inline-block">
+                Member Spotlight
+              </h2>
+              <Button variant="link" asChild className="hidden sm:inline-flex">
+                <Link href="/members">View directory &rarr;</Link>
+              </Button>
             </div>
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {featuredMembers.map((member: any, index: number) => (
                 <MemberCard key={member.id || member.email || member.slug || index} member={member} />
               ))}
@@ -353,39 +305,22 @@ export default async function HomePage() {
         )}
 
         {/* Call to Action */}
-        <section className="relative isolate overflow-hidden bg-zinc-900 px-6 py-24 text-center shadow-2xl sm:rounded-3xl sm:px-16 dark:bg-zinc-800/50 dark:ring-1 dark:ring-white/10">
-          <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
+        <section className="relative overflow-hidden bg-primary text-primary-foreground px-6 py-24 text-center shadow-2xl rounded-3xl sm:px-16">
+          <h2 className="mx-auto max-w-2xl text-4xl font-extrabold tracking-tight sm:text-5xl uppercase font-serif">
             Empower your business journey
           </h2>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-300">
+          <p className="mx-auto mt-6 max-w-xl text-xl leading-relaxed text-primary-foreground/90">
             Join a network of successful women. Share your story, promote your business, and connect with like-minded professionals across Yorkshire.
           </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Link
-              href="/register"
-              className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              Get started
-            </Link>
-            <Link href="/members" className="text-sm font-semibold leading-6 text-white">
-              View our members <span aria-hidden="true">→</span>
-            </Link>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button size="lg" variant="secondary" asChild className="w-full sm:w-auto font-bold px-8">
+              <Link href="/register">Get started today</Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto font-bold bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+              <Link href="/members">View our members</Link>
+            </Button>
           </div>
-          <svg
-            viewBox="0 0 1024 1024"
-            className="absolute left-1/2 top-1/2 -z-10 h-[64rem] w-[64rem] -translate-x-1/2 [mask-image:radial-gradient(closest-side,white,transparent)]"
-            aria-hidden="true"
-          >
-            <circle cx={512} cy={512} r={512} fill="url(#gradient)" fillOpacity="0.7" />
-            <defs>
-              <radialGradient id="gradient">
-                <stop stopColor="#4f46e5" />
-                <stop offset={1} stopColor="#818cf8" />
-              </radialGradient>
-            </defs>
-          </svg>
         </section>
-      </div>
       </div>
     </div>
   );
