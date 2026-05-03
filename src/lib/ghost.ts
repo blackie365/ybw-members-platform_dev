@@ -68,8 +68,35 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
 }
 
 /**
- * Fetch a single post by its slug
+ * Fetch a single page by its slug
  */
+export async function getPage(pageSlug: string) {
+  try {
+    const url = new URL(`${GHOST_API_URL}/ghost/api/content/pages/slug/${pageSlug}/`);
+    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept-Version': 'v5.0'
+      },
+      next: { 
+        revalidate: 3600,
+        tags: ['ghost-pages', `ghost-page-${pageSlug}`]
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Ghost API responded with status: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.pages?.[0] || null;
+  } catch (err) {
+    console.error("Error fetching single page:", err);
+    return null;
+  }
+}
 export async function getSinglePost(postSlug: string) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/slug/${postSlug}/`);

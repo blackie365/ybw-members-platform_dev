@@ -241,8 +241,8 @@ export const navigation: Array<NavGroup> = [
     links: [
       { title: 'Home', href: '/' },
       { title: 'Latest Issue', href: '/news' },
-      { title: 'About', href: '/news?tag=about' },
-      { title: 'Contact', href: '/news?tag=contact' },
+      { title: 'About', href: '/about' },
+      { title: 'Contact', href: '/contact' },
     ],
   },
   {
