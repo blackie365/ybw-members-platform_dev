@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { Providers } from '@/app/providers'
 import './globals.css'
 
 const playfair = Playfair_Display({ 
@@ -14,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'ELÉVATE | Business Magazine for Women',
+  title: 'Yorkshire Businesswoman | Business Magazine for Women',
   description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
   generator: 'v0.app',
   icons: {
@@ -44,7 +45,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background">
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
