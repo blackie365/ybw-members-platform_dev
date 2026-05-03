@@ -1,43 +1,51 @@
-import { type Metadata } from 'next'
+import type { Metadata } from 'next'
+import { Playfair_Display, Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import './globals.css'
 
-import { Providers } from '@/app/providers'
-import { Layout } from '@/components/Layout'
-import { type Section } from '@/components/SectionProvider'
+const playfair = Playfair_Display({ 
+  subsets: ["latin"],
+  variable: '--font-serif'
+});
 
-import './globals.css';
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: '--font-sans'
+});
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
-  title: {
-    template: '%s - Yorkshire Businesswoman',
-    default: 'Yorkshire Businesswoman | Local Business News & Community',
+  title: 'ELÉVATE | Business Magazine for Women',
+  description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
+  generator: 'v0.app',
+  icons: {
+    icon: [
+      {
+        url: '/icon-light-32x32.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/icon-dark-32x32.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    apple: '/apple-icon.png',
   },
-  description: 'The premier community and news platform for professionals and businesses across Yorkshire.',
-  openGraph: {
-    title: 'Yorkshire Businesswoman',
-    description: 'The premier community and news platform for professionals and businesses across Yorkshire.',
-    url: 'https://yorkshirebusinesswoman.co.uk',
-    siteName: 'Yorkshire Businesswoman',
-    locale: 'en_GB',
-    type: 'website',
-  }
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
-  let allSections = {}
-
+}>) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className="flex min-h-full bg-white antialiased dark:bg-zinc-900">
-        <Providers>
-          <div className="w-full">
-            <Layout allSections={allSections}>{children}</Layout>
-          </div>
-        </Providers>
+    <html lang="en" className="bg-background">
+      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
+        {children}
+        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

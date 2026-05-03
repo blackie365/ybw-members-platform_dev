@@ -15,10 +15,13 @@ const firebaseConfig = {
 
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+
+// Create a dummy auth object if apiKey is missing during build time
+const auth = firebaseConfig.apiKey ? getAuth(app) : null as any;
+
 // Use the provided database ID from env, or default to '(default)'
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)";
-const db = getFirestore(app, dbId);
-const storage = getStorage(app);
+const db = firebaseConfig.projectId ? getFirestore(app, dbId) : null as any;
+const storage = firebaseConfig.projectId ? getStorage(app) : null as any;
 
 export { app, auth, db, storage };
