@@ -1,11 +1,8 @@
-import { Header } from "@/components/magazine/header"
-import { NewsTicker } from "@/components/magazine/news-ticker"
 import { HeroSection } from "@/components/magazine/hero-section"
 import { ArticleGrid } from "@/components/magazine/article-grid"
 import { FeaturedInterview } from "@/components/magazine/featured-interview"
 import { CategoriesSection } from "@/components/magazine/categories-section"
 import { NewsletterSection } from "@/components/magazine/newsletter-section"
-import { Footer } from "@/components/magazine/footer"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 
@@ -28,23 +25,19 @@ async function getFeaturedMembers() {
 
 export default async function MagazinePage() {
   const posts = await getPosts({ limit: 10 });
-  const trendingPosts = await getPosts({ limit: 5, order: 'published_at ASC' }); // Example of trending/different sort
   const tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
   const featuredMembers = await getFeaturedMembers();
   const featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <NewsTicker posts={trendingPosts} />
-      <main>
+    <div className="bg-background">
+      <div className="flex-1">
         <HeroSection posts={posts} />
         <ArticleGrid posts={posts.slice(3)} />
         <FeaturedInterview member={featuredMember} />
         <CategoriesSection tags={tags} />
         <NewsletterSection />
-      </main>
-      <Footer />
+      </div>
     </div>
   )
 }

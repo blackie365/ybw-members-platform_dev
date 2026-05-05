@@ -2,6 +2,10 @@ import type { Metadata } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/app/providers'
+import { Header } from "@/components/magazine/header"
+import { Footer } from "@/components/magazine/footer"
+import { NewsTicker } from "@/components/magazine/news-ticker"
+import { getPosts } from "@/lib/ghost"
 import './globals.css'
 
 const playfair = Playfair_Display({ 
@@ -55,16 +59,23 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const trendingPosts = await getPosts({ limit: 5, order: 'published_at ASC' }).catch(() => []);
+
   return (
     <html lang="en" className="bg-background">
-      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased`}>
+      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <Providers>
-          {children}
+          <Header />
+          <NewsTicker posts={trendingPosts} />
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer />
         </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
