@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="bg-white py-12 sm:py-16 dark:bg-zinc-900 min-h-screen">
+    <div className="py-12 sm:py-16 dark:bg-zinc-900 min-h-screen">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white mb-8">
           Member Dashboard

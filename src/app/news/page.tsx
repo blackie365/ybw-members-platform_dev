@@ -25,7 +25,7 @@ export default async function NewsPage(props: {
   const hasPrevPage = meta?.prev || false;
 
   return (
-    <div className="bg-white py-12 sm:py-16 dark:bg-zinc-900">
+    <div className="py-12 sm:py-16 dark:bg-zinc-900">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl dark:text-white capitalize">

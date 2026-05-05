@@ -85,7 +85,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   };
 
   return (
-    <div className="bg-white py-16 sm:py-24 lg:py-32 dark:bg-zinc-900">
+    <div className="py-16 sm:py-24 lg:py-32 dark:bg-zinc-900">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

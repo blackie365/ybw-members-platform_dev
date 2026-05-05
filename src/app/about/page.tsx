@@ -12,7 +12,7 @@ export default async function AboutPage() {
   }
 
   return (
-    <div className="bg-white py-16 sm:py-24 dark:bg-zinc-900">
+    <div className="py-16 sm:py-24 dark:bg-zinc-900">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-white mb-8">

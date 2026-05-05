@@ -62,7 +62,7 @@ export default function MembershipPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly');
 
   return (
-    <div className="bg-white py-24 sm:py-32 dark:bg-zinc-900">
+    <div className="py-24 sm:py-32 dark:bg-zinc-900">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-base font-semibold leading-7 text-indigo-600 dark:text-indigo-400">Pricing & Memberships</h2>

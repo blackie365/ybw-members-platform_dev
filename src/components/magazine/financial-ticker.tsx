@@ -23,18 +23,19 @@ export function FinancialTicker() {
     script.innerHTML = JSON.stringify({
       "symbols": [
         { "proName": "FOREXCOM:UKXGBP", "title": "FTSE 100" },
-        { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+        { "proName": "OANDA:UK250GBP", "title": "FTSE 250" },
         { "proName": "FX_IDC:GBPUSD", "title": "GBP/USD" },
-        { "proName": "FX_IDC:EURGBP", "title": "EUR/GBP" },
+        { "proName": "FX_IDC:GBPEUR", "title": "GBP/EUR" },
         { "proName": "LSE:BARC", "title": "Barclays" },
         { "proName": "LSE:LLOY", "title": "Lloyds" },
-        { "proName": "LSE:SHEL", "title": "Shell" },
-        { "proName": "LSE:BP.", "title": "BP" },
-        { "proName": "LSE:HSBA", "title": "HSBC" },
+        { "proName": "LSE:TSCO", "title": "Tesco" },
+        { "proName": "LSE:SBRY", "title": "Sainsbury's" },
+        { "proName": "LSE:NWG", "title": "NatWest" },
         { "proName": "LSE:MKS", "title": "Marks & Spencer" },
-        { "proName": "LSE:NXT", "title": "Next" }
+        { "proName": "LSE:SHEL", "title": "Shell" },
+        { "proName": "LSE:BP.", "title": "BP" }
       ],
-      "showSymbolLogo": true,
+      "showSymbolLogo": false,
       "isTransparent": true,
       "displayMode": "adaptive",
       "colorTheme": theme,
