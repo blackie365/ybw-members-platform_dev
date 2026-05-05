@@ -17,10 +17,11 @@ if (!admin.apps.length) {
     if (privateKey && clientEmail && projectId) {
       admin.initializeApp({
         credential: admin.credential.cert({
-          projectId,
+          projectId: 'ghostpublishing-v2', // Hardcode to ensure correctness during build
           clientEmail,
           privateKey,
         }),
+        projectId: 'ghostpublishing-v2' // Force project ID
       });
     } else {
       console.warn('Firebase admin credentials missing. Initializing with default configuration.');
@@ -36,6 +37,6 @@ if (!admin.apps.length) {
 }
 
 // Specify the correct database ID used by the production project
-const dbId = process.env.FIREBASE_DATABASE_ID || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || 'ybm-db20032026';
+const dbId = 'ybm-db20032026'; // Hardcode to ensure it never tries to load a wrong database from env
 export const adminDb = getFirestore(admin.app(), dbId);
 export const adminAuth = admin.auth();
