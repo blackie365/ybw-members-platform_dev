@@ -47,9 +47,13 @@ export function FinancialTicker() {
   }, [resolvedTheme]);
 
   return (
-    <div className="border-y border-border bg-[#f7f5f1] dark:bg-zinc-950 py-0.5 text-xs">
-      <div className="tradingview-widget-container" ref={containerRef}>
-        <div className="tradingview-widget-container__widget" style={{ height: "32px" }}></div>
+    <div className="border-y border-border bg-[#f7f5f1] dark:bg-zinc-950 overflow-hidden" style={{ height: '36px' }}>
+      <div 
+        className="tradingview-widget-container" 
+        ref={containerRef}
+        style={{ transform: 'scale(0.75)', transformOrigin: 'top left', width: '133.33%' }}
+      >
+        <div className="tradingview-widget-container__widget"></div>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ export const revalidate = 60; // Revalidate every 60 seconds
 async function getMembers() {
   try {
     const snapshot = await adminDb.collection('newMemberCollection').get();
-    const members = snapshot.docs.map(doc => {
+    const members = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       
       // Sanitize the data to remove non-serializable objects (like Firebase Timestamps)
@@ -26,10 +26,17 @@ async function getMembers() {
         role: sanitizedData.jobTitle || sanitizedData.role,
         bio: sanitizedData.bio,
         location: sanitizedData.location || sanitizedData.city,
-        image: sanitizedData.profileImage || sanitizedData.image,
+        image: sanitizedData.profileImage || sanitizedData.image || sanitizedData.avatarUrl,
         linkedin: sanitizedData.linkedinUrl || sanitizedData.linkedin,
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
+    }).filter((member: any) => {
+      // Filter out members without an image, or without a bio (or a bio that is too short)
+      const hasImage = !!member.image;
+      const hasBio = member.bio && member.bio.trim().length > 20; // Ensure bio is at least a few words
+      const hasName = member.name && member.name.trim().length > 0;
+      
+      return hasImage && hasBio && hasName;
     });
     return members;
   } catch (error: any) {
