@@ -4,7 +4,8 @@ import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/app/providers'
 import { Header } from "@/components/magazine/header"
 import { Footer } from "@/components/magazine/footer"
-import { FinancialTicker } from "@/components/magazine/financial-ticker"
+import { NewsTicker } from "@/components/magazine/news-ticker"
+import { getPosts } from "@/lib/ghost"
 import './globals.css'
 
 const playfair = Playfair_Display({ 
@@ -63,12 +64,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const trendingPosts = await getPosts({ limit: 8, order: 'published_at DESC' }).catch(() => []);
+
   return (
     <html lang="en" className="bg-background">
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <Providers>
           <Header />
-          <FinancialTicker />
+          <NewsTicker posts={trendingPosts} />
           <main className="flex-1">
             {children}
           </main>
