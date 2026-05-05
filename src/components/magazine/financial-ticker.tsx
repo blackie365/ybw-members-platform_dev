@@ -37,18 +37,19 @@ export function FinancialTicker() {
       ],
       "showSymbolLogo": false,
       "isTransparent": true,
-      "displayMode": "adaptive",
+      "displayMode": "compact",
       "colorTheme": theme,
-      "locale": "en"
+      "locale": "en",
+      "largeChartUrl": ""
     });
     
     containerRef.current.appendChild(script);
   }, [resolvedTheme]);
 
   return (
-    <div className="border-y border-border bg-[#f7f5f1] dark:bg-zinc-950 py-1">
+    <div className="border-y border-border bg-[#f7f5f1] dark:bg-zinc-950 py-0.5 text-xs">
       <div className="tradingview-widget-container" ref={containerRef}>
-        <div className="tradingview-widget-container__widget"></div>
+        <div className="tradingview-widget-container__widget" style={{ height: "32px" }}></div>
       </div>
     </div>
   );
