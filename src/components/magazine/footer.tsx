@@ -41,13 +41,12 @@ export function Footer() {
         <div className="grid gap-12 lg:grid-cols-2">
           {/* Brand section */}
           <div className="lg:max-w-md">
-            <Link href="/" className="flex flex-col">
-              <span className="font-serif text-2xl font-semibold tracking-tight">
-                ELÉVATE
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.3em] text-primary-foreground/60">
-                Business & Beyond
-              </span>
+            <Link href="/" className="inline-flex flex-col h-10 sm:h-12 relative">
+              <img
+                src="/images/logo-light.png"
+                alt="Yorkshire Businesswoman"
+                className="h-full w-auto object-contain brightness-0 invert"
+              />
             </Link>
             <p className="mt-6 leading-relaxed text-primary-foreground/70">
               Empowering ambitious women with the insights, strategies, and 

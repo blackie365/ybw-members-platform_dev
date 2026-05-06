@@ -9,14 +9,26 @@ import { adminDb } from "@/lib/firebase-admin"
 async function getFeaturedMembers() {
   try {
     if (!adminDb) return [];
-    const snapshot = await adminDb.collection('newMemberCollection').limit(1).get();
-    return snapshot.docs.map((doc: any) => {
+    // Fetch a batch of members so we can find one with a complete profile
+    const snapshot = await adminDb.collection('newMemberCollection').limit(50).get();
+    const members = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         id: doc.id,
         ...data,
+        name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
+        image: data.profileImage || data.image || data.avatarUrl,
+        company: data.companyName || data.company,
+        role: data.jobTitle || data.role,
       }
+    }).filter((member: any) => {
+      const hasImage = !!member.image;
+      const hasBio = member.bio && member.bio.trim().length > 20;
+      const hasName = member.name && member.name.trim().length > 0;
+      return hasImage && hasBio && hasName;
     });
+    
+    return members;
   } catch (error) {
     console.error("Error fetching featured members:", error);
     return [];
@@ -24,7 +36,11 @@ async function getFeaturedMembers() {
 }
 
 export default async function MagazinePage() {
-  const posts = await getPosts({ limit: 10 });
+  const posts = await getPosts({ 
+    limit: 10, 
+    filter: "published_at:>='2024-01-01'", 
+    order: "published_at DESC" 
+  });
   const tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
   const featuredMembers = await getFeaturedMembers();
   const featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;

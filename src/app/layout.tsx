@@ -64,7 +64,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const trendingPosts = await getPosts({ limit: 8, order: 'published_at DESC' }).catch(() => []);
+  const trendingPosts = await getPosts({ 
+    limit: 8, 
+    filter: "published_at:>='2024-01-01'", 
+    order: 'published_at DESC' 
+  }).catch(() => []);
 
   return (
     <html lang="en" className="bg-background">

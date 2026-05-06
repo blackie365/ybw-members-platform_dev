@@ -119,7 +119,7 @@
     0% { transform: translateX(0%); }
     100% { transform: translateX(-50%); }
   }
-  --animate-marquee: marquee 30s linear infinite;
+  --animate-marquee: marquee 60s linear infinite;
 }
 
 @layer base {

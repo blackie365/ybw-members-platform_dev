@@ -12,8 +12,8 @@ export function FeaturedInterview({ member }: { member?: any }) {
           <div className="relative">
             <div className="relative aspect-[3/4] overflow-hidden">
               <Image
-                src={member.photoUrl || "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80"}
-                alt={member.displayName || "Executive portrait"}
+                src={member.image || member.profileImage || member.photoUrl || member.avatarUrl || "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80"}
+                alt={member.name || member.displayName || "Executive portrait"}
                 fill
                 className="object-cover"
               />
@@ -46,9 +46,9 @@ export function FeaturedInterview({ member }: { member?: any }) {
             </div>
 
             <div className="mt-8">
-              <p className="font-serif text-xl font-medium">{member.displayName || "Dr. Amelia Richardson"}</p>
+              <p className="font-serif text-xl font-medium">{member.name || member.displayName || "Dr. Amelia Richardson"}</p>
               <p className="mt-1 text-sm text-primary-foreground/60">
-                {member.jobTitle || "CEO"} {member.company ? `| ${member.company}` : ""}
+                {member.role || member.jobTitle || "CEO"} {member.company || member.companyName ? `| ${member.company || member.companyName}` : ""}
               </p>
             </div>
 

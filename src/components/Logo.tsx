@@ -13,11 +13,11 @@ export function Logo({ className, ...props }: React.ComponentPropsWithoutRef<'di
         alt="Yorkshire Businesswoman"
         className="block dark:hidden h-full w-auto object-contain"
       />
-      {/* Dark mode logo */}
+      {/* Dark mode logo (inverted light logo if no specific dark logo exists) */}
       <img
         src="/images/logo-dark.png"
         alt="Yorkshire Businesswoman"
-        className="hidden dark:block h-full w-auto object-contain"
+        className="hidden dark:block h-full w-auto object-contain dark:invert"
       />
     </div>
   )

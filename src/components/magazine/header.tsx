@@ -20,12 +20,9 @@ const navigation = [
 export function Header() {
   return (
     <header className="bg-[#f7f5f1] dark:bg-zinc-950">
-      {/* Top Banner (Logo + Ad) */}
+      {/* Top Banner (Ad) */}
       <div className="border-b border-border bg-[#f7f5f1] dark:bg-zinc-950">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-6 md:flex-row lg:px-8">
-          <Link href="/" aria-label="Home" className="flex-shrink-0">
-            <Logo className="h-12 sm:h-16" />
-          </Link>
+        <div className="mx-auto flex max-w-7xl justify-center px-4 py-6 lg:px-8">
           <div className="flex h-[90px] w-full max-w-[728px] items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-black/5 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50">
             Advertisement Space (728x90)
           </div>
@@ -36,35 +33,37 @@ export function Header() {
       <div className="sticky top-0 z-50 border-b border-border bg-[#f7f5f1]/95 backdrop-blur supports-[backdrop-filter]:bg-[#f7f5f1]/80 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/80">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
           {/* Mobile menu */}
-          <Sheet>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] bg-background">
-              <nav className="mt-8 flex flex-col gap-6">
-                {navigation.map((item) => (
+          <div className="flex flex-1 justify-start lg:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px] bg-background">
+                <nav className="mt-8 flex flex-col gap-6">
+                  {navigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className="font-serif text-lg tracking-wide text-foreground transition-colors hover:text-accent"
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
                   <Link
-                    key={item.name}
-                    href={item.href}
+                    href="/dashboard"
                     className="font-serif text-lg tracking-wide text-foreground transition-colors hover:text-accent"
                   >
-                    {item.name}
+                    Dashboard
                   </Link>
-                ))}
-                <Link
-                  href="/dashboard"
-                  className="font-serif text-lg tracking-wide text-foreground transition-colors hover:text-accent"
-                >
-                  Dashboard
-                </Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
 
           {/* Desktop navigation (Left) */}
-          <div className="hidden lg:flex lg:items-center lg:gap-8">
+          <div className="hidden lg:flex lg:items-center lg:gap-8 flex-1">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -76,15 +75,15 @@ export function Header() {
             ))}
           </div>
 
-          {/* Mobile Logo Fallback (If needed) */}
-          <div className="lg:hidden">
-             <span className="font-serif text-xl font-semibold tracking-tight">
-               YBW
-             </span>
+          {/* Centered Logo (Mobile & Desktop) */}
+          <div className="flex flex-1 justify-center">
+             <Link href="/" aria-label="Home">
+               <Logo className="h-6 sm:h-8" />
+             </Link>
           </div>
 
           {/* Actions (Right) */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center justify-end gap-2">
             <Link href="/dashboard" passHref>
               <Button variant="ghost" size="icon" className="hidden lg:flex" aria-label="Account">
                 <User className="h-4 w-4" />
