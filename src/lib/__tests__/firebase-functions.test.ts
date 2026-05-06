@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ENDPOINTS } from '../firebase-functions';
+import { ENDPOINTS, API_BASE } from '../firebase-functions';
 
 const isValidUrl = (url: string) => {
   try {
@@ -11,6 +11,11 @@ const isValidUrl = (url: string) => {
 };
 
 describe('ENDPOINTS', () => {
+  it('API_BASE does not reference the old ghostpublishing-v2 project', () => {
+    expect(API_BASE).not.toContain('ghostpublishing-v2');
+    expect(API_BASE).toContain('newmembersdirectory130325');
+  });
+
   it('all endpoint values are valid URLs', () => {
     for (const [key, value] of Object.entries(ENDPOINTS)) {
       expect(isValidUrl(value), `${key} should be a valid URL, got: ${value}`).toBe(true);

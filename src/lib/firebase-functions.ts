@@ -1,4 +1,5 @@
-export const API_BASE = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_BASE || 'https://us-central1-ghostpublishing-v2.cloudfunctions.net';
+// Set NEXT_PUBLIC_FIREBASE_FUNCTIONS_BASE in Vercel env vars to override this default.
+export const API_BASE = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_BASE || 'https://us-central1-newmembersdirectory130325.cloudfunctions.net';
 
 export const ENDPOINTS = {
   // Member Profile
