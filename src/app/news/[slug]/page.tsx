@@ -4,7 +4,47 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { notFound } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
+import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
+import * as cheerio from 'cheerio';
+
+/**
+ * Splits article HTML into two parts at the Nth paragraph boundary.
+ * Used to inject a mid-article ad without breaking prose flow.
+ */
+function splitHtmlAtParagraph(html: string, afterParagraph = 3): [string, string] {
+  if (!html) return ['', ''];
+  const $ = cheerio.load(html, { xmlMode: false });
+  const body = $('body');
+  const children = body.children().toArray();
+
+  let pCount = 0;
+  let splitIndex = -1;
+
+  for (let i = 0; i < children.length; i++) {
+    if (children[i].type === 'tag' && (children[i] as any).name === 'p') {
+      pCount++;
+      if (pCount === afterParagraph) {
+        splitIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Not enough paragraphs to split — return everything as first half
+  if (splitIndex === -1) return [html, ''];
+
+  const before = children
+    .slice(0, splitIndex + 1)
+    .map((el) => $.html(el))
+    .join('');
+  const after = children
+    .slice(splitIndex + 1)
+    .map((el) => $.html(el))
+    .join('');
+
+  return [before, after];
+}
 
 export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
@@ -166,11 +206,22 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               </figure>
             )}
 
-            {/* Prose automatically styles standard HTML tags (p, h2, a, blockquote) nicely */}
-            <div 
-              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md"
-              dangerouslySetInnerHTML={{ __html: post.html || '' }}
-            />
+            {/* Article body — split at 3rd paragraph to inject mid-article ad */}
+            {(() => {
+              const [before, after] = splitHtmlAtParagraph(post.html || '', 3);
+              const proseClass = 'prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md';
+              return (
+                <>
+                  <div className={proseClass} dangerouslySetInnerHTML={{ __html: before }} />
+                  {after && (
+                    <>
+                      <AdSlot type="mid-article" />
+                      <div className={proseClass} dangerouslySetInnerHTML={{ __html: after }} />
+                    </>
+                  )}
+                </>
+              );
+            })()}
 
             <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
               <div className="flex gap-2 flex-wrap">
@@ -187,12 +238,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             </div>
           </article>
 
-          {/* Sticky Sidebar for Event Tickets */}
-          {isEvent && (
-            <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-              <EventTicketCard post={post} />
-            </aside>
-          )}
+          {/* Sidebar — event ticket (events only) + ad slot (all articles) */}
+          <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+            <div className="sticky top-24 flex flex-col gap-8">
+              {isEvent && <EventTicketCard post={post} />}
+              <AdSlot type="sidebar-mpu" />
+            </div>
+          </aside>
         </div>
       </div>
 
