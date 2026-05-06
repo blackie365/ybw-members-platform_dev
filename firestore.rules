@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Member profiles
+    // Authenticated users may read their own document only.
+    // All writes go through the Admin SDK (server actions / Stripe webhook).
+    match /newMemberCollection/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Market insights
+    // Readable by any authenticated member; written only via Admin SDK (cron job).
+    match /marketInsights/{insightId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Offer requests
+    // Created via server-side API route using Admin SDK. No client access.
+    match /offer_requests/{requestId} {
+      allow read, write: if false;
+    }
+
+    // Event tickets
+    // Created via Stripe webhook using Admin SDK. No client access.
+    match /event_tickets/{ticketId} {
+      allow read, write: if false;
+    }
+  }
+}
