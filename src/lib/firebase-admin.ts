@@ -36,7 +36,7 @@ if (!admin.apps.length) {
   }
 }
 
-// Specify the correct database ID used by the production project
-const dbId = '(default)'; // Hardcode to ensure it never tries to load a wrong database from env
+// Specify the correct database ID used by the project
+const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
 export const adminDb = getFirestore(admin.app(), dbId);
 export const adminAuth = admin.auth();
