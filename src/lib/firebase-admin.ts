@@ -5,10 +5,25 @@ if (!admin.apps.length) {
   try {
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
     if (privateKey) {
-      // Remove surrounding quotes if Vercel adds them
-      privateKey = privateKey.replace(/^"|"$/g, '');
-      // Convert escaped newlines to actual newlines
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      // If the user accidentally pasted the entire JSON file contents
+      if (privateKey.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(privateKey);
+          if (parsed.private_key) privateKey = parsed.private_key;
+        } catch (e) {}
+      }
+      
+      if (privateKey) {
+        // Remove surrounding quotes if Vercel adds them
+        privateKey = privateKey.replace(/^"|"$/g, '');
+        // Convert escaped newlines to actual newlines
+        privateKey = privateKey.replace(/\\n/g, '\n');
+        
+        // If the user only copied the base64 string without the header/footer
+        if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+          privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey.trim()}\n-----END PRIVATE KEY-----\n`;
+        }
+      }
     }
     
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
