@@ -113,7 +113,7 @@ export const Header = forwardRef<
             <TopLevelNavItem href="/news">Latest Issue</TopLevelNavItem>
             <TopLevelNavItem href="/about">About</TopLevelNavItem>
             <TopLevelNavItem href="/contact">Contact</TopLevelNavItem>
-            <TopLevelNavItem href="/dashboard">Members Hub</TopLevelNavItem>
+            <TopLevelNavItem href="/dashboard">Member Space</TopLevelNavItem>
             <TopLevelNavItem href="/news?tag=events">Events</TopLevelNavItem>
             <TopLevelNavItem href="/members">Members Directory</TopLevelNavItem>
           </ul>

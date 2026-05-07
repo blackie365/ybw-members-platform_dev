@@ -30,7 +30,7 @@ const tiers = [
       'Full access to the Member Directory',
       'Create and edit your public Profile',
       'Read all Premium & Exclusive articles',
-      'Access the Private Members Hub',
+      'Access the Private Member Space',
       'Exclusive Member Offers & Discounts',
       'Priority booking for YBW Events',
     ],

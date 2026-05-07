@@ -248,7 +248,7 @@ export const navigation: Array<NavGroup> = [
   {
     title: 'Community',
     links: [
-      { title: 'Members Hub', href: '/dashboard' },
+      { title: 'Member Space', href: '/dashboard' },
       { title: 'Events', href: '/news?tag=events' },
       { title: 'Members Directory', href: '/members' },
     ],
