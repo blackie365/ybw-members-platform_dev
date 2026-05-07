@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 
 admin.initializeApp({
-  projectId: 'ghostpublishing-v2',
+  projectId: 'newmembersdirectory130325',
 });
 
 const { getFirestore } = require('firebase-admin/firestore');

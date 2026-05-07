@@ -11,8 +11,7 @@ const isValidUrl = (url: string) => {
 };
 
 describe('ENDPOINTS', () => {
-  it('API_BASE does not reference the old ghostpublishing-v2 project', () => {
-    expect(API_BASE).not.toContain('ghostpublishing-v2');
+  it('API_BASE references the correct project', () => {
     expect(API_BASE).toContain('newmembersdirectory130325');
   });
 
