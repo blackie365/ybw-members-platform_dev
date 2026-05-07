@@ -110,7 +110,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
             <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-zinc-400 mb-4" aria-hidden="true" />
             <h3 className="mt-2 text-sm font-semibold text-zinc-900 dark:text-white">No members found</h3>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              We couldn't find anyone matching "{searchTerm}". Try adjusting your search terms.
+              We couldn&apos;t find anyone matching &quot;{searchTerm}&quot;. Try adjusting your search terms.
             </p>
             <button
               onClick={() => setSearchTerm('')}

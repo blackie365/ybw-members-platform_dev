@@ -80,7 +80,7 @@ export function Footer() {
           <div className="space-y-8">
             <Logo className="h-8" />
             <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400 max-w-xs">
-              Yorkshire Businesswoman is the online platform and print magazine for the region's most inspiring and ambitious women.
+              Yorkshire Businesswoman is the online platform and print magazine for the region&apos;s most inspiring and ambitious women.
             </p>
             <div className="flex space-x-6">
               <SocialLink href="https://twitter.com/yorkshirebusinesswoman" icon={XIcon}>

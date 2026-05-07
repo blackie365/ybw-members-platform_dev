@@ -43,9 +43,9 @@ export function Footer() {
           <div className="lg:max-w-md">
             <Link href="/" className="inline-flex flex-col h-10 sm:h-12 relative">
               <img
-                src="/images/logo-light.png"
+                src="https://yorkshirebusinesswoman.co.uk/content/images/2026/03/Asset-9@3x-2.png"
                 alt="Yorkshire Businesswoman"
-                className="h-full w-auto object-contain brightness-0 invert"
+                className="h-full w-auto object-contain"
               />
             </Link>
             <p className="mt-6 leading-relaxed text-primary-foreground/70">
@@ -142,7 +142,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-primary-foreground/10 pt-8 sm:flex-row">
           <p className="text-xs text-primary-foreground/50">
-            © 2026 ELÉVATE Magazine. All rights reserved.
+            © 2026 Yorkshire Businesswoman. All rights reserved.
           </p>
           <p className="text-xs text-primary-foreground/50">
             Designed for leaders. Built for impact.
