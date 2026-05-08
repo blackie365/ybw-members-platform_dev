@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     
     const mg = mailgun.client({ 
       username: 'api', 
-      key: MAILGUN_API_KEY,
+      key: MAILGUN_API_KEY.trim(), // Ensure no whitespace
       url: url 
     });
 
