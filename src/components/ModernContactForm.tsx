@@ -35,14 +35,16 @@ export function ModernContactForm() {
         body: JSON.stringify(data),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        throw new Error(result.error || 'Failed to send message');
       }
 
       setIsSubmitted(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('An error occurred while sending your message. Please try again later.');
+      setError(err.message || 'An error occurred while sending your message. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }

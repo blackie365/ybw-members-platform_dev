@@ -41,8 +41,9 @@ export async function POST(req: Request) {
     const msg = await mg.messages.create(MAILGUN_DOMAIN, data);
     
     return NextResponse.json({ success: true, id: msg.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending email via Mailgun:', error);
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
+    // Return the actual Mailgun error message to the frontend for debugging
+    return NextResponse.json({ error: error.message || 'Failed to send message' }, { status: 500 });
   }
 }
