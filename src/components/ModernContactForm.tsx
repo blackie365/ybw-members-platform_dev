@@ -86,8 +86,8 @@ export function ModernContactForm() {
             <div>
               <h3 className="font-medium text-zinc-900 dark:text-white">Call Us</h3>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                <a href="tel:07711539047" className="hover:text-indigo-600 dark:hover:text-indigo-400">
-                  07711 539047
+                <a href="tel:+447711539047" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+                  +44 (0) 7711 539047
                 </a>
               </p>
             </div>
