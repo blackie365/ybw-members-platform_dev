@@ -10,16 +10,42 @@ import { Label } from '@/components/ui/label';
 export function ModernContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError('');
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      email: formData.get('email'),
+      subject: formData.get('subject'),
+      message: formData.get('message'),
+    };
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred while sending your message. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -101,31 +127,38 @@ export function ModernContactForm() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" required placeholder="Jane" className="bg-zinc-50 dark:bg-zinc-800/50" />
+                <Input id="firstName" name="firstName" required placeholder="Jane" className="bg-zinc-50 dark:bg-zinc-800/50" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" required placeholder="Doe" className="bg-zinc-50 dark:bg-zinc-800/50" />
+                <Input id="lastName" name="lastName" required placeholder="Doe" className="bg-zinc-50 dark:bg-zinc-800/50" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" required placeholder="jane@company.com" className="bg-zinc-50 dark:bg-zinc-800/50" />
+              <Input id="email" name="email" type="email" required placeholder="jane@company.com" className="bg-zinc-50 dark:bg-zinc-800/50" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="subject">Subject</Label>
-              <Input id="subject" required placeholder="How can we help?" className="bg-zinc-50 dark:bg-zinc-800/50" />
+              <Input id="subject" name="subject" required placeholder="How can we help?" className="bg-zinc-50 dark:bg-zinc-800/50" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="message">Message</Label>
               <Textarea 
                 id="message" 
+                name="message"
                 required 
                 placeholder="Write your message here..." 
                 className="min-h-[120px] bg-zinc-50 dark:bg-zinc-800/50 resize-none" 
