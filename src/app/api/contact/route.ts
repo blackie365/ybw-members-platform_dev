@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     // Best Practice: Send FROM your verified domain, and set REPLY-TO to the user's email
     const data = {
       from: `Yorkshire Businesswoman Website <noreply@${MAILGUN_DOMAIN}>`,
-      to: ['hello@yorkshirebusinesswoman.co.uk'],
+      to: ['editor@yorkshirebusinesswoman.co.uk', 'dd@yorkshirebusinesswoman.co.uk'],
       'h:Reply-To': `${firstName} ${lastName} <${email}>`,
       subject: `Website Contact Form: ${subject}`,
       text: `You have received a new message from the Yorkshire Businesswoman contact form.\n\nName: ${firstName} ${lastName}\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`

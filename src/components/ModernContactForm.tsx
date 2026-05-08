@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, MapPin, Phone } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,8 +69,11 @@ export function ModernContactForm() {
             <div>
               <h3 className="font-medium text-zinc-900 dark:text-white">Email Us</h3>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                <a href="mailto:hello@yorkshirebusinesswoman.co.uk" className="hover:text-indigo-600 dark:hover:text-indigo-400">
-                  hello@yorkshirebusinesswoman.co.uk
+                <a href="mailto:editor@yorkshirebusinesswoman.co.uk" className="hover:text-indigo-600 dark:hover:text-indigo-400 block">
+                  editor@yorkshirebusinesswoman.co.uk
+                </a>
+                <a href="mailto:dd@yorkshirebusinesswoman.co.uk" className="hover:text-indigo-600 dark:hover:text-indigo-400 block mt-1">
+                  dd@yorkshirebusinesswoman.co.uk
                 </a>
               </p>
             </div>
@@ -83,23 +86,9 @@ export function ModernContactForm() {
             <div>
               <h3 className="font-medium text-zinc-900 dark:text-white">Call Us</h3>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                <a href="tel:+441131234567" className="hover:text-indigo-600 dark:hover:text-indigo-400">
-                  +44 (0) 113 123 4567
+                <a href="tel:07711539047" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+                  07711 539047
                 </a>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-900/20">
-              <MapPin className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="font-medium text-zinc-900 dark:text-white">Office</h3>
-              <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                123 Business Avenue<br />
-                Leeds, West Yorkshire<br />
-                LS1 2AB, United Kingdom
               </p>
             </div>
           </div>
