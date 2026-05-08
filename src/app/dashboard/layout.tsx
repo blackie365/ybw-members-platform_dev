@@ -58,6 +58,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     Directory
                   </Link>
                 </li>
+                <li>
+                  <Link href="/dashboard/videos" className={`block hover:text-indigo-600 dark:hover:text-indigo-400 ${pathname === '/dashboard/videos' ? 'text-zinc-900 font-medium dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                    Video Library
+                  </Link>
+                </li>
               </ul>
             </nav>
 
