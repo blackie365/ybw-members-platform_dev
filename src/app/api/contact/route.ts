@@ -25,7 +25,16 @@ export async function POST(req: Request) {
 
     // 3. Initialize Mailgun
     const mailgun = new Mailgun(formData);
-    const mg = mailgun.client({ username: 'api', key: MAILGUN_API_KEY });
+    
+    // Check if we need to use the EU endpoint (common for UK/EU users)
+    // You can set MAILGUN_URL="https://api.eu.mailgun.net" in Vercel if you are in the EU region
+    const url = process.env.MAILGUN_URL || 'https://api.mailgun.net';
+    
+    const mg = mailgun.client({ 
+      username: 'api', 
+      key: MAILGUN_API_KEY,
+      url: url 
+    });
 
     // 4. Construct the email
     // Best Practice: Send FROM your verified domain, and set REPLY-TO to the user's email
