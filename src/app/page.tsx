@@ -1,6 +1,7 @@
 import { HeroSection } from "@/components/magazine/hero-section"
 import { ArticleGrid } from "@/components/magazine/article-grid"
 import { FeaturedInterview } from "@/components/magazine/featured-interview"
+import { FeaturedVideoSection } from "@/components/magazine/featured-video"
 import { CategoriesSection } from "@/components/magazine/categories-section"
 import { NewsletterSection } from "@/components/magazine/newsletter-section"
 import { getPosts, getTags } from "@/lib/ghost"
@@ -49,6 +50,7 @@ export default async function MagazinePage() {
     <div className="bg-background">
       <div className="flex-1">
         <HeroSection posts={posts} />
+        <FeaturedVideoSection />
         <ArticleGrid posts={posts.slice(3)} />
         <FeaturedInterview member={featuredMember} />
         <CategoriesSection tags={tags} />
