@@ -1,4 +1,5 @@
 import { adminDb } from './firebase-admin';
+import Parser from 'rss-parser';
 
 export interface MarketInsightPoint {
   summary: string;
@@ -14,23 +15,29 @@ export interface MarketInsight {
   createdAt: string;
 }
 
+const parser = new Parser();
+
 export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
   try {
-    const insightsRef = adminDb.collection('marketInsights');
-    const snapshot = await insightsRef.orderBy('createdAt', 'desc').limit(1).get();
+    // Fetch live economic news from BBC Business/Economy RSS
+    const feed = await parser.parseURL('https://feeds.bbci.co.uk/news/business/rss.xml');
     
-    if (snapshot.empty) {
-      return null;
-    }
-    
-    const doc = snapshot.docs[0];
-    const data = doc.data();
+    // Take the top 3-6 items for the insight points
+    const points: MarketInsightPoint[] = feed.items.slice(0, 6).map(item => ({
+      summary: item.title || 'Economic Update',
+      fullText: item.contentSnippet || item.description || '',
+      sourceUrl: item.link,
+      sourceName: 'BBC Business News',
+    }));
+
     return {
-      id: doc.id,
-      ...data
-    } as MarketInsight;
+      id: 'live-bbc-economy',
+      title: 'Latest Economic Insights',
+      points,
+      createdAt: new Date().toISOString()
+    };
   } catch (error) {
-    console.error('Error fetching latest market insight:', error);
+    console.error('Error fetching live economic insights from BBC:', error);
     return null;
   }
 }
