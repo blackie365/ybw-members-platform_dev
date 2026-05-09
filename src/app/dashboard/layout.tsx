@@ -70,9 +70,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-4">Quick Actions</h3>
               <ul className="space-y-3 text-sm">
                 <li>
-                  <button className="w-full text-left text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
-                    + Create a Post
-                  </button>
+                  <a href="mailto:hello@yorkshirebusinesswoman.co.uk?subject=Member%20Article%20Submission" className="w-full text-left text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 block">
+                    + Submit an Article
+                  </a>
                 </li>
                 <li>
                   <Link href="/dashboard/profile" className="w-full text-left text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 block">

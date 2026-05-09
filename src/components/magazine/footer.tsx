@@ -3,34 +3,34 @@ import { Instagram, Linkedin, Twitter } from "lucide-react"
 
 const footerLinks = {
   magazine: [
-    { name: "About Us", href: "#" },
-    { name: "Our Team", href: "#" },
-    { name: "Careers", href: "#" },
-    { name: "Contact", href: "#" },
+    { name: "About Us", href: "/about" },
+    { name: "Our Team", href: "/about" },
+    { name: "Members Directory", href: "/members" },
+    { name: "Contact", href: "/contact" },
   ],
   categories: [
-    { name: "Leadership", href: "#" },
-    { name: "Finance", href: "#" },
-    { name: "Innovation", href: "#" },
-    { name: "Lifestyle", href: "#" },
+    { name: "Leadership", href: "/news?tag=leadership" },
+    { name: "Finance", href: "/news?tag=finance" },
+    { name: "News", href: "/news" },
+    { name: "Lifestyle", href: "/news?tag=lifestyle" },
   ],
   resources: [
-    { name: "Events", href: "#" },
-    { name: "Podcast", href: "#" },
-    { name: "Newsletter", href: "#" },
-    { name: "Awards", href: "#" },
+    { name: "Events", href: "/news?tag=events" },
+    { name: "Member Dashboard", href: "/dashboard" },
+    { name: "Join Us", href: "/membership" },
+    { name: "Login", href: "/login" },
   ],
   legal: [
-    { name: "Privacy Policy", href: "#" },
-    { name: "Terms of Service", href: "#" },
-    { name: "Cookie Policy", href: "#" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Cookie Policy", href: "/privacy" },
   ],
 }
 
 const socialLinks = [
-  { name: "Instagram", icon: Instagram, href: "#" },
-  { name: "LinkedIn", icon: Linkedin, href: "#" },
-  { name: "Twitter", icon: Twitter, href: "#" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/yorkshirebusinesswoman" },
+  { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/yorkshire-businesswoman" },
+  { name: "Twitter", icon: Twitter, href: "https://twitter.com/yorkshirebusinesswoman" },
 ]
 
 export function Footer() {

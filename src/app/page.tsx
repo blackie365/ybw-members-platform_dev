@@ -37,7 +37,7 @@ async function getFeaturedMembers() {
 
 export default async function MagazinePage() {
   const posts = await getPosts({ 
-    limit: 10, 
+    limit: 12, // Top 3 go to Hero, remaining 9 go to Must Read
     filter: "published_at:>='2024-01-01'", 
     order: "published_at DESC" 
   });
