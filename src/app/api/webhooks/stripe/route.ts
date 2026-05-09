@@ -31,7 +31,23 @@ export async function POST(req: Request) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      const { postId, userId } = session.metadata || {};
+      const { postId, userId, plan } = session.metadata || {};
+      
+      // If this was a subscription checkout, update the user immediately
+      if (plan === 'premium' && userId) {
+        const usersRef = adminDb.collection('newMemberCollection');
+        const userDoc = await usersRef.doc(userId).get();
+        
+        if (userDoc.exists) {
+          await userDoc.ref.update({
+            isPaidMember: true,
+            stripeCustomerId: session.customer,
+            subscriptionId: session.subscription,
+            lastPaymentDate: new Date().toISOString(),
+          });
+          console.log(`Successfully activated premium subscription for user ${userId}`);
+        }
+      }
       
       // Record ticket purchase in Firestore
       if (postId && userId) {
