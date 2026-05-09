@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 
@@ -26,7 +26,7 @@ async function syncToGhost(email: string, name: string) {
   }
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -35,6 +35,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan');
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,11 +73,28 @@ export default function RegisterPage() {
       // so they receive newsletters instantly
       await syncToGhost(email, `${firstName} ${lastName}`.trim());
 
+      // If they signed up for a paid plan, trigger Stripe Checkout immediately
+      if (plan === 'premium') {
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan: 'premium',
+            userEmail: user.email,
+            userId: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
+      }
+
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration error:', err);
       setError(getFriendlyAuthErrorMessage(err));
-    } finally {
       setLoading(false);
     }
   };
@@ -105,11 +124,28 @@ export default function RegisterPage() {
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 
+      // If they signed up for a paid plan, trigger Stripe Checkout immediately
+      if (plan === 'premium') {
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan: 'premium',
+            userEmail: user.email,
+            userId: user.uid,
+          }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
+      }
+
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Google Registration error:', err);
       setError(getFriendlyAuthErrorMessage(err));
-    } finally {
       setLoading(false);
     }
   };
@@ -304,5 +340,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
