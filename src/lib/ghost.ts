@@ -1,7 +1,7 @@
 // Ghost API configuration
 import GhostAdminAPI from '@tryghost/admin-api';
 
-const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
+const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
 const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || '61f6041a1f00410f9ac05a60a4';
 
 // Initialize Admin API conditionally (only works on server-side with an Admin Key)
