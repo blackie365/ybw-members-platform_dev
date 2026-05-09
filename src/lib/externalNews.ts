@@ -78,8 +78,8 @@ async function fetchFullArticleContent(url: string): Promise<string | null> {
 
 export async function getExternalNews(limit = 5): Promise<ExternalArticle[]> {
   try {
-    // Using BBC News West Yorkshire feed as requested by the user
-    const feedUrl = 'https://feeds.bbci.co.uk/news/england/west_yorkshire/rss.xml';
+    // Google News RSS query for "Yorkshire" AND ("women" OR "businesswoman" OR "female" OR "entrepreneur")
+    const feedUrl = 'https://news.google.com/rss/search?q=%22Yorkshire%22%20AND%20(%22women%22%20OR%20%22businesswoman%22%20OR%20%22female%22%20OR%20%22entrepreneur%22)&hl=en-GB&gl=GB&ceid=GB:en';
     
     const feed = await parser.parseURL(feedUrl);
     const slicedItems = feed.items.slice(0, limit);

@@ -188,11 +188,11 @@ async function RecentNews() {
 }
 
 async function ExternalNewsWidget() {
-  const externalNews = await getExternalNews(3);
+  const externalNews = await getExternalNews(6);
   return (
     <div className="bg-white border border-zinc-200 rounded-xl p-6 dark:bg-zinc-900 dark:border-zinc-800">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Yorkshire News Updates</h2>
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Regional Women in Business News</h2>
       </div>
       
       <div className="space-y-6">
