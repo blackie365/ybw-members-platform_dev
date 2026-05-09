@@ -10,6 +10,7 @@ const tiers = [
     id: 'tier-free',
     href: '/register',
     priceMonthly: '£0',
+    priceAnnually: '£0',
     description: 'The essential Yorkshire Businesswoman experience. Perfect for staying up to date.',
     features: [
       'Weekly newsletter access',
@@ -22,8 +23,9 @@ const tiers = [
   {
     name: 'Premium Member',
     id: 'tier-premium',
-    href: '/register?plan=premium', // Eventually hooks into Ghost Stripe Portal
-    priceMonthly: '£15',
+    href: '/register?plan=premium', // Hooks into Firebase Custom System
+    priceMonthly: '£25', // Edit this price
+    priceAnnually: '£275', // Edit this price (currently £12 * 12)
     description: 'Full access to the platform. Grow your network and unlock exclusive opportunities.',
     features: [
       'Everything in Free',
@@ -40,7 +42,8 @@ const tiers = [
     name: 'Corporate Partner',
     id: 'tier-corporate',
     href: '/news?tag=contact',
-    priceMonthly: '£150',
+    priceMonthly: '£150', // Edit this price
+    priceAnnually: '£1440', // Edit this price
     description: 'For businesses looking to maximize their brand exposure across Yorkshire.',
     features: [
       'Everything in Premium',
@@ -127,11 +130,13 @@ export default function MembershipPage() {
                 <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{tier.description}</p>
                 <p className="mt-6 flex items-baseline gap-x-1">
                   <span className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                    {billingCycle === 'annually' && tier.id === 'tier-premium' ? '£144' : tier.priceMonthly}
+                    {billingCycle === 'annually' ? tier.priceAnnually : tier.priceMonthly}
                   </span>
-                  <span className="text-sm font-semibold leading-6 text-zinc-600 dark:text-zinc-400">
-                    {tier.id === 'tier-free' ? '' : billingCycle === 'annually' ? '/year' : '/month'}
-                  </span>
+                  {tier.priceMonthly !== '£0' && (
+                    <span className="text-sm font-semibold leading-6 text-zinc-600 dark:text-zinc-400">
+                      /{billingCycle === 'annually' ? 'year' : 'month'}
+                    </span>
+                  )}
                 </p>
                 <ul role="list" className="mt-8 space-y-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
                   {tier.features.map((feature) => (
