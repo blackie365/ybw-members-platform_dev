@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { getPosts } from '@/lib/ghost';
-import { ENDPOINTS } from '@/lib/firebase-functions';
+import { adminDb } from '@/lib/firebase-admin';
 import { getExternalNews } from '@/lib/externalNews';
 import { getLatestMarketInsight } from '@/lib/marketInsights';
 import { Suspense } from 'react';
@@ -11,10 +11,11 @@ export const revalidate = 60;
 
 async function getTotalMembers() {
   try {
-    const res = await fetch(ENDPOINTS.getMembers, { next: { revalidate: 3600 } });
-    const data = await res.json();
-    return data.members?.length || 0;
+    if (!adminDb) return 0;
+    const snapshot = await adminDb.collection('newMemberCollection').count().get();
+    return snapshot.data().count || 0;
   } catch (err) {
+    console.error('Error fetching total members count:', err);
     return 0;
   }
 }
