@@ -195,46 +195,32 @@ async function ExternalNewsWidget() {
         <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">Regional Women in Business News</h2>
       </div>
       
-      <div className="space-y-6">
+      <div className="mt-6 flow-root">
         {externalNews && externalNews.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul role="list" className="-my-5 divide-y divide-zinc-200 dark:divide-zinc-800">
             {externalNews.map((item: any) => (
-              <div key={item.id} className="group relative flex flex-col items-start justify-between">
-                <div className="relative w-full mb-4">
-                  {item.feature_image ? (
-                    <Image
-                      src={item.feature_image}
-                      alt={item.title}
-                      width={400}
-                      height={250}
-                      className="aspect-[16/9] w-full rounded-lg bg-zinc-100 object-cover dark:bg-zinc-800"
-                    />
-                  ) : (
-                    <div className="aspect-[16/9] w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                      <span className="text-zinc-400 dark:text-zinc-500 text-xs">No image</span>
-                    </div>
+              <li key={item.id} className="py-5">
+                <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      <span className="absolute inset-0" aria-hidden="true" />
+                      {item.title}
+                    </a>
+                  </h3>
+                  {item.excerpt && (
+                    <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                      {item.excerpt}
+                    </p>
                   )}
+                  <div className="mt-2 flex items-center gap-x-4 text-xs">
+                    <time dateTime={item.published_at} className="text-zinc-500 dark:text-zinc-400">
+                      {item.published_at ? format(new Date(item.published_at), 'MMM d, yyyy') : ''}
+                    </time>
+                  </div>
                 </div>
-                <div className="flex items-center gap-x-4 text-xs mb-2">
-                  <time dateTime={item.published_at} className="text-zinc-500 dark:text-zinc-400">
-                    {item.published_at ? format(new Date(item.published_at), 'MMM d, yyyy') : ''}
-                  </time>
-                  <span className="text-zinc-500 dark:text-zinc-400 font-medium">{item.source}</span>
-                </div>
-                <h3 className="text-sm font-semibold leading-6 text-zinc-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
-                  <a href={item.link} target="_blank" rel="noopener noreferrer">
-                    <span className="absolute inset-0" />
-                    {item.title}
-                  </a>
-                </h3>
-                {item.excerpt && (
-                  <p className="mt-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400 line-clamp-3">
-                    {item.excerpt}
-                  </p>
-                )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <div className="text-center py-12 border-2 border-dashed border-zinc-200 rounded-lg dark:border-zinc-800">
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
