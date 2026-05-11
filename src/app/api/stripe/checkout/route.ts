@@ -43,8 +43,35 @@ export async function POST(request: Request) {
     }
 
     // Otherwise, fallback to the original logic: Event Ticket purchases
-    if (!priceAmount || isNaN(priceAmount)) {
+    if (priceAmount === undefined || isNaN(priceAmount)) {
        throw new Error(`Invalid priceAmount received: ${priceAmount}`);
+    }
+
+    // Handle FREE tickets (no Stripe required)
+    if (priceAmount === 0) {
+      console.log(`[CHECKOUT] Processing free ticket for event: ${postSlug}`);
+      // Return a special flag or a direct success URL that the frontend can use to RSVP
+      // Wait, we can just return the success URL, and let the frontend or webhook handle it?
+      // Actually, if it's free, we don't go to Stripe. We can just add the user to the RSVP list directly.
+      const { adminDb } = await import('@/lib/firebase-admin');
+      
+      // Fetch user profile to get name/image for the RSVP list
+      const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
+      const profileData = profileSnap.data() || {};
+
+      const eventDocRef = adminDb.collection('events').doc(postSlug);
+      const attendeeRef = eventDocRef.collection('attendees').doc(userId);
+      
+      await attendeeRef.set({
+        uid: userId,
+        name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : 'Member',
+        image: profileData.profileImage || '',
+        company: profileData.companyName || profileData['Company'] || '',
+        timestamp: new Date().toISOString(),
+        ticketType: 'free'
+      });
+
+      return NextResponse.json({ url: `${origin}/news/${postSlug}?success=ticket_purchased` });
     }
 
     const session = await stripe.checkout.sessions.create({
