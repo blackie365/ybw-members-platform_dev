@@ -70,8 +70,16 @@ export function EventTicketCard({ post }: { post: any }) {
       const data = await response.json();
       console.log("Checkout API response:", data);
 
-      if (data.url) {
-        // Redirect the user to Stripe's secure hosted checkout page
+      if (data.free && data.success) {
+        // It was a free ticket and successfully registered.
+        // No need to redirect, just show success and let the real-time RSVP list update.
+        alert("You have successfully registered for this free event!");
+        // We can just stop loading, the RSVP component will update automatically via Firebase snapshot.
+      } else if (data.url) {
+        // Redirect the user to Stripe's secure hosted checkout page (or mock url)
+        if (data.url.includes('mock_stripe')) {
+           alert("Warning: Stripe is running in Mock Mode because the STRIPE_SECRET_KEY is missing from Vercel.");
+        }
         window.location.href = data.url;
       } else {
         alert("Failed to initiate checkout. " + (data.error || 'Check console for details.'));
