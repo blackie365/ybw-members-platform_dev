@@ -23,7 +23,11 @@ export async function POST(request: Request) {
       apiVersion: '2023-10-16' as any, // Using stable typing
     });
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+    // Determine the base origin. If NEXT_PUBLIC_SITE_URL is set (like in Vercel), use it.
+    // Otherwise fallback to the origin header or hardcoded live URL.
+    const origin = process.env.NEXT_PUBLIC_SITE_URL 
+      || request.headers.get('origin') 
+      || 'https://yorkshirebusinesswoman.co.uk';
 
     // If the request specifies a subscription plan (e.g. Premium Member)
     if (plan === 'premium') {
