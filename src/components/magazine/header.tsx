@@ -38,7 +38,7 @@ export function Header() {
 
   return (
     <header className="bg-[#f7f5f1] dark:bg-zinc-950">
-      {/* Top Banner (Ad) - Hidden for now
+      {/* Top Banner (Ad) */}
       <div className="border-b border-border bg-[#f7f5f1] dark:bg-zinc-950">
         <div className="mx-auto flex max-w-7xl justify-center px-4 py-6 lg:px-8">
           <div className="flex h-[90px] w-full max-w-[728px] items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-black/5 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50">
@@ -46,7 +46,6 @@ export function Header() {
           </div>
         </div>
       </div>
-      */}
 
       {/* Sticky Navigation */}
       <div className="sticky top-0 z-50 border-b border-border bg-[#f7f5f1]/95 backdrop-blur supports-[backdrop-filter]:bg-[#f7f5f1]/80 dark:bg-zinc-950/95 dark:supports-[backdrop-filter]:bg-zinc-950/80">
