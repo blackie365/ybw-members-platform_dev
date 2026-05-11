@@ -8,35 +8,6 @@ import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
 
-/**
- * Splits article HTML into two parts at the Nth paragraph boundary.
- * Used to inject a mid-article ad without breaking prose flow.
- */
-function splitHtmlAtParagraph(html: string, afterParagraph = 3): [string, string] {
-  if (!html) return ['', ''];
-  
-  const pTagRegex = /<\/p>/gi;
-  let match;
-  let pCount = 0;
-  let splitIndex = -1;
-
-  while ((match = pTagRegex.exec(html)) !== null) {
-    pCount++;
-    if (pCount === afterParagraph) {
-      splitIndex = match.index + 4; // Include the closing </p> tag length
-      break;
-    }
-  }
-
-  // Not enough paragraphs to split — return everything as first half
-  if (splitIndex === -1) return [html, ''];
-
-  const before = html.substring(0, splitIndex);
-  const after = html.substring(splitIndex);
-
-  return [before, after];
-}
-
 export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -197,22 +168,15 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               </figure>
             )}
 
-            {/* Article body — split at 3rd paragraph to inject mid-article ad */}
-            {(() => {
-              const [before, after] = splitHtmlAtParagraph(post.html || '', 3);
-              const proseClass = 'prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md';
-              return (
-                <>
-                  <div className={proseClass} dangerouslySetInnerHTML={{ __html: before }} />
-                  {after && (
-                    <>
-                      <AdSlot type="mid-article" />
-                      <div className={proseClass} dangerouslySetInnerHTML={{ __html: after }} />
-                    </>
-                  )}
-                </>
-              );
-            })()}
+            {/* Article body */}
+            <div 
+              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md" 
+              dangerouslySetInnerHTML={{ __html: post.html || '' }} 
+            />
+            
+            <div className="mt-8">
+              <AdSlot type="mid-article" />
+            </div>
 
             <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
               <div className="flex gap-2 flex-wrap">
