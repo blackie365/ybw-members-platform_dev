@@ -109,6 +109,7 @@ export function EventTicketCard({ post }: { post: any }) {
       <button
         onClick={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           handleCheckout();
         }}
         disabled={loading}

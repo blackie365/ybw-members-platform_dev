@@ -218,7 +218,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8">Related Articles</h2>
           <div className="grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
             {relatedPosts.map((relatedPost: any) => (
-              <article key={relatedPost.id} className="flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl ring-1 ring-zinc-200 dark:ring-white/10 hover:shadow-md transition-shadow">
+              <article key={relatedPost.id} className="relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl ring-1 ring-zinc-200 dark:ring-white/10 hover:shadow-md transition-shadow">
                 <div className="relative w-full">
                   {relatedPost.feature_image ? (
                     <Image
