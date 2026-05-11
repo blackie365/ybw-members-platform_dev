@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { AdminControlWrapper } from '@/components/AdminControlWrapper';
+import { ConnectButton } from '@/components/ConnectButton';
 
 async function getMemberBySlug(slug: string) {
   try {
@@ -129,7 +130,10 @@ export default async function MemberProfilePage({
                 </div>
               )}
             </div>
-            {/* Optional Action Button here in the future */}
+            {/* Action Button */}
+            <div className="absolute -bottom-6 sm:bottom-0 right-0 sm:right-0 sm:relative translate-y-full sm:translate-y-0">
+              <ConnectButton recipientId={member.id} recipientName={firstName} />
+            </div>
           </div>
 
           <div>
@@ -170,6 +174,32 @@ export default async function MemberProfilePage({
 
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-10">
+              {/* Mentorship & Opportunities */}
+              {(member.openToMentoring || member.seekingMentorship || member.openToBoardRoles) && (
+                <section className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-700">
+                  <h2 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
+                    Opportunities & Mentorship
+                  </h2>
+                  <div className="flex flex-wrap gap-3">
+                    {member.openToMentoring && (
+                      <span className="inline-flex items-center rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-400/20">
+                        Open to Mentoring
+                      </span>
+                    )}
+                    {member.seekingMentorship && (
+                      <span className="inline-flex items-center rounded-md bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-400/20">
+                        Seeking Mentorship
+                      </span>
+                    )}
+                    {member.openToBoardRoles && (
+                      <span className="inline-flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-400/20">
+                        Board Roles (NED)
+                      </span>
+                    )}
+                  </div>
+                </section>
+              )}
+
               {bio && (
                 <section>
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-4">

@@ -7,6 +7,7 @@ import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import * as cheerio from 'cheerio';
+import { EventRSVP } from '@/components/EventRSVP';
 
 /**
  * Splits article HTML into two parts at the Nth paragraph boundary.
@@ -236,6 +237,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 ))}
               </div>
             </div>
+
+            {isEvent && (
+              <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                <EventRSVP eventSlug={post.slug} eventTitle={post.title} />
+              </div>
+            )}
           </article>
 
           {/* Sidebar — event ticket (events only) + ad slot (all articles) */}

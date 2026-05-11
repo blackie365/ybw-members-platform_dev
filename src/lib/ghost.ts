@@ -176,17 +176,37 @@ export async function getGhostMembers(options?: { limit?: number | string; filte
     console.warn("Ghost Admin API is not initialized. Ensure GHOST_ADMIN_API_KEY is set in .env.local.");
     return [];
   }
-
+  
   try {
-    const members = await ghostAdmin.members.browse({
-      limit: options?.limit || 'all',
-      filter: options?.filter,
-      page: options?.page
-    });
+    const members = await ghostAdmin.members.browse(options);
     return members;
-  } catch (err) {
-    console.error("Error fetching Ghost members via Admin API:", err);
+  } catch (error) {
+    console.error("Error fetching ghost members:", error);
     return [];
+  }
+}
+
+/**
+ * Create a new draft article via Ghost Admin API
+ */
+export async function createDraftArticle({ title, html, customExcerpt }: { title: string, html: string, customExcerpt?: string }) {
+  if (!ghostAdmin) {
+    throw new Error("Ghost Admin API is not initialized. Cannot create article.");
+  }
+  
+  try {
+    const response = await ghostAdmin.posts.add({
+      title,
+      html,
+      status: 'draft',
+      custom_excerpt: customExcerpt,
+      tags: ['Member Submission']
+    }, { source: 'html' });
+    
+    return response;
+  } catch (error) {
+    console.error("Error creating draft article:", error);
+    throw error;
   }
 }
 

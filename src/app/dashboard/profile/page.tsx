@@ -26,7 +26,10 @@ export default function DashboardProfile() {
     bio: '',
     website: '',
     linkedinUrl: '',
-    profileImage: ''
+    profileImage: '',
+    openToMentoring: false,
+    seekingMentorship: false,
+    openToBoardRoles: false
   });
 
   useEffect(() => {
@@ -51,7 +54,10 @@ export default function DashboardProfile() {
             bio: data.bio || data['Bio'] || '',
             website: data.website || data['Website'] || '',
             linkedinUrl: data.linkedinUrl || data['LinkedIn URL'] || '',
-            profileImage: data.profileImage || ''
+            profileImage: data.profileImage || '',
+            openToMentoring: data.openToMentoring || false,
+            seekingMentorship: data.seekingMentorship || false,
+            openToBoardRoles: data.openToBoardRoles || false
           });
         }
       } catch (error) {
@@ -67,8 +73,13 @@ export default function DashboardProfile() {
   }, [user, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,6 +400,66 @@ export default function DashboardProfile() {
                 className="block w-full rounded-md border-0 py-1.5 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-zinc-800 dark:text-white dark:ring-zinc-700 dark:focus:ring-indigo-500"
                 placeholder="https://linkedin.com/in/username"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Mentorship & Opportunities Section */}
+          <div className="mt-10 border-t border-zinc-200 dark:border-zinc-800 pt-10">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Opportunities & Mentorship</h3>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              Let other members know how you&apos;d like to engage with the community.
+            </p>
+          <div className="mt-6 space-y-4">
+            <div className="relative flex items-start">
+              <div className="flex h-6 items-center">
+                <input
+                  id="openToMentoring"
+                  name="openToMentoring"
+                  type="checkbox"
+                  checked={formData.openToMentoring}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-600 dark:border-zinc-700 dark:bg-zinc-800 dark:checked:bg-indigo-600"
+                />
+              </div>
+              <div className="ml-3 text-sm leading-6">
+                <label htmlFor="openToMentoring" className="font-medium text-zinc-900 dark:text-white">Open to Mentoring</label>
+                <p className="text-zinc-500 dark:text-zinc-400">I am available to mentor other women in business.</p>
+              </div>
+            </div>
+            
+            <div className="relative flex items-start">
+              <div className="flex h-6 items-center">
+                <input
+                  id="seekingMentorship"
+                  name="seekingMentorship"
+                  type="checkbox"
+                  checked={formData.seekingMentorship}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-600 dark:border-zinc-700 dark:bg-zinc-800 dark:checked:bg-indigo-600"
+                />
+              </div>
+              <div className="ml-3 text-sm leading-6">
+                <label htmlFor="seekingMentorship" className="font-medium text-zinc-900 dark:text-white">Seeking Mentorship</label>
+                <p className="text-zinc-500 dark:text-zinc-400">I am looking for guidance and mentorship.</p>
+              </div>
+            </div>
+
+            <div className="relative flex items-start">
+              <div className="flex h-6 items-center">
+                <input
+                  id="openToBoardRoles"
+                  name="openToBoardRoles"
+                  type="checkbox"
+                  checked={formData.openToBoardRoles}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-600 dark:border-zinc-700 dark:bg-zinc-800 dark:checked:bg-indigo-600"
+                />
+              </div>
+              <div className="ml-3 text-sm leading-6">
+                <label htmlFor="openToBoardRoles" className="font-medium text-zinc-900 dark:text-white">Open to Board Roles (NED)</label>
+                <p className="text-zinc-500 dark:text-zinc-400">I am interested in Non-Executive Director or board opportunities.</p>
+              </div>
             </div>
           </div>
         </div>

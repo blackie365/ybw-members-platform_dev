@@ -59,7 +59,7 @@ export function ModernContactForm() {
             Get in Touch
           </h2>
           <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            Have a question about membership, our magazine, or upcoming events? We'd love to hear from you.
+            Have a question about membership, our magazine, or upcoming events? We&apos;d love to hear from you.
           </p>
         </div>
 

@@ -7,6 +7,11 @@ import { MagnifyingGlassIcon, BarsArrowDownIcon, BarsArrowUpIcon } from '@heroic
 export function MembersDirectoryClient({ initialMembers }: { initialMembers: any[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // Mentorship filters
+  const [filterMentoring, setFilterMentoring] = useState(false);
+  const [filterSeeking, setFilterSeeking] = useState(false);
+  const [filterBoard, setFilterBoard] = useState(false);
 
   const filteredAndSortedMembers = useMemo(() => {
     // Filter
@@ -18,17 +23,24 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
       const bio = (member.bio || member['Bio'] || '').toLowerCase();
       const jobTitle = (member.jobTitle || '').toLowerCase();
 
-      return (
-        firstName.includes(term) ||
+      const matchesSearch = firstName.includes(term) ||
         lastName.includes(term) ||
         company.includes(term) ||
         jobTitle.includes(term) ||
-        bio.includes(term)
-      );
+        bio.includes(term);
+
+      if (!matchesSearch) return false;
+
+      // Apply Mentorship filters (AND logic if multiple selected)
+      if (filterMentoring && !member.openToMentoring) return false;
+      if (filterSeeking && !member.seekingMentorship) return false;
+      if (filterBoard && !member.openToBoardRoles) return false;
+
+      return true;
     });
 
-    // Sort alphabetically by first name
-    result.sort((a, b) => {
+    // Sort
+    return result.sort((a, b) => {
       const nameA = (a.firstName || a['First Name'] || '').toLowerCase();
       const nameB = (b.firstName || b['First Name'] || '').toLowerCase();
       
@@ -40,7 +52,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
     });
 
     return result;
-  }, [initialMembers, searchTerm, sortOrder]);
+  }, [initialMembers, searchTerm, sortOrder, filterMentoring, filterSeeking, filterBoard]);
 
   return (
     <div>
@@ -57,41 +69,77 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
       </div>
 
       {/* Controls Section */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-12">
-        {/* Search Bar */}
-        <div className="relative flex-1 max-w-2xl">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-            <MagnifyingGlassIcon className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+      <div className="flex flex-col gap-4 mb-12">
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Search Bar */}
+          <div className="relative flex-1 max-w-2xl">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <MagnifyingGlassIcon className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+            </div>
+            <input
+              type="text"
+              name="search"
+              id="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full rounded-xl border-0 py-4 pl-11 pr-4 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-zinc-800/50 dark:text-white dark:ring-zinc-700 dark:focus:ring-indigo-500 transition-shadow"
+              placeholder="Search by name, company, job title, or bio..."
+            />
           </div>
-          <input
-            type="text"
-            name="search"
-            id="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full rounded-xl border-0 py-4 pl-11 pr-4 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-zinc-800/50 dark:text-white dark:ring-zinc-700 dark:focus:ring-indigo-500 transition-shadow"
-            placeholder="Search by name, company, job title, or bio..."
-          />
+
+          {/* Sort Toggle */}
+          <button
+            type="button"
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="inline-flex items-center gap-x-2 rounded-xl bg-white dark:bg-zinc-800 px-4 py-4 text-sm font-semibold text-zinc-900 dark:text-white shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
+          >
+            {sortOrder === 'asc' ? (
+              <>
+                <BarsArrowDownIcon className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
+                Sort A-Z
+              </>
+            ) : (
+              <>
+                <BarsArrowUpIcon className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
+                Sort Z-A
+              </>
+            )}
+          </button>
         </div>
 
-        {/* Sort Toggle */}
-        <button
-          type="button"
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-          className="inline-flex items-center gap-x-2 rounded-xl bg-white dark:bg-zinc-800 px-4 py-4 text-sm font-semibold text-zinc-900 dark:text-white shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
-        >
-          {sortOrder === 'asc' ? (
-            <>
-              <BarsArrowDownIcon className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
-              Sort A-Z
-            </>
-          ) : (
-            <>
-              <BarsArrowUpIcon className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
-              Sort Z-A
-            </>
-          )}
-        </button>
+        {/* Mentorship Filters */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilterMentoring(!filterMentoring)}
+            className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              filterMentoring
+                ? 'bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/30 dark:text-indigo-300 dark:ring-indigo-400/30'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
+            }`}
+          >
+            Open to Mentoring
+          </button>
+          <button
+            onClick={() => setFilterSeeking(!filterSeeking)}
+            className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              filterSeeking
+                ? 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/30'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
+            }`}
+          >
+            Seeking Mentorship
+          </button>
+          <button
+            onClick={() => setFilterBoard(!filterBoard)}
+            className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              filterBoard
+                ? 'bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/30'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
+            }`}
+          >
+            Board Roles (NED)
+          </button>
+        </div>
       </div>
 
       {/* Results Stats */}

@@ -41,6 +41,24 @@ export function MemberCard({ member }: { member: any }) {
         {bio}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {member.openToMentoring && (
+          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-400/20">
+            Open to Mentoring
+          </span>
+        )}
+        {member.seekingMentorship && (
+          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-400/20">
+            Seeking Mentorship
+          </span>
+        )}
+        {member.openToBoardRoles && (
+          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-400/20">
+            Board Roles (NED)
+          </span>
+        )}
+      </div>
+
       <div className="mt-4 w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
         <a
           href={`/members/${member.memberSlug || member.slug || member.id}`}

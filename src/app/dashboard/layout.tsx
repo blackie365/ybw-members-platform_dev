@@ -59,6 +59,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/dashboard/opportunities" className={`block text-xs font-semibold uppercase tracking-wider transition-colors hover:text-accent ${pathname === '/dashboard/opportunities' ? 'text-accent' : 'text-foreground'}`}>
+                    Job & Board Roles
+                  </Link>
+                </li>
+                <li>
                   <Link href="/dashboard/videos" className={`block text-xs font-semibold uppercase tracking-wider transition-colors hover:text-accent ${pathname === '/dashboard/videos' ? 'text-accent' : 'text-foreground'}`}>
                     Video Library
                   </Link>
@@ -70,9 +75,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <h3 className="font-serif text-xl font-medium text-foreground mb-6">Quick Actions</h3>
               <ul className="space-y-4">
                 <li>
-                  <a href="mailto:hello@yorkshirebusinesswoman.co.uk?subject=Member%20Article%20Submission" className="block text-xs font-semibold uppercase tracking-wider text-accent hover:text-foreground transition-colors">
+                  <Link href="/dashboard/submit-article" className="block text-xs font-semibold uppercase tracking-wider text-accent hover:text-foreground transition-colors">
                     + Submit an Article
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <Link href="/dashboard/profile" className="block text-xs font-semibold uppercase tracking-wider text-accent hover:text-foreground transition-colors">
