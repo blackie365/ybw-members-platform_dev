@@ -64,8 +64,15 @@ export function Header() {
             </Sheet>
           </div>
 
-          {/* Desktop navigation (Left) */}
-          <div className="hidden lg:flex lg:items-center lg:gap-8 flex-1">
+          {/* Logo (Left on Desktop, Center on Mobile) */}
+          <div className="flex lg:flex-1 justify-center lg:justify-start">
+             <Link href="/" aria-label="Home">
+               <Logo className="h-6 sm:h-8" />
+             </Link>
+          </div>
+
+          {/* Desktop navigation (Centered) */}
+          <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-8 lg:flex-[2]">
             {navigation.map((item) => (
               <Link
                 key={item.name}
@@ -75,13 +82,6 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-          </div>
-
-          {/* Centered Logo (Mobile & Desktop) */}
-          <div className="flex flex-1 justify-center">
-             <Link href="/" aria-label="Home">
-               <Logo className="h-6 sm:h-8" />
-             </Link>
           </div>
 
           {/* Actions (Right) */}
