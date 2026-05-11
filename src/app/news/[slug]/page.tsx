@@ -216,7 +216,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
             <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
               <div className="flex gap-2 flex-wrap">
-                {post.tags?.filter((t: any) => t.visibility === 'public').map((tag: any) => (
+                {post.tags
+                  ?.filter((t: any) => t.visibility === 'public')
+                  .filter((t: any) => !['events', 'gysprices'].includes(t.slug.toLowerCase()))
+                  .map((tag: any) => (
                   <Link 
                     key={tag.slug} 
                     href={`/news?tag=${tag.slug}`}
