@@ -93,7 +93,7 @@ export function EventTicketCard({ post }: { post: any }) {
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-800/80 rounded-2xl p-6 shadow-xl ring-1 ring-zinc-900/5 dark:ring-white/10 sticky top-24">
+    <div className="bg-white dark:bg-zinc-800/80 rounded-2xl p-6 shadow-xl ring-1 ring-zinc-900/5 dark:ring-white/10 sticky top-24 z-10">
       <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Attend this Event</h3>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
         Secure your spot today. Tickets are limited and sell out quickly.
@@ -107,9 +107,12 @@ export function EventTicketCard({ post }: { post: any }) {
       </div>
 
       <button
-        onClick={handleCheckout}
+        onClick={(e) => {
+          e.preventDefault();
+          handleCheckout();
+        }}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all relative z-20"
       >
         {loading ? (
           'Processing...'
