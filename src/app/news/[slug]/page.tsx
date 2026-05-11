@@ -206,7 +206,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                   <div className={proseClass} dangerouslySetInnerHTML={{ __html: before }} />
                   {after && (
                     <>
-                      <AdSlot type="mid-article" />
+                      {/* 
+                        <AdSlot type="mid-article" /> 
+                      */}
                       <div className={proseClass} dangerouslySetInnerHTML={{ __html: after }} />
                     </>
                   )}
@@ -239,7 +241,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
             <div className="sticky top-24 flex flex-col gap-8">
               {isEvent && <EventTicketCard post={post} />}
-              <AdSlot type="sidebar-mpu" />
+              {/* <AdSlot type="sidebar-mpu" /> */}
             </div>
           </aside>
         </div>
