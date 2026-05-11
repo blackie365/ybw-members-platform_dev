@@ -6,17 +6,11 @@ export function Logo({ className, ...props }: React.ComponentPropsWithoutRef<'di
   
   return (
     <div className={clsx("relative flex items-center", containerClass)} {...props}>
-      {/* Light mode logo (Dark text, for light backgrounds like the nav bar) */}
+      {/* The main logo for light backgrounds (Nav Bar) */}
       <img
         src="/images/logo-nav-v3.png"
         alt="Yorkshire Businesswoman"
-        className="block dark:hidden h-full w-auto object-contain"
-      />
-      {/* Dark mode logo (White text, for dark backgrounds like the footer) */}
-      <img
-        src="/images/logo-footer-v2.png"
-        alt="Yorkshire Businesswoman"
-        className="hidden dark:block h-full w-auto object-contain"
+        className="block h-full w-auto object-contain dark:invert"
       />
     </div>
   )
