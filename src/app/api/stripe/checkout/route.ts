@@ -23,11 +23,13 @@ export async function POST(request: Request) {
       apiVersion: '2023-10-16' as any, // Using stable typing
     });
 
-    // Determine the base origin. If NEXT_PUBLIC_SITE_URL is set (like in Vercel), use it.
-    // Otherwise fallback to the origin header or hardcoded live URL.
+    // We must use the absolute origin because Stripe requires a fully qualified URL for success/cancel redirects.
     const origin = process.env.NEXT_PUBLIC_SITE_URL 
       || request.headers.get('origin') 
       || 'https://yorkshirebusinesswoman.co.uk';
+
+    // Ensure origin does not have a trailing slash
+    const cleanOrigin = origin.replace(/\/$/, '');
 
     // If the request specifies a subscription plan (e.g. Premium Member)
     if (plan === 'premium') {
@@ -39,8 +41,8 @@ export async function POST(request: Request) {
           quantity: 1,
         }],
         mode: 'subscription',
-        success_url: `${origin}/dashboard?success=subscription_active`,
-        cancel_url: `${origin}/membership`,
+        success_url: `${cleanOrigin}/dashboard?success=subscription_active`,
+        cancel_url: `${cleanOrigin}/membership`,
         metadata: { userId, plan } // Stored so Stripe Webhooks can update Firebase later
       });
       return NextResponse.json({ url: session.url });
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
         ticketType: 'free'
       });
 
-      return NextResponse.json({ url: `${origin}/news/${postSlug}?success=ticket_purchased` });
+      return NextResponse.json({ url: `${cleanOrigin}/news/${postSlug}?success=ticket_purchased` });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -90,8 +92,8 @@ export async function POST(request: Request) {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${origin}/news/${postSlug}?success=ticket_purchased`,
-      cancel_url: `${origin}/news/${postSlug}?canceled=true`,
+      success_url: `${cleanOrigin}/news/${postSlug}?success=ticket_purchased`,
+      cancel_url: `${cleanOrigin}/news/${postSlug}?canceled=true`,
       metadata: { postId, postSlug, userId } // Stored so Stripe Webhooks can update Firebase later
     });
 
