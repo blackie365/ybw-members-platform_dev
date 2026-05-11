@@ -85,6 +85,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   </Link>
                 </li>
               </ul>
+              
+              <div className="mt-8 pt-8 border-t border-border">
+                <button 
+                  onClick={() => {
+                    import('@/lib/firebase').then(({ auth }) => {
+                      import('firebase/auth').then(({ signOut }) => {
+                        signOut(auth).then(() => router.push('/'));
+                      });
+                    });
+                  }}
+                  className="block w-full text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:text-red-600 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
           </aside>
 

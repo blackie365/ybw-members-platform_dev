@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Menu, Search, User } from "lucide-react"
+import { Menu, Search, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -9,6 +9,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Logo } from "@/components/Logo"
+import { useAuth } from "@/lib/AuthContext"
+import { auth } from "@/lib/firebase"
+import { signOut } from "firebase/auth"
+import { useRouter } from "next/navigation"
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -20,6 +24,18 @@ const navigation = [
 ];
 
 export function Header() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   return (
     <header className="bg-[#f7f5f1] dark:bg-zinc-950">
       {/* Top Banner (Ad) */}
@@ -59,6 +75,14 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
+                  {user && (
+                    <button
+                      onClick={handleSignOut}
+                      className="font-serif text-lg tracking-wide text-left text-zinc-500 hover:text-red-600 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  )}
                 </nav>
               </SheetContent>
             </Sheet>
@@ -86,16 +110,30 @@ export function Header() {
 
           {/* Actions (Right) */}
           <div className="flex flex-1 items-center justify-end gap-2">
-            <Link href="/dashboard" passHref>
-              <Button variant="ghost" size="icon" className="hidden lg:flex" aria-label="Account">
-                <User className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/membership" passHref>
-              <Button className="ml-2 hidden rounded-full bg-primary px-6 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90 lg:inline-flex">
-                Join Us
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link href="/dashboard" passHref>
+                  <Button variant="ghost" size="icon" className="hidden lg:flex" aria-label="Dashboard">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hidden lg:flex" 
+                  aria-label="Sign out"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Link href="/membership" passHref>
+                <Button className="ml-2 hidden rounded-full bg-primary px-6 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90 lg:inline-flex">
+                  Join Us
+                </Button>
+              </Link>
+            )}
           </div>
         </nav>
       </div>
