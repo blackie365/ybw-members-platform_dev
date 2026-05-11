@@ -20,6 +20,7 @@ async function getFeaturedMembers() {
         image: data.profileImage || data.image || data.avatarUrl,
         company: data.companyName || data.company,
         role: data.jobTitle || data.role,
+        isFeatured: data.isFeatured === true,
       }
     }).filter((member: any) => {
       const hasImage = !!member.image;
@@ -28,6 +29,13 @@ async function getFeaturedMembers() {
       return hasImage && hasBio && hasName;
     });
     
+    // Sort so that explicitly featured members appear first
+    members.sort((a: any, b: any) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return 0;
+    });
+
     return members;
   } catch (error) {
     console.error("Error fetching featured members:", error);

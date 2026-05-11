@@ -3,7 +3,7 @@ import { adminAuth } from './firebase-admin';
 // The hardcoded admin emails that were previously checked on the client-side
 // Now securely evaluated on the server.
 const ADMIN_EMAILS = [
-  'robert@yorkshirebusinesswoman.co.uk',
+  'rob@topicuk.co.uk',
   'admin@yorkshirebusinesswoman.co.uk'
 ];
 

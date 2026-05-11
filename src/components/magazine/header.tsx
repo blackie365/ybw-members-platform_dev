@@ -11,6 +11,7 @@ import {
 import { Logo } from "@/components/Logo"
 
 const navigation = [
+  { name: "Home", href: "/" },
   { name: "News", href: "/news" },
   { name: "Members", href: "/members" },
   { name: "About", href: "/about" },

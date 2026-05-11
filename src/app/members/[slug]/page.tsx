@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 
 async function getMemberBySlug(slug: string) {
   try {
@@ -91,20 +92,23 @@ export default async function MemberProfilePage({
   const lastName = member.lastName || member['Last Name'] || '';
   const initial = firstName ? firstName[0].toUpperCase() : '?';
   const bio = member.bio || member['Bio'] || '';
+  const isFeatured = member.isFeatured === true;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Back link */}
-      <div className="mb-8">
+      <div className="mb-8 flex items-center justify-between">
         <Link
           href="/members"
-          className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
         >
           &larr; Back to Directory
         </Link>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 overflow-hidden">
+      <AdminControlWrapper memberId={member.id} isCurrentlyFeatured={isFeatured} />
+
+      <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm mt-8">
         {/* Cover Photo / Gradient */}
         <div className="h-32 sm:h-48 bg-gradient-to-r from-emerald-500 to-teal-600 w-full"></div>
 
