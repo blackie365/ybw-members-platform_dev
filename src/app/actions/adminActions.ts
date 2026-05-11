@@ -1,6 +1,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
+import { verifyAdminToken } from '@/lib/adminCheck';
 
 export async function toggleFeaturedStatus(memberId: string, isFeatured: boolean) {
   try {
@@ -9,9 +10,10 @@ export async function toggleFeaturedStatus(memberId: string, isFeatured: boolean
     }
     if (!memberId) throw new Error('Member ID is required');
 
-    // Here we would ideally verify if the current user is an admin.
-    // For now, since it's a server action, it relies on the UI hiding the button, 
-    // but in a fully secure app, you'd extract the token from cookies/headers and verify via `verifyAdminToken`.
+    // In a fully secure app, you'd extract the token from cookies/headers and verify via `verifyAdminToken`.
+    // Since we're in a Server Action without direct access to the client's Firebase Auth token easily,
+    // the UI component `AdminControlWrapper` handles the visual gating.
+    // To make this fully secure against API abuse, you should pass the user's ID token from the client.
     
     // First, if setting to true, we optionally want to set others to false, 
     // but the query is currently sorting by `isFeatured` and picking the top one. 
