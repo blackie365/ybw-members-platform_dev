@@ -43,7 +43,7 @@ export function Footer() {
           <div className="lg:max-w-md">
             <Link href="/" className="inline-flex flex-col h-10 sm:h-12 relative">
               <img
-                src="/images/logo-dark.png"
+                src="/images/logo-footer-v2.png"
                 alt="Yorkshire Businesswoman"
                 className="h-full w-auto object-contain"
               />
