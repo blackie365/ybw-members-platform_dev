@@ -38,6 +38,15 @@ export function EventTicketCard({ post }: { post: any }) {
     setLoading(true);
     
     try {
+      console.log("Initiating checkout with data:", {
+        postId: post.id,
+        postSlug: post.slug,
+        postTitle: post.title,
+        userEmail: user.email,
+        userId: user.uid,
+        priceAmount: priceAmount, 
+      });
+
       // This will call our Next.js API route, which talks securely to Stripe to create a Checkout Session
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -55,12 +64,13 @@ export function EventTicketCard({ post }: { post: any }) {
       });
 
       const data = await response.json();
+      console.log("Checkout API response:", data);
 
       if (data.url) {
         // Redirect the user to Stripe's secure hosted checkout page
         window.location.href = data.url;
       } else {
-        alert("Failed to initiate checkout. " + (data.error || ''));
+        alert("Failed to initiate checkout. " + (data.error || 'Check console for details.'));
       }
     } catch (error) {
       console.error("Checkout error:", error);

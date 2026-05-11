@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       if (priceAmount) console.log(`[STRIPE MOCK] Amount: £${priceAmount / 100}`);
       
       return NextResponse.json({ 
-        url: `/dashboard?success=mock_stripe_checkout_complete` 
+        url: `/dashboard?success=mock_stripe_checkout_complete&reason=missing_key` 
       });
     }
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       apiVersion: '2023-10-16' as any, // Using stable typing
     });
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
 
     // If the request specifies a subscription plan (e.g. Premium Member)
     if (plan === 'premium') {
@@ -43,6 +43,10 @@ export async function POST(request: Request) {
     }
 
     // Otherwise, fallback to the original logic: Event Ticket purchases
+    if (!priceAmount || isNaN(priceAmount)) {
+       throw new Error(`Invalid priceAmount received: ${priceAmount}`);
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       customer_email: userEmail,
@@ -62,8 +66,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Stripe API error:', error);
-    return NextResponse.json({ error: 'Failed to create checkout session.' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to create checkout session.' }, { status: 500 });
   }
 }
