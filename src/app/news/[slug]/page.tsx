@@ -6,7 +6,6 @@ import { notFound } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
-import * as cheerio from 'cheerio';
 import { EventRSVP } from '@/components/EventRSVP';
 
 /**
@@ -15,34 +14,25 @@ import { EventRSVP } from '@/components/EventRSVP';
  */
 function splitHtmlAtParagraph(html: string, afterParagraph = 3): [string, string] {
   if (!html) return ['', ''];
-  const $ = cheerio.load(html, { xmlMode: false });
-  const body = $('body');
-  const children = body.children().toArray();
-
+  
+  const pTagRegex = /<\/p>/gi;
+  let match;
   let pCount = 0;
   let splitIndex = -1;
 
-  for (let i = 0; i < children.length; i++) {
-    if (children[i].type === 'tag' && (children[i] as any).name === 'p') {
-      pCount++;
-      if (pCount === afterParagraph) {
-        splitIndex = i;
-        break;
-      }
+  while ((match = pTagRegex.exec(html)) !== null) {
+    pCount++;
+    if (pCount === afterParagraph) {
+      splitIndex = match.index + 4; // Include the closing </p> tag length
+      break;
     }
   }
 
   // Not enough paragraphs to split — return everything as first half
   if (splitIndex === -1) return [html, ''];
 
-  const before = children
-    .slice(0, splitIndex + 1)
-    .map((el) => $.html(el))
-    .join('');
-  const after = children
-    .slice(splitIndex + 1)
-    .map((el) => $.html(el))
-    .join('');
+  const before = html.substring(0, splitIndex);
+  const after = html.substring(splitIndex);
 
   return [before, after];
 }
