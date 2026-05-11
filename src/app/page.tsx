@@ -43,6 +43,8 @@ async function getFeaturedMembers() {
   }
 }
 
+export const revalidate = 0;
+
 export default async function MagazinePage() {
   const posts = await getPosts({ 
     limit: 12, // Top 3 go to Hero, remaining 9 go to Must Read
