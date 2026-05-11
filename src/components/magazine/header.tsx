@@ -11,12 +11,13 @@ import {
 import { Logo } from "@/components/Logo"
 
 const navigation = [
-  { name: "Home", href: "/" },
-  { name: "News", href: "/news" },
-  { name: "Members", href: "/members" },
-  { name: "About", href: "/about" },
-  { name: "Contact", href: "/contact" },
-]
+  { name: 'Home', href: '/' },
+  { name: 'News', href: '/news' },
+  { name: 'Events', href: '/news?tag=events' },
+  { name: 'Members', href: '/members' },
+  { name: 'About', href: '/about' },
+  { name: 'Contact', href: '/contact' },
+];
 
 export function Header() {
   return (
