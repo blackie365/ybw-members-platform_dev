@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      const { postId, userId, plan } = session.metadata || {};
+      const { postId, postSlug, userId, plan } = session.metadata || {};
       
       // If this was a subscription checkout, update the user immediately
       if (plan === 'premium' && userId) {
@@ -61,6 +61,28 @@ export async function POST(req: Request) {
           stripeSessionId: session.id,
           paymentStatus: session.payment_status,
         });
+
+        // Automatically RSVP the user to the event
+        if (postSlug) {
+          try {
+            const profileRef = adminDb.collection('newMemberCollection').doc(userId);
+            const profileSnap = await profileRef.get();
+            const profileData = profileSnap.data() || {};
+
+            const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(userId);
+            await attendeeRef.set({
+              uid: userId,
+              name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : 'Member',
+              image: profileData.profileImage || '',
+              company: profileData.companyName || profileData['Company'] || '',
+              timestamp: new Date().toISOString(),
+              hasTicket: true
+            });
+            console.log(`Successfully added user ${userId} to RSVP list for ${postSlug}`);
+          } catch (rsvpErr) {
+            console.error('Error automatically RSVPing user after ticket purchase:', rsvpErr);
+          }
+        }
         
         console.log(`Successfully recorded ticket purchase for user ${userId} and event ${postId}`);
       }

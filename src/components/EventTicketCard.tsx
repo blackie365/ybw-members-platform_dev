@@ -46,6 +46,7 @@ export function EventTicketCard({ post }: { post: any }) {
         },
         body: JSON.stringify({
           postId: post.id,
+          postSlug: post.slug,
           postTitle: post.title,
           userEmail: user.email,
           userId: user.uid,

@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { postId, postTitle, userEmail, userId, priceAmount, plan } = body;
+    const { postId, postSlug, postTitle, userEmail, userId, priceAmount, plan } = body;
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -55,9 +55,9 @@ export async function POST(request: Request) {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${origin}/dashboard?success=ticket_purchased`,
-      cancel_url: `${origin}/news/${postId}?canceled=true`,
-      metadata: { postId, userId } // Stored so Stripe Webhooks can update Firebase later
+      success_url: `${origin}/news/${postSlug}?success=ticket_purchased`,
+      cancel_url: `${origin}/news/${postSlug}?canceled=true`,
+      metadata: { postId, postSlug, userId } // Stored so Stripe Webhooks can update Firebase later
     });
 
     return NextResponse.json({ url: session.url });
