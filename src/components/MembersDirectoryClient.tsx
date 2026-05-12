@@ -107,7 +107,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
           </button>
         </div>
 
-        {/* Mentorship Filters */}
+        {/* Coaching Filters */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilterMentoring(!filterMentoring)}
@@ -117,7 +117,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
             }`}
           >
-            Open to Mentoring
+            Open to Coaching
           </button>
           <button
             onClick={() => setFilterSeeking(!filterSeeking)}
@@ -127,7 +127,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
             }`}
           >
-            Seeking Mentorship
+            Seeking a Coach
           </button>
           <button
             onClick={() => setFilterBoard(!filterBoard)}

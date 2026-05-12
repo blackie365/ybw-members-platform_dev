@@ -44,12 +44,12 @@ export function MemberCard({ member }: { member: any }) {
       <div className="mt-3 flex flex-wrap gap-1.5">
         {member.openToMentoring && (
           <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-400/20">
-            Open to Mentoring
+            Open to Coaching
           </span>
         )}
         {member.seekingMentorship && (
           <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-400/20">
-            Seeking Mentorship
+            Seeking a Coach
           </span>
         )}
         {member.openToBoardRoles && (

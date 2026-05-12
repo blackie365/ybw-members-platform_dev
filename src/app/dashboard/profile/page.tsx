@@ -404,9 +404,9 @@ export default function DashboardProfile() {
           </div>
         </div>
 
-        {/* Mentorship & Opportunities Section */}
+        {/* Coaching & Opportunities Section */}
           <div className="mt-10 border-t border-zinc-200 dark:border-zinc-800 pt-10">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Opportunities & Mentorship</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Opportunities & Coaching</h3>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
               Let other members know how you&apos;d like to engage with the community.
             </p>
@@ -423,8 +423,8 @@ export default function DashboardProfile() {
                 />
               </div>
               <div className="ml-3 text-sm leading-6">
-                <label htmlFor="openToMentoring" className="font-medium text-zinc-900 dark:text-white">Open to Mentoring</label>
-                <p className="text-zinc-500 dark:text-zinc-400">I am available to mentor other women in business.</p>
+                <label htmlFor="openToMentoring" className="font-medium text-zinc-900 dark:text-white">Open to Coaching</label>
+                <p className="text-zinc-500 dark:text-zinc-400">I am available to coach other women in business.</p>
               </div>
             </div>
             
@@ -440,8 +440,8 @@ export default function DashboardProfile() {
                 />
               </div>
               <div className="ml-3 text-sm leading-6">
-                <label htmlFor="seekingMentorship" className="font-medium text-zinc-900 dark:text-white">Seeking Mentorship</label>
-                <p className="text-zinc-500 dark:text-zinc-400">I am looking for guidance and mentorship.</p>
+                <label htmlFor="seekingMentorship" className="font-medium text-zinc-900 dark:text-white">Seeking a Coach</label>
+                <p className="text-zinc-500 dark:text-zinc-400">I am looking for guidance and coaching.</p>
               </div>
             </div>
 

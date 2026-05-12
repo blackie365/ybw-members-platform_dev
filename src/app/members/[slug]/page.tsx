@@ -174,21 +174,21 @@ export default async function MemberProfilePage({
 
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 space-y-10">
-              {/* Mentorship & Opportunities */}
+              {/* Coaching & Opportunities */}
               {(member.openToMentoring || member.seekingMentorship || member.openToBoardRoles) && (
                 <section className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-700">
                   <h2 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
-                    Opportunities & Mentorship
+                    Opportunities & Coaching
                   </h2>
                   <div className="flex flex-wrap gap-3">
                     {member.openToMentoring && (
                       <span className="inline-flex items-center rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-400/20">
-                        Open to Mentoring
+                        Open to Coaching
                       </span>
                     )}
                     {member.seekingMentorship && (
                       <span className="inline-flex items-center rounded-md bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-400/20">
-                        Seeking Mentorship
+                        Seeking a Coach
                       </span>
                     )}
                     {member.openToBoardRoles && (
