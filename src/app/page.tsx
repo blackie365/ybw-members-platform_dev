@@ -9,32 +9,48 @@ import { adminDb } from "@/lib/firebase-admin"
 async function getFeaturedMembers() {
   try {
     if (!adminDb) return [];
-    // Fetch a batch of members so we can find one with a complete profile
-    const snapshot = await adminDb.collection('newMemberCollection').limit(50).get();
-    const members = snapshot.docs.map((doc: any) => {
+    
+    // First, try to fetch the explicitly featured member
+    const featuredSnapshot = await adminDb.collection('newMemberCollection')
+      .where('isFeatured', '==', true)
+      .limit(1)
+      .get();
+      
+    let members = [];
+    
+    if (!featuredSnapshot.empty) {
+      const doc = featuredSnapshot.docs[0];
       const data = doc.data();
-      return {
+      members.push({
         id: doc.id,
         ...data,
         name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
         image: data.profileImage || data.image || data.avatarUrl,
         company: data.companyName || data.company,
         role: data.jobTitle || data.role,
-        isFeatured: data.isFeatured === true,
-      }
-    }).filter((member: any) => {
-      const hasImage = !!member.image;
-      const hasBio = member.bio && member.bio.trim().length > 20;
-      const hasName = member.name && member.name.trim().length > 0;
-      return hasImage && hasBio && hasName;
-    });
-    
-    // Sort so that explicitly featured members appear first
-    members.sort((a: any, b: any) => {
-      if (a.isFeatured && !b.isFeatured) return -1;
-      if (!a.isFeatured && b.isFeatured) return 1;
-      return 0;
-    });
+        isFeatured: true,
+      });
+    } else {
+      // Fallback: Fetch a batch of members to find one with a complete profile
+      const snapshot = await adminDb.collection('newMemberCollection').limit(50).get();
+      members = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
+          image: data.profileImage || data.image || data.avatarUrl,
+          company: data.companyName || data.company,
+          role: data.jobTitle || data.role,
+          isFeatured: data.isFeatured === true,
+        }
+      }).filter((member: any) => {
+        const hasImage = !!member.image;
+        const hasBio = member.bio && member.bio.trim().length > 20;
+        const hasName = member.name && member.name.trim().length > 0;
+        return hasImage && hasBio && hasName;
+      });
+    }
 
     return members;
   } catch (error) {
