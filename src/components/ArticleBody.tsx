@@ -16,23 +16,37 @@ export function ArticleBody({
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Find all top-level paragraphs inside the article
-    // This avoids messing with nested paragraphs in blockquotes/figures
-    const paragraphs = Array.from(containerRef.current.querySelectorAll(':scope > p'));
+    // Find all paragraphs, filtering out empty ones or ones inside blockquotes/figures
+    const allParagraphs = Array.from(containerRef.current.querySelectorAll('p'));
+    const validParagraphs = allParagraphs.filter(p => {
+      if (!p.textContent || p.textContent.trim().length < 30) return false;
+      if (p.closest('figure') || p.closest('blockquote')) return false;
+      return true;
+    });
     
-    if (paragraphs.length >= 3) {
+    // Create a container for the ad
+    const div = document.createElement('div');
+    div.className = "my-12 clear-both w-full flex justify-center"; 
+    
+    if (validParagraphs.length >= 3) {
       // Find the middle paragraph
-      const middlePara = paragraphs[Math.floor(paragraphs.length / 2)];
-      
-      // Create a container for the ad
-      const div = document.createElement('div');
-      div.className = "my-8 clear-both"; // add some margin and clear floats
-      
-      // Insert it right after the middle paragraph safely in the DOM
+      const middlePara = validParagraphs[Math.floor(validParagraphs.length / 2)];
       middlePara.after(div);
-      
-      setAdContainer(div);
+    } else if (validParagraphs.length > 0) {
+      // If short article, put it after the first paragraph
+      validParagraphs[0].after(div);
+    } else {
+      // Fallback: put it at the bottom of the content
+      containerRef.current.appendChild(div);
     }
+    
+    setAdContainer(div);
+    
+    return () => {
+      if (div.parentNode) {
+        div.parentNode.removeChild(div);
+      }
+    };
   }, [html]);
 
   return (
