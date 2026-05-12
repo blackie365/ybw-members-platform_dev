@@ -174,13 +174,16 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               dangerouslySetInnerHTML={{ 
                 __html: (() => {
                   let html = post.html || '';
-                  const excerptText = (post.custom_excerpt || post.excerpt || '').trim();
+                  // Only strip the first paragraph if the author explicitly wrote a custom excerpt 
+                  // AND it matches the first paragraph perfectly (preventing truncation bugs)
+                  const customExcerptText = (post.custom_excerpt || '').trim();
                   
-                  // If the first paragraph is identical to the excerpt, remove it to prevent duplication
                   const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
-                  if (firstParaMatch && excerptText) {
+                  if (firstParaMatch && customExcerptText) {
                     const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
-                    if (firstParaText && (firstParaText.includes(excerptText) || excerptText.includes(firstParaText))) {
+                    
+                    // Only remove if it's an exact match (or very close) to avoid cutting off half a paragraph
+                    if (firstParaText === customExcerptText) {
                       html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
                     }
                   }
