@@ -171,7 +171,22 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             {/* Article body */}
             <div 
               className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md" 
-              dangerouslySetInnerHTML={{ __html: post.html || '' }} 
+              dangerouslySetInnerHTML={{ 
+                __html: (() => {
+                  let html = post.html || '';
+                  const excerptText = (post.custom_excerpt || post.excerpt || '').trim();
+                  
+                  // If the first paragraph is identical to the excerpt, remove it to prevent duplication
+                  const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
+                  if (firstParaMatch && excerptText) {
+                    const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
+                    if (firstParaText && (firstParaText.includes(excerptText) || excerptText.includes(firstParaText))) {
+                      html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
+                    }
+                  }
+                  return html;
+                })() 
+              }} 
             />
             
             <div className="mt-8">
