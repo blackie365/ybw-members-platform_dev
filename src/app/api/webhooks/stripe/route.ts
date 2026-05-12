@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
+import { sendEmail } from '@/lib/email';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,37 @@ export async function POST(req: Request) {
             lastPaymentDate: new Date().toISOString(),
           });
           console.log(`Successfully activated premium subscription for user ${userId}`);
+
+          // Trigger Welcome Email Workflow non-blockingly
+          const userData = userDoc.data() || {};
+          const userEmail = session.customer_details?.email || session.customer_email || userData.email;
+          const firstName = userData.firstName || 'there';
+
+          if (userEmail) {
+            // We do not await this, so the webhook can respond to Stripe immediately
+            sendEmail({
+              to: userEmail,
+              subject: 'Welcome to Yorkshire Businesswoman!',
+              html: `
+                <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #4f46e5;">Welcome to the Yorkshire Businesswoman Community!</h2>
+                  <p>Hi ${firstName},</p>
+                  <p>Thank you for joining our network. We are absolutely thrilled to have you with us.</p>
+                  <p>Your premium membership is now active, giving you full access to the member directory, exclusive event tickets, and the ability to connect directly with other professionals.</p>
+                  
+                  <h3>What's Next?</h3>
+                  <ol>
+                    <li><strong>Complete your profile:</strong> Head over to your <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'}/dashboard/profile">Dashboard</a> and add your photo, bio, and LinkedIn link.</li>
+                    <li><strong>Set your Coaching status:</strong> Let other members know if you are open to coaching or seeking a coach.</li>
+                    <li><strong>Browse the Directory:</strong> Check out the <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'}/members">Member Directory</a> and start making connections!</li>
+                  </ol>
+                  
+                  <p>If you have any questions, simply reply to this email.</p>
+                  <p>Best regards,<br>The Yorkshire Businesswoman Team</p>
+                </div>
+              `
+            }).catch(err => console.error('Failed to send welcome email:', err));
+          }
         }
       }
       
