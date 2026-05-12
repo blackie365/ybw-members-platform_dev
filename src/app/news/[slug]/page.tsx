@@ -8,7 +8,7 @@ import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
 
-export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
+export const revalidate = 0; // Force live data fetching to bust cache
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
