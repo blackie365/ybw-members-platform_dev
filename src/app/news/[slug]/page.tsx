@@ -191,22 +191,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               <AdSlot type="mid-article" />
             </div>
 
-            <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
-              <div className="flex gap-2 flex-wrap">
-                {post.tags
-                  ?.filter((t: any) => t.visibility === 'public')
-                  .filter((t: any) => !['events', 'gysprices'].includes(t.slug.toLowerCase()))
-                  .map((tag: any) => (
-                  <Link 
-                    key={tag.slug} 
-                    href={`/news?tag=${tag.slug}`}
-                    className="inline-flex items-center rounded-full bg-zinc-50 px-3 py-1 text-sm font-medium text-zinc-600 ring-1 ring-inset ring-zinc-500/10 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10 dark:hover:bg-zinc-700"
-                  >
-                    {tag.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            {/* Tags section completely removed as per user request */}
 
             {isEvent && (
               <div className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800">
