@@ -7,7 +7,6 @@ import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
-import { ArticleBody } from '@/components/ArticleBody';
 
 export const revalidate = 3600; // 1 hour (Cache is purged instantly by webhook anyway)
 
@@ -165,26 +164,32 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             )}
 
             {/* Article body */}
-            <ArticleBody 
-              html={(() => {
-                let html = post.html || '';
-                // Only strip the first paragraph if the author explicitly wrote a custom excerpt 
-                // AND it matches the first paragraph perfectly (preventing truncation bugs)
-                const customExcerptText = (post.custom_excerpt || '').trim();
-                
-                const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
-                if (firstParaMatch && customExcerptText) {
-                  const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
+            <div 
+              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md [&>p:first-of-type]:text-xl [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-8 [&>p:first-of-type]:text-zinc-600 dark:[&>p:first-of-type]:text-zinc-300 [&>p:first-of-type]:mb-8" 
+              dangerouslySetInnerHTML={{ 
+                __html: (() => {
+                  let html = post.html || '';
+                  // Only strip the first paragraph if the author explicitly wrote a custom excerpt 
+                  // AND it matches the first paragraph perfectly (preventing truncation bugs)
+                  const customExcerptText = (post.custom_excerpt || '').trim();
                   
-                  // Only remove if it's an exact match (or very close) to avoid cutting off half a paragraph
-                  if (firstParaText === customExcerptText) {
-                    html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
+                  const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
+                  if (firstParaMatch && customExcerptText) {
+                    const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
+                    
+                    // Only remove if it's an exact match (or very close) to avoid cutting off half a paragraph
+                    if (firstParaText === customExcerptText) {
+                      html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
+                    }
                   }
-                }
-                return html;
-              })()}
-              adComponent={<AdSlot type="mid-article" />}
+                  return html;
+                })() 
+              }} 
             />
+            
+            <div className="mt-12">
+              <AdSlot type="mid-article" />
+            </div>
 
             <div className="mt-16 flex justify-between items-center border-t border-zinc-200 pt-8 dark:border-zinc-800">
               <div className="flex gap-2 flex-wrap">
