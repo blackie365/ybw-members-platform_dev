@@ -108,11 +108,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 sm:text-5xl dark:text-white leading-tight mb-6">
                 {post.title}
               </h1>
-              {(post.custom_excerpt || post.excerpt) && (
-                <p className="text-xl leading-8 text-zinc-500 dark:text-zinc-400 mb-8">
-                  {post.custom_excerpt || post.excerpt}
-                </p>
-              )}
 
               <div className="flex items-center gap-x-4 border-t border-b border-zinc-200 py-6 dark:border-zinc-800">
                 {post.primary_author?.profile_image ? (
@@ -170,26 +165,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
             {/* Article body */}
             <div 
-              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md" 
-              dangerouslySetInnerHTML={{ 
-                __html: (() => {
-                  let html = post.html || '';
-                  // Only strip the first paragraph if the author explicitly wrote a custom excerpt 
-                  // AND it matches the first paragraph perfectly (preventing truncation bugs)
-                  const customExcerptText = (post.custom_excerpt || '').trim();
-                  
-                  const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
-                  if (firstParaMatch && customExcerptText) {
-                    const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
-                    
-                    // Only remove if it's an exact match (or very close) to avoid cutting off half a paragraph
-                    if (firstParaText === customExcerptText) {
-                      html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
-                    }
-                  }
-                  return html;
-                })() 
-              }} 
+              className="prose prose-lg prose-indigo dark:prose-invert max-w-none prose-a:font-semibold prose-img:rounded-xl prose-img:shadow-md [&>p:first-of-type]:text-xl [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-8 [&>p:first-of-type]:text-zinc-600 dark:[&>p:first-of-type]:text-zinc-300 [&>p:first-of-type]:mb-8" 
+              dangerouslySetInnerHTML={{ __html: post.html || '' }} 
             />
             
             <div className="mt-8">
