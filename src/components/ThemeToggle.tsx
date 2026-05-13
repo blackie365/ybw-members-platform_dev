@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 function SunIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 20 20" aria-hidden="true" {...props}>
       <path d="M12.5 10a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z" />
       <path
         strokeLinecap="round"
@@ -15,7 +15,7 @@ function SunIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
 
 function MoonIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+    <svg viewBox="0 0 20 20" aria-hidden="true" {...props}>
       <path d="M15.224 11.724a5.5 5.5 0 0 1-6.949-6.949 5.5 5.5 0 1 0 6.949 6.949Z" />
     </svg>
   )
@@ -38,8 +38,8 @@ export function ThemeToggle() {
       onClick={() => setTheme(otherTheme)}
     >
       <span className="absolute size-12 pointer-fine:hidden" />
-      <SunIcon className="h-5 w-5 stroke-zinc-900 dark:hidden" />
-      <MoonIcon className="hidden h-5 w-5 stroke-white dark:block" />
+      <SunIcon className="h-5 w-5 stroke-zinc-900 fill-zinc-900 dark:hidden" />
+      <MoonIcon className="hidden h-5 w-5 stroke-white fill-white dark:block" />
     </button>
   )
 }
