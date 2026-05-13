@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: 'Yorkshire Businesswoman | Business Magazine for Women',
   description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
   generator: 'v0.app',
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     title: 'Yorkshire Businesswoman | Business Magazine for Women',
     description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',

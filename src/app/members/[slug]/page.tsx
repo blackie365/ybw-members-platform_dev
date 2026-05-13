@@ -59,6 +59,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${fullName} | Member Directory`,
     description: description,
+    alternates: {
+      canonical: `/members/${resolvedParams.slug}`,
+    },
     openGraph: {
       title: `${fullName} - ${title}`,
       description: description,

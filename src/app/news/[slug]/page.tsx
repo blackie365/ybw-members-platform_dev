@@ -18,11 +18,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: 'Not Found' };
   }
 
-  const excerpt = post.custom_excerpt || post.excerpt || 'Read this article on Yorkshire Businesswoman.';
+  const excerpt = post.custom_excerpt || post.excerpt || 'Read this article on Yorkshire BusinessWoman.';
 
   return {
     title: post.title,
     description: excerpt,
+    alternates: {
+      canonical: `/news/${post.slug}`,
+    },
     openGraph: {
       title: post.title,
       description: excerpt,
