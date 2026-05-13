@@ -9,6 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Logo } from "@/components/Logo"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import { useAuth } from "@/lib/AuthContext"
 import { auth } from "@/lib/firebase"
 import { signOut } from "firebase/auth"
@@ -75,6 +76,14 @@ export function Header() {
                   >
                     Dashboard
                   </Link>
+                  {!user && (
+                    <Link
+                      href="/login"
+                      className="font-serif text-lg tracking-wide text-foreground transition-colors hover:text-accent"
+                    >
+                      Sign In
+                    </Link>
+                  )}
                   {user && (
                     <button
                       onClick={handleSignOut}
@@ -83,6 +92,12 @@ export function Header() {
                       Sign Out
                     </button>
                   )}
+                  <div className="mt-4 border-t border-border pt-4">
+                    <div className="flex items-center gap-4">
+                      <span className="font-serif text-lg tracking-wide text-foreground">Theme</span>
+                      <ThemeToggle />
+                    </div>
+                  </div>
                 </nav>
               </SheetContent>
             </Sheet>
@@ -106,10 +121,19 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
+            {!user && (
+              <Link
+                href="/login"
+                className="text-xs font-medium uppercase tracking-[0.2em] text-foreground transition-colors hover:text-accent"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
 
           {/* Actions (Right) */}
           <div className="flex flex-1 items-center justify-end gap-2">
+            <ThemeToggle />
             {user ? (
               <>
                 <Link href="/dashboard" passHref>
