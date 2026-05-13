@@ -3,13 +3,14 @@ import Mailgun from 'mailgun.js';
 
 interface SendEmailParams {
   to: string | string[];
+  bcc?: string | string[];
   subject: string;
   text?: string;
   html?: string;
   replyTo?: string;
 }
 
-export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailParams) {
+export async function sendEmail({ to, bcc, subject, text, html, replyTo }: SendEmailParams) {
   const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
   const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
 
@@ -32,6 +33,10 @@ export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailP
     to: Array.isArray(to) ? to : [to],
     subject,
   };
+
+  if (bcc) {
+    data.bcc = Array.isArray(bcc) ? bcc : [bcc];
+  }
 
   if (text) data.text = text;
   if (html) data.html = html;

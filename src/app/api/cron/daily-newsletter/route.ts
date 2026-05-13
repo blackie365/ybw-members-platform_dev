@@ -81,17 +81,23 @@ export async function GET(request: Request) {
     `;
 
     // 4. Fetch all active subscribers from Firebase
-    const membersSnapshot = await adminDb.collection('newMemberCollection')
-      .where('status', '==', 'active')
-      .get();
-
+    const isTestMode = request.url.includes('test=true');
     const emails: string[] = [];
-    membersSnapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.email) {
-        emails.push(data.email);
-      }
-    });
+
+    if (isTestMode) {
+      emails.push('rob@topicuk.co.uk');
+    } else {
+      const membersSnapshot = await adminDb.collection('newMemberCollection')
+        .where('status', '==', 'active')
+        .get();
+
+      membersSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.email) {
+          emails.push(data.email);
+        }
+      });
+    }
 
     if (emails.length === 0) {
       return NextResponse.json({ success: true, message: 'No active subscribers found' });
@@ -115,7 +121,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: \`Newsletter sent to \${emails.length} subscribers\`,
+      message: `Newsletter sent to ${emails.length} subscribers`,
       articles: posts.map((p: any) => p.title)
     });
 
