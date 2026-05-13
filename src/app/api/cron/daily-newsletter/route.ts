@@ -16,6 +16,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 1.5 Check if today is a UK Bank Holiday
+    try {
+      const bhResponse = await fetch('https://www.gov.uk/bank-holidays.json');
+      const bhData = await bhResponse.json();
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      const englandWalesHolidays = bhData['england-and-wales'].events;
+      const isBankHoliday = englandWalesHolidays.some((event: any) => event.date === today);
+      
+      if (isBankHoliday) {
+        return NextResponse.json({ success: true, message: 'Skipping execution: Today is a UK Bank Holiday' });
+      }
+    } catch (bhError) {
+      console.error('Failed to check bank holidays, continuing with execution:', bhError);
+    }
+
     // 2. Fetch the latest/highlighted stories from Ghost
     // Fetching the 3 most recent posts that are ideally featured, falling back to recent.
     let posts = await getPosts({ limit: 3, filter: 'featured:true', order: 'published_at DESC' });
