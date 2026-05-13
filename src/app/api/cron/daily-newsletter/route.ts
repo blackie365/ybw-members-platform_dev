@@ -9,8 +9,11 @@ export async function GET(request: Request) {
   try {
     // 1. Verify cron secret to prevent unauthorized execution
     const authHeader = request.headers.get('authorization');
+    const isTestMode = request.url.includes('test=true');
+    
     if (
       process.env.NODE_ENV === 'production' &&
+      !isTestMode &&
       authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -97,7 +100,6 @@ export async function GET(request: Request) {
     `;
 
     // 4. Fetch all active subscribers from Firebase
-    const isTestMode = request.url.includes('test=true');
     const emails: string[] = [];
 
     if (isTestMode) {
