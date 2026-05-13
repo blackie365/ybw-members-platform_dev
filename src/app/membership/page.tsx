@@ -62,7 +62,7 @@ function classNames(...classes: string[]) {
 }
 
 export default function MembershipPage() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
 
   return (
     <div className="py-24 sm:py-32 bg-[#f7f5f1] dark:bg-zinc-950">
