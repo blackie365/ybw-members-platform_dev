@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Menu, Search, User, LogOut } from "lucide-react"
+import { Menu, Search, User, LogOut, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -121,14 +121,6 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            {!user && (
-              <Link
-                href="/login"
-                className="text-xs font-medium uppercase tracking-[0.2em] text-foreground transition-colors hover:text-accent"
-              >
-                Sign In
-              </Link>
-            )}
           </div>
 
           {/* Actions (Right) */}
@@ -152,11 +144,18 @@ export function Header() {
                 </Button>
               </>
             ) : (
-              <Link href="/membership" passHref>
-                <Button className="ml-2 hidden rounded-full bg-primary px-6 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90 lg:inline-flex">
-                  Join Us
-                </Button>
-              </Link>
+              <>
+                <Link href="/login" passHref>
+                  <Button variant="ghost" size="icon" className="hidden lg:flex" aria-label="Sign In">
+                    <LogIn className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/membership" passHref>
+                  <Button className="ml-2 hidden rounded-full bg-primary px-6 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90 lg:inline-flex">
+                    Join Us
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </nav>
