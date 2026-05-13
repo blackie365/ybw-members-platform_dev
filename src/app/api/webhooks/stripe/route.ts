@@ -111,6 +111,30 @@ export async function POST(req: Request) {
               hasTicket: true
             });
             console.log(`Successfully added user ${userId} to RSVP list for ${postSlug}`);
+
+            // Workflow: Send Event Ticket Confirmation Email
+            const userEmail = session.customer_details?.email || session.customer_email || profileData.email;
+            const firstName = profileData.firstName || 'there';
+
+            if (userEmail) {
+              sendEmail({
+                to: userEmail,
+                subject: `Your Ticket Confirmation`,
+                html: `
+                  <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #4f46e5;">You're going to the event!</h2>
+                    <p>Hi ${firstName},</p>
+                    <p>This email confirms your successful ticket purchase and RSVP.</p>
+                    <p>Your name has been automatically added to the guest list. You can view the event details and see who else is attending by visiting the event page on the Yorkshire Businesswoman platform.</p>
+                    
+                    <p>We look forward to seeing you there!</p>
+                    
+                    <p>Best regards,<br>The Yorkshire Businesswoman Team</p>
+                  </div>
+                `
+              }).catch(err => console.error('Failed to send event confirmation email:', err));
+            }
+
           } catch (rsvpErr) {
             console.error('Error automatically RSVPing user after ticket purchase:', rsvpErr);
           }
