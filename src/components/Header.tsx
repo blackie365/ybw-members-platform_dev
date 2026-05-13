@@ -116,6 +116,9 @@ export const Header = forwardRef<
             <TopLevelNavItem href="/dashboard">Member Space</TopLevelNavItem>
             <TopLevelNavItem href="/news?tag=events">Events</TopLevelNavItem>
             <TopLevelNavItem href="/members">Members Directory</TopLevelNavItem>
+            {!loading && !user && (
+              <TopLevelNavItem href="/login">Sign In</TopLevelNavItem>
+            )}
           </ul>
         </nav>
         <div className="hidden lg:block lg:h-5 lg:w-px lg:bg-zinc-900/10 lg:dark:bg-white/15" />
@@ -131,7 +134,7 @@ export const Header = forwardRef<
               </Button>
             </div>
           ) : (
-            <Button href="/login">Sign in</Button>
+            <Button href="/membership">Join Us</Button>
           )}
         </div>
       </div>
