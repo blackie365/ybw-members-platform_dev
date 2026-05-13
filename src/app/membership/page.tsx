@@ -145,7 +145,7 @@ export default function MembershipPage() {
                 </ul>
               </div>
               <Link
-                href={tier.href}
+                href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
                 aria-describedby={tier.id}
                 className={classNames(
                   tier.mostPopular

@@ -37,6 +37,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan');
+  const cycle = searchParams.get('cycle') || 'monthly'; // Capture the billing cycle from the URL
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +106,7 @@ function RegisterForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             plan: 'premium',
+            cycle: cycle, // Pass the billing cycle to Stripe
             userEmail: user.email,
             userId: user.uid,
           }),
@@ -183,6 +185,7 @@ function RegisterForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             plan: 'premium',
+            cycle: cycle, // Pass the billing cycle to Stripe
             userEmail: user.email,
             userId: user.uid,
           }),

@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { postId, postSlug, postTitle, userEmail, userId, priceAmount, plan } = body;
+    const { postId, postSlug, postTitle, userEmail, userId, priceAmount, plan, cycle } = body;
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -33,17 +33,21 @@ export async function POST(request: Request) {
 
     // If the request specifies a subscription plan (e.g. Premium Member)
     if (plan === 'premium') {
+      const priceId = cycle === 'annually' 
+        ? 'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
+        : 'price_1TVHicLZwCrAHQYPLXqio8Bi'; // Monthly Price ID
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         customer_email: userEmail,
         line_items: [{
-          price: 'price_1TVHicLZwCrAHQYPLXqio8Bi', // The Stripe Price ID provided by the user
+          price: priceId,
           quantity: 1,
         }],
         mode: 'subscription',
         success_url: `${cleanOrigin}/dashboard?success=subscription_active`,
         cancel_url: `${cleanOrigin}/membership`,
-        metadata: { userId, plan } // Stored so Stripe Webhooks can update Firebase later
+        metadata: { userId, plan, cycle } // Stored so Stripe Webhooks can update Firebase later
       });
       return NextResponse.json({ url: session.url });
     }
