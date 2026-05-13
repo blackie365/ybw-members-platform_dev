@@ -89,7 +89,10 @@ function RegisterForm() {
       await syncToGhost(email, `${firstName} ${lastName}`.trim());
 
       // Trigger Welcome Email for Free Subscribers (non-blocking)
-      fetch('/api/emails/welcome', {
+      const siteUrl2 = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const baseUrl2 = siteUrl2.replace(/\/$/, '');
+
+      fetch(`${baseUrl2}/api/emails/welcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, firstName, plan })
@@ -163,7 +166,11 @@ function RegisterForm() {
       }
 
       // Trigger Welcome Email for Free Subscribers (non-blocking)
-      fetch('/api/emails/welcome', {
+      // We must use a relative path but let Next.js resolve it by awaiting it, or use absolute URL
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const baseUrl = siteUrl.replace(/\/$/, '');
+      
+      fetch(`${baseUrl}/api/emails/welcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, firstName: fName, plan })
