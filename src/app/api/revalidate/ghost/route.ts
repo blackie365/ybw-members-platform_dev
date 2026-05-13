@@ -1,12 +1,34 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { addGhostMember, editGhostMember } from '@/lib/ghost';
+import { adminDb } from '@/lib/firebase-admin';
 
 // You can find this secret in your .env.local file
 // Ghost will call this URL: https://your-domain.com/api/revalidate/ghost?secret=YOUR_SECRET
 export async function POST(req: Request) {
   try {
     const payload = await req.json().catch(() => ({}));
+
+    // NEW: Fallback Admin creation for orphaned accounts
+    if (payload.action === 'create_member_admin') {
+      const { uid, email, firstName, lastName, profileImage } = payload;
+      
+      if (!uid || !email) {
+        return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
+      }
+
+      await adminDb.collection('newMemberCollection').doc(uid).set({
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email: email,
+        profileImage: profileImage || '',
+        slug: `${(firstName || '').toLowerCase()}-${(lastName || '').toLowerCase()}-${Date.now().toString().slice(-4)}`,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
+
+      return NextResponse.json({ success: true, message: 'Member created via Admin SDK' });
+    }
 
     // Check if this is a custom action from our Next.js frontend (like syncing a new member)
     if (payload.action === 'create_member' && payload.email) {

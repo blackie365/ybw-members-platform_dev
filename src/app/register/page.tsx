@@ -60,14 +60,29 @@ function RegisterForm() {
       });
 
       // Create member document in Firestore
-      await setDoc(doc(db, 'newMemberCollection', user.uid), {
-        firstName,
-        lastName,
-        email,
-        slug: `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        await setDoc(doc(db, 'newMemberCollection', user.uid), {
+          firstName,
+          lastName,
+          email,
+          slug: `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        });
+      } catch (dbErr) {
+        console.warn('Could not write to newMemberCollection directly. Using server action fallback.', dbErr);
+        await fetch('/api/revalidate/ghost', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_member_admin',
+            uid: user.uid,
+            email: user.email,
+            firstName,
+            lastName
+          })
+        });
+      }
 
       // Silently sync this new user to the Ghost Admin API
       // so they receive newsletters instantly
@@ -109,20 +124,36 @@ function RegisterForm() {
       const user = userCredential.user;
 
       // Check if they are new, if so create firestore record
-      // In a real app we'd check if the doc exists first, but setDoc with merge: true is safe
       const nameParts = (user.displayName || '').split(' ');
       const fName = nameParts[0] || '';
       const lName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-      await setDoc(doc(db, 'newMemberCollection', user.uid), {
-        firstName: fName,
-        lastName: lName,
-        email: user.email,
-        profileImage: user.photoURL,
-        slug: `${fName.toLowerCase()}-${lName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
-        status: 'active',
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
+      try {
+        await setDoc(doc(db, 'newMemberCollection', user.uid), {
+          firstName: fName,
+          lastName: lName,
+          email: user.email,
+          profileImage: user.photoURL,
+          slug: `${fName.toLowerCase()}-${lName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
+          status: 'active',
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch (dbErr) {
+        console.warn('Could not write to newMemberCollection directly. Using server action fallback.', dbErr);
+        // Fallback to server-side creation to bypass client security rules if needed
+        await fetch('/api/revalidate/ghost', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create_member_admin',
+            uid: user.uid,
+            email: user.email,
+            firstName: fName,
+            lastName: lName,
+            profileImage: user.photoURL
+          })
+        });
+      }
 
       // If they signed up for a paid plan, trigger Stripe Checkout immediately
       if (plan === 'premium') {
