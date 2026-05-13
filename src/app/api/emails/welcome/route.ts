@@ -9,6 +9,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
+    // Send notification to the admins
+    const adminEmail = 'editor@yorkshirebusinesswoman.co.uk';
+    await sendEmail({
+      to: adminEmail,
+      subject: `New Member Registration: ${firstName || 'Someone'}`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #4f46e5;">New Member Registration</h2>
+          <p>A new member has just registered on the platform.</p>
+          <ul>
+            <li><strong>Name:</strong> ${firstName || 'N/A'}</li>
+            <li><strong>Email:</strong> ${email}</li>
+            <li><strong>Plan:</strong> ${plan || 'Free'}</li>
+            <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+          </ul>
+        </div>
+      `
+    }).catch(err => console.error('Failed to send admin notification:', err));
+
     const isPremium = plan === 'premium';
     // If premium, the Stripe webhook handles the email upon successful payment.
     // We only send it here if they are a free subscriber.

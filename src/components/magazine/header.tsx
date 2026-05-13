@@ -147,7 +147,7 @@ export function Header() {
               <>
                 <Link href="/login" passHref>
                   <Button variant="ghost" size="icon" className="hidden lg:flex" aria-label="Sign In">
-                    <LogIn className="h-4 w-4" />
+                    <User className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link href="/membership" passHref>
