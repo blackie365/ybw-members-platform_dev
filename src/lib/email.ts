@@ -32,6 +32,8 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo }: SendE
     from: `Yorkshire Businesswoman <noreply@${MAILGUN_DOMAIN}>`,
     to: Array.isArray(to) ? to : [to],
     subject,
+    'o:tracking-clicks': 'no',
+    'o:tracking': 'no'
   };
 
   if (bcc) {
