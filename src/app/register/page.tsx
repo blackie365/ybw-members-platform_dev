@@ -88,6 +88,13 @@ function RegisterForm() {
       // so they receive newsletters instantly
       await syncToGhost(email, `${firstName} ${lastName}`.trim());
 
+      // Trigger Welcome Email for Free Subscribers (non-blocking)
+      fetch('/api/emails/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, firstName, plan })
+      }).catch(err => console.error('Failed to trigger welcome email API:', err));
+
       // If they signed up for a paid plan, trigger Stripe Checkout immediately
       if (plan === 'premium') {
         const res = await fetch('/api/stripe/checkout', {
@@ -154,6 +161,13 @@ function RegisterForm() {
           })
         });
       }
+
+      // Trigger Welcome Email for Free Subscribers (non-blocking)
+      fetch('/api/emails/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, firstName: fName, plan })
+      }).catch(err => console.error('Failed to trigger welcome email API:', err));
 
       // If they signed up for a paid plan, trigger Stripe Checkout immediately
       if (plan === 'premium') {
