@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CheckIcon } from '@heroicons/react/20/solid';
+import { useAuth } from '@/lib/AuthContext';
 
 const tiers = [
   {
@@ -63,6 +65,44 @@ function classNames(...classes: string[]) {
 
 export default function MembershipPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleTierClick = async (e: React.MouseEvent<HTMLAnchorElement>, tierId: string, href: string) => {
+    // If they are not logged in, or it's not the premium tier, just let the Link act normally
+    if (tierId !== 'tier-premium' || !user) {
+      return;
+    }
+
+    // If they are logged in and want to upgrade to premium, intercept it and go straight to checkout!
+    e.preventDefault();
+    setLoadingTier(tierId);
+
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: 'premium',
+          cycle: billingCycle,
+          userEmail: user.email,
+          userId: user.uid,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        router.push(href);
+      }
+    } catch (err) {
+      console.error('Failed to initiate checkout:', err);
+      router.push(href);
+    } finally {
+      setLoadingTier(null);
+    }
+  };
 
   return (
     <div className="py-24 sm:py-32 bg-[#f7f5f1] dark:bg-zinc-950">
@@ -146,6 +186,7 @@ export default function MembershipPage() {
               </div>
               <Link
                 href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
+                onClick={(e) => handleTierClick(e, tier.id, `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`)}
                 aria-describedby={tier.id}
                 className={classNames(
                   tier.mostPopular
@@ -154,7 +195,7 @@ export default function MembershipPage() {
                   'mt-8 block px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors'
                 )}
               >
-                {tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
+                {loadingTier === tier.id ? 'Processing...' : tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
               </Link>
             </div>
           ))}

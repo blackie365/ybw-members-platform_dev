@@ -7,6 +7,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
+import { useAuth } from '@/lib/AuthContext';
 
 // Function to call our new secure API route to sync with Ghost
 async function syncToGhost(email: string, name: string) {
@@ -27,6 +28,7 @@ async function syncToGhost(email: string, name: string) {
 }
 
 function RegisterForm() {
+  const { user, loading: authLoading } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -38,6 +40,37 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan');
   const cycle = searchParams.get('cycle') || 'monthly'; // Capture the billing cycle from the URL
+
+  // If a logged-in user somehow lands on the register page for premium, automatically send them to checkout
+  if (!authLoading && user && plan === 'premium' && !loading) {
+    setLoading(true);
+    fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan: 'premium',
+        cycle: cycle,
+        userEmail: user.email,
+        userId: user.uid,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        router.push('/dashboard');
+      }
+    })
+    .catch(err => {
+      console.error('Failed to initiate checkout for logged in user:', err);
+      router.push('/dashboard');
+    });
+  } else if (!authLoading && user && !loading) {
+    // If they are logged in but not trying to buy premium, just send them to dashboard
+    router.push('/dashboard');
+    return null;
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,6 +270,13 @@ function RegisterForm() {
                     <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Registration Failed</h3>
                     <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                       <p>{error}</p>
+                      {error.includes('already registered') && (
+                        <div className="mt-4">
+                          <Link href="/login" className="inline-flex items-center rounded-md bg-red-100 dark:bg-red-900/50 px-3 py-2 text-sm font-semibold text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-900/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
+                            Log In to Upgrade
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
