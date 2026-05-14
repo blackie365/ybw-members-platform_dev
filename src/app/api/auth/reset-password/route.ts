@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.yorkshirebusinesswoman.co.uk'}/auth/action?mode=resetPassword&oobCode=${params.get('oobCode')}`;
       
     } catch (err: any) {
+      console.error('Firebase Admin Reset Error:', err);
       if (err.code === 'auth/user-not-found') {
         // Security best practice: don't reveal if a user exists or not
         return NextResponse.json({ success: true });
