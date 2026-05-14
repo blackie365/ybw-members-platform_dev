@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
       </div>
     );
   }
@@ -46,6 +46,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <li>
                   <Link href="/dashboard/profile" className={`block text-xs font-semibold uppercase tracking-wider transition-colors hover:text-accent ${pathname === '/dashboard/profile' ? 'text-accent' : 'text-foreground'}`}>
                     My Profile
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/messages" className={`block text-xs font-semibold uppercase tracking-wider transition-colors hover:text-accent ${pathname.startsWith('/dashboard/messages') ? 'text-accent' : 'text-foreground'}`}>
+                    Messages
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/events" className={`block text-xs font-semibold uppercase tracking-wider transition-colors hover:text-accent ${pathname === '/events' ? 'text-accent' : 'text-foreground'}`}>
+                    Events
                   </Link>
                 </li>
                 <li>
