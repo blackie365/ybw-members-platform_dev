@@ -70,18 +70,6 @@ export default function AdminOverviewPage() {
       })) as RecentMember[]
       setRecentMembers(recent)
 
-      // Fetch events
-      const eventsRef = collection(db, "events")
-      const eventsSnap = await getDocs(eventsRef)
-      const totalEvents = eventsSnap.size
-
-      const upcomingQuery = query(
-        eventsRef,
-        where("date", ">=", Timestamp.fromDate(new Date()))
-      )
-      const upcomingSnap = await getDocs(upcomingQuery)
-      const upcomingEvents = upcomingSnap.size
-
       // Fetch messages
       const threadsRef = collection(db, "messageThreads")
       const threadsSnap = await getDocs(threadsRef)
@@ -91,8 +79,8 @@ export default function AdminOverviewPage() {
         totalMembers,
         newMembersThisMonth,
         memberGrowth: totalMembers > 0 ? Math.round((newMembersThisMonth / totalMembers) * 100) : 0,
-        totalEvents,
-        upcomingEvents,
+        totalEvents: 0,
+        upcomingEvents: 0,
         totalMessages: 0,
         activeThreads,
       })
@@ -111,14 +99,6 @@ export default function AdminOverviewPage() {
       trend: "up",
       icon: Users,
       href: "/admin/members",
-    },
-    {
-      title: "Upcoming Events",
-      value: stats.upcomingEvents,
-      change: `${stats.totalEvents} total`,
-      trend: "neutral",
-      icon: Calendar,
-      href: "/admin/events",
     },
     {
       title: "Active Conversations",

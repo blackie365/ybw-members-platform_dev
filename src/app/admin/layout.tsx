@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils"
 const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/members", label: "Members", icon: Users },
-  { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ]
 
