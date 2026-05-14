@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Event, EVENT_TYPE_LABELS, EVENT_TYPE_COLORS, formatEventDate, formatEventTime, isEventPast, isEventFull, getAvailableSpots } from '@/lib/events';
+import { Event, EVENT_TYPE_LABELS, formatEventTime, isEventPast, isEventFull, getAvailableSpots } from '@/lib/events';
+import { Calendar, Clock, MapPin, Monitor, ArrowRight } from 'lucide-react';
 
 interface EventCardProps {
   event: Event;
@@ -26,8 +27,8 @@ export function EventCard({ event, compact = false }: EventCardProps) {
       >
         {/* Date Box */}
         <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-accent/10 flex flex-col items-center justify-center">
-          <span className="text-xs font-medium text-accent uppercase">{month}</span>
-          <span className="text-lg font-bold text-accent">{day}</span>
+          <span className="text-[10px] font-semibold text-accent uppercase tracking-wider">{month}</span>
+          <span className="text-xl font-bold text-accent">{day}</span>
         </div>
 
         {/* Info */}
@@ -36,14 +37,11 @@ export function EventCard({ event, compact = false }: EventCardProps) {
             {event.title}
           </h3>
           <p className="text-sm text-muted-foreground truncate">
-            {formatEventTime(event.startDate)} &middot; {event.isVirtual ? 'Online' : event.city || event.location}
+            {formatEventTime(event.startDate)} · {event.isVirtual ? 'Online' : event.city || event.location}
           </p>
         </div>
 
-        {/* Arrow */}
-        <svg className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
+        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
       </Link>
     );
   }
@@ -51,7 +49,7 @@ export function EventCard({ event, compact = false }: EventCardProps) {
   return (
     <Link
       href={`/events/${event.slug}`}
-      className="group block overflow-hidden rounded-xl bg-card border border-border hover:border-accent/50 hover:shadow-lg transition-all"
+      className="group block h-full overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-accent/30 hover:shadow-lg"
     >
       {/* Cover Image */}
       <div className="relative aspect-[16/9] bg-muted overflow-hidden">
@@ -60,67 +58,63 @@ export function EventCard({ event, compact = false }: EventCardProps) {
             src={event.coverImage}
             alt={event.title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
-            <svg className="h-12 w-12 text-accent/30" fill="none" viewBox="0 0 24 24" strokeWidth="1" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-            </svg>
+          <div className="absolute inset-0 bg-accent/5 flex items-center justify-center">
+            <Calendar className="h-12 w-12 text-accent/20" />
           </div>
         )}
 
         {/* Event Type Badge */}
-        <div className="absolute top-3 left-3">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${EVENT_TYPE_COLORS[event.eventType]}`}>
+        <div className="absolute top-4 left-4">
+          <span className="inline-flex items-center rounded-full bg-card/95 backdrop-blur-sm px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground shadow-sm">
             {EVENT_TYPE_LABELS[event.eventType]}
           </span>
         </div>
 
         {/* Status Badges */}
-        <div className="absolute top-3 right-3 flex gap-2">
+        <div className="absolute top-4 right-4 flex gap-2">
           {isPast && (
-            <span className="inline-flex items-center rounded-full bg-muted/90 backdrop-blur px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex items-center rounded-full bg-muted/90 backdrop-blur-sm px-3 py-1.5 text-[10px] font-medium text-muted-foreground">
               Past event
             </span>
           )}
           {!isPast && isFull && (
-            <span className="inline-flex items-center rounded-full bg-destructive/90 backdrop-blur px-2.5 py-1 text-xs font-medium text-white">
+            <span className="inline-flex items-center rounded-full bg-destructive px-3 py-1.5 text-[10px] font-semibold text-white">
               Sold out
             </span>
           )}
           {event.isPremiumOnly && (
-            <span className="inline-flex items-center rounded-full bg-amber-500/90 backdrop-blur px-2.5 py-1 text-xs font-medium text-white">
+            <span className="inline-flex items-center rounded-full bg-amber-500 px-3 py-1.5 text-[10px] font-semibold text-white">
               Premium
             </span>
           )}
         </div>
 
         {/* Date Box Overlay */}
-        <div className="absolute bottom-3 left-3 w-14 h-14 rounded-lg bg-background/95 backdrop-blur shadow-lg flex flex-col items-center justify-center">
-          <span className="text-xs font-medium text-accent uppercase">{month}</span>
-          <span className="text-lg font-bold text-foreground">{day}</span>
+        <div className="absolute bottom-4 left-4 w-14 h-16 rounded-lg bg-card/95 backdrop-blur-sm shadow-lg flex flex-col items-center justify-center">
+          <span className="text-[10px] font-semibold text-accent uppercase tracking-wider">{month}</span>
+          <span className="text-2xl font-bold text-foreground">{day}</span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <h3 className="font-serif text-lg font-semibold text-foreground group-hover:text-accent transition-colors line-clamp-2">
+      <div className="p-5">
+        <h3 className="font-serif text-lg font-medium text-foreground transition-colors group-hover:text-accent line-clamp-2">
           {event.title}
         </h3>
 
         {event.shortDescription && (
-          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+          <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
             {event.shortDescription}
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           {/* Time */}
           <div className="flex items-center gap-1.5">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Clock className="h-4 w-4" />
             <span>{formatEventTime(event.startDate)}</span>
           </div>
 
@@ -128,31 +122,28 @@ export function EventCard({ event, compact = false }: EventCardProps) {
           <div className="flex items-center gap-1.5">
             {event.isVirtual ? (
               <>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
-                </svg>
+                <Monitor className="h-4 w-4" />
                 <span>Online</span>
               </>
             ) : (
               <>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                </svg>
-                <span className="truncate">{event.city || event.location}</span>
+                <MapPin className="h-4 w-4" />
+                <span className="truncate max-w-[100px]">{event.city || event.location}</span>
               </>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+        <div className="mt-5 pt-5 border-t border-border flex items-center justify-between">
           {/* Price */}
           <div>
             {event.isFree ? (
-              <span className="text-sm font-medium text-green-600">Free</span>
+              <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-sm font-semibold text-accent">
+                Free
+              </span>
             ) : (
-              <span className="text-sm font-medium text-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 £{event.price?.toFixed(2)}
               </span>
             )}
@@ -164,9 +155,11 @@ export function EventCard({ event, compact = false }: EventCardProps) {
               {isFull ? (
                 <span className="text-muted-foreground">Join waitlist</span>
               ) : availableSpots !== null && availableSpots <= 10 ? (
-                <span className="text-amber-600 font-medium">{availableSpots} spots left</span>
+                <span className="font-medium text-amber-600">{availableSpots} spots left</span>
               ) : (
-                <span className="text-accent font-medium group-hover:underline">Register now</span>
+                <span className="flex items-center gap-1 font-medium text-accent group-hover:gap-2 transition-all">
+                  Register <ArrowRight className="h-4 w-4" />
+                </span>
               )}
             </div>
           )}

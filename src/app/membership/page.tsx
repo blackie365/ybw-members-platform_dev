@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckIcon } from '@heroicons/react/20/solid';
 import { useAuth } from '@/lib/AuthContext';
+import { Check, ArrowRight, Sparkles, Users, Building2 } from 'lucide-react';
 
 const tiers = [
   {
@@ -13,6 +13,7 @@ const tiers = [
     href: '/register',
     priceMonthly: '£0',
     priceAnnually: '£0',
+    icon: Users,
     description: 'The essential Yorkshire Businesswoman experience. Perfect for staying up to date.',
     features: [
       'Weekly newsletter access',
@@ -25,9 +26,10 @@ const tiers = [
   {
     name: 'Premium Member',
     id: 'tier-premium',
-    href: '/register?plan=premium', // Hooks into Firebase Custom System
-    priceMonthly: '£25', // Edit this price
-    priceAnnually: '£275', // Edit this price (currently £12 * 12)
+    href: '/register?plan=premium',
+    priceMonthly: '£25',
+    priceAnnually: '£275',
+    icon: Sparkles,
     description: 'Full access to the platform. Grow your network and unlock exclusive opportunities.',
     features: [
       'Everything in Free',
@@ -44,8 +46,9 @@ const tiers = [
     name: 'Corporate Partner',
     id: 'tier-corporate',
     href: '/news?tag=contact',
-    priceMonthly: '£150', // Edit this price
-    priceAnnually: '£1440', // Edit this price
+    priceMonthly: '£150',
+    priceAnnually: '£1440',
+    icon: Building2,
     description: 'For businesses looking to maximize their brand exposure across Yorkshire.',
     features: [
       'Everything in Premium',
@@ -59,10 +62,6 @@ const tiers = [
   },
 ];
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
-
 export default function MembershipPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
@@ -70,12 +69,10 @@ export default function MembershipPage() {
   const router = useRouter();
 
   const handleTierClick = async (e: React.MouseEvent<HTMLAnchorElement>, tierId: string, href: string) => {
-    // If they are not logged in, or it's not the premium tier, just let the Link act normally
     if (tierId !== 'tier-premium' || !user) {
       return;
     }
 
-    // If they are logged in and want to upgrade to premium, intercept it and go straight to checkout!
     e.preventDefault();
     setLoadingTier(tierId);
 
@@ -105,100 +102,153 @@ export default function MembershipPage() {
   };
 
   return (
-    <div className="py-24 sm:py-32 bg-[#f7f5f1] dark:bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-[10px] font-medium uppercase tracking-[0.2em] text-accent">Pricing & Memberships</h2>
-          <p className="mt-4 font-serif text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-            Join the Yorkshire Businesswoman Community
-          </p>
+    <div className="bg-background">
+      {/* Hero section */}
+      <div className="relative bg-primary overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-accent" />
+          <div className="absolute -bottom-40 right-0 h-[400px] w-[400px] rounded-full bg-accent" />
         </div>
-        <p className="mx-auto mt-6 max-w-2xl text-center text-lg leading-8 text-muted-foreground">
-          Whether you want to stay in the loop with our free newsletter or unlock the full power of our networking platform, we have a plan for you.
-        </p>
+        
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">
+              Membership Plans
+            </span>
+            <h1 className="mt-4 font-serif text-4xl font-medium text-primary-foreground sm:text-5xl lg:text-6xl">
+              Join a Community of Ambitious Women
+            </h1>
+            <p className="mt-6 text-lg text-primary-foreground/70 leading-relaxed max-w-2xl mx-auto">
+              Whether you want to stay informed with our free newsletter or unlock the full power of our networking platform, we have a plan designed for your journey.
+            </p>
+          </div>
+        </div>
+      </div>
 
-        {/* Billing Toggle (UI Only for now) */}
-        <div className="mt-16 flex justify-center">
-          <div className="grid grid-cols-2 gap-x-1 rounded-full p-1 text-center text-xs font-semibold uppercase tracking-wider leading-5 ring-1 ring-inset ring-border bg-white dark:bg-zinc-900">
+      {/* Pricing section */}
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+        {/* Billing Toggle */}
+        <div className="flex justify-center">
+          <div className="inline-flex items-center rounded-full p-1 bg-muted">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={classNames(
-                billingCycle === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted',
-                'cursor-pointer rounded-full px-4 py-2 transition-colors'
-              )}
+              className={`rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
+                billingCycle === 'monthly'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               Monthly
             </button>
             <button
               onClick={() => setBillingCycle('annually')}
-              className={classNames(
-                billingCycle === 'annually' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted',
-                'cursor-pointer rounded-full px-4 py-2 transition-colors'
-              )}
+              className={`rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
+                billingCycle === 'annually'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              Annually <span className={classNames("font-normal ml-1", billingCycle === 'annually' ? "text-primary-foreground/70" : "text-accent")}>Save 20%</span>
+              Annually
+              <span className={`ml-2 text-xs font-semibold ${
+                billingCycle === 'annually' ? 'text-accent' : 'text-accent/70'
+              }`}>
+                Save 20%
+              </span>
             </button>
           </div>
         </div>
 
-        <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-8 md:max-w-2xl md:grid-cols-2 lg:max-w-4xl xl:mx-0 xl:max-w-none xl:grid-cols-3">
-          {tiers.map((tier) => (
-            <div
-              key={tier.id}
-              className={classNames(
-                tier.mostPopular ? 'ring-2 ring-accent dark:ring-accent' : 'ring-1 ring-border',
-                'rounded-none p-8 xl:p-10 bg-white dark:bg-zinc-900 flex flex-col justify-between relative shadow-sm'
-              )}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-x-4">
-                  <h3
-                    id={tier.id}
-                    className="font-serif text-2xl font-medium text-foreground"
-                  >
-                    {tier.name}
-                  </h3>
-                  {tier.mostPopular ? (
-                    <p className="absolute -top-3 right-8 bg-accent px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                      Most popular
-                    </p>
-                  ) : null}
+        {/* Pricing cards */}
+        <div className="mx-auto mt-12 grid max-w-md grid-cols-1 gap-6 md:max-w-2xl md:grid-cols-2 lg:max-w-none lg:grid-cols-3 lg:gap-8">
+          {tiers.map((tier) => {
+            const Icon = tier.icon;
+            return (
+              <div
+                key={tier.id}
+                className={`relative flex flex-col rounded-2xl border p-8 transition-all ${
+                  tier.mostPopular
+                    ? 'border-accent bg-card shadow-xl scale-[1.02] lg:scale-105'
+                    : 'border-border bg-card hover:border-accent/30 hover:shadow-lg'
+                }`}
+              >
+                {tier.mostPopular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <span className="inline-flex items-center rounded-full bg-accent px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-foreground">
+                      Most Popular
+                    </span>
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${
+                    tier.mostPopular ? 'bg-accent/10' : 'bg-muted'
+                  }`}>
+                    <Icon className={`h-6 w-6 ${tier.mostPopular ? 'text-accent' : 'text-muted-foreground'}`} />
+                  </div>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{tier.description}</p>
-                <p className="mt-8 flex items-baseline gap-x-1">
+
+                <h3 className="font-serif text-2xl font-medium text-foreground">
+                  {tier.name}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  {tier.description}
+                </p>
+
+                <div className="mt-6 flex items-baseline">
                   <span className="font-serif text-5xl font-medium text-foreground">
                     {billingCycle === 'annually' ? tier.priceAnnually : tier.priceMonthly}
                   </span>
                   {tier.priceMonthly !== '£0' && (
-                    <span className="text-sm font-medium text-muted-foreground">
+                    <span className="ml-2 text-sm text-muted-foreground">
                       /{billingCycle === 'annually' ? 'year' : 'month'}
                     </span>
                   )}
-                </p>
-                <ul role="list" className="mt-8 space-y-4 text-sm leading-6 text-muted-foreground">
+                </div>
+
+                <ul className="mt-8 flex-1 space-y-4">
                   {tier.features.map((feature) => (
-                    <li key={feature} className="flex gap-x-3">
-                      <CheckIcon className="h-5 w-5 flex-none text-accent" aria-hidden="true" />
-                      {feature}
+                    <li key={feature} className="flex items-start gap-3">
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                        tier.mostPopular ? 'bg-accent/10' : 'bg-muted'
+                      }`}>
+                        <Check className={`h-3 w-3 ${tier.mostPopular ? 'text-accent' : 'text-muted-foreground'}`} />
+                      </div>
+                      <span className="text-sm text-muted-foreground">{feature}</span>
                     </li>
                   ))}
                 </ul>
+
+                <Link
+                  href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
+                  onClick={(e) => handleTierClick(e, tier.id, `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`)}
+                  className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                    tier.mostPopular
+                      ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                      : 'border border-border bg-card text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {loadingTier === tier.id ? (
+                    'Processing...'
+                  ) : (
+                    <>
+                      {tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Link>
               </div>
-              <Link
-                href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
-                onClick={(e) => handleTierClick(e, tier.id, `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`)}
-                aria-describedby={tier.id}
-                className={classNames(
-                  tier.mostPopular
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'text-primary ring-1 ring-inset ring-primary hover:bg-primary hover:text-primary-foreground dark:text-primary-foreground dark:ring-border dark:hover:bg-muted',
-                  'mt-8 block px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-colors'
-                )}
-              >
-                {loadingTier === tier.id ? 'Processing...' : tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
-              </Link>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+
+        {/* FAQ Teaser */}
+        <div className="mt-20 text-center">
+          <p className="text-muted-foreground">
+            Have questions about membership?{' '}
+            <Link href="/contact" className="font-medium text-accent hover:text-accent/80 transition-colors">
+              Get in touch
+            </Link>
+          </p>
         </div>
       </div>
     </div>
