@@ -62,11 +62,29 @@ async function getFeaturedMembers() {
 export const revalidate = 0;
 
 export default async function MagazinePage() {
-  const posts = await getPosts({ 
-    limit: 12, // Top 3 go to Hero, remaining 9 go to Must Read
-    filter: "published_at:>='2024-01-01'", 
-    order: "featured DESC, published_at DESC" 
+  // 1. Fetch the single most recent featured post
+  const featuredPosts = await getPosts({
+    limit: 1,
+    filter: "featured:true+published_at:>='2024-01-01'",
+    order: "published_at DESC"
   });
+  const heroFeatured = featuredPosts.length > 0 ? featuredPosts[0] : null;
+
+  // 2. Fetch the latest posts chronologically (fetch extra in case we need to filter out the featured one)
+  const recentPosts = await getPosts({ 
+    limit: 13, 
+    filter: "published_at:>='2024-01-01'", 
+    order: "published_at DESC" 
+  });
+
+  // 3. Combine them: Hero featured post first, then chronological
+  let posts = [];
+  if (heroFeatured) {
+    posts = [heroFeatured, ...recentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
+  } else {
+    posts = recentPosts.slice(0, 12);
+  }
+
   const tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
   const featuredMembers = await getFeaturedMembers();
   const featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;

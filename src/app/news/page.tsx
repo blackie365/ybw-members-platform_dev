@@ -17,7 +17,7 @@ export default async function NewsPage(props: {
   const filter = tag ? `tag:${tag}+published_at:>='2024-01-01'` : `published_at:>='2024-01-01'`;
 
   // We can pass `page` and `limit` to getPosts
-  const posts = await getPosts({ limit, page, filter, order: 'featured DESC, published_at DESC' });
+  const posts = await getPosts({ limit, page, filter, order: 'published_at DESC' });
   
   // getPosts now attaches .meta to the array if it exists
   const meta = (posts as any).meta;
