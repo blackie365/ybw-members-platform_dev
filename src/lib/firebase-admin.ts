@@ -1,9 +1,28 @@
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
+import fs from 'fs';
+import path from 'path';
 
 if (!admin.apps.length) {
   try {
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'newmembersdirectory130325';
+
+    // Local development fallback using serviceAccountKey.json
+    if (!privateKey || !clientEmail) {
+      try {
+        const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
+        if (fs.existsSync(serviceAccountPath)) {
+          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          privateKey = serviceAccount.private_key;
+          clientEmail = serviceAccount.client_email;
+          console.log('Loaded Firebase Admin credentials from local serviceAccountKey.json');
+        }
+      } catch (e) {
+        console.warn('Could not load local serviceAccountKey.json', e);
+      }
+    }
     if (privateKey) {
       // If the user accidentally pasted the entire JSON file contents
       if (privateKey.trim().startsWith('{')) {
@@ -25,9 +44,6 @@ if (!admin.apps.length) {
         }
       }
     }
-    
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'newmembersdirectory130325';
 
     if (privateKey && clientEmail && projectId) {
       admin.initializeApp({

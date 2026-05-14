@@ -13,10 +13,10 @@ export async function POST(request: Request) {
     // 1. Generate the raw password reset link using Firebase Admin
     let link = '';
     try {
-      // Create the link and tell it to redirect to our custom action page
-      link = await adminAuth.generatePasswordResetLink(email, {
-        url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.yorkshirebusinesswoman.co.uk'}/login`
-      });
+      // Generate the reset link. We don't pass the actionCodeSettings URL here 
+      // to avoid 'auth/unauthorized-continue-uri' errors if the Vercel preview domain 
+      // isn't allowlisted in Firebase Console yet.
+      link = await adminAuth.generatePasswordResetLink(email);
       
       // The generated link looks like:
       // https://PROJECT.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=XYZ&apiKey=ABC
