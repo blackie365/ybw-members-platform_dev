@@ -65,7 +65,7 @@ export default async function MagazinePage() {
   const posts = await getPosts({ 
     limit: 12, // Top 3 go to Hero, remaining 9 go to Must Read
     filter: "published_at:>='2024-01-01'", 
-    order: "published_at DESC" 
+    order: "featured DESC, published_at DESC" 
   });
   const tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
   const featuredMembers = await getFeaturedMembers();
