@@ -1,19 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { Suspense } from 'react';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/dashboard';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +24,11 @@ export default function LoginPage() {
     setError('');
 
     try {
+      // Set persistence based on "remember me" checkbox
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
-      // Successful login, redirect to dashboard
-      router.push('/dashboard');
-    } catch (err: any) {
+      router.push(returnUrl);
+    } catch (err: unknown) {
       console.error('Login error:', err);
       setError(getFriendlyAuthErrorMessage(err));
     } finally {
@@ -37,10 +41,11 @@ export default function LoginPage() {
     setError('');
     
     try {
+      await setPersistence(auth, browserLocalPersistence);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
-    } catch (err: any) {
+      router.push(returnUrl);
+    } catch (err: unknown) {
       console.error('Google Login error:', err);
       setError(getFriendlyAuthErrorMessage(err));
     } finally {
@@ -51,14 +56,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-[80vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+        <h2 className="mt-6 text-center font-serif text-3xl font-bold tracking-tight text-foreground">
           Sign in to your account
         </h2>
-        <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-center text-sm text-muted-foreground">
           Or{' '}
           <Link
             href="/register"
-            className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+            className="font-medium text-accent hover:text-accent/80 transition-colors"
           >
             apply for membership
           </Link>
@@ -66,19 +71,19 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-zinc-900 py-8 px-4 shadow sm:rounded-2xl sm:px-10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+        <div className="bg-card py-8 px-4 shadow-sm sm:rounded-2xl sm:px-10 ring-1 ring-border">
           <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4">
+              <div className="rounded-lg bg-destructive/10 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Login Failed</h3>
-                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                    <h3 className="text-sm font-medium text-destructive">Sign In Failed</h3>
+                    <div className="mt-1 text-sm text-destructive/80">
                       <p>{error}</p>
                     </div>
                   </div>
@@ -89,11 +94,11 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                className="block text-sm font-medium text-foreground"
               >
                 Email address
               </label>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 <input
                   id="email"
                   name="email"
@@ -102,7 +107,8 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                  placeholder="you@example.com"
                 />
               </div>
             </div>
@@ -110,11 +116,11 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                className="block text-sm font-medium text-foreground"
               >
                 Password
               </label>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 <input
                   id="password"
                   name="password"
@@ -123,7 +129,8 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                  placeholder="Enter your password"
                 />
               </div>
             </div>
@@ -134,11 +141,13 @@ export default function LoginPage() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:ring-offset-zinc-900"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-input text-accent focus:ring-accent/20"
                 />
                 <label
                   htmlFor="remember-me"
-                  className="ml-2 block text-sm text-zinc-900 dark:text-zinc-300"
+                  className="ml-2 block text-sm text-muted-foreground"
                 >
                   Remember me
                 </label>
@@ -147,7 +156,7 @@ export default function LoginPage() {
               <div className="text-sm">
                 <Link
                   href="/forgot-password"
-                  className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+                  className="font-medium text-accent hover:text-accent/80 transition-colors"
                 >
                   Forgot your password?
                 </Link>
@@ -158,9 +167,19 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center rounded-xl border border-transparent bg-indigo-600 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-zinc-900 transition-colors"
+                className="flex w-full justify-center rounded-lg bg-accent py-2.5 px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : (
+                  'Sign in'
+                )}
               </button>
             </div>
           </form>
@@ -168,10 +187,10 @@ export default function LoginPage() {
           <div className="mt-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-500 dark:text-zinc-400">
+                <span className="bg-card px-3 text-muted-foreground">
                   Or continue with
                 </span>
               </div>
@@ -181,7 +200,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-900 dark:text-white shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 focus-visible:ring-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-background px-3 py-2.5 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-secondary focus-visible:ring-2 focus-visible:ring-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
                   <path
@@ -201,12 +220,26 @@ export default function LoginPage() {
                     fill="#34A853"
                   />
                 </svg>
-                <span className="text-sm font-semibold leading-6">Google</span>
+                <span>Continue with Google</span>
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent border-t-transparent" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

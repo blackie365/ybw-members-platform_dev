@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 import { useAuth } from '@/lib/AuthContext';
 
-// Function to call our new secure API route to sync with Ghost
+// Function to call our secure API route to sync with Ghost
 async function syncToGhost(email: string, name: string) {
   try {
     await fetch('/api/revalidate/ghost', {
@@ -39,9 +39,9 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan');
-  const cycle = searchParams.get('cycle') || 'monthly'; // Capture the billing cycle from the URL
+  const cycle = searchParams.get('cycle') || 'monthly';
 
-  // If a logged-in user somehow lands on the register page for premium, automatically send them to checkout
+  // If a logged-in user lands on register page for premium, send them to checkout
   if (!authLoading && user && plan === 'premium' && !loading) {
     setLoading(true);
     fetch('/api/stripe/checkout', {
@@ -67,7 +67,6 @@ function RegisterForm() {
       router.push('/dashboard');
     });
   } else if (!authLoading && user && !loading) {
-    // If they are logged in but not trying to buy premium, just send them to dashboard
     router.push('/dashboard');
     return null;
   }
@@ -83,17 +82,20 @@ function RegisterForm() {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Update profile with name
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`
       });
 
-      // Create member document in Firestore
       try {
         await setDoc(doc(db, 'newMemberCollection', user.uid), {
           firstName,
@@ -101,6 +103,8 @@ function RegisterForm() {
           email,
           slug: `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
           status: 'active',
+          membershipTier: 'free',
+          role: 'member',
           createdAt: new Date().toISOString(),
         });
       } catch (dbErr) {
@@ -118,28 +122,24 @@ function RegisterForm() {
         });
       }
 
-      // Silently sync this new user to the Ghost Admin API
-      // so they receive newsletters instantly
       await syncToGhost(email, `${firstName} ${lastName}`.trim());
 
-      // Trigger Welcome Email for Free Subscribers (non-blocking)
-      const siteUrl2 = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const baseUrl2 = siteUrl2.replace(/\/$/, '');
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const baseUrl = siteUrl.replace(/\/$/, '');
 
-      fetch(`${baseUrl2}/api/emails/welcome`, {
+      fetch(`${baseUrl}/api/emails/welcome`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, firstName, plan })
       }).catch(err => console.error('Failed to trigger welcome email API:', err));
 
-      // If they signed up for a paid plan, trigger Stripe Checkout immediately
       if (plan === 'premium') {
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             plan: 'premium',
-            cycle: cycle, // Pass the billing cycle to Stripe
+            cycle: cycle,
             userEmail: user.email,
             userId: user.uid,
           }),
@@ -152,7 +152,7 @@ function RegisterForm() {
       }
 
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Registration error:', err);
       setError(getFriendlyAuthErrorMessage(err));
       setLoading(false);
@@ -168,7 +168,6 @@ function RegisterForm() {
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
 
-      // Check if they are new, if so create firestore record
       const nameParts = (user.displayName || '').split(' ');
       const fName = nameParts[0] || '';
       const lName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
@@ -181,11 +180,12 @@ function RegisterForm() {
           profileImage: user.photoURL,
           slug: `${fName.toLowerCase()}-${lName.toLowerCase()}-${Date.now().toString().slice(-4)}`,
           status: 'active',
+          membershipTier: 'free',
+          role: 'member',
           updatedAt: new Date().toISOString(),
         }, { merge: true });
       } catch (dbErr) {
         console.warn('Could not write to newMemberCollection directly. Using server action fallback.', dbErr);
-        // Fallback to server-side creation to bypass client security rules if needed
         await fetch('/api/revalidate/ghost', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -200,8 +200,6 @@ function RegisterForm() {
         });
       }
 
-      // Trigger Welcome Email for Free Subscribers (non-blocking)
-      // We must use a relative path but let Next.js resolve it by awaiting it, or use absolute URL
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
       const baseUrl = siteUrl.replace(/\/$/, '');
       
@@ -211,14 +209,13 @@ function RegisterForm() {
         body: JSON.stringify({ email: user.email, firstName: fName, plan })
       }).catch(err => console.error('Failed to trigger welcome email API:', err));
 
-      // If they signed up for a paid plan, trigger Stripe Checkout immediately
       if (plan === 'premium') {
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             plan: 'premium',
-            cycle: cycle, // Pass the billing cycle to Stripe
+            cycle: cycle,
             userEmail: user.email,
             userId: user.uid,
           }),
@@ -231,7 +228,7 @@ function RegisterForm() {
       }
 
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Google Registration error:', err);
       setError(getFriendlyAuthErrorMessage(err));
       setLoading(false);
@@ -241,14 +238,14 @@ function RegisterForm() {
   return (
     <div className="flex min-h-[80vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+        <h2 className="mt-6 text-center font-serif text-3xl font-bold tracking-tight text-foreground">
           Apply for Membership
         </h2>
-        <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+            className="font-medium text-accent hover:text-accent/80 transition-colors"
           >
             Sign in
           </Link>
@@ -256,24 +253,27 @@ function RegisterForm() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-zinc-900 py-8 px-4 shadow sm:rounded-2xl sm:px-10 ring-1 ring-zinc-900/5 dark:ring-white/10">
-          <form className="space-y-6" onSubmit={handleRegister}>
+        <div className="bg-card py-8 px-4 shadow-sm sm:rounded-2xl sm:px-10 ring-1 ring-border">
+          <form className="space-y-5" onSubmit={handleRegister}>
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4">
+              <div className="rounded-lg bg-destructive/10 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Registration Failed</h3>
-                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                    <h3 className="text-sm font-medium text-destructive">Registration Failed</h3>
+                    <div className="mt-1 text-sm text-destructive/80">
                       <p>{error}</p>
                       {error.includes('already registered') && (
-                        <div className="mt-4">
-                          <Link href="/login" className="inline-flex items-center rounded-md bg-red-100 dark:bg-red-900/50 px-3 py-2 text-sm font-semibold text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-900/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
-                            Log In to Upgrade
+                        <div className="mt-3">
+                          <Link 
+                            href="/login" 
+                            className="inline-flex items-center rounded-md bg-destructive/20 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/30 transition-colors"
+                          >
+                            Sign in instead
                           </Link>
                         </div>
                       )}
@@ -285,10 +285,10 @@ function RegisterForm() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label htmlFor="firstName" className="block text-sm font-medium text-foreground">
                   First name
                 </label>
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <input
                     id="firstName"
                     name="firstName"
@@ -296,15 +296,16 @@ function RegisterForm() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="block w-full appearance-none rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm transition-colors"
+                    className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                    placeholder="Jane"
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <label htmlFor="lastName" className="block text-sm font-medium text-foreground">
                   Last name
                 </label>
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <input
                     id="lastName"
                     name="lastName"
@@ -312,7 +313,8 @@ function RegisterForm() {
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="block w-full appearance-none rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2.5 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm transition-colors"
+                    className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                    placeholder="Smith"
                   />
                 </div>
               </div>
@@ -321,11 +323,11 @@ function RegisterForm() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                className="block text-sm font-medium text-foreground"
               >
                 Email address
               </label>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 <input
                   id="email"
                   name="email"
@@ -334,7 +336,8 @@ function RegisterForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                  placeholder="you@example.com"
                 />
               </div>
             </div>
@@ -342,11 +345,11 @@ function RegisterForm() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                className="block text-sm font-medium text-foreground"
               >
                 Password
               </label>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 <input
                   id="password"
                   name="password"
@@ -355,7 +358,8 @@ function RegisterForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                  placeholder="At least 6 characters"
                 />
               </div>
             </div>
@@ -363,11 +367,11 @@ function RegisterForm() {
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                className="block text-sm font-medium text-foreground"
               >
                 Confirm Password
               </label>
-              <div className="mt-1">
+              <div className="mt-1.5">
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -376,18 +380,29 @@ function RegisterForm() {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  className="block w-full appearance-none rounded-lg border border-input bg-background px-3 py-2.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm transition-colors"
+                  placeholder="Confirm your password"
                 />
               </div>
             </div>
 
-            <div>
+            <div className="pt-1">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center rounded-xl border border-transparent bg-indigo-600 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-zinc-900 transition-colors"
+                className="flex w-full justify-center rounded-lg bg-accent py-2.5 px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'Creating account...' : 'Create account'}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating account...
+                  </span>
+                ) : (
+                  'Create account'
+                )}
               </button>
             </div>
           </form>
@@ -395,10 +410,10 @@ function RegisterForm() {
           <div className="mt-8">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-500 dark:text-zinc-400">
+                <span className="bg-card px-3 text-muted-foreground">
                   Or sign up with
                 </span>
               </div>
@@ -408,7 +423,7 @@ function RegisterForm() {
               <button
                 onClick={handleGoogleRegister}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-xl bg-white dark:bg-zinc-800 px-3 py-2.5 text-sm font-semibold text-zinc-900 dark:text-white shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 focus-visible:ring-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-3 rounded-lg bg-background px-3 py-2.5 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-secondary focus-visible:ring-2 focus-visible:ring-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
                   <path
@@ -428,10 +443,21 @@ function RegisterForm() {
                     fill="#34A853"
                   />
                 </svg>
-                <span className="text-sm font-semibold leading-6">Google</span>
+                <span>Continue with Google</span>
               </button>
             </div>
           </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            By creating an account, you agree to our{' '}
+            <Link href="/terms" className="text-accent hover:text-accent/80">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-accent hover:text-accent/80">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
     </div>
@@ -440,11 +466,13 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-accent border-t-transparent" />
+        </div>
+      }
+    >
       <RegisterForm />
     </Suspense>
   );
