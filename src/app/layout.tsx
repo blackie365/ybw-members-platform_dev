@@ -75,7 +75,7 @@ export default async function RootLayout({
   }).catch(() => []);
 
   return (
-    <html lang="en" className="bg-background">
+    <html lang="en" className="bg-background" suppressHydrationWarning>
       <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <Providers>
           <Header />
