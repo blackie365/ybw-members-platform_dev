@@ -7,13 +7,13 @@ export const metadata: Metadata = {
 
 export default function NewEditionPage() {
   return (
-    <main className="flex-1 bg-white">
+    <main className="flex-1 bg-[#f7f5f1] dark:bg-zinc-950">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-8 text-center">
-          <h1 className="font-serif text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-5xl">
             Latest Edition
           </h1>
-          <p className="mt-4 text-lg text-zinc-600">
+          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
             Read the newest issue of Yorkshire Businesswoman magazine directly in your browser.
           </p>
         </div>
@@ -36,7 +36,7 @@ export default function NewEditionPage() {
         
         {/* Call to Action for past editions if needed */}
         <div className="mt-12 text-center">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Want a physical copy? <a href="/membership" className="font-medium text-[#b79c65] hover:underline">Join as a Premium Member</a> to get it delivered to your door.
           </p>
         </div>
