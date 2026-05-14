@@ -117,6 +117,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (uid: string) => {
+    if (!db) return;
+    
     try {
       const docRef = doc(db, 'newMemberCollection', uid);
       const docSnap = await getDoc(docRef);
@@ -174,10 +176,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user?.uid, fetchProfile]);
 
   useEffect(() => {
+    // Guard against auth being null during SSR or when Firebase isn't configured
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
-      if (firebaseUser) {
+      if (firebaseUser && db) {
         // Set up real-time listener for profile changes
         const docRef = doc(db, 'newMemberCollection', firebaseUser.uid);
         const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
