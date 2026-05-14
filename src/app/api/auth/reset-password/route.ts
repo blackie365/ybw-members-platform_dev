@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Failed to process password reset request:', error);
     return NextResponse.json(
-      { error: 'Failed to process password reset request' },
+      { error: error.message || 'Failed to process password reset request' },
       { status: 500 }
     );
   }
