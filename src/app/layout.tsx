@@ -6,6 +6,7 @@ import { Header } from "@/components/magazine/header"
 import { Footer } from "@/components/magazine/footer"
 import { NewsTicker } from "@/components/magazine/news-ticker"
 import { getPosts } from "@/lib/ghost"
+import { CookieBanner } from "@/components/cookie-banner"
 import './globals.css'
 
 const playfair = Playfair_Display({ 
@@ -83,6 +84,7 @@ export default async function RootLayout({
             {children}
           </main>
           <Footer />
+          <CookieBanner />
         </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
