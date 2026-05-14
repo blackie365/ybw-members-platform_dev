@@ -20,8 +20,13 @@ async function getEvents(searchParams: SearchParams) {
   const now = new Date().toISOString();
 
   try {
-    if (!adminDb) return [];
+    // Check if adminDb is properly initialized with credentials
+    if (!adminDb) {
+      console.warn('Firebase Admin not initialized - returning empty events');
+      return [];
+    }
     
+    // Try to access Firestore - this will throw if credentials aren't set
     let query = adminDb.collection('events').where('status', '==', 'published');
 
     if (view === 'upcoming') {
@@ -43,7 +48,8 @@ async function getEvents(searchParams: SearchParams) {
 
     return events;
   } catch (error) {
-    console.error('Error fetching events:', error);
+    // Log but don't throw - return empty array so page still renders
+    console.warn('Error fetching events (Firebase Admin credentials may not be configured):', error instanceof Error ? error.message : error);
     return [];
   }
 }
