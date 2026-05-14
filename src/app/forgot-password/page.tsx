@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 
@@ -19,9 +17,18 @@ export default function ForgotPasswordPage() {
     setMessage('');
 
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/login`,
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send reset email');
+      }
+
       setStatus('success');
       setMessage('Password reset email sent! Check your inbox for further instructions.');
     } catch (err: any) {
