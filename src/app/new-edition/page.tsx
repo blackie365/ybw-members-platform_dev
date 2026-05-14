@@ -37,7 +37,7 @@ export default function NewEditionPage() {
         {/* Call to Action for past editions if needed */}
         <div className="mt-12 text-center">
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Want a physical copy? <a href="/membership" className="font-medium text-[#b79c65] hover:underline">Join as a Premium Member</a> to get it delivered to your door.
+            Want a physical copy? <a href="/membership" className="font-medium text-[#b79c65] hover:underline">Join us as a Premium Member</a> and pick one up at our events !
           </p>
         </div>
       </div>
