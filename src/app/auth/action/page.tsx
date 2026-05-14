@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 
-export default function AuthActionPage() {
+function AuthActionContent() {
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<'verifying' | 'idle' | 'loading' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('');
@@ -196,5 +196,21 @@ export default function AuthActionPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthActionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-[80vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthActionContent />
+    </Suspense>
   );
 }
