@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/mailgun';
+import { sendEmail } from '@/lib/email';
 import { adminAuth } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
