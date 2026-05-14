@@ -14,9 +14,12 @@ export function getFriendlyAuthErrorMessage(error: any): string {
     case 'auth/user-not-found':
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
       return 'Invalid email or password. Please check your credentials and try again.';
     case 'auth/user-disabled':
       return 'This account has been disabled. Please contact support.';
+    case 'auth/missing-password':
+      return 'Please enter your password.';
       
     // Generic & Network errors
     case 'auth/too-many-requests':
@@ -33,9 +36,14 @@ export function getFriendlyAuthErrorMessage(error: any): string {
       if (error?.message) {
         // Fallback to Firebase's message but strip out the ugly "Firebase: " prefix if present
         let msg = error.message.replace('Firebase: ', '');
-        // Also strip out (auth/...)
-        msg = msg.replace(/\s*\(auth\/[^\)]+\)\.?/g, '');
-        return msg.trim() || 'An unexpected error occurred. Please try again.';
+        // Strip out the error code like (auth/something)
+        msg = msg.replace(/\s*\(auth\/[^\)]+\)\.?/g, '').trim();
+        
+        // If the resulting message is just "Error" or empty, provide a better default
+        if (!msg || msg.toLowerCase() === 'error') {
+          return 'An unexpected authentication error occurred. Please try again.';
+        }
+        return msg;
       }
       return 'An unexpected error occurred. Please try again.';
   }
