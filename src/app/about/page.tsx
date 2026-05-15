@@ -12,15 +12,29 @@ export default async function AboutPage() {
   }
 
   return (
-    <div className="py-16 sm:py-24 dark:bg-zinc-900">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <div className="relative bg-primary py-24 sm:py-32">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
+              Our Story
+            </p>
+            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl text-balance">
+              {page.title}
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-24">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-white mb-8">
-            {page.title}
-          </h1>
-          
           {page.feature_image && (
-            <div className="relative mb-12 aspect-[16/9] w-full overflow-hidden rounded-2xl">
+            <div className="relative mb-12 aspect-[16/9] w-full overflow-hidden">
               <Image
                 src={page.feature_image}
                 alt={page.title}
@@ -32,7 +46,14 @@ export default async function AboutPage() {
           )}
           
           <div 
-            className="prose prose-lg dark:prose-invert prose-zinc max-w-none"
+            className="prose prose-lg max-w-none
+              prose-headings:font-serif prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-foreground
+              prose-p:text-muted-foreground prose-p:leading-relaxed
+              prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-foreground prose-strong:font-semibold
+              prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+              prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
+              prose-img:rounded-none"
             dangerouslySetInnerHTML={{ __html: page.html }}
           />
         </div>
