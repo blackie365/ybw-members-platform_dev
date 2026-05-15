@@ -6,12 +6,12 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
   if (!posts || posts.length === 0) return null;
 
   return (
-    <section className="border-t border-border">
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
+    <section className="bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
         {/* Section Header */}
         <div className="mb-14 flex items-end justify-between">
           <div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
               Latest Stories
             </span>
             <h2 className="mt-3 font-serif text-3xl font-medium text-foreground lg:text-4xl">
@@ -20,7 +20,7 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
           </div>
           <Link
             href="/news"
-            className="hidden items-center gap-2 border-b border-transparent pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-foreground transition-all hover:border-accent hover:text-accent md:flex"
+            className="hidden items-center gap-2 border-b border-foreground/30 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-foreground transition-all hover:border-accent hover:text-accent md:flex"
           >
             View All Articles
             <ArrowRight className="h-4 w-4" />
@@ -28,7 +28,7 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
         </div>
 
         {/* Articles Grid */}
-        <div className="grid gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-8 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
           {posts.map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))}
@@ -49,18 +49,14 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
   )
 }
 
-function ArticleCard({
-  article,
-}: {
-  article: any
-}) {
+function ArticleCard({ article }: { article: any }) {
   const publishedDate = article.published_at 
-    ? new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
 
   return (
     <article className="group flex flex-col">
-      <Link href={`/news/${article.slug}`}>
+      <Link href={`/news/${article.slug}`} className="flex flex-col h-full">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           <Image
@@ -69,12 +65,12 @@ function ArticleCard({
             fill
             className="object-cover transition-all duration-500 group-hover:scale-[1.03]"
           />
-          {/* Hover overlay */}
-          <div className="absolute inset-0 bg-foreground/0 transition-colors group-hover:bg-foreground/5" />
+          {/* Subtle gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
         
         {/* Content */}
-        <div className="flex flex-1 flex-col pt-5">
+        <div className="flex flex-1 flex-col pt-6">
           {/* Meta */}
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
@@ -92,23 +88,23 @@ function ArticleCard({
           </h3>
           
           {/* Excerpt */}
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground line-clamp-2">
+          <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-2">
             {article.custom_excerpt || article.excerpt || ""}
           </p>
           
           {/* Author & Date */}
-          <div className="mt-5 flex items-center gap-3 border-t border-border pt-5">
-            <div className="h-8 w-8 overflow-hidden rounded-full bg-muted">
+          <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
+            <div className="h-9 w-9 overflow-hidden rounded-full bg-muted">
               {article.primary_author?.profile_image ? (
                 <Image
                   src={article.primary_author.profile_image}
                   alt={article.primary_author.name || "Author"}
-                  width={32}
-                  height={32}
+                  width={36}
+                  height={36}
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-accent/10 text-[10px] font-semibold text-accent">
+                <div className="flex h-full w-full items-center justify-center bg-accent/10 text-xs font-semibold text-accent">
                   {(article.primary_author?.name || "Y")[0]}
                 </div>
               )}
