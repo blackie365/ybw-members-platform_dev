@@ -1,6 +1,4 @@
 import { Metadata } from 'next';
-import { Header } from '@/components/magazine/header';
-import { Footer } from '@/components/magazine/footer';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -10,65 +8,89 @@ export const metadata: Metadata = {
 
 export default function CookiePolicyPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <Header />
-      
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-8 sm:p-12 prose dark:prose-invert prose-emerald max-w-none">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white mb-8">
-            Cookie Policy
-          </h1>
-          
-          <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-            Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <div className="relative bg-primary py-20 sm:py-28">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
+              Legal
+            </p>
+            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl">
+              Cookie Policy
+            </h1>
+            <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
+              Last updated: {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+      </div>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">1. What are cookies?</h2>
-            <p className="text-zinc-700 dark:text-zinc-300">
+      {/* Content Section */}
+      <div className="mx-auto max-w-3xl px-6 lg:px-8 py-16 sm:py-20">
+        <div className="prose prose-lg max-w-none
+          prose-headings:font-serif prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-foreground
+          prose-p:text-muted-foreground prose-p:leading-relaxed
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-strong:text-foreground prose-strong:font-semibold
+          prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+          prose-li:text-muted-foreground">
+          
+          <section className="mb-12">
+            <h2>1. What are cookies?</h2>
+            <p>
               Cookies are small text files that are placed on your computer or mobile device when you visit a website. They are widely used in order to make websites work, or work more efficiently, as well as to provide information to the owners of the site.
             </p>
           </section>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">2. How we use cookies</h2>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-4">
-              We use cookies for the following purposes:
-            </p>
-            <ul className="list-disc pl-6 space-y-2 text-zinc-700 dark:text-zinc-300">
-              <li><strong>Essential Cookies:</strong> These are required for the operation of our website. They include, for example, cookies that enable you to log into secure areas of our website (like the Member Dashboard) and use a shopping cart.</li>
-              <li><strong>Analytical/Performance Cookies:</strong> They allow us to recognise and count the number of visitors and to see how visitors move around our website when they are using it. This helps us to improve the way our website works.</li>
-              <li><strong>Functionality Cookies:</strong> These are used to recognise you when you return to our website. This enables us to personalise our content for you, greet you by name and remember your preferences (for example, your choice of light or dark mode).</li>
+          <section className="mb-12">
+            <h2>2. How we use cookies</h2>
+            <p>We use cookies for the following purposes:</p>
+            <ul className="space-y-3">
+              <li>
+                <strong className="text-foreground">Essential Cookies:</strong> These are required for the operation of our website. They include, for example, cookies that enable you to log into secure areas of our website (like the Member Dashboard) and use a shopping cart.
+              </li>
+              <li>
+                <strong className="text-foreground">Analytical/Performance Cookies:</strong> They allow us to recognise and count the number of visitors and to see how visitors move around our website when they are using it. This helps us to improve the way our website works.
+              </li>
+              <li>
+                <strong className="text-foreground">Functionality Cookies:</strong> These are used to recognise you when you return to our website. This enables us to personalise our content for you, greet you by name and remember your preferences (for example, your choice of light or dark mode).
+              </li>
             </ul>
           </section>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">3. Third-party cookies</h2>
-            <p className="text-zinc-700 dark:text-zinc-300">
+          <section className="mb-12">
+            <h2>3. Third-party cookies</h2>
+            <p>
               Please note that third parties (including, for example, advertising networks and providers of external services like web traffic analysis services) may also use cookies, over which we have no control. These cookies are likely to be analytical/performance cookies or targeting cookies. We use Stripe for secure payment processing, which relies on cookies to function securely.
             </p>
           </section>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">4. Managing cookies</h2>
-            <p className="text-zinc-700 dark:text-zinc-300 mb-4">
+          <section className="mb-12">
+            <h2>4. Managing cookies</h2>
+            <p>
               You can block cookies by activating the setting on your browser that allows you to refuse the setting of all or some cookies. However, if you use your browser settings to block all cookies (including essential cookies) you may not be able to access all or parts of our website, particularly the Member Dashboard.
             </p>
-            <p className="text-zinc-700 dark:text-zinc-300">
-              To find out more about cookies, including how to see what cookies have been set and how to manage and delete them, visit <a href="https://www.allaboutcookies.org" target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">allaboutcookies.org</a>.
+            <p>
+              To find out more about cookies, including how to see what cookies have been set and how to manage and delete them, visit{' '}
+              <a href="https://www.allaboutcookies.org" target="_blank" rel="noopener noreferrer">
+                allaboutcookies.org
+              </a>.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-zinc-900 dark:text-white mb-4">5. Contact us</h2>
-            <p className="text-zinc-700 dark:text-zinc-300">
-              If you have any questions about our Cookie Policy, please contact us via our <Link href="/contact" className="text-emerald-600 dark:text-emerald-400 hover:underline">Contact page</Link>.
+            <h2>5. Contact us</h2>
+            <p>
+              If you have any questions about our Cookie Policy, please contact us via our{' '}
+              <Link href="/contact">Contact page</Link>.
             </p>
           </section>
         </div>
-      </main>
-
-      <Footer />
+      </div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
   const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
@@ -8,64 +10,67 @@ export function MemberCard({ member }: { member: any }) {
   const bio = member.bio || member['Bio'] || '';
 
   return (
-    <div className="group relative flex flex-col items-start justify-between rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 p-6 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-shadow hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-      <div className="flex items-center gap-4 mb-4 w-full">
-        <div className="relative h-16 w-16 flex-none overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+    <div className="group relative flex flex-col bg-card border border-border p-6 transition-all hover:border-accent/30 hover:shadow-sm">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative h-14 w-14 flex-none overflow-hidden bg-muted">
           {profileImage && !profileImage.includes('gravatar.com/avatar') ? (
             <Image
               src={profileImage}
               alt={firstName || 'Member'}
               fill
               className="object-cover"
-              sizes="64px"
+              sizes="56px"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl font-medium text-zinc-500 dark:text-zinc-400 bg-indigo-100 dark:bg-indigo-900/30">
+            <div className="flex h-full w-full items-center justify-center text-lg font-serif font-medium text-muted-foreground bg-accent/10">
               {initial}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white truncate">
+          <h2 className="font-serif text-lg font-medium text-foreground truncate">
             {firstName} {lastName}
           </h2>
           {member.companyName && (
-            <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+            <p className="text-sm text-accent truncate">
               {member.companyName}
             </p>
           )}
         </div>
       </div>
       
-      <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3">
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 flex-1">
         {bio}
-      </div>
+      </p>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {member.openToMentoring && (
-          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-400/20">
-            Open to Coaching
-          </span>
-        )}
-        {member.seekingMentorship && (
-          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-400/20">
-            Seeking a Coach
-          </span>
-        )}
-        {member.openToBoardRoles && (
-          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-900/20 dark:text-amber-400 dark:ring-amber-400/20">
-            Board Roles (NED)
-          </span>
-        )}
-      </div>
+      {(member.openToMentoring || member.seekingMentorship || member.openToBoardRoles) && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {member.openToMentoring && (
+            <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10">
+              Coaching
+            </span>
+          )}
+          {member.seekingMentorship && (
+            <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10">
+              Seeking Coach
+            </span>
+          )}
+          {member.openToBoardRoles && (
+            <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10">
+              NED
+            </span>
+          )}
+        </div>
+      )}
 
-      <div className="mt-4 w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
-        <a
+      <div className="mt-4 pt-4 border-t border-border">
+        <Link
           href={`/members/${member.memberSlug || member.slug || member.id}`}
-          className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors"
         >
-          View Profile &rarr;
-        </a>
+          View Profile
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
       </div>
     </div>
   );
