@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { Menu, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,11 +29,13 @@ const navigation = [
 export function Header() {
   const { user } = useAuth();
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleSignOut = async () => {
     if (!auth) return;
     try {
       await signOut(auth);
+      setIsOpen(false);
       router.push('/');
     } catch (error) {
       console.error("Error signing out:", error);
@@ -55,7 +58,7 @@ export function Header() {
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
           {/* Mobile menu */}
           <div className="flex flex-1 justify-start lg:hidden">
-            <Sheet>
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="hover:bg-muted" aria-label="Open menu">
                   <Menu className="h-5 w-5" />
@@ -72,6 +75,7 @@ export function Header() {
                         <Link
                           key={item.name}
                           href={item.href}
+                          onClick={() => setIsOpen(false)}
                           className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                         >
                           {item.name}
@@ -80,17 +84,28 @@ export function Header() {
                       <div className="my-4 h-px bg-border" />
                       <Link
                         href="/dashboard"
+                        onClick={() => setIsOpen(false)}
                         className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                       >
                         Dashboard
                       </Link>
                       {!user && (
-                        <Link
-                          href="/login"
-                          className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
-                        >
-                          Sign In
-                        </Link>
+                        <>
+                          <Link
+                            href="/login"
+                            onClick={() => setIsOpen(false)}
+                            className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
+                          >
+                            Sign In
+                          </Link>
+                          <Link
+                            href="/membership"
+                            onClick={() => setIsOpen(false)}
+                            className="block py-3 font-serif text-lg text-accent transition-colors hover:text-accent/80 font-semibold"
+                          >
+                            Join Us
+                          </Link>
+                        </>
                       )}
                     </div>
                   </nav>
@@ -172,7 +187,7 @@ export function Header() {
                   </Button>
                 </Link>
                 <Link href="/membership" passHref>
-                  <Button className="ml-2 hidden bg-accent px-6 py-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-accent-foreground shadow-sm transition-all hover:bg-accent/90 hover:shadow-md lg:inline-flex">
+                  <Button className="ml-2 inline-flex bg-accent px-4 py-2 sm:px-6 sm:py-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-accent-foreground shadow-sm transition-all hover:bg-accent/90 hover:shadow-md">
                     Join Us
                   </Button>
                 </Link>
