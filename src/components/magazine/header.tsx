@@ -20,7 +20,7 @@ const navigation = [
   { name: 'Home', href: '/' },
   { name: 'Latest Edition', href: '/new-edition' },
   { name: 'News', href: '/news' },
-  { name: 'Events', href: '/events' },
+  { name: 'Events', href: '/news?tag=events' },
   { name: 'Members', href: '/members' },
   { name: 'About', href: '/about' },
   { name: 'Contact', href: '/contact' },
