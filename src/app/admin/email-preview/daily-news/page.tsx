@@ -1,6 +1,7 @@
 import { DailyNewsEmail } from "@/components/emails/daily-news-email"
 
 // Sample news stories for preview
+// The first story should be the featured article from the home page
 const sampleStories = [
   {
     id: "1",
@@ -12,7 +13,8 @@ const sampleStories = [
       "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80",
     published_at: new Date().toISOString(),
     reading_time: 5,
-    primary_tag: { name: "Business", slug: "business" },
+    featured: true,
+    primary_tag: { name: "News", slug: "news" },
     primary_author: { name: "Sarah Mitchell" },
   },
   {
@@ -25,7 +27,7 @@ const sampleStories = [
       "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&q=80",
     published_at: new Date().toISOString(),
     reading_time: 4,
-    primary_tag: { name: "Leadership", slug: "leadership" },
+    primary_tag: { name: "News", slug: "news" },
     primary_author: { name: "Emma Thompson" },
   },
   {
@@ -38,7 +40,7 @@ const sampleStories = [
       "https://images.unsplash.com/photo-1497215842964-222b430dc094?w=800&q=80",
     published_at: new Date().toISOString(),
     reading_time: 3,
-    primary_tag: { name: "Workplace", slug: "workplace" },
+    primary_tag: { name: "News", slug: "news" },
     primary_author: { name: "Rachel Hughes" },
   },
   {
@@ -51,7 +53,7 @@ const sampleStories = [
       "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80",
     published_at: new Date().toISOString(),
     reading_time: 6,
-    primary_tag: { name: "Entrepreneurship", slug: "entrepreneurship" },
+    primary_tag: { name: "News", slug: "news" },
     primary_author: { name: "Kate Williams" },
   },
   {
@@ -64,7 +66,7 @@ const sampleStories = [
       "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80",
     published_at: new Date().toISOString(),
     reading_time: 4,
-    primary_tag: { name: "Networking", slug: "networking" },
+    primary_tag: { name: "News", slug: "news" },
     primary_author: { name: "Lucy Davies" },
   },
 ]
@@ -78,7 +80,7 @@ export default function DailyNewsEmailPreview() {
             Daily News Newsletter Template
           </h1>
           <p className="text-stone-600">
-            Preview of the elegant daily newsletter featuring 5 news stories
+            Preview of the daily newsletter featuring the home page&apos;s featured article plus 4 latest news stories
           </p>
         </div>
 

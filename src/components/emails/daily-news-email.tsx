@@ -9,6 +9,7 @@ interface NewsStory {
   feature_image?: string
   published_at: string
   reading_time?: number
+  featured?: boolean
   primary_tag?: {
     name: string
     slug: string
@@ -259,7 +260,7 @@ export function DailyNewsEmail({
                                     margin: "0 0 20px 0",
                                   }}
                                 >
-                                  Lead Story
+                                  Featured Article
                                 </p>
                               </td>
                             </tr>
@@ -373,7 +374,7 @@ export function DailyNewsEmail({
                     </td>
                   </tr>
 
-                  {/* More Stories Section */}
+                  {/* Latest News Section */}
                   {remainingStories.length > 0 && (
                     <tr>
                       <td style={{ padding: "0 40px" }}>
@@ -388,7 +389,7 @@ export function DailyNewsEmail({
                             margin: "0 0 24px 0",
                           }}
                         >
-                          More Stories
+                          Latest News
                         </p>
 
                         {remainingStories.map((story, index) => (
