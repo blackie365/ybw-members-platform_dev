@@ -92,7 +92,7 @@ export function AccountUpdateEmail({
         </p>
       </div>
 
-      <EmailButton href="https://yorkshirebusinesswoman.com/security">
+      <EmailButton href="https://yorkshirebusinesswoman.co.uk/security">
         Review Account Security →
       </EmailButton>
 

@@ -95,7 +95,7 @@ export function PaymentReceiptEmail({
         Need a copy of your invoice? You can download it from your account dashboard at any time.
       </EmailText>
 
-      <EmailButton href="https://yorkshirebusinesswoman.com/billing">
+      <EmailButton href="https://yorkshirebusinesswoman.co.uk/billing">
         View Billing History →
       </EmailButton>
 

@@ -251,7 +251,7 @@ export function MonthlyDigestEmail({
         </a>
       ))}
 
-      <EmailButton href="https://yorkshirebusinesswoman.com/events">
+      <EmailButton href="https://yorkshirebusinesswoman.co.uk/events">
         View All Events →
       </EmailButton>
 

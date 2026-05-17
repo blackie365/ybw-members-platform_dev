@@ -93,7 +93,7 @@ export function WelcomeEmail({ firstName, membershipTier }: WelcomeEmailProps) {
         </tbody>
       </table>
 
-      <EmailButton href="https://yorkshirebusinesswoman.com/dashboard">
+      <EmailButton href="https://yorkshirebusinesswoman.co.uk/dashboard">
         Access Your Dashboard →
       </EmailButton>
 

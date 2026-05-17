@@ -66,7 +66,7 @@ export function RenewalReminderEmail({
           <tr>
             <td style={{ paddingRight: "8px" }}>
               <a
-                href="https://yorkshirebusinesswoman.com/billing"
+                href="https://yorkshirebusinesswoman.co.uk/billing"
                 style={{
                   display: "inline-block",
                   backgroundColor: "#b5604a",
@@ -84,7 +84,7 @@ export function RenewalReminderEmail({
             </td>
             <td>
               <a
-                href="https://yorkshirebusinesswoman.com/membership"
+                href="https://yorkshirebusinesswoman.co.uk/membership"
                 style={{
                   display: "inline-block",
                   backgroundColor: "#fffefb",

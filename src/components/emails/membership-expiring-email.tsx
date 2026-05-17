@@ -71,7 +71,7 @@ export function MembershipExpiringEmail({
         continue your journey with hundreds of like-minded businesswomen across Yorkshire.
       </EmailText>
 
-      <EmailButton href="https://yorkshirebusinesswoman.com/renew">
+      <EmailButton href="https://yorkshirebusinesswoman.co.uk/renew">
         Renew Membership →
       </EmailButton>
 
