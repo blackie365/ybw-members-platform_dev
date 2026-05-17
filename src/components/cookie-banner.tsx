@@ -38,7 +38,7 @@ export function CookieBanner() {
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. 
-              By clicking "Accept", you consent to our use of cookies. 
+              By clicking &quot;Accept&quot;, you consent to our use of cookies. 
               Read our <Link href="/cookies" className="text-emerald-600 dark:text-emerald-400 hover:underline">Cookie Policy</Link> to learn more.
             </p>
           </div>

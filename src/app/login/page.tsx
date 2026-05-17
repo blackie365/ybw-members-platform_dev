@@ -126,6 +126,7 @@ function LoginForm() {
           {/* Mobile header */}
           <div className="lg:hidden mb-10">
             <Link href="/" className="inline-block mb-8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/logo.png"
                 alt="Yorkshire Businesswoman"

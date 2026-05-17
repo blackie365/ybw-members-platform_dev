@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, MessageSquare, Search, PenSquare } from "lucide-react"
-import type { MessageThread } from "@/lib/messages"
+import { getOtherParticipant, type MessageThread } from "@/lib/messages"
 
 export default function MessagesPage() {
   const { user, loading: authLoading, profile } = useAuth()
@@ -46,13 +46,13 @@ export default function MessagesPage() {
   }
 
   const filteredThreads = threads.filter((thread) => {
-    const otherParticipant = thread.participantNames?.find(
-      (name) => name !== profile?.displayName
-    )
-    return otherParticipant?.toLowerCase().includes(search.toLowerCase())
+    if (!user) return false
+    const otherUser = getOtherParticipant(thread, user.uid)
+    const otherParticipant = otherUser?.name || "Unknown"
+    return otherParticipant.toLowerCase().includes(search.toLowerCase())
   })
 
-  const formatDate = (timestamp: number) => {
+  const formatDate = (timestamp: string | number) => {
     const date = new Date(timestamp)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
@@ -120,13 +120,11 @@ export default function MessagesPage() {
           ) : (
             <div className="divide-y divide-border">
               {filteredThreads.map((thread) => {
-                const otherParticipant = thread.participantNames?.find(
-                  (name) => name !== profile?.displayName
-                ) || "Unknown"
-                const otherPhoto = thread.participantPhotos?.find(
-                  (_, idx) => thread.participantNames?.[idx] !== profile?.displayName
-                )
-                const isUnread = thread.unreadCount && thread.unreadCount > 0
+                const otherUser = user ? getOtherParticipant(thread, user.uid) : null
+                const otherParticipant = otherUser?.name || "Unknown"
+                const otherPhoto = otherUser?.image
+                const unreadCount = user && thread.unreadCount ? thread.unreadCount[user.uid] || 0 : 0
+                const isUnread = unreadCount > 0
 
                 return (
                   <Link
@@ -139,7 +137,7 @@ export default function MessagesPage() {
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={otherPhoto} alt={otherParticipant} />
                       <AvatarFallback className="bg-accent/10 text-accent font-semibold">
-                        {otherParticipant.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                        {otherParticipant.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -148,16 +146,16 @@ export default function MessagesPage() {
                           {otherParticipant}
                         </span>
                         <span className="text-xs text-muted-foreground shrink-0">
-                          {thread.lastMessageAt && formatDate(thread.lastMessageAt)}
+                          {thread.lastMessage?.createdAt && formatDate(thread.lastMessage.createdAt)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-1">
                         <p className={`text-sm truncate ${isUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                          {thread.lastMessage || "No messages yet"}
+                          {thread.lastMessage?.content || "No messages yet"}
                         </p>
                         {isUnread && (
                           <Badge className="bg-accent text-white shrink-0">
-                            {thread.unreadCount}
+                            {unreadCount}
                           </Badge>
                         )}
                       </div>

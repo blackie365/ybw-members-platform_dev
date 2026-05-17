@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-background/70">{profile?.displayName}</span>
+            <span className="text-sm text-background/70">{profile ? `${profile.firstName} ${profile.lastName}` : ""}</span>
           </div>
         </div>
       </header>

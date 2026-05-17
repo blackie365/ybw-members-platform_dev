@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, ArrowLeft, Send } from "lucide-react"
-import type { Message, MessageThread } from "@/lib/messages"
+import { getOtherParticipant, type Message, type MessageThread } from "@/lib/messages"
 
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params)
@@ -29,31 +29,31 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
   }, [user, authLoading, router])
 
   useEffect(() => {
+    const fetchThread = async () => {
+      try {
+        const res = await fetch(`/api/messages/${threadId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setThread(data.thread)
+          setMessages(data.messages)
+        } else if (res.status === 404) {
+          router.push("/dashboard/messages")
+        }
+      } catch (error) {
+        console.error("Failed to fetch thread:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (user && threadId) {
       fetchThread()
     }
-  }, [user, threadId])
+  }, [user, threadId, router])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
-
-  const fetchThread = async () => {
-    try {
-      const res = await fetch(`/api/messages/${threadId}`)
-      if (res.ok) {
-        const data = await res.json()
-        setThread(data.thread)
-        setMessages(data.messages)
-      } else if (res.status === 404) {
-        router.push("/dashboard/messages")
-      }
-    } catch (error) {
-      console.error("Failed to fetch thread:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,14 +78,14 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     }
   }
 
-  const formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: string | number) => {
     return new Date(timestamp).toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
     })
   }
 
-  const formatDateDivider = (timestamp: number) => {
+  const formatDateDivider = (timestamp: string | number) => {
     const date = new Date(timestamp)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
@@ -115,12 +115,9 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
     )
   }
 
-  const otherParticipant = thread?.participantNames?.find(
-    (name) => name !== profile?.displayName
-  ) || "Unknown"
-  const otherPhoto = thread?.participantPhotos?.find(
-    (_, idx) => thread?.participantNames?.[idx] !== profile?.displayName
-  )
+  const otherUser = thread && user ? getOtherParticipant(thread, user.uid) : null
+  const otherParticipant = otherUser?.name || "Unknown"
+  const otherPhoto = otherUser?.image
 
   return (
     <div className="container max-w-3xl py-8 h-[calc(100vh-12rem)] flex flex-col">
@@ -134,7 +131,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
         <Avatar className="h-10 w-10">
           <AvatarImage src={otherPhoto} alt={otherParticipant} />
           <AvatarFallback className="bg-accent/10 text-accent font-semibold">
-            {otherParticipant.split(" ").map(n => n[0]).join("").slice(0, 2)}
+            {otherParticipant.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
           </AvatarFallback>
         </Avatar>
         <div>

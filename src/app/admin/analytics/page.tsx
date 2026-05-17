@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore"
+import type { MemberProfile } from "@/lib/AuthContext"
 
 interface AnalyticsData {
   membersByMonth: { month: string; count: number }[]
@@ -40,10 +41,13 @@ export default function AdminAnalyticsPage() {
       // Fetch all members
       const membersRef = collection(db, "users")
       const membersSnap = await getDocs(membersRef)
-      const members = membersSnap.docs.map((doc) => ({
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toMillis?.() || Date.now(),
-      }))
+      const members = membersSnap.docs.map((doc) => {
+        const data = doc.data() as MemberProfile
+        return {
+          ...data,
+          createdAt: doc.data().createdAt?.toMillis?.() || Date.now(),
+        }
+      })
 
       // Members by month (last 6 months)
       const monthlyData: Record<string, number> = {}
@@ -79,8 +83,9 @@ export default function AdminAnalyticsPage() {
       // Members by industry (top 6)
       const industryCounts: Record<string, number> = {}
       members.forEach((m) => {
-        if (m.industry) {
-          industryCounts[m.industry] = (industryCounts[m.industry] || 0) + 1
+        const ind = m.industrySector || (m as any).industry
+        if (ind) {
+          industryCounts[ind] = (industryCounts[ind] || 0) + 1
         }
       })
       const membersByIndustry = Object.entries(industryCounts)

@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (user?.uid) {
       await fetchProfile(user.uid);
     }
-  }, [user?.uid, fetchProfile]);
+  }, [user, fetchProfile]);
 
   useEffect(() => {
     // Guard against auth being null during SSR or when Firebase isn't configured

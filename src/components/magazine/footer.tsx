@@ -42,6 +42,7 @@ export function Footer() {
           {/* Brand section */}
           <div className="lg:col-span-4">
             <Link href="/" className="inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/logo-footer-v2.png"
                 alt="Yorkshire Businesswoman"
