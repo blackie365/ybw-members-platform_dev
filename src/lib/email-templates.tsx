@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { render } from '@react-email/components';
 import { WelcomeEmail } from '@/components/emails/welcome-email';
 import { PasswordResetEmail } from '@/components/emails/password-reset-email';
 import { MembershipExpiringEmail } from '@/components/emails/membership-expiring-email';
@@ -10,28 +10,27 @@ import {
   EmailHeading,
   EmailText,
   EmailButton,
-  EmailHighlightBox,
 } from '@/components/emails/email-layout';
 
-// Helper to render React components to HTML
-function renderEmail(Component: React.ReactElement) {
-  return `<!DOCTYPE html>${renderToStaticMarkup(Component)}`;
+// Helper to safely render React components to HTML avoiding Next.js edge-runtime conflicts
+async function renderEmail(Component: React.ReactElement) {
+  return await render(Component);
 }
 
-export const getWelcomeEmailTemplate = (firstName: string, appUrl: string) => {
-  return renderEmail(
+export const getWelcomeEmailTemplate = async (firstName: string, appUrl: string) => {
+  return await renderEmail(
     <WelcomeEmail firstName={firstName} membershipTier="Premium Member" />
   );
 };
 
-export const getFreeWelcomeEmailTemplate = (firstName: string, appUrl: string) => {
-  return renderEmail(
+export const getFreeWelcomeEmailTemplate = async (firstName: string, appUrl: string) => {
+  return await renderEmail(
     <WelcomeEmail firstName={firstName} membershipTier="Free Subscriber" />
   );
 };
 
-export const getEventTicketConfirmationEmailTemplate = (firstName: string, appUrl: string) => {
-  return renderEmail(
+export const getEventTicketConfirmationEmailTemplate = async (firstName: string, appUrl: string) => {
+  return await renderEmail(
     <EmailLayout previewText={`You're going to the event, ${firstName}!`}>
       <EmailHeading>You're going to the event!</EmailHeading>
       <EmailText>Hi {firstName},</EmailText>
@@ -43,14 +42,14 @@ export const getEventTicketConfirmationEmailTemplate = (firstName: string, appUr
   );
 };
 
-export const getPasswordResetEmailTemplate = (firstName: string, resetLink: string) => {
-  return renderEmail(
+export const getPasswordResetEmailTemplate = async (firstName: string, resetLink: string) => {
+  return await renderEmail(
     <PasswordResetEmail firstName={firstName} resetLink={resetLink} expiryHours={24} />
   );
 };
 
-export const getMembershipExpiringEmailTemplate = (firstName: string, membershipTier: string, expiryDate: string, renewalAmount: string) => {
-  return renderEmail(
+export const getMembershipExpiringEmailTemplate = async (firstName: string, membershipTier: string, expiryDate: string, renewalAmount: string) => {
+  return await renderEmail(
     <MembershipExpiringEmail 
       firstName={firstName} 
       membershipTier={membershipTier} 
@@ -60,8 +59,8 @@ export const getMembershipExpiringEmailTemplate = (firstName: string, membership
   );
 };
 
-export const getRenewalReminderEmailTemplate = (firstName: string, membershipTier: string, renewalDate: string, amount: string, daysRemaining: number) => {
-  return renderEmail(
+export const getRenewalReminderEmailTemplate = async (firstName: string, membershipTier: string, renewalDate: string, amount: string, daysRemaining: number) => {
+  return await renderEmail(
     <RenewalReminderEmail 
       firstName={firstName} 
       membershipTier={membershipTier} 

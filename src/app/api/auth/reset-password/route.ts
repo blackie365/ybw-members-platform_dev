@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     await sendEmail({
       to: email,
       subject: 'Reset your Yorkshire Businesswoman password',
-      html: getPasswordResetEmailTemplate(firstName, link),
+      html: await getPasswordResetEmailTemplate(firstName, link),
     });
 
     return NextResponse.json({ success: true });

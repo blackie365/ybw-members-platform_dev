@@ -59,7 +59,7 @@ export async function POST(req: Request) {
             sendEmail({
                 to: userEmail,
                 subject: 'Welcome to Yorkshire Businesswoman!',
-                html: getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+                html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
               }).catch(err => console.error('Failed to send welcome email:', err));
           }
         }
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
               sendEmail({
                 to: userEmail,
                 subject: `Your Ticket Confirmation`,
-                html: getEventTicketConfirmationEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+                html: await getEventTicketConfirmationEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
               }).catch(err => console.error('Failed to send event confirmation email:', err));
             }
 

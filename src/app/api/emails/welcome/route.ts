@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     await sendEmail({
       to: email,
       subject: 'Welcome to Yorkshire Businesswoman!',
-      html: getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+      html: await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
     });
 
     return NextResponse.json({ success: true });
