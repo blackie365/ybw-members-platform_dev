@@ -70,3 +70,11 @@ export const getRenewalReminderEmailTemplate = async (firstName: string, members
     />
   );
 };
+
+import { DailyNewsEmail } from '@/components/emails/daily-news-email';
+
+export const getDailyNewsletterTemplate = async (stories: any[], recipientName?: string, editorNote?: string) => {
+  return await renderEmail(
+    <DailyNewsEmail stories={stories} recipientName={recipientName} editorNote={editorNote} />
+  );
+};

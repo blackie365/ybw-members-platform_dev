@@ -96,19 +96,17 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                         <a
                           href="#"
                           style={{ color: "#b5604a", textDecoration: "none" }}
-                        >
-                          Unsubscribe
-                        </a>
+                        href="https://yorkshirebusinesswoman.co.uk/unsubscribe" style={{ color: "#b5604a", textDecoration: "none" }}>Unsubscribe</a>
                         {" · "}
                         <a
-                          href="#"
+                          href="https://yorkshirebusinesswoman.co.uk/privacy-policy"
                           style={{ color: "#b5604a", textDecoration: "none" }}
                         >
                           Privacy Policy
                         </a>
                         {" · "}
                         <a
-                          href="#"
+                          href="https://yorkshirebusinesswoman.co.uk/contact"
                           style={{ color: "#b5604a", textDecoration: "none" }}
                         >
                           Contact Us
