@@ -77,7 +77,7 @@ export async function GET(request: Request) {
 
       membersSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.email) {
+        if (data.email && data.newsletterSubscribed !== false) {
           emails.push(data.email);
         }
       });

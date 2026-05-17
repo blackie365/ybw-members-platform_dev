@@ -103,7 +103,7 @@ export function DailyNewsEmail({
                           <tr>
                             <td align="center">
                               <img
-                                src="https://admin.yorkshirebusinesswoman.co.uk/content/images/2026/03/Asset-9@3x-2.png"
+                                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
                                 alt="Yorkshire Businesswoman"
                                 style={{
                                   maxHeight: "48px",
@@ -588,7 +588,7 @@ export function DailyNewsEmail({
                           <tr>
                             <td align="center">
                               <img
-                                src="https://admin.yorkshirebusinesswoman.co.uk/content/images/2026/03/Asset-9@3x-2.png"
+                                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
                                 alt="Yorkshire Businesswoman"
                                 style={{
                                   maxHeight: "36px",
@@ -806,7 +806,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
               <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center">
-                    <img src="https://admin.yorkshirebusinesswoman.co.uk/content/images/2026/03/Asset-9@3x-2.png" alt="Yorkshire Businesswoman" style="max-height: 48px; width: auto; display: block;" />
+                    <img src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png" alt="Yorkshire Businesswoman" style="max-height: 48px; width: auto; display: block;" />
                   </td>
                 </tr>
                 <tr>
@@ -916,7 +916,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
               <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center">
-                    <img src="https://admin.yorkshirebusinesswoman.co.uk/content/images/2026/03/Asset-9@3x-2.png" alt="Yorkshire Businesswoman" style="max-height: 36px; width: auto; display: block; margin-bottom: 16px;" />
+                    <img src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png" alt="Yorkshire Businesswoman" style="max-height: 36px; width: auto; display: block; margin-bottom: 16px;" />
                     <p style="font-family: ${fonts.sans}; font-size: 13px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.6;">Empowering women in business across Yorkshire.</p>
                     <p style="font-family: ${fonts.sans}; font-size: 12px; margin: 0 0 20px 0;">
                       <a href="https://www.linkedin.com/company/yorkshire-businesswoman" style="color: ${colors.secondary}; text-decoration: none;">LinkedIn</a>

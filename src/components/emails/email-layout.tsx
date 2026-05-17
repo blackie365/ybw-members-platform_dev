@@ -33,7 +33,7 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
           <tr>
             <td
               style={{
-                backgroundColor: "#242220",
+                backgroundColor: "#ffffff",
                 padding: "32px 40px",
                 textAlign: "center",
               }}
