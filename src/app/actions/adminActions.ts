@@ -32,15 +32,18 @@ export async function getAdminStats() {
 
     try {
       const [posts, ghostMembers, tags] = await Promise.all([
-        getPosts({ limit: 1 }), // We just need the total from meta
+        getPosts({ limit: 1 }),
         getGhostMembers({ limit: 1 }),
         getTags({ limit: 1 })
       ]);
 
+      console.log('Ghost Posts Meta:', (posts as any).meta);
+      console.log('Ghost Members Meta:', (ghostMembers as any).meta);
+
       ghostStats = {
-        totalPosts: (posts as any).meta?.pagination?.total || 0,
-        totalGhostMembers: (ghostMembers as any).meta?.pagination?.total || 0,
-        totalTags: (tags as any).length || 0 // Tags don't always have pagination total in same way
+        totalPosts: ((posts as any).meta?.pagination?.total ?? (posts as any).length) || 0,
+        totalGhostMembers: ((ghostMembers as any).meta?.pagination?.total ?? (ghostMembers as any).length) || 0,
+        totalTags: (tags as any).length || 0
       };
     } catch (ghostError) {
       console.error('Error fetching Ghost stats:', ghostError);
