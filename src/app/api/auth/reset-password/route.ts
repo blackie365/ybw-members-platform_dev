@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       const params = urlObj.searchParams;
       
       // Rebuild the URL to point to our custom page
-      link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.yorkshirebusinesswoman.co.uk'}/auth/action?mode=resetPassword&oobCode=${params.get('oobCode')}`;
+      link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yorkshirebusinesswoman.co.uk'}/auth/action?mode=resetPassword&oobCode=${params.get('oobCode')}`;
       
     } catch (err: any) {
       console.error('Firebase Admin Reset Error:', err);

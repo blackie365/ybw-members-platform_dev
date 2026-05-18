@@ -8,28 +8,39 @@ import {
 
 export function PasswordResetEmail({ firstName, resetLink }: { firstName: string, resetLink: string }) {
   return (
-    <EmailLayout previewText="Secure your Yorkshire Businesswoman account">
-      <EmailHeading>Action Required: Reset Your Password</EmailHeading>
+    <EmailLayout previewText="Reset your Yorkshire Businesswoman password">
+      <EmailHeading>Reset Your Password</EmailHeading>
       
       <EmailText>
         Hello {firstName},
       </EmailText>
       
       <EmailText>
-        As part of our recent platform updates, we require all members to reset their passwords to ensure the continued security of their accounts.
+        We received a request to reset the password for your Yorkshire Businesswoman account.
       </EmailText>
 
       <EmailText>
-        Please click the button below to visit our secure password reset form. Once there, enter your email address and we will send you a fresh, one-time reset link.
+        Please click the button below to create a new, secure password.
       </EmailText>
 
       <EmailButton href={resetLink}>
-        Go to Reset Form →
+        Reset Password →
       </EmailButton>
 
-      <EmailText>
-        For your security, once you receive the fresh link in your inbox, it will be valid for 1 hour.
-      </EmailText>
+      <EmailHighlightBox>
+        <p
+          style={{
+            fontFamily: "'Inter', Arial, sans-serif",
+            fontSize: "14px",
+            color: "#78716c",
+            margin: 0,
+            lineHeight: 1.6,
+          }}
+        >
+          <strong style={{ color: "#1c1917" }}>This link expires in 1 hour.</strong>
+          {" "}If you didn&apos;t request a password reset, you can safely ignore this email — your account remains secure.
+        </p>
+      </EmailHighlightBox>
 
       <EmailText>
         If you have any questions or need assistance, please don't hesitate to contact our support team.
