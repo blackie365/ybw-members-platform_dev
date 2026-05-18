@@ -2,26 +2,27 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight, Newspaper, Mail, Tag } from "lucide-react"
 import Link from "next/link"
 import { db } from "@/lib/firebase"
 import { collection, query, getDocs, where, orderBy, limit, Timestamp } from "firebase/firestore"
+import { getAdminStats } from "../actions/adminActions"
 
 interface Stats {
   totalMembers: number
   newMembersThisMonth: number
   memberGrowth: number
-  totalEvents: number
-  upcomingEvents: number
-  totalMessages: number
   activeThreads: number
+  totalPosts: number
+  totalGhostMembers: number
+  totalTags: number
 }
 
 interface RecentMember {
   id: string
   displayName: string
   email: string
-  createdAt: number
+  createdAt: string | number
   membershipTier: string
 }
 
@@ -30,62 +31,44 @@ export default function AdminOverviewPage() {
     totalMembers: 0,
     newMembersThisMonth: 0,
     memberGrowth: 0,
-    totalEvents: 0,
-    upcomingEvents: 0,
-    totalMessages: 0,
     activeThreads: 0,
+    totalPosts: 0,
+    totalGhostMembers: 0,
+    totalTags: 0,
   })
   const [recentMembers, setRecentMembers] = useState<RecentMember[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchStats()
+    fetchData()
   }, [])
 
-  const fetchStats = async () => {
+  const fetchData = async () => {
     try {
-      // Fetch members
-      const membersRef = collection(db, "users")
-      const membersSnap = await getDocs(membersRef)
-      const totalMembers = membersSnap.size
+      setLoading(true)
+      
+      // 1. Fetch Stats from Server Action (Combined Firebase + Ghost)
+      const result = await getAdminStats()
+      if (result.success && result.stats) {
+        setStats(result.stats as Stats)
+      }
 
-      // Calculate new members this month
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
-      const newMembersQuery = query(
-        membersRef,
-        where("createdAt", ">=", Timestamp.fromDate(startOfMonth))
-      )
-      const newMembersSnap = await getDocs(newMembersQuery)
-      const newMembersThisMonth = newMembersSnap.size
-
-      // Fetch recent members
+      // 2. Fetch recent members from client (keeping it fast for UI)
+      const membersRef = collection(db, "newMemberCollection")
       const recentQuery = query(membersRef, orderBy("createdAt", "desc"), limit(5))
       const recentSnap = await getDocs(recentQuery)
-      const recent = recentSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toMillis?.() || Date.now(),
-      })) as RecentMember[]
+      const recent = recentSnap.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt || Date.now(),
+        }
+      }) as RecentMember[]
       setRecentMembers(recent)
 
-      // Fetch messages
-      const threadsRef = collection(db, "messageThreads")
-      const threadsSnap = await getDocs(threadsRef)
-      const activeThreads = threadsSnap.size
-
-      setStats({
-        totalMembers,
-        newMembersThisMonth,
-        memberGrowth: totalMembers > 0 ? Math.round((newMembersThisMonth / totalMembers) * 100) : 0,
-        totalEvents: 0,
-        upcomingEvents: 0,
-        totalMessages: 0,
-        activeThreads,
-      })
     } catch (error) {
-      console.error("Failed to fetch stats:", error)
+      console.error("Failed to fetch admin data:", error)
     } finally {
       setLoading(false)
     }
@@ -93,7 +76,7 @@ export default function AdminOverviewPage() {
 
   const statCards = [
     {
-      title: "Total Members",
+      title: "App Members",
       value: stats.totalMembers,
       change: `+${stats.newMembersThisMonth} this month`,
       trend: "up",
@@ -101,25 +84,34 @@ export default function AdminOverviewPage() {
       href: "/admin/members",
     },
     {
-      title: "Active Conversations",
+      title: "Newsletter Subs",
+      value: stats.totalGhostMembers,
+      change: "From Ghost",
+      trend: "neutral",
+      icon: Mail,
+      href: "https://admin.yorkshirebusinesswoman.co.uk",
+    },
+    {
+      title: "Magazine Posts",
+      value: stats.totalPosts,
+      change: "Total articles",
+      trend: "neutral",
+      icon: Newspaper,
+      href: "https://admin.yorkshirebusinesswoman.co.uk",
+    },
+    {
+      title: "Active Chats",
       value: stats.activeThreads,
       change: "Member connections",
       trend: "neutral",
       icon: MessageSquare,
       href: "/admin/analytics",
     },
-    {
-      title: "Member Growth",
-      value: `${stats.memberGrowth}%`,
-      change: "This month",
-      trend: stats.memberGrowth > 0 ? "up" : "down",
-      icon: TrendingUp,
-      href: "/admin/analytics",
-    },
   ]
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString("en-GB", {
+  const formatDate = (dateValue: string | number) => {
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : new Date(dateValue)
+    return date.toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
