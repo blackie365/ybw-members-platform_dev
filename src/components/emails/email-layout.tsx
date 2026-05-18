@@ -108,7 +108,7 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                         >Facebook</a>
                         <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
                         <a
-                          href="https://www.instagram.com/yorkshirebusinesswoman"
+                          href="https://www.instagram.com/yorkshire_businesswoman"
                           style={{ color: "#78716c", textDecoration: "none" }}
                         >Instagram</a>
                       </p>

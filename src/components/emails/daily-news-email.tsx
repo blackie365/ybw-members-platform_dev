@@ -667,7 +667,7 @@ export function DailyNewsEmail({
                                   &middot;
                                 </span>
                                 <a
-                                  href="https://www.instagram.com/yorkshirebusinesswoman"
+                                  href="https://www.instagram.com/yorkshire_businesswoman"
                                   style={{
                                     color: colors.secondary,
                                     textDecoration: "none",
@@ -941,7 +941,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                       <span style="color: ${colors.border}; margin: 0 10px;">&middot;</span>
                       <a href="https://www.facebook.com/YorkshireBusinesswoman" style="color: ${colors.secondary}; text-decoration: none;">Facebook</a>
                       <span style="color: ${colors.border}; margin: 0 10px;">&middot;</span>
-                      <a href="https://www.instagram.com/yorkshirebusinesswoman" style="color: ${colors.secondary}; text-decoration: none;">Instagram</a>
+                      <a href="https://www.instagram.com/yorkshire_businesswoman" style="color: ${colors.secondary}; text-decoration: none;">Instagram</a>
                     </p>
                     <hr style="border: none; border-top: 1px solid ${colors.border}; margin: 0 0 16px 0;" />
                     <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 8px 0;">You received this email because you subscribed to the Daily News Digest.</p>

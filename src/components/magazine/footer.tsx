@@ -28,7 +28,7 @@ const footerLinks = {
 }
 
 const socialLinks = [
-  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/yorkshirebusinesswoman" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/yorkshire_businesswoman" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/yorkshire-businesswoman" },
   { name: "Twitter", icon: Twitter, href: "https://x.com/YorksBizWoman" },
   { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/YorkshireBusinesswoman" },
