@@ -244,7 +244,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubscribeAuth();
   }, []);
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || (profile as any)?.isAdmin === true;
   const isPremium = profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder';
   const membershipTier = profile?.membershipTier || 'free';
   const profileCompleteness = calculateProfileCompleteness(profile);
