@@ -13,9 +13,15 @@ export async function POST(request: Request) {
 
     console.log(`Processing password reset request for: ${email}`);
 
+    if (!adminAuth) {
+      console.error('CRITICAL: adminAuth is not initialized');
+      return NextResponse.json({ error: 'Authentication service is unavailable' }, { status: 500 });
+    }
+
     // 1. Check if user exists in Firebase Auth
     try {
-      await adminAuth.getUserByEmail(email);
+      const user = await adminAuth.getUserByEmail(email);
+      console.log(`Found user: ${user.uid}`);
     } catch (err: any) {
       console.error(`User check error for ${email}:`, err.code);
       if (err.code === 'auth/user-not-found') {

@@ -45,14 +45,17 @@ if (!admin.apps.length) {
       }
     }
 
-    if (privateKey && clientEmail && projectId) {
+    if (privateKey && clientEmail) {
+      // Use the provided credentials
+      const finalProjectId = projectId || 'newmembersdirectory130325';
+      console.log(`Initializing Firebase Admin for project: ${finalProjectId}`);
       admin.initializeApp({
         credential: admin.credential.cert({
-          projectId: 'newmembersdirectory130325', // Hardcode to ensure correctness during build
+          projectId: finalProjectId,
           clientEmail,
           privateKey,
         }),
-        projectId: 'newmembersdirectory130325' // Force project ID
+        projectId: finalProjectId
       });
     } else {
       console.warn('Firebase admin credentials missing. Initializing with default configuration.');
