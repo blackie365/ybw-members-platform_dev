@@ -142,7 +142,7 @@ function LoginForm() {
             <p className="mt-2 text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}
               <Link
-                href="/register"
+                href="/membership"
                 className="font-medium text-accent hover:text-accent/80 transition-colors"
               >
                 Apply for membership
