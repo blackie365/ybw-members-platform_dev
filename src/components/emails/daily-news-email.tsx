@@ -633,13 +633,30 @@ export function DailyNewsEmail({
                                   &middot;
                                 </span>
                                 <a
-                                  href="https://twitter.com/yorkshirebusinesswoman"
+                                  href="https://twitter.com/YorksBizWoman"
                                   style={{
                                     color: colors.secondary,
                                     textDecoration: "none",
                                   }}
                                 >
                                   Twitter
+                                </a>
+                                <span
+                                  style={{
+                                    color: colors.border,
+                                    margin: "0 10px",
+                                  }}
+                                >
+                                  &middot;
+                                </span>
+                                <a
+                                  href="https://www.facebook.com/YorkshireBusinesswoman"
+                                  style={{
+                                    color: colors.secondary,
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Facebook
                                 </a>
                                 <span
                                   style={{
@@ -920,7 +937,9 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                     <p style="font-family: ${fonts.sans}; font-size: 12px; margin: 0 0 20px 0;">
                       <a href="https://www.linkedin.com/company/yorkshire-businesswoman" style="color: ${colors.secondary}; text-decoration: none;">LinkedIn</a>
                       <span style="color: ${colors.border}; margin: 0 10px;">&middot;</span>
-                      <a href="https://twitter.com/yorkshirebusinesswoman" style="color: ${colors.secondary}; text-decoration: none;">Twitter</a>
+                      <a href="https://twitter.com/YorksBizWoman" style="color: ${colors.secondary}; text-decoration: none;">Twitter</a>
+                      <span style="color: ${colors.border}; margin: 0 10px;">&middot;</span>
+                      <a href="https://www.facebook.com/YorkshireBusinesswoman" style="color: ${colors.secondary}; text-decoration: none;">Facebook</a>
                       <span style="color: ${colors.border}; margin: 0 10px;">&middot;</span>
                       <a href="https://www.instagram.com/yorkshirebusinesswoman" style="color: ${colors.secondary}; text-decoration: none;">Instagram</a>
                     </p>

@@ -89,6 +89,34 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                           fontFamily: "'Inter', Arial, sans-serif",
                           fontSize: "12px",
                           color: "#78716c",
+                          margin: "0 0 16px 0",
+                        }}
+                      >
+                        <a
+                          href="https://www.linkedin.com/company/yorkshire-businesswoman"
+                          style={{ color: "#78716c", textDecoration: "none" }}
+                        >LinkedIn</a>
+                        <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
+                        <a
+                          href="https://x.com/YorksBizWoman"
+                          style={{ color: "#78716c", textDecoration: "none" }}
+                        >Twitter</a>
+                        <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
+                        <a
+                          href="https://www.facebook.com/YorkshireBusinesswoman"
+                          style={{ color: "#78716c", textDecoration: "none" }}
+                        >Facebook</a>
+                        <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
+                        <a
+                          href="https://www.instagram.com/yorkshirebusinesswoman"
+                          style={{ color: "#78716c", textDecoration: "none" }}
+                        >Instagram</a>
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'Inter', Arial, sans-serif",
+                          fontSize: "12px",
+                          color: "#78716c",
                           margin: 0,
                         }}
                       >
