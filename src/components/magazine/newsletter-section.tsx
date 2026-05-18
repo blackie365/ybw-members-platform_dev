@@ -55,8 +55,8 @@ export function NewsletterSection() {
             The Yorkshire Businesswoman Newsletter
           </h2>
           <p className="mx-auto mt-6 max-w-lg text-[15px] leading-relaxed text-primary-foreground/70">
-            Be one of the many ambitious women who start their week with our 
-            curated insights on leadership, finance, and career growth across the region.
+            Refine your professional edge. Join our region&apos;s community of ambitious 
+            women for weekly curated insights on leadership, finance, and career growth.
           </p>
 
           {/* Benefits */}
