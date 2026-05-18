@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import { KeyRound, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 
 function AuthActionContent() {
   const [password, setPassword] = useState('');
@@ -21,7 +22,7 @@ function AuthActionContent() {
   useEffect(() => {
     if (!mode || !oobCode) {
       setStatus('error');
-      setMessage('Invalid or missing authentication code.');
+      setMessage('The link appears to be incomplete. Please request a new password reset.');
       return;
     }
 
@@ -32,21 +33,21 @@ function AuthActionContent() {
           setStatus('idle');
         })
         .catch((err) => {
-          console.error(err);
+          console.error('Verification Error:', err);
           setStatus('error');
           setMessage('This password reset link has expired or is invalid. Please request a new one.');
         });
     } else {
       setStatus('error');
-      setMessage('Unsupported authentication mode.');
+      setMessage('This link is for a service that is not yet supported.');
     }
   }, [mode, oobCode]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password || password.length < 6) {
+    if (!password || password.length < 8) {
       setStatus('error');
-      setMessage('Password must be at least 6 characters long.');
+      setMessage('For your security, passwords must be at least 8 characters long.');
       return;
     }
 
@@ -56,63 +57,64 @@ function AuthActionContent() {
     try {
       await confirmPasswordReset(auth, oobCode, password);
       setStatus('success');
-      setMessage('Your password has been successfully reset.');
+      setMessage('Your password has been successfully updated. You can now sign in with your new credentials.');
       
-      // Redirect to login after 3 seconds
       setTimeout(() => {
         router.push('/login');
-      }, 3000);
+      }, 4000);
     } catch (err: any) {
-      console.error(err);
+      console.error('Reset Error:', err);
       setStatus('error');
-      setMessage(err.message || 'Failed to reset password. Please try again.');
+      setMessage(err.message || 'Failed to update your password. Please try requesting a new link.');
     }
   };
 
   return (
-    <div className="flex min-h-[80vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          {status === 'success' ? 'Password Reset Complete' : 'Create New Password'}
+    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
+        <Link href="/" className="inline-block mb-6">
+          <img
+            src="/images/logo-nav-v3.png"
+            alt="Yorkshire Businesswoman"
+            className="h-12 w-auto"
+          />
+        </Link>
+        <h2 className="text-3xl font-serif font-medium tracking-tight text-foreground">
+          {status === 'success' ? 'Update Successful' : 'Secure Your Account'}
         </h2>
         {email && status === 'idle' && (
-          <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
-            For {email}
+          <p className="mt-2 text-sm text-muted-foreground">
+            Setting a new password for <span className="text-foreground font-medium">{email}</span>
           </p>
         )}
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-zinc-900 py-8 px-4 shadow sm:rounded-2xl sm:px-10 ring-1 ring-zinc-900/5 dark:ring-white/10">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-card py-10 px-8 shadow-xl rounded-2xl border border-border">
           
           {status === 'verifying' && (
-            <div className="text-center py-4">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-emerald-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
-                <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+            <div className="text-center py-6">
+              <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-accent border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                <span className="sr-only">Verifying...</span>
               </div>
-              <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Verifying link...</p>
+              <p className="mt-6 text-muted-foreground font-medium">Verifying your secure link...</p>
             </div>
           )}
 
           {status === 'success' && (
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                <svg className="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
+            <div className="text-center animate-in fade-in zoom-in duration-500">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 mb-6">
+                <CheckCircle className="h-8 w-8 text-accent" />
               </div>
-              <p className="mt-4 text-sm text-zinc-900 dark:text-white font-medium">
+              <p className="text-foreground text-lg mb-8 leading-relaxed">
                 {message}
               </p>
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                Redirecting you to login...
-              </p>
-              <div className="mt-6">
+              <div className="space-y-4">
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 px-6 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90 transition-all"
                 >
-                  Click here if not redirected
+                  Sign in to your account
                 </Link>
               </div>
             </div>
@@ -121,75 +123,76 @@ function AuthActionContent() {
           {(status === 'idle' || status === 'loading' || (status === 'error' && mode === 'resetPassword' && oobCode)) && (
             <form className="space-y-6" onSubmit={handleReset}>
               {status === 'error' && (
-                <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400 dark:text-red-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-                      <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                        <p>{message}</p>
-                      </div>
-                    </div>
+                <div className="rounded-xl bg-destructive/10 p-4 border border-destructive/20 animate-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                    <p className="text-sm font-medium text-destructive">{message}</p>
                   </div>
                 </div>
               )}
 
-              <div>
+              <div className="space-y-2">
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  className="block text-sm font-medium text-foreground/70 ml-1"
                 >
-                  New Password
+                  Choose a New Password
                 </label>
-                <div className="mt-1">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <KeyRound className="h-5 w-5 text-muted-foreground group-focus-within:text-accent transition-colors" />
+                  </div>
                   <input
                     id="password"
                     name="password"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full appearance-none rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-zinc-900 dark:text-white placeholder-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                    placeholder="Min. 8 characters"
+                    className="block w-full rounded-xl border border-input bg-background pl-11 pr-4 py-3.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/5 transition-all"
                   />
                 </div>
               </div>
 
-              <div>
-                <button
-                  type="submit"
-                  disabled={status === 'loading'}
-                  className="flex w-full justify-center rounded-xl border border-transparent bg-indigo-600 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-zinc-900 transition-colors"
-                >
-                  {status === 'loading' ? 'Saving...' : 'Save new password'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={status === 'loading'}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 px-6 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+              >
+                {status === 'loading' ? (
+                  <>
+                    <svg className="h-5 w-5 animate-spin mr-2" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Updating Password...
+                  </>
+                ) : (
+                  'Update Password'
+                )}
+              </button>
             </form>
           )}
 
           {status === 'error' && (!mode || !oobCode) && (
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-                <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+            <div className="text-center animate-in fade-in duration-500">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mb-6">
+                <AlertCircle className="h-8 w-8 text-destructive" />
               </div>
-              <h3 className="mt-3 text-sm font-medium text-zinc-900 dark:text-white">Invalid Link</h3>
-              <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <h3 className="text-lg font-medium text-foreground mb-2">Invalid Link</h3>
+              <p className="text-muted-foreground mb-8 leading-relaxed">
                 {message}
               </p>
-              <div className="mt-6">
-                <Link
-                  href="/forgot-password"
-                  className="text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
-                >
-                  Request a new reset link
-                </Link>
-              </div>
+              <Link
+                href="/forgot-password"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:text-accent/80 transition-colors bg-accent/5 px-6 py-3 rounded-full"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Request a new link
+              </Link>
             </div>
           )}
 
