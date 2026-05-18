@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
       }
 
       setStatus('success');
-      setMessage('We have sent a beautiful reset link to your email. Please check your inbox (and spam folder) for instructions.');
+      setMessage('We have sent a secure reset link to your email. Please check your inbox (and spam folder) for instructions.');
     } catch (err: any) {
       console.error('Password reset error:', err);
       setStatus('error');
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
                   Forgot your password?
                 </h1>
                 <p className="text-primary-foreground/70 text-lg leading-relaxed">
-                  No worries. Enter your email and we&apos;ll send you a beautiful, secure link to reset your password.
+                  No worries. Enter your email and we&apos;ll send you a secure link to reset your password.
                 </p>
               </div>
 
