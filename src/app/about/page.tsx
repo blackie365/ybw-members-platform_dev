@@ -1,13 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Header } from "@/components/magazine/header"
-import { Footer } from "@/components/magazine/footer"
 import { NewsletterSection } from "@/components/magazine/newsletter-section"
 import { 
   Users, 
   Award, 
-  Sparkles, 
   Target, 
   Heart, 
   Compass 
@@ -39,8 +36,6 @@ const values = [
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative py-24 md:py-32 bg-primary text-primary-foreground overflow-hidden">
@@ -82,14 +77,14 @@ export default function AboutPage() {
                 </h2>
                 <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
                   <p>
-                    Founded with a passion for Yorkshire and its incredible business talent, 
-                    Yorkshire Businesswoman has grown into the region&apos;s premier platform for 
+                    Founded with a commitment to Yorkshire and its distinguished business community, 
+                    Yorkshire Businesswoman has evolved into the region&apos;s leading platform for 
                     female leaders, entrepreneurs, and professionals.
                   </p>
                   <p>
-                    We believe that when women support each other, incredible things happen. 
+                    We believe that when women support each other, significant outcomes are achieved. 
                     Our mission is to provide the connections, recognition, and resources 
-                    that enable every member to thrive in their chosen field.
+                    that enable every member to excel in their chosen field.
                   </p>
                 </div>
               </motion.div>
@@ -157,8 +152,8 @@ export default function AboutPage() {
                   The <span className="italic text-accent">Magazine</span>
                 </h2>
                 <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-                  Our digital magazine is the heartbeat of the community, sharing stories of success, 
-                  offering expert advice, and keeping you informed about the latest trends in leadership, 
+                  Our digital magazine is a central focus of our community, sharing narratives of success, 
+                  offering professional advice, and providing insights into the latest trends in leadership, 
                   finance, and lifestyle across Yorkshire.
                 </p>
                 <div className="flex items-center gap-4 text-accent font-medium">
@@ -197,8 +192,6 @@ export default function AboutPage() {
 
         <NewsletterSection />
       </main>
-
-      <Footer />
     </div>
   )
 }

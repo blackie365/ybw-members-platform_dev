@@ -45,9 +45,9 @@ export function Footer() {
             <Link href="/" className="inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/logo-footer-v2.png"
+                src="/images/logo-nav-v3.png"
                 alt="Yorkshire Businesswoman"
-                className="h-10 sm:h-12 w-auto object-contain"
+                className="h-10 sm:h-12 w-auto object-contain dark:invert"
               />
             </Link>
             <div className="mt-8 space-y-3 text-sm text-primary-foreground/60">
