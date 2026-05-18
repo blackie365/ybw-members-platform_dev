@@ -29,13 +29,18 @@ export async function POST(request: Request) {
           email,
           status: 'active',
           newsletterSubscribed: true,
+          isNewsletterRecipient: true, // Mark as valid recipient
           membershipTier: 'Free Subscriber',
           createdAt: new Date().toISOString()
         });
       } else {
         // Update existing record to subscribe
         const doc = querySnapshot.docs[0];
-        await doc.ref.update({ newsletterSubscribed: true, status: 'active' });
+        await doc.ref.update({ 
+          newsletterSubscribed: true, 
+          isNewsletterRecipient: true, // Mark as valid recipient
+          status: 'active' 
+        });
       }
     }
 

@@ -73,6 +73,7 @@ export async function GET(request: Request) {
     } else {
       const membersSnapshot = await adminDb.collection('newMemberCollection')
         .where('status', '==', 'active')
+        .where('isNewsletterRecipient', '==', true)
         .get();
 
       membersSnapshot.forEach(doc => {

@@ -62,7 +62,7 @@ export async function executeSend() {
 
   for (const member of members) {
     try {
-      const html = await getPasswordResetEmailTemplate(member.name);
+      const html = await getPasswordResetEmailTemplate(member.name, "https://yorkshirebusinesswoman.co.uk/forgot-password");
       
       const msgData = {
         from: `Yorkshire Businesswoman <hello@${domain}>`,
@@ -85,4 +85,4 @@ export async function executeSend() {
   console.log('\n🎉 Finished sending all reset instructions!');
 }
 
-sendActiveMembersResetEmails();
+executeSend();
