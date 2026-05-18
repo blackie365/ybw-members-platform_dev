@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
                   Account Recovery
                 </div>
                 <h1 className="font-serif text-4xl lg:text-5xl font-medium text-primary-foreground leading-tight mb-4">
-                  Forgot your password?
+                  Reset your password?
                 </h1>
                 <p className="text-primary-foreground/70 text-lg leading-relaxed">
                   No worries. Enter your email and we&apos;ll send you a secure link to reset your password.
@@ -126,7 +126,7 @@ export default function ForgotPasswordPage() {
             ) : (
               <>
                 <div className="text-center lg:text-left mb-10">
-                  <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">
+                  <h2 className="text-3xl font-serif font-medium tracking-tight text-foreground">
                     Reset your password
                   </h2>
                   <p className="mt-3 text-muted-foreground leading-relaxed">

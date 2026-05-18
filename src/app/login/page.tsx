@@ -206,7 +206,7 @@ function LoginForm() {
                   href="/forgot-password"
                   className="text-sm font-medium text-accent hover:text-accent/80 transition-colors"
                 >
-                  Forgot password?
+                  Reset password?
                 </Link>
               </div>
 
