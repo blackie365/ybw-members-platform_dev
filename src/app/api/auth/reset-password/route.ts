@@ -4,8 +4,10 @@ import { adminAuth } from '@/lib/firebase-admin';
 import { getPasswordResetEmailTemplate } from '@/lib/email-templates';
 
 export async function POST(request: Request) {
+  let emailAddress = '';
   try {
     const { email } = await request.json();
+    emailAddress = email;
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -87,17 +89,46 @@ export async function POST(request: Request) {
 
     // 3. Send our custom branded email
     const firstName = 'Member';
-    await sendEmail({
+    const result = await sendEmail({
       to: email,
       subject: 'Action Required: Reset your Yorkshire Businesswoman password',
       html: await getPasswordResetEmailTemplate(firstName, link),
     });
 
+    if (!result.success) {
+      console.error('Mailgun failed, falling back to Google default email');
+      throw new Error('Mailgun failed');
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Failed to process password reset request:', error);
     
-    // Provide a more helpful error message to the user
+    // FALLBACK 2: If Mailgun fails or Admin SDK fails, try REST API as absolute last resort
+    // This sends the standard Google email.
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
+    if (apiKey && emailAddress) {
+      console.log('Final fallback: Triggering Google default reset email...');
+      try {
+        const restResponse = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestType: 'PASSWORD_RESET',
+              email: emailAddress,
+            }),
+          }
+        );
+        if (restResponse.ok) {
+          return NextResponse.json({ success: true, fallback: true });
+        }
+      } catch (restErr) {
+        console.error('Final fallback failed:', restErr);
+      }
+    }
+
     let userMessage = 'We encountered an error while setting up your reset link. Please try again in a few minutes.';
     if (error.message?.includes('INTERNAL ASSERT FAILED')) {
       userMessage = 'Our authentication service is currently experiencing connection issues. Please try again shortly.';
