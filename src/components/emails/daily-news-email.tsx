@@ -719,8 +719,7 @@ export function DailyNewsEmail({
                                   margin: "16px 0 0 0",
                                 }}
                               >
-                                Yorkshire Businesswoman &middot; Leeds, West
-                                Yorkshire
+                                Yorkshire Businesswoman &middot; 10 Shetland Drive, Congleton, England, CW12 4FN
                               </p>
                             </td>
                           </tr>
@@ -932,7 +931,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                       <span style="color: ${colors.border}; margin: 0 8px;">&middot;</span>
                       <a href="${siteUrl}/unsubscribe" style="color: ${colors.accent}; text-decoration: none;">Unsubscribe</a>
                     </p>
-                    <p style="font-family: ${fonts.sans}; font-size: 10px; color: ${colors.secondary}; margin: 16px 0 0 0;">Yorkshire Businesswoman &middot; Leeds, West Yorkshire</p>
+                    <p style="font-family: ${fonts.sans}; font-size: 10px; color: ${colors.secondary}; margin: 16px 0 0 0;">Yorkshire Businesswoman &middot; 10 Shetland Drive, Congleton, England, CW12 4FN</p>
                   </td>
                 </tr>
               </table>

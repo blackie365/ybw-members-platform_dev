@@ -82,7 +82,7 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                         }}
                       >
                         Yorkshire Businesswoman Ltd<br />
-                        123 Business Lane, Leeds, LS1 1AA
+                        10 Shetland Drive, Congleton, England, CW12 4FN
                       </p>
                       <p
                         style={{
