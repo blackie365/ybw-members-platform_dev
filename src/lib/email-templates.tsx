@@ -42,9 +42,12 @@ export const getEventTicketConfirmationEmailTemplate = async (firstName: string,
   );
 };
 
-export const getPasswordResetEmailTemplate = async (firstName: string, resetLink: string) => {
+export const getPasswordResetEmailTemplate = async (firstName: string) => {
   return await renderEmail(
-    <PasswordResetEmail firstName={firstName} resetLink={resetLink} expiryHours={24} />
+    <PasswordResetEmail 
+      firstName={firstName} 
+      resetLink="https://yorkshirebusinesswoman.co.uk/forgot-password" 
+    />
   );
 };
 

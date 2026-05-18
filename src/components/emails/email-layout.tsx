@@ -38,18 +38,17 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                 textAlign: "center",
               }}
             >
-              <h1
+              <img
+                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
+                alt="Yorkshire Businesswoman"
+                width="200"
                 style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
-                  fontSize: "24px",
-                  fontWeight: 500,
-                  color: "#f8f6f2",
-                  margin: 0,
-                  letterSpacing: "-0.02em",
+                  display: "block",
+                  margin: "0 auto",
+                  maxWidth: "100%",
+                  height: "auto"
                 }}
-              >
-                Yorkshire Businesswoman
-              </h1>
+              />
             </td>
           </tr>
 
@@ -94,12 +93,12 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                         }}
                       >
                         <a
-                          href="#"
+                          href="https://yorkshirebusinesswoman.co.uk/unsubscribe"
                           style={{ color: "#b5604a", textDecoration: "none" }}
-                        href="https://yorkshirebusinesswoman.co.uk/unsubscribe" style={{ color: "#b5604a", textDecoration: "none" }}>Unsubscribe</a>
+                        >Unsubscribe</a>
                         {" · "}
                         <a
-                          href="https://yorkshirebusinesswoman.co.uk/privacy-policy"
+                          href="https://yorkshirebusinesswoman.co.uk/privacy"
                           style={{ color: "#b5604a", textDecoration: "none" }}
                         >
                           Privacy Policy
