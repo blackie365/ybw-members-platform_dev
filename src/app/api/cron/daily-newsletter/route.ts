@@ -52,14 +52,9 @@ export async function GET(request: Request) {
       console.error('Failed to check bank holidays, continuing with execution:', bhError);
     }
 
-    // 2. Fetch the latest/highlighted stories from Ghost
-    // Fetching the 3 most recent posts that are ideally featured, falling back to recent.
-    let posts = await getPosts({ limit: 3, filter: 'featured:true', order: 'published_at DESC' });
-    
-    // If no featured posts, just get the 3 most recent
-    if (!posts || posts.length === 0) {
-      posts = await getPosts({ limit: 3, order: 'published_at DESC' });
-    }
+    // 2. Fetch the latest stories from Ghost (1 Featured + 4 Sub-articles = 5 total)
+    // We fetch the most recent posts. The template will use the first one as featured.
+    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
 
     if (!posts || posts.length === 0) {
       return NextResponse.json({ success: true, message: 'No posts to send' });

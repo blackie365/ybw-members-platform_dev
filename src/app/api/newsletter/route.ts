@@ -44,11 +44,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Instantly send the daily newsletter
-    let posts = await getPosts({ limit: 3, filter: 'featured:true', order: 'published_at DESC' });
-    if (!posts || posts.length === 0) {
-      posts = await getPosts({ limit: 3, order: 'published_at DESC' });
-    }
+    // 3. Instantly send the daily newsletter (1 Featured + 4 Sub-articles = 5 total)
+    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
 
     if (posts && posts.length > 0) {
       const html = await getDailyNewsletterTemplate(posts);
