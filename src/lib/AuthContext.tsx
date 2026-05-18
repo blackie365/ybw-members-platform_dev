@@ -38,6 +38,7 @@ export interface MemberProfile {
   stripeSubscriptionId?: string;
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
   isFeatured?: boolean;
+  isAdmin?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -156,6 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           stripeSubscriptionId: data.stripeSubscriptionId,
           subscriptionStatus: data.subscriptionStatus,
           isFeatured: data.isFeatured || false,
+          isAdmin: data.isAdmin || false,
           createdAt: data.createdAt || new Date().toISOString(),
           updatedAt: data.updatedAt,
         };
@@ -221,6 +223,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               stripeSubscriptionId: data.stripeSubscriptionId,
               subscriptionStatus: data.subscriptionStatus,
               isFeatured: data.isFeatured || false,
+              isAdmin: data.isAdmin || false,
               createdAt: data.createdAt || new Date().toISOString(),
               updatedAt: data.updatedAt,
             };
@@ -244,7 +247,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubscribeAuth();
   }, []);
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || (profile as any)?.isAdmin === true;
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isAdmin === true;
   const isPremium = profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder';
   const membershipTier = profile?.membershipTier || 'free';
   const profileCompleteness = calculateProfileCompleteness(profile);
