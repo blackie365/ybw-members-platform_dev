@@ -1,89 +1,143 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
 import { adminAuth } from '@/lib/firebase-admin';
+import { getPasswordResetEmailTemplate } from '@/lib/email-templates';
 
 export async function POST(request: Request) {
+  let emailAddress = '';
   try {
     const { email } = await request.json();
+    emailAddress = email;
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // 1. Generate the raw password reset link using Firebase Admin
-    let link = '';
+    console.log(`Processing password reset request for: ${email}`);
+
+    if (!adminAuth) {
+      console.error('CRITICAL: adminAuth is not initialized');
+      return NextResponse.json({ error: 'Authentication service is unavailable' }, { status: 500 });
+    }
+
+    // 1. Check if user exists in Firebase Auth
     try {
-      // Generate the reset link. We don't pass the actionCodeSettings URL here 
-      // to avoid 'auth/unauthorized-continue-uri' errors if the Vercel preview domain 
-      // isn't allowlisted in Firebase Console yet.
-      link = await adminAuth.generatePasswordResetLink(email);
-      
-      // The generated link looks like:
-      // https://PROJECT.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=XYZ&apiKey=ABC
-      // We want to replace the host part with our custom action page so it matches the branding
-      const urlObj = new URL(link);
-      const params = urlObj.searchParams;
-      
-      // Rebuild the URL to point to our custom page
-      link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.yorkshirebusinesswoman.co.uk'}/auth/action?mode=resetPassword&oobCode=${params.get('oobCode')}`;
-      
+      const user = await adminAuth.getUserByEmail(email);
+      console.log(`Found user: ${user.uid}`);
     } catch (err: any) {
-      console.error('Firebase Admin Reset Error:', err);
+      console.error(`User check error for ${email}:`, err.code);
       if (err.code === 'auth/user-not-found') {
-        // Security best practice: don't reveal if a user exists or not
+        // Security best practice: don't reveal if a user exists
         return NextResponse.json({ success: true });
       }
       throw err;
     }
 
-    // 2. Send the email using Mailgun
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <img src="https://www.yorkshirebusinesswoman.co.uk/images/logo.png" alt="Yorkshire Businesswoman" style="max-height: 80px;" />
-        </div>
-        
-        <h2 style="color: #111827; margin-bottom: 20px;">Reset Your Password</h2>
-        
-        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-          Hello,
-        </p>
-        
-        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
-          We received a request to reset the password for your Yorkshire Businesswoman account associated with this email address. 
-          If you made this request, please click the button below to choose a new password.
-        </p>
-        
-        <div style="text-align: center; margin-bottom: 30px;">
-          <a href="${link}" style="display: inline-block; background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
-            Reset My Password
-          </a>
-        </div>
-        
-        <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-bottom: 10px;">
-          If you didn't request a password reset, you can safely ignore this email. Your password will not change.
-        </p>
-        
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-        
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-          &copy; ${new Date().getFullYear()} Yorkshire Businesswoman. All rights reserved.
-        </p>
-      </div>
-    `;
+    // 2. Generate the raw password reset link using Firebase Admin
+    let link = '';
+    try {
+      // Use the project's default reset link generation
+      link = await adminAuth.generatePasswordResetLink(email);
+      console.log('Successfully generated reset link via Admin SDK');
+      
+      const urlObj = new URL(link);
+      const params = urlObj.searchParams;
+      
+      // Rebuild the URL to point to our custom action page
+      link = `${process.env.NEXT_PUBLIC_APP_URL || 'https://yorkshirebusinesswoman.co.uk'}/auth/action?${params.toString()}`;
+      
+    } catch (err: any) {
+      console.error('Firebase Admin Link Generation Error:', err);
+      
+      // FALLBACK: If Admin SDK fails with ASSERT FAILED, we can try to use the REST API
+      // if we have the API Key.
+      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (apiKey) {
+        console.log('Attempting REST API fallback for link generation...');
+        try {
+          const restResponse = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                requestType: 'PASSWORD_RESET',
+                email: email,
+              }),
+            }
+          );
+          
+          const restData = await restResponse.json();
+          if (restResponse.ok) {
+            // NOTE: The REST API 'sendOobCode' actually SENDS the email from Google.
+            // If we are here, it means Google has already sent its default email.
+            // We return success to the UI, but the user will get the Google email instead of our custom one.
+            // This is better than a 500 error.
+            console.log('REST API fallback triggered Google email send.');
+            return NextResponse.json({ success: true, fallback: true });
+          } else {
+            throw new Error(restData.error?.message || 'REST API fallback failed');
+          }
+        } catch (restErr) {
+          console.error('REST Fallback Error:', restErr);
+          throw err; // Throw the original Admin SDK error if fallback also fails
+        }
+      }
+      
+      throw err;
+    }
 
-    await sendEmail({
+    // 3. Send our custom branded email
+    const firstName = 'Member';
+    const result = await sendEmail({
       to: email,
-      subject: 'Reset your Yorkshire Businesswoman password',
-      html: htmlContent,
+      subject: 'Action Required: Reset your Yorkshire Businesswoman password',
+      html: await getPasswordResetEmailTemplate(firstName, link),
     });
+
+    if (!result.success) {
+      console.error('Mailgun failed, falling back to Google default email');
+      throw new Error('Mailgun failed');
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Failed to process password reset request:', error);
+    
+    // FALLBACK 2: If Mailgun fails or Admin SDK fails, try REST API as absolute last resort
+    // This sends the standard Google email.
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
+    if (apiKey && emailAddress) {
+      console.log('Final fallback: Triggering Google default reset email...');
+      try {
+        const restResponse = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestType: 'PASSWORD_RESET',
+              email: emailAddress,
+            }),
+          }
+        );
+        if (restResponse.ok) {
+          return NextResponse.json({ success: true, fallback: true });
+        }
+      } catch (restErr) {
+        console.error('Final fallback failed:', restErr);
+      }
+    }
+
+    let userMessage = 'We encountered an error while setting up your reset link. Please try again in a few minutes.';
+    if (error.message?.includes('INTERNAL ASSERT FAILED')) {
+      userMessage = 'Our authentication service is currently experiencing connection issues. Please try again shortly.';
+    }
+
     return NextResponse.json(
-      { error: error.message || 'Failed to process password reset request' },
+      { error: userMessage },
       { status: 500 }
     );
   }
 }
+

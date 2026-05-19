@@ -45,22 +45,27 @@ if (!admin.apps.length) {
       }
     }
 
-    if (privateKey && clientEmail && projectId) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: 'newmembersdirectory130325', // Hardcode to ensure correctness during build
-          clientEmail,
-          privateKey,
-        }),
-        projectId: 'newmembersdirectory130325' // Force project ID
-      });
+    if (privateKey && clientEmail) {
+      try {
+        const finalProjectId = projectId || 'newmembersdirectory130325';
+        console.log(`[Firebase Admin] Initializing for project: ${finalProjectId}`);
+        
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: finalProjectId,
+            clientEmail,
+            privateKey,
+          }),
+          projectId: finalProjectId
+        });
+        
+        console.log('[Firebase Admin] Initialization successful');
+      } catch (initError) {
+        console.error('[Firebase Admin] Critical initialization error:', initError);
+      }
     } else {
-      console.warn('Firebase admin credentials missing. Initializing with default configuration.');
-      admin.initializeApp({
-        projectId: projectId || 'newmembersdirectory130325',
-      });
-      // Optionally throw here so the user immediately knows the ENV is missing in Vercel:
-      // throw new Error("Missing FIREBASE_PRIVATE_KEY or FIREBASE_CLIENT_EMAIL environment variables.");
+      console.warn('[Firebase Admin] Missing credentials. Some admin features may fail.');
+      console.log('[Firebase Admin] Check: privateKey exists:', !!privateKey, 'clientEmail exists:', !!clientEmail);
     }
   } catch (error) {
     console.error('Firebase admin initialization error', error);

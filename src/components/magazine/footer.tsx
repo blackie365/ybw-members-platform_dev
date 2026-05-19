@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Instagram, Linkedin, Twitter } from "lucide-react"
+import { Instagram, Linkedin, Twitter, Facebook, Mail, MapPin } from "lucide-react"
 
 const footerLinks = {
   magazine: [
@@ -15,7 +15,7 @@ const footerLinks = {
     { name: "Lifestyle", href: "/news?tag=lifestyle" },
   ],
   resources: [
-    { name: "Events", href: "/events" },
+    { name: "Events", href: "/news?tag=events" },
     { name: "Member Dashboard", href: "/dashboard" },
     { name: "Join Us", href: "/membership" },
     { name: "Login", href: "/login" },
@@ -28,9 +28,10 @@ const footerLinks = {
 }
 
 const socialLinks = [
-  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/yorkshirebusinesswoman" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/yorkshire_businesswoman" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/yorkshire-businesswoman" },
-  { name: "Twitter", icon: Twitter, href: "https://twitter.com/yorkshirebusinesswoman" },
+  { name: "Twitter", icon: Twitter, href: "https://x.com/YorksBizWoman" },
+  { name: "Facebook", icon: Facebook, href: "https://www.facebook.com/YorkshireBusinesswoman" },
 ]
 
 export function Footer() {
@@ -42,16 +43,25 @@ export function Footer() {
           {/* Brand section */}
           <div className="lg:col-span-4">
             <Link href="/" className="inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/logo-footer-v2.png"
+                src="/images/logo-nav-v3.png"
                 alt="Yorkshire Businesswoman"
-                className="h-10 sm:h-12 w-auto object-contain"
+                className="h-10 sm:h-12 w-auto object-contain dark:invert"
               />
             </Link>
-            <p className="mt-6 text-[15px] leading-relaxed text-primary-foreground/70 max-w-sm">
-              Empowering ambitious women with the insights, strategies, and 
-              inspiration needed to lead with confidence and build lasting success.
-            </p>
+            <div className="mt-8 space-y-3 text-sm text-primary-foreground/60">
+              <div className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-accent" />
+                <a href="mailto:hello@yorkshirebusinesswoman.co.uk" className="hover:text-accent transition-colors">
+                  hello@yorkshirebusinesswoman.co.uk
+                </a>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin className="h-4 w-4 text-accent mt-0.5" />
+                <span>10 Shetland Drive, Congleton, England, CW12 4FN</span>
+              </div>
+            </div>
             <div className="mt-8 flex gap-3">
               {socialLinks.map((social) => (
                 <Link

@@ -126,6 +126,7 @@ function LoginForm() {
           {/* Mobile header */}
           <div className="lg:hidden mb-10">
             <Link href="/" className="inline-block mb-8">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/logo.png"
                 alt="Yorkshire Businesswoman"
@@ -141,7 +142,7 @@ function LoginForm() {
             <p className="mt-2 text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}
               <Link
-                href="/register"
+                href="/membership"
                 className="font-medium text-accent hover:text-accent/80 transition-colors"
               >
                 Apply for membership
@@ -205,7 +206,7 @@ function LoginForm() {
                   href="/forgot-password"
                   className="text-sm font-medium text-accent hover:text-accent/80 transition-colors"
                 >
-                  Forgot password?
+                  Reset password?
                 </Link>
               </div>
 

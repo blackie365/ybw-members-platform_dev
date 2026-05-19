@@ -7,6 +7,7 @@ export function Logo({ className, ...props }: React.ComponentPropsWithoutRef<'di
   return (
     <div className={clsx("relative flex items-center", containerClass)} {...props}>
       {/* The main logo for light backgrounds (Nav Bar) */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/logo-nav-v3.png"
         alt="Yorkshire Businesswoman"

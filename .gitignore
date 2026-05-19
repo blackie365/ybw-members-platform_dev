@@ -17,3 +17,7 @@ node_modules
 .vercel
 serviceAccountKey.json
 members.csv
+
+# Exclude sensitive data and archives
+*.csv
+*.zip

@@ -2,6 +2,68 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyAdminToken } from '@/lib/adminCheck';
+import { getPosts, getGhostMembers, getTags } from '@/lib/ghost';
+
+export async function getAdminStats() {
+  try {
+    // 1. Fetch Firebase Stats
+    const membersRef = adminDb.collection('newMemberCollection');
+    const membersSnap = await membersRef.get();
+    const totalMembers = membersSnap.size;
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const newMembersSnap = await membersRef
+      .where('createdAt', '>=', startOfMonth.toISOString())
+      .get();
+    const newMembersThisMonth = newMembersSnap.size;
+
+    const threadsRef = adminDb.collection('messageThreads');
+    const threadsSnap = await threadsRef.get();
+    const activeThreads = threadsSnap.size;
+
+    // 2. Fetch Ghost Stats
+    let ghostStats = {
+      totalPosts: 0,
+      totalGhostMembers: 0,
+      totalTags: 0
+    };
+
+    try {
+      const [posts, ghostMembers, tags] = await Promise.all([
+        getPosts({ limit: 1 }),
+        getGhostMembers({ limit: 1 }),
+        getTags({ limit: 1 })
+      ]);
+
+      console.log('Ghost Posts Meta:', (posts as any).meta);
+      console.log('Ghost Members Meta:', (ghostMembers as any).meta);
+
+      ghostStats = {
+        totalPosts: ((posts as any).meta?.pagination?.total ?? (posts as any).length) || 0,
+        totalGhostMembers: ((ghostMembers as any).meta?.pagination?.total ?? (ghostMembers as any).length) || 0,
+        totalTags: (tags as any).length || 0
+      };
+    } catch (ghostError) {
+      console.error('Error fetching Ghost stats:', ghostError);
+    }
+
+    return {
+      success: true,
+      stats: {
+        totalMembers,
+        newMembersThisMonth,
+        memberGrowth: totalMembers > 0 ? Math.round((newMembersThisMonth / totalMembers) * 100) : 0,
+        activeThreads,
+        ...ghostStats
+      }
+    };
+  } catch (error: any) {
+    console.error('Error fetching admin stats:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 export async function toggleFeaturedStatus(memberId: string, isFeatured: boolean) {
   try {
