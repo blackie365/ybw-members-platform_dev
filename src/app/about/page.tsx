@@ -7,7 +7,7 @@ import { ArrowRight, Quote, Users, BookOpen, Calendar, Award, Sparkles, Heart } 
 export const revalidate = 3600;
 
 const stats = [
-  { label: 'Members', value: '2,500+', icon: Users },
+  { label: 'Members', value: '200+', icon: Users },
   { label: 'Articles Published', value: '1,200+', icon: BookOpen },
   { label: 'Events Hosted', value: '150+', icon: Calendar },
   { label: 'Years Empowering Women', value: '15+', icon: Award },
@@ -118,7 +118,7 @@ export default async function AboutPage() {
                 </p>
                 <p>
                   What started as a quarterly publication has grown into a thriving community 
-                  of over 2,500 members, encompassing entrepreneurs, executives, creatives, 
+                  of over 200 members, encompassing entrepreneurs, executives, creatives, 
                   and change-makers from every industry imaginable.
                 </p>
                 <p>
