@@ -77,12 +77,12 @@ export default function AboutPage() {
                 </h2>
                 <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
                   <p>
-                    Founded with a commitment to Yorkshire and its distinguished business community, 
+                    Founded with a commitment to Yorkshire and its vibrant business community, 
                     Yorkshire Businesswoman has evolved into the region&apos;s leading platform for 
                     female leaders, entrepreneurs, and professionals.
                   </p>
                   <p>
-                    We believe that when women support each other, significant outcomes are achieved. 
+                    We believe that when women support each other, remarkable outcomes are achieved. 
                     Our mission is to provide the connections, recognition, and resources 
                     that enable every member to excel in their chosen field.
                   </p>
