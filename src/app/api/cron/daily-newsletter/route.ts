@@ -6,23 +6,24 @@ import { getPosts } from '@/lib/ghost';
 
 export const dynamic = 'force-dynamic';
 
-// Sophisticated color palette from LUMIÈRE template, adapted for Yorkshire Businesswoman
-const colors = {
-  background: "#FAF8F5",
-  cardBackground: "#FFFFFF",
-  primary: "#18181b", // Matches site primary text
-  secondary: "#52525b", // Matches site secondary text
-  accent: "#b79c65", // YBW gold accent
-  border: "#E8E4DF",
-  muted: "#F5F3F0",
-};
-
-const fonts = {
-  serif: "Georgia, 'Times New Roman', serif",
-  sans: "'Helvetica Neue', Helvetica, Arial, sans-serif",
-};
+async function logCronExecution(status: string, message: string, details?: any) {
+  try {
+    if (adminDb) {
+      await adminDb.collection('cronLogs').add({
+        job: 'daily-newsletter',
+        timestamp: new Date(),
+        status,
+        message,
+        details: details || {}
+      });
+    }
+  } catch (e) {
+    console.error('Failed to log cron execution:', e);
+  }
+}
 
 export async function GET(request: Request) {
+  const startTime = Date.now();
   try {
     // 1. Verify cron secret to prevent unauthorized execution
     const authHeader = request.headers.get('authorization');
@@ -46,26 +47,30 @@ export async function GET(request: Request) {
       const isBankHoliday = englandWalesHolidays.some((event: any) => event.date === today);
       
       if (isBankHoliday) {
+        await logCronExecution('skipped', 'Today is a UK Bank Holiday');
         return NextResponse.json({ success: true, message: 'Skipping execution: Today is a UK Bank Holiday' });
       }
     } catch (bhError) {
       console.error('Failed to check bank holidays, continuing with execution:', bhError);
     }
 
-    // 2. Fetch the latest stories from Ghost (1 Featured + 4 Sub-articles = 5 total)
-    // We fetch the most recent posts. The template will use the first one as featured.
+    // 2. Fetch latest posts from Ghost
     const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
 
     if (!posts || posts.length === 0) {
+      await logCronExecution('skipped', 'No posts found in Ghost');
       return NextResponse.json({ success: true, message: 'No posts to send' });
     }
 
-    // 3. Build the email HTML
+    // 3. Get all active members who opted in for the newsletter
     const emails: string[] = [];
-
+    
     if (isTestMode) {
       emails.push('rob@topicuk.co.uk');
+      emails.push('hello@yorkshirebusinesswoman.co.uk');
     } else {
+      if (!adminDb) throw new Error('Firebase Admin DB not initialized');
+      
       const membersSnapshot = await adminDb.collection('newMemberCollection')
         .where('status', '==', 'active')
         .where('isNewsletterRecipient', '==', true)
@@ -73,6 +78,7 @@ export async function GET(request: Request) {
 
       membersSnapshot.forEach(doc => {
         const data = doc.data();
+        // Fallback to newsletterSubscribed check if needed
         if (data.email && data.newsletterSubscribed !== false) {
           emails.push(data.email);
         }
@@ -80,33 +86,42 @@ export async function GET(request: Request) {
     }
 
     if (emails.length === 0) {
-      return NextResponse.json({ success: true, message: 'No active subscribers found' });
+      await logCronExecution('skipped', 'No active recipients found');
+      return NextResponse.json({ success: true, message: 'No recipients found' });
     }
 
-    // 5. Send via Mailgun
-    // To prevent rate limits or massive headers, we chunk the emails if needed,
-    // or just use BCC for a simple list. Mailgun handles up to 1000 in 'bcc'.
-    // Let's chunk them into groups of 500 just to be safe.
-    const chunkSize = 500;
+    // 4. Send emails in chunks (Mailgun BCC limit is typically 1000, but we'll use smaller chunks for safety)
+    const chunkSize = 950;
+    const emailChunks = [];
     for (let i = 0; i < emails.length; i += chunkSize) {
-      const chunk = emails.slice(i, i + chunkSize);
-      
+      emailChunks.push(emails.slice(i, i + chunkSize));
+    }
+
+    for (const chunk of emailChunks) {
       await sendEmail({
-        to: 'hello@yorkshirebusinesswoman.co.uk', // To address is generic
-        bcc: chunk.join(','), // Real recipients are hidden in BCC
+        to: 'hello@yorkshirebusinesswoman.co.uk',
+        bcc: chunk.join(','),
         subject: 'Yorkshire Businesswoman: Morning Digest',
         html: await getDailyNewsletterTemplate(posts)
       });
     }
 
+    const duration = Date.now() - startTime;
+    await logCronExecution('success', `Sent newsletter to ${emails.length} recipients`, {
+      recipientCount: emails.length,
+      durationMs: duration,
+      postCount: posts.length
+    });
+
     return NextResponse.json({ 
       success: true, 
-      message: `Newsletter sent to ${emails.length} subscribers`,
-      articles: posts.map((p: any) => p.title)
+      message: `Newsletter sent to ${emails.length} recipients`,
+      testMode: isTestMode
     });
 
   } catch (error: any) {
     console.error('Daily newsletter error:', error);
+    await logCronExecution('error', error.message, { stack: error.stack });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
