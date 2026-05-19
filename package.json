@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@algolia/autocomplete-core": "^1.19.8",
+    "@clerk/nextjs": "^7.3.7",
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.10.0",

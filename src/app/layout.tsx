@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, Inter } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/app/providers'
 import { Header } from "@/components/magazine/header"
@@ -75,19 +76,21 @@ export default async function RootLayout({
   }).catch(() => []);
 
   return (
-    <html lang="en" className="bg-background" suppressHydrationWarning>
-      <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
-        <Providers>
-          <Header />
-          <NewsTicker posts={trendingPosts} />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          <CookieBanner />
-        </Providers>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className="bg-background" suppressHydrationWarning>
+        <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
+          <Providers>
+            <Header />
+            <NewsTicker posts={trendingPosts} />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+            <CookieBanner />
+          </Providers>
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

@@ -37,7 +37,7 @@ const quickActions = [
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -45,14 +45,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user, loading, router]);
 
-  const handleSignOut = () => {
-    import('@/lib/firebase').then(({ auth }) => {
-      if (auth) {
-        import('firebase/auth').then(({ signOut }) => {
-          signOut(auth).then(() => router.push('/'));
-        });
-      }
-    });
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   if (loading || !user) {

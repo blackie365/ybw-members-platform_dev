@@ -12,8 +12,6 @@ import {
 import { Logo } from "@/components/Logo"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { useAuth } from "@/lib/AuthContext"
-import { auth } from "@/lib/firebase"
-import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
 
 const navigation = [
@@ -27,14 +25,13 @@ const navigation = [
 ];
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSignOut = async () => {
-    if (!auth) return;
     try {
-      await signOut(auth);
+      await signOut();
       setIsOpen(false);
       router.push('/');
     } catch (error) {

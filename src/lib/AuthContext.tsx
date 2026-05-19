@@ -1,12 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { db } from './firebase';
 
 export type MembershipTier = 'free' | 'premium' | 'founder';
 export type UserRole = 'member' | 'admin' | 'super_admin';
+
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  displayName: string | null;
+  photoURL: string | null;
+}
 
 export interface MemberProfile {
   firstName: string;
@@ -44,7 +52,7 @@ export interface MemberProfile {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   profile: MemberProfile | null;
   loading: boolean;
   isAdmin: boolean;
@@ -52,6 +60,7 @@ interface AuthContextType {
   membershipTier: MembershipTier;
   profileCompleteness: number;
   refreshProfile: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const defaultContext: AuthContextType = {
@@ -63,6 +72,7 @@ const defaultContext: AuthContextType = {
   membershipTier: 'free',
   profileCompleteness: 0,
   refreshProfile: async () => {},
+  signOut: async () => {},
 };
 
 const AuthContext = createContext<AuthContextType>(defaultContext);
@@ -113,9 +123,28 @@ function calculateProfileCompleteness(profile: MemberProfile | null): number {
 }
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut: clerkSignOut } = useClerk();
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync Clerk user to AuthUser
+  useEffect(() => {
+    if (isLoaded) {
+      if (clerkUser) {
+        setUser({
+          uid: clerkUser.id,
+          email: clerkUser.primaryEmailAddress?.emailAddress || null,
+          emailVerified: clerkUser.primaryEmailAddress?.verification.status === 'verified',
+          displayName: clerkUser.fullName,
+          photoURL: clerkUser.imageUrl,
+        });
+      } else {
+        setUser(null);
+      }
+    }
+  }, [clerkUser, isLoaded]);
 
   const fetchProfile = useCallback(async (uid: string) => {
     if (!db) return;
@@ -177,79 +206,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, fetchProfile]);
 
+  const handleSignOut = useCallback(async () => {
+    await clerkSignOut();
+    setUser(null);
+    setProfile(null);
+  }, [clerkSignOut]);
+
   useEffect(() => {
-    // Guard against auth being null during SSR or when Firebase isn't configured
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
+    if (!isLoaded) return;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-
-      if (firebaseUser && db) {
-        // Set up real-time listener for profile changes
-        const docRef = doc(db, 'newMemberCollection', firebaseUser.uid);
-        const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as Partial<MemberProfile>;
-            const profileData: MemberProfile = {
-              firstName: data.firstName || '',
-              lastName: data.lastName || '',
-              email: data.email || '',
-              slug: data.slug || '',
-              companyName: data.companyName,
-              jobTitle: data.jobTitle,
-              bio: data.bio,
-              website: data.website,
-              linkedinUrl: data.linkedinUrl,
-              twitterUrl: data.twitterUrl,
-              instagramUrl: data.instagramUrl,
-              profileImage: data.profileImage,
-              bannerImage: data.bannerImage,
-              location: data.location,
-              industrySector: data.industrySector,
-              yearsInBusiness: data.yearsInBusiness,
-              companySize: data.companySize,
-              services: data.services || [],
-              expertise: data.expertise || [],
-              openToMentoring: data.openToMentoring || false,
-              seekingMentorship: data.seekingMentorship || false,
-              openToBoardRoles: data.openToBoardRoles || false,
-              status: data.status || 'active',
-              membershipTier: data.membershipTier || 'free',
-              role: data.role || 'member',
-              stripeCustomerId: data.stripeCustomerId,
-              stripeSubscriptionId: data.stripeSubscriptionId,
-              subscriptionStatus: data.subscriptionStatus,
-              isFeatured: data.isFeatured || false,
-              isAdmin: data.isAdmin || false,
-              createdAt: data.createdAt || new Date().toISOString(),
-              updatedAt: data.updatedAt,
-            };
-            setProfile(profileData);
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error('Error listening to profile:', error);
-          setLoading(false);
-        });
-
-        return () => unsubscribeProfile();
-      } else {
-        setProfile(null);
+    if (user && db) {
+      setLoading(true);
+      // Set up real-time listener for profile changes
+      const docRef = doc(db, 'newMemberCollection', user.uid);
+      const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data() as Partial<MemberProfile>;
+          const profileData: MemberProfile = {
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            email: data.email || '',
+            slug: data.slug || '',
+            companyName: data.companyName,
+            jobTitle: data.jobTitle,
+            bio: data.bio,
+            website: data.website,
+            linkedinUrl: data.linkedinUrl,
+            twitterUrl: data.twitterUrl,
+            instagramUrl: data.instagramUrl,
+            profileImage: data.profileImage,
+            bannerImage: data.bannerImage,
+            location: data.location,
+            industrySector: data.industrySector,
+            yearsInBusiness: data.yearsInBusiness,
+            companySize: data.companySize,
+            services: data.services || [],
+            expertise: data.expertise || [],
+            openToMentoring: data.openToMentoring || false,
+            seekingMentorship: data.seekingMentorship || false,
+            openToBoardRoles: data.openToBoardRoles || false,
+            status: data.status || 'active',
+            membershipTier: data.membershipTier || 'free',
+            role: data.role || 'member',
+            stripeCustomerId: data.stripeCustomerId,
+            stripeSubscriptionId: data.stripeSubscriptionId,
+            subscriptionStatus: data.subscriptionStatus,
+            isFeatured: data.isFeatured || false,
+            isAdmin: data.isAdmin || false,
+            createdAt: data.createdAt || new Date().toISOString(),
+            updatedAt: data.updatedAt,
+          };
+          setProfile(profileData);
+        } else {
+          setProfile(null);
+        }
         setLoading(false);
-      }
-    });
+      }, (error) => {
+        console.error('Error listening to profile:', error);
+        setLoading(false);
+      });
 
-    return () => unsubscribeAuth();
-  }, []);
+      return () => unsubscribeProfile();
+    } else {
+      setProfile(null);
+      setLoading(false);
+    }
+  }, [user, isLoaded]);
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isAdmin === true;
   const isPremium = profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder';
-  const membershipTier = profile?.membershipTier || 'free';
   const profileCompleteness = calculateProfileCompleteness(profile);
 
   return (
@@ -260,9 +285,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loading,
         isAdmin,
         isPremium,
-        membershipTier,
+        membershipTier: profile?.membershipTier || 'free',
         profileCompleteness,
         refreshProfile,
+        signOut: handleSignOut,
       }}
     >
       {children}
