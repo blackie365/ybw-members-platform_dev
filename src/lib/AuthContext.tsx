@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useUser, useClerk } from '@clerk/nextjs';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
+import { getProfile } from '@/app/actions/profile';
 
 export type MembershipTier = 'free' | 'premium' | 'founder';
 export type UserRole = 'member' | 'admin' | 'super_admin';
@@ -147,14 +148,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [clerkUser, isLoaded]);
 
   const fetchProfile = useCallback(async (uid: string) => {
-    if (!db) return;
-    
     try {
-      const docRef = doc(db, 'newMemberCollection', uid);
-      const docSnap = await getDoc(docRef);
+      const result = await getProfile(uid);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as Partial<MemberProfile>;
+      if (result.success && result.data) {
+        const data = result.data as Partial<MemberProfile>;
         // Set defaults for missing fields
         const profileData: MemberProfile = {
           firstName: data.firstName || '',
@@ -215,63 +213,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!isLoaded) return;
 
-    if (user && db) {
+    if (user) {
       setLoading(true);
-      // Set up real-time listener for profile changes
-      const docRef = doc(db, 'newMemberCollection', user.uid);
-      const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data() as Partial<MemberProfile>;
-          const profileData: MemberProfile = {
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            email: data.email || '',
-            slug: data.slug || '',
-            companyName: data.companyName,
-            jobTitle: data.jobTitle,
-            bio: data.bio,
-            website: data.website,
-            linkedinUrl: data.linkedinUrl,
-            twitterUrl: data.twitterUrl,
-            instagramUrl: data.instagramUrl,
-            profileImage: data.profileImage,
-            bannerImage: data.bannerImage,
-            location: data.location,
-            industrySector: data.industrySector,
-            yearsInBusiness: data.yearsInBusiness,
-            companySize: data.companySize,
-            services: data.services || [],
-            expertise: data.expertise || [],
-            openToMentoring: data.openToMentoring || false,
-            seekingMentorship: data.seekingMentorship || false,
-            openToBoardRoles: data.openToBoardRoles || false,
-            status: data.status || 'active',
-            membershipTier: data.membershipTier || 'free',
-            role: data.role || 'member',
-            stripeCustomerId: data.stripeCustomerId,
-            stripeSubscriptionId: data.stripeSubscriptionId,
-            subscriptionStatus: data.subscriptionStatus,
-            isFeatured: data.isFeatured || false,
-            isAdmin: data.isAdmin || false,
-            createdAt: data.createdAt || new Date().toISOString(),
-            updatedAt: data.updatedAt,
-          };
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      }, (error) => {
-        console.error('Error listening to profile:', error);
+      fetchProfile(user.uid).finally(() => {
         setLoading(false);
       });
-
-      return () => unsubscribeProfile();
     } else {
       setProfile(null);
       setLoading(false);
     }
-  }, [user, isLoaded]);
+  }, [user, isLoaded, fetchProfile]);
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isAdmin === true;
   const isPremium = profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder';
