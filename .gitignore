@@ -21,3 +21,6 @@ members.csv
 # Exclude sensitive data and archives
 *.csv
 *.zip
+
+# clerk configuration (can include secrets)
+/.clerk/
