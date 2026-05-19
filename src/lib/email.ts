@@ -20,7 +20,17 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo }: SendE
   }
 
   const mailgun = new Mailgun(formData);
-  const url = process.env.MAILGUN_URL || 'https://api.mailgun.net';
+  
+  // Robust endpoint selection:
+  // 1. Explicit process.env.MAILGUN_URL (recommended)
+  // 2. Default to EU if domain ends in .co.uk (common for this project)
+  // 3. Fallback to US
+  let url = process.env.MAILGUN_URL;
+  if (!url) {
+    url = MAILGUN_DOMAIN.endsWith('.co.uk') 
+      ? 'https://api.eu.mailgun.net' 
+      : 'https://api.mailgun.net';
+  }
   
   const mg = mailgun.client({ 
     username: 'api', 
