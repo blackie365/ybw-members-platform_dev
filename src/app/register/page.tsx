@@ -82,16 +82,24 @@ function RegisterForm() {
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
           <SignUp 
             appearance={{
+              variables: {
+                colorPrimary: '#D4AF37', // Gold/Accent color
+                fontFamily: 'var(--font-serif)',
+                borderRadius: '0.5rem',
+                colorBackground: 'transparent',
+              },
               elements: {
-                formButtonPrimary: 'bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium h-10 px-4 py-2 rounded-md transition-colors',
+                formButtonPrimary: 'bg-[#D4AF37] hover:bg-[#B8962E] text-white text-sm font-semibold h-12 px-4 py-2 rounded-lg transition-all shadow-md active:scale-95',
                 card: 'shadow-none border-none bg-transparent',
-                headerTitle: 'font-serif text-2xl text-foreground',
-                headerSubtitle: 'text-muted-foreground',
-                socialButtonsBlockButton: 'border-border hover:bg-muted text-foreground',
-                dividerText: 'text-muted-foreground',
-                formFieldLabel: 'text-foreground',
-                formFieldInput: 'bg-background border-border text-foreground',
-                footerActionLink: 'text-primary hover:text-primary/90 font-medium'
+                headerTitle: 'font-serif text-3xl text-foreground font-medium tracking-tight',
+                headerSubtitle: 'text-muted-foreground text-base leading-relaxed',
+                socialButtonsBlockButton: 'border-border hover:bg-muted text-foreground rounded-lg h-12 transition-all border shadow-sm',
+                socialButtonsBlockButtonText: 'font-semibold text-sm',
+                dividerLine: 'bg-border',
+                dividerText: 'text-muted-foreground uppercase text-[10px] tracking-[0.2em] font-bold bg-background px-3',
+                formFieldLabel: 'text-foreground font-semibold text-sm mb-2',
+                formFieldInput: 'bg-background border-border text-foreground rounded-lg h-12 focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] transition-all border-2',
+                footerActionLink: 'text-[#D4AF37] hover:text-[#B8962E] font-bold transition-colors underline-offset-4 hover:underline',
               }
             }}
             signInUrl="/login"

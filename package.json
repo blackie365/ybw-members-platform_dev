@@ -84,10 +84,12 @@
     "simple-functional-loader": "^1.2.1",
     "sonner": "^1.7.1",
     "stripe": "^22.1.0",
+    "svix": "^1.93.0",
     "tailwind-merge": "^3.5.0",
     "unist-util-filter": "^5.0.1",
     "unist-util-visit": "^5.1.0",
     "vaul": "^1.1.2",
+    "vercel": "^54.1.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.12"
   },
