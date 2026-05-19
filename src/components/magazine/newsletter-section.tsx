@@ -55,13 +55,13 @@ export function NewsletterSection() {
             The Yorkshire Businesswoman Newsletter
           </h2>
           <p className="mx-auto mt-6 max-w-lg text-[15px] leading-relaxed text-primary-foreground/70">
-            Refine your professional edge. Join our region&apos;s community of ambitious 
-            women for daily curated insights on leadership, finance, and career growth.
+            Join thousands of ambitious women who start their week with our curated 
+            insights on leadership, finance, and career growth across the region.
           </p>
 
           {/* Benefits */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {["Daily insights", "Exclusive events", "Member spotlights"].map((benefit) => (
+            {["Weekly insights", "Exclusive events", "Member spotlights"].map((benefit) => (
               <div key={benefit} className="flex items-center gap-2 text-primary-foreground/60">
                 <Sparkles className="h-3.5 w-3.5 text-accent" />
                 <span className="text-xs">{benefit}</span>

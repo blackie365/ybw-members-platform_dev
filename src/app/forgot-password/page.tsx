@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import { getFriendlyAuthErrorMessage } from '@/lib/authErrors';
 import { ArrowLeft, ArrowRight, Mail, CheckCircle, KeyRound } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
@@ -17,26 +20,13 @@ export default function ForgotPasswordPage() {
     setMessage('');
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to send reset email');
-      }
-
+      await sendPasswordResetEmail(auth, email);
       setStatus('success');
-      setMessage('We have sent a secure reset link to your email. Please check your inbox (and spam folder) for instructions.');
-    } catch (err: any) {
+      setMessage('Password reset email sent! Check your inbox for further instructions.');
+    } catch (err: unknown) {
       console.error('Password reset error:', err);
       setStatus('error');
-      setMessage(err.message || 'An error occurred. Please try again.');
+      setMessage(getFriendlyAuthErrorMessage(err));
     }
   };
 
@@ -53,11 +43,9 @@ export default function ForgotPasswordPage() {
           <div className="relative z-10 flex flex-col justify-center px-12 lg:px-16 py-12">
             <div className="mb-12">
               <Link href="/" className="inline-block">
-                <img
-                  src="/images/logo-nav-v3.png"
-                  alt="Yorkshire Businesswoman"
-                  className="h-12 w-auto brightness-0 invert"
-                />
+                <span className="font-serif text-2xl font-medium text-primary-foreground">
+                  Yorkshire Businesswoman
+                </span>
               </Link>
             </div>
             
@@ -68,10 +56,10 @@ export default function ForgotPasswordPage() {
                   Account Recovery
                 </div>
                 <h1 className="font-serif text-4xl lg:text-5xl font-medium text-primary-foreground leading-tight mb-4">
-                  Reset your password?
+                  Forgot your password?
                 </h1>
                 <p className="text-primary-foreground/70 text-lg leading-relaxed">
-                  No worries. Enter your email and we&apos;ll send you a secure link to reset your password.
+                  No worries. Enter your email and we&apos;ll send you a link to reset your password.
                 </p>
               </div>
 
@@ -96,28 +84,26 @@ export default function ForgotPasswordPage() {
             {/* Mobile Logo */}
             <div className="lg:hidden text-center mb-8">
               <Link href="/" className="inline-block">
-                <img
-                  src="/images/logo-nav-v3.png"
-                  alt="Yorkshire Businesswoman"
-                  className="h-10 w-auto"
-                />
+                <span className="font-serif text-xl font-medium text-foreground">
+                  Yorkshire Businesswoman
+                </span>
               </Link>
             </div>
 
             {status === 'success' ? (
-              <div className="text-center animate-in fade-in zoom-in duration-500">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 mb-8">
-                  <CheckCircle className="h-10 w-10 text-accent" />
+              <div className="text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 mb-6">
+                  <CheckCircle className="h-8 w-8 text-accent" />
                 </div>
-                <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground mb-4">
+                <h2 className="font-serif text-2xl lg:text-3xl font-medium tracking-tight text-foreground mb-3">
                   Check your email
                 </h2>
-                <p className="text-muted-foreground text-lg mb-10 leading-relaxed">
+                <p className="text-muted-foreground mb-8">
                   {message}
                 </p>
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:text-accent/80 transition-colors bg-accent/5 px-6 py-3 rounded-full"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Return to sign in
@@ -125,76 +111,73 @@ export default function ForgotPasswordPage() {
               </div>
             ) : (
               <>
-                <div className="text-center lg:text-left mb-10">
-                  <h2 className="text-3xl font-serif font-medium tracking-tight text-foreground">
+                <div className="text-center lg:text-left mb-8">
+                  <h2 className="font-serif text-2xl lg:text-3xl font-medium tracking-tight text-foreground">
                     Reset your password
                   </h2>
-                  <p className="mt-3 text-muted-foreground leading-relaxed">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Enter your email address and we&apos;ll send you a link to reset your password.
                   </p>
                 </div>
 
                 <form className="space-y-6" onSubmit={handleResetPassword}>
                   {status === 'error' && (
-                    <div className="rounded-xl bg-destructive/10 p-4 border border-destructive/20 animate-in slide-in-from-top-2 duration-300">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
-                          <svg className="h-4 w-4 text-destructive" viewBox="0 0 20 20" fill="currentColor">
+                    <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <p className="text-sm font-medium text-destructive">{message}</p>
+                        <div className="ml-3">
+                          <p className="text-sm text-destructive">{message}</p>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="email" className="block text-sm font-medium text-foreground/70 ml-1">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
                       Email address
                     </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-muted-foreground group-focus-within:text-accent transition-colors" />
-                      </div>
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="block w-full rounded-xl border border-input bg-background pl-11 pr-4 py-3.5 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/5 transition-all"
-                        placeholder="you@example.com"
-                      />
-                    </div>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="block w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
+                      placeholder="you@example.com"
+                    />
                   </div>
 
                   <button
                     type="submit"
                     disabled={status === 'loading'}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 px-6 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-3 px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {status === 'loading' ? (
                       <>
-                        <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-                        Sending Link...
+                        Sending...
                       </>
                     ) : (
                       <>
-                        Send Reset Link
+                        Send reset link
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
                   
-                  <div className="text-center pt-4">
+                  <div className="text-center">
                     <Link
                       href="/login"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-accent transition-colors"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80 transition-colors"
                     >
                       <ArrowLeft className="h-4 w-4" />
                       Back to sign in

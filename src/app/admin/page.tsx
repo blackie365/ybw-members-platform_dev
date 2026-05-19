@@ -1,28 +1,27 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowDownRight, Newspaper, Mail, Tag } from "lucide-react"
 import Link from "next/link"
+import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { collection, query, getDocs, where, orderBy, limit, Timestamp } from "firebase/firestore"
-import { getAdminStats } from "../actions/adminActions"
 
 interface Stats {
   totalMembers: number
   newMembersThisMonth: number
   memberGrowth: number
+  totalEvents: number
+  upcomingEvents: number
+  totalMessages: number
   activeThreads: number
-  totalPosts: number
-  totalGhostMembers: number
-  totalTags: number
 }
 
 interface RecentMember {
   id: string
-  displayName: string
+  firstName: string
+  lastName: string
   email: string
-  createdAt: string | number
+  createdAt: number
   membershipTier: string
 }
 
@@ -31,44 +30,95 @@ export default function AdminOverviewPage() {
     totalMembers: 0,
     newMembersThisMonth: 0,
     memberGrowth: 0,
+    totalEvents: 0,
+    upcomingEvents: 0,
+    totalMessages: 0,
     activeThreads: 0,
-    totalPosts: 0,
-    totalGhostMembers: 0,
-    totalTags: 0,
   })
   const [recentMembers, setRecentMembers] = useState<RecentMember[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchData()
+    fetchStats()
   }, [])
 
-  const fetchData = async () => {
+  const fetchStats = async () => {
     try {
-      setLoading(true)
-      
-      // 1. Fetch Stats from Server Action (Combined Firebase + Ghost)
-      const result = await getAdminStats()
-      if (result.success && result.stats) {
-        setStats(result.stats as Stats)
+      if (!db) {
+        setLoading(false)
+        return
       }
 
-      // 2. Fetch recent members from client (keeping it fast for UI)
       const membersRef = collection(db, "newMemberCollection")
-      const recentQuery = query(membersRef, orderBy("createdAt", "desc"), limit(5))
-      const recentSnap = await getDocs(recentQuery)
-      const recent = recentSnap.docs.map((doc) => {
-        const data = doc.data()
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt || Date.now(),
-        }
-      }) as RecentMember[]
-      setRecentMembers(recent)
+      const membersSnap = await getDocs(membersRef)
+      const totalMembers = membersSnap.size
 
+      const startOfMonth = new Date()
+      startOfMonth.setDate(1)
+      startOfMonth.setHours(0, 0, 0, 0)
+      
+      let newMembersThisMonth = 0
+      const recent: RecentMember[] = []
+      
+      membersSnap.docs.forEach((doc) => {
+        const data = doc.data()
+        const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : Date.now()
+        
+        if (createdAt >= startOfMonth.getTime()) {
+          newMembersThisMonth++
+        }
+        
+        recent.push({
+          id: doc.id,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || '',
+          createdAt,
+          membershipTier: data.membershipTier || 'free',
+        })
+      })
+
+      recent.sort((a, b) => b.createdAt - a.createdAt)
+      setRecentMembers(recent.slice(0, 5))
+
+      let totalEvents = 0
+      let upcomingEvents = 0
+      let activeThreads = 0
+
+      try {
+        const eventsRef = collection(db, "events")
+        const eventsSnap = await getDocs(eventsRef)
+        totalEvents = eventsSnap.size
+
+        eventsSnap.docs.forEach((doc) => {
+          const data = doc.data()
+          if (data.startDate && new Date(data.startDate) >= new Date()) {
+            upcomingEvents++
+          }
+        })
+      } catch (e) {
+        console.warn("Events collection may not exist yet")
+      }
+
+      try {
+        const threadsRef = collection(db, "messageThreads")
+        const threadsSnap = await getDocs(threadsRef)
+        activeThreads = threadsSnap.size
+      } catch (e) {
+        console.warn("MessageThreads collection may not exist yet")
+      }
+
+      setStats({
+        totalMembers,
+        newMembersThisMonth,
+        memberGrowth: totalMembers > 0 ? Math.round((newMembersThisMonth / totalMembers) * 100) : 0,
+        totalEvents,
+        upcomingEvents,
+        totalMessages: 0,
+        activeThreads,
+      })
     } catch (error) {
-      console.error("Failed to fetch admin data:", error)
+      console.error("Failed to fetch stats:", error)
     } finally {
       setLoading(false)
     }
@@ -76,7 +126,7 @@ export default function AdminOverviewPage() {
 
   const statCards = [
     {
-      title: "App Members",
+      title: "Total Members",
       value: stats.totalMembers,
       change: `+${stats.newMembersThisMonth} this month`,
       trend: "up",
@@ -84,34 +134,33 @@ export default function AdminOverviewPage() {
       href: "/admin/members",
     },
     {
-      title: "Newsletter Subs",
-      value: stats.totalGhostMembers,
-      change: "From Ghost",
+      title: "Upcoming Events",
+      value: stats.upcomingEvents,
+      change: `${stats.totalEvents} total`,
       trend: "neutral",
-      icon: Mail,
-      href: "https://admin.yorkshirebusinesswoman.co.uk",
+      icon: Calendar,
+      href: "/admin/events",
     },
     {
-      title: "Magazine Posts",
-      value: stats.totalPosts,
-      change: "Total articles",
-      trend: "neutral",
-      icon: Newspaper,
-      href: "https://admin.yorkshirebusinesswoman.co.uk",
-    },
-    {
-      title: "Active Chats",
+      title: "Active Conversations",
       value: stats.activeThreads,
       change: "Member connections",
       trend: "neutral",
       icon: MessageSquare,
       href: "/admin/analytics",
     },
+    {
+      title: "Member Growth",
+      value: `${stats.memberGrowth}%`,
+      change: "This month",
+      trend: stats.memberGrowth > 0 ? "up" : "down",
+      icon: TrendingUp,
+      href: "/admin/analytics",
+    },
   ]
 
-  const formatDate = (dateValue: string | number) => {
-    const date = typeof dateValue === 'string' ? new Date(dateValue) : new Date(dateValue)
-    return date.toLocaleDateString("en-GB", {
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -121,8 +170,8 @@ export default function AdminOverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-3xl font-bold text-foreground">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="font-serif text-3xl font-medium text-foreground">Dashboard Overview</h1>
+        <p className="text-muted-foreground mt-2">
           Welcome to the Yorkshire Businesswoman admin panel
         </p>
       </div>
@@ -131,43 +180,41 @@ export default function AdminOverviewPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Link key={stat.title} href={stat.href}>
-            <Card className="hover:border-accent/30 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+            <div className="bg-card border border-border p-6 hover:border-accent/30 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {stat.title}
-                </CardTitle>
-                <stat.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{loading ? "..." : stat.value}</div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  {stat.trend === "up" && <ArrowUpRight className="h-3 w-3 text-green-600" />}
-                  {stat.trend === "down" && <ArrowDownRight className="h-3 w-3 text-red-600" />}
-                  {stat.change}
                 </p>
-              </CardContent>
-            </Card>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="font-serif text-3xl font-medium text-foreground">
+                {loading ? "..." : stat.value}
+              </div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+                {stat.trend === "up" && <ArrowUpRight className="h-3 w-3 text-accent" />}
+                {stat.change}
+              </p>
+            </div>
           </Link>
         ))}
       </div>
 
       {/* Recent Members */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Recent Members</CardTitle>
-              <CardDescription>Newest members to join the community</CardDescription>
-            </div>
-            <Link 
-              href="/admin/members" 
-              className="text-sm text-accent hover:underline"
-            >
-              View all
-            </Link>
+      <div className="bg-card border border-border">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div>
+            <h2 className="font-serif text-xl font-medium text-foreground">Recent Members</h2>
+            <p className="text-sm text-muted-foreground mt-1">Newest members to join the community</p>
           </div>
-        </CardHeader>
-        <CardContent>
+          <Link 
+            href="/admin/members" 
+            className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors"
+          >
+            View all
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        <div className="p-6">
           {loading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : recentMembers.length === 0 ? (
@@ -175,14 +222,18 @@ export default function AdminOverviewPage() {
           ) : (
             <div className="space-y-4">
               {recentMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between">
+                <div key={member.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
-                    <p className="font-medium">{member.displayName || "No name"}</p>
+                    <p className="font-medium text-foreground">
+                      {member.firstName} {member.lastName}
+                    </p>
                     <p className="text-sm text-muted-foreground">{member.email}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm capitalize">{member.membershipTier || "Free"}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-wider text-accent">
+                      {member.membershipTier}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {formatDate(member.createdAt)}
                     </p>
                   </div>
@@ -190,8 +241,8 @@ export default function AdminOverviewPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
