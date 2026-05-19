@@ -224,8 +224,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, isLoaded, fetchProfile]);
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isAdmin === true;
-  const isPremium = profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder';
+  const isAdmin = !!user && (profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isAdmin === true);
+  const isPremium = !!user && (profile?.membershipTier === 'premium' || profile?.membershipTier === 'founder');
   const profileCompleteness = calculateProfileCompleteness(profile);
 
   return (

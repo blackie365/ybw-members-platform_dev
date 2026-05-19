@@ -6,8 +6,8 @@ import { AdminFeatureToggle } from './AdminFeatureToggle';
 export function AdminControlWrapper({ memberId, isCurrentlyFeatured }: { memberId: string, isCurrentlyFeatured: boolean }) {
   const { user, profile, loading, isAdmin } = useAuth();
 
-  if (loading) return null;
-  if (!isAdmin) return null;
+  // Explicitly check for user and admin status
+  if (loading || !user || !isAdmin) return null;
 
   return (
     <div className="mt-8">
