@@ -7,6 +7,8 @@ import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 import { ConnectButton } from '@/components/ConnectButton';
 import { ArrowLeft, MapPin, Globe, Linkedin, Twitter, Instagram } from 'lucide-react';
 
+export const revalidate = 0;
+
 async function getMemberBySlug(slug: string) {
   try {
     if (!adminDb) return null;
