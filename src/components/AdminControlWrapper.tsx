@@ -4,10 +4,10 @@ import { useAuth } from '@/lib/AuthContext';
 import { AdminFeatureToggle } from './AdminFeatureToggle';
 
 export function AdminControlWrapper({ memberId, isCurrentlyFeatured }: { memberId: string, isCurrentlyFeatured: boolean }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isAdmin } = useAuth();
 
   if (loading) return null;
-  if (!profile?.isAdmin) return null;
+  if (!isAdmin) return null;
 
   return (
     <div className="mt-8">

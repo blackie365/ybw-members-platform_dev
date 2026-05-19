@@ -7,6 +7,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { getProfile, updateProfile } from '@/app/actions/profile';
 import { ProfileCompleteness } from '@/components/ProfileCompleteness';
+import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 
 const INDUSTRY_SECTORS = [
   'Accountancy & Finance',
@@ -356,6 +357,12 @@ export default function DashboardProfile() {
 
       {/* Profile Completeness Card */}
       <ProfileCompleteness showCTA={false} />
+
+      {/* Admin controls (only shown for admins) */}
+      <AdminControlWrapper 
+        memberId={user.uid} 
+        isCurrentlyFeatured={authProfile?.isFeatured || false} 
+      />
 
       {/* Messages */}
       {message.text && (

@@ -29,21 +29,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2 } from "lucide-react"
+import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore"
+import { Switch } from "@/components/ui/switch"
+import { toggleFeaturedStatus } from "@/app/actions/adminActions"
 
 interface Member {
   id: string
-  displayName: string
+  firstName: string
+  lastName: string
   email: string
-  photoURL?: string
+  profileImage?: string
   membershipTier: string
   role: string
-  industry?: string
+  industrySector?: string
   location?: string
-  createdAt: number
-  lastLogin?: number
+  isFeatured?: boolean
+  createdAt: string
+  updatedAt?: string
 }
 
 export default function AdminMembersPage() {
@@ -59,14 +63,12 @@ export default function AdminMembersPage() {
 
   const fetchMembers = async () => {
     try {
-      const membersRef = collection(db, "users")
+      const membersRef = collection(db, "newMemberCollection")
       const q = query(membersRef, orderBy("createdAt", "desc"))
       const snap = await getDocs(q)
       const data = snap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toMillis?.() || Date.now(),
-        lastLogin: doc.data().lastLogin?.toMillis?.() || null,
       })) as Member[]
       setMembers(data)
     } catch (error) {
@@ -79,7 +81,7 @@ export default function AdminMembersPage() {
   const updateMemberTier = async (memberId: string, tier: string) => {
     setUpdating(memberId)
     try {
-      const memberRef = doc(db, "users", memberId)
+      const memberRef = doc(db, "newMemberCollection", memberId)
       await updateDoc(memberRef, { membershipTier: tier })
       setMembers((prev) =>
         prev.map((m) => (m.id === memberId ? { ...m, membershipTier: tier } : m))
@@ -94,7 +96,7 @@ export default function AdminMembersPage() {
   const updateMemberRole = async (memberId: string, role: string) => {
     setUpdating(memberId)
     try {
-      const memberRef = doc(db, "users", memberId)
+      const memberRef = doc(db, "newMemberCollection", memberId)
       await updateDoc(memberRef, { role })
       setMembers((prev) =>
         prev.map((m) => (m.id === memberId ? { ...m, role } : m))
@@ -106,18 +108,43 @@ export default function AdminMembersPage() {
     }
   }
 
+  const handleToggleFeatured = async (memberId: string, currentStatus: boolean) => {
+    setUpdating(memberId)
+    try {
+      const res = await toggleFeaturedStatus(memberId, !currentStatus)
+      if (res.success) {
+        // If we set one to true, others might have been set to false by the server action
+        // For simplicity and correctness, let's just refetch or update locally
+        setMembers((prev) =>
+          prev.map((m) => {
+            if (m.id === memberId) return { ...m, isFeatured: !currentStatus }
+            if (!currentStatus) return { ...m, isFeatured: false } // If setting new one to true, others become false
+            return m
+          })
+        )
+      } else {
+        alert(res.error || "Failed to update featured status")
+      }
+    } catch (error) {
+      console.error("Failed to toggle featured status:", error)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const filteredMembers = members.filter((member) => {
+    const fullName = `${member.firstName || ""} ${member.lastName || ""}`.toLowerCase()
     const matchesSearch =
-      member.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+      fullName.includes(search.toLowerCase()) ||
       member.email?.toLowerCase().includes(search.toLowerCase()) ||
-      member.industry?.toLowerCase().includes(search.toLowerCase())
+      member.industrySector?.toLowerCase().includes(search.toLowerCase())
     const matchesTier = tierFilter === "all" || member.membershipTier === tierFilter
     return matchesSearch && matchesTier
   })
 
-  const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return "Never"
-    return new Date(timestamp).toLocaleDateString("en-GB", {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "Never"
+    return new Date(dateStr).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -126,13 +153,14 @@ export default function AdminMembersPage() {
 
   const exportMembers = () => {
     const csv = [
-      ["Name", "Email", "Tier", "Role", "Industry", "Location", "Joined"],
+      ["First Name", "Last Name", "Email", "Tier", "Role", "Industry", "Location", "Joined"],
       ...filteredMembers.map((m) => [
-        m.displayName || "",
+        m.firstName || "",
+        m.lastName || "",
         m.email || "",
         m.membershipTier || "free",
         m.role || "member",
-        m.industry || "",
+        m.industrySector || "",
         m.location || "",
         formatDate(m.createdAt),
       ]),
@@ -152,6 +180,7 @@ export default function AdminMembersPage() {
     free: "bg-muted text-muted-foreground",
     premium: "bg-accent/10 text-accent",
     professional: "bg-amber-100 text-amber-800",
+    founder: "bg-purple-100 text-purple-800",
   }
 
   return (
@@ -160,7 +189,7 @@ export default function AdminMembersPage() {
         <div>
           <h1 className="font-serif text-3xl font-bold text-foreground">Members</h1>
           <p className="text-muted-foreground mt-1">
-            Manage {members.length} community members
+            Manage {members.length} community members in newMemberCollection
           </p>
         </div>
         <Button onClick={exportMembers} variant="outline" className="shrink-0">
@@ -189,7 +218,7 @@ export default function AdminMembersPage() {
                 <SelectItem value="all">All tiers</SelectItem>
                 <SelectItem value="free">Free</SelectItem>
                 <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
+                <SelectItem value="founder">Founder</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -211,6 +240,7 @@ export default function AdminMembersPage() {
                     <TableHead>Member</TableHead>
                     <TableHead>Tier</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead className="text-center">Featured</TableHead>
                     <TableHead className="hidden md:table-cell">Industry</TableHead>
                     <TableHead className="hidden lg:table-cell">Joined</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -222,13 +252,13 @@ export default function AdminMembersPage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
-                            <AvatarImage src={member.photoURL} alt={member.displayName} />
+                            <AvatarImage src={member.profileImage} alt={`${member.firstName} ${member.lastName}`} />
                             <AvatarFallback className="bg-accent/10 text-accent text-sm">
-                              {member.displayName?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "?"}
+                              {member.firstName?.[0]}{member.lastName?.[0] || "?"}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{member.displayName || "No name"}</p>
+                            <p className="font-medium">{member.firstName} {member.lastName}</p>
                             <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
@@ -245,7 +275,7 @@ export default function AdminMembersPage() {
                           <SelectContent>
                             <SelectItem value="free">Free</SelectItem>
                             <SelectItem value="premium">Premium</SelectItem>
-                            <SelectItem value="professional">Professional</SelectItem>
+                            <SelectItem value="founder">Founder</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -264,8 +294,17 @@ export default function AdminMembersPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <Switch
+                            checked={!!member.isFeatured}
+                            onCheckedChange={() => handleToggleFeatured(member.id, !!member.isFeatured)}
+                            disabled={updating === member.id}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {member.industry || "-"}
+                        {member.industrySector || "-"}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                         {formatDate(member.createdAt)}
@@ -306,3 +345,4 @@ export default function AdminMembersPage() {
     </div>
   )
 }
+
