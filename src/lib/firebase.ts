@@ -1,5 +1,4 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -16,8 +15,9 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Create a dummy auth object if apiKey is missing during build time
-const auth = firebaseConfig.apiKey ? getAuth(app) : null as any;
+// Auth is now handled exclusively by Clerk. 
+// Firebase Auth is kept as null to prevent accidental usage.
+const auth = null as any;
 
 // Use the provided database ID from env, or default to '(default)'
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)";

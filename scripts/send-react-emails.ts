@@ -1,8 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-import FormData from 'form-data';
-import Mailgun from 'mailgun.js';
+import { Resend } from 'resend';
 import { 
   getWelcomeEmailTemplate, 
   getFreeWelcomeEmailTemplate, 
@@ -12,47 +11,39 @@ import {
   getRenewalReminderEmailTemplate 
 } from '../src/lib/email-templates';
 
-const apiKey = process.env.MAILGUN_API_KEY || '';
-const domain = process.env.MAILGUN_DOMAIN || '';
-
-const mailgun = new Mailgun(FormData);
-const mg = mailgun.client({ username: 'api', key: apiKey, url: 'https://api.eu.mailgun.net' });
+const resend = new Resend(process.env.RESEND_API_KEY);
+const domain = process.env.MAILGUN_DOMAIN || 'yorkshirebusinesswoman.co.uk';
 
 async function sendEmail({ to, subject, html }: { to: string, subject: string, html: string }) {
-  const msgData = {
+  return resend.emails.send({
     from: `Yorkshire Businesswoman <hello@${domain}>`,
-    to: [to],
+    to: to,
     subject: subject,
     html: html
-  };
-  return mg.messages.create(domain, msgData);
+  });
 }
 
 const RECIPIENT = 'rob@topicuk.co.uk';
 
 async function sendTestEmails() {
-  console.log(`Sending NEW React-based test emails to ${RECIPIENT}...`);
+  console.log(`Sending NEW React-based test emails via Resend to ${RECIPIENT}...`);
 
   try {
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Premium)', html: getWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') });
-    console.log('✅ Premium Welcome sent');
+    const results = await Promise.all([
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Premium)', html: getWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') }),
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Free)', html: getFreeWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') }),
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Your Event Ticket Confirmation', html: getEventTicketConfirmationEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') }),
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Password Reset Request', html: getPasswordResetEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk/reset?token=test') }),
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Membership Expiring', html: getMembershipExpiringEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00') }),
+      sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Renewal Reminder', html: getRenewalReminderEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00', 7) }),
+    ]);
 
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Free)', html: getFreeWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') });
-    console.log('✅ Free Welcome sent');
+    results.forEach((res, i) => {
+      if (res.error) console.error(`❌ Email ${i+1} failed:`, res.error);
+      else console.log(`✅ Email ${i+1} sent:`, res.data?.id);
+    });
 
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Your Event Ticket Confirmation', html: getEventTicketConfirmationEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk') });
-    console.log('✅ Event Ticket sent');
-
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Password Reset Request', html: getPasswordResetEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk/reset?token=test') });
-    console.log('✅ Password Reset sent');
-
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Membership Expiring', html: getMembershipExpiringEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00') });
-    console.log('✅ Expiring sent');
-
-    await sendEmail({ to: RECIPIENT, subject: '[NEW DESIGN] Renewal Reminder', html: getRenewalReminderEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00', 7) });
-    console.log('✅ Renewal Reminder sent');
-
-    console.log('🎉 All NEW React test emails sent successfully!');
+    console.log('🎉 All NEW React test emails sent successfully via Resend!');
   } catch (error) {
     console.error('❌ Error sending emails:', error);
   }

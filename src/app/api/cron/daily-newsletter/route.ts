@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, message: 'No recipients found' });
     }
 
-    // 4. Send emails in chunks (Mailgun BCC limit is typically 1000, but we'll use smaller chunks for safety)
+    // 4. Send emails in chunks (sendmail/nodemailer can handle large volumes, but we'll use chunks for safety)
     const chunkSize = 950;
     const emailChunks = [];
     for (let i = 0; i < emails.length; i += chunkSize) {

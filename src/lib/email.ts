@@ -1,5 +1,4 @@
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
+import { Resend } from 'resend';
 
 interface SendEmailParams {
   to: string | string[];
@@ -8,57 +7,51 @@ interface SendEmailParams {
   text?: string;
   html?: string;
   replyTo?: string;
+  from?: string;
 }
 
-export async function sendEmail({ to, bcc, subject, text, html, replyTo }: SendEmailParams) {
-  const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
-  const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
+/**
+ * Sends an email using Resend.
+ * This is the modern, robust standard for Next.js apps on Vercel.
+ */
+export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }: SendEmailParams) {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-  if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
-    console.warn('Mailgun API keys are missing. Mocking email send to:', to);
+  if (!RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY is missing. Mocking email send to:', to);
     return { success: true, mock: true };
   }
 
-  const mailgun = new Mailgun(formData);
-  
-  // Robust endpoint selection:
-  // 1. Explicit process.env.MAILGUN_URL (recommended)
-  // 2. Default to EU if domain ends in .co.uk (common for this project)
-  // 3. Fallback to US
-  let url = process.env.MAILGUN_URL;
-  if (!url) {
-    url = MAILGUN_DOMAIN.endsWith('.co.uk') 
-      ? 'https://api.eu.mailgun.net' 
-      : 'https://api.mailgun.net';
-  }
-  
-  const mg = mailgun.client({ 
-    username: 'api', 
-    key: MAILGUN_API_KEY.trim(),
-    url: url 
-  });
+  const resend = new Resend(RESEND_API_KEY);
 
-  const data: any = {
-    from: `Yorkshire Businesswoman <noreply@${MAILGUN_DOMAIN}>`,
-    to: Array.isArray(to) ? to : [to],
-    subject,
-    'o:tracking-clicks': 'no',
-    'o:tracking': 'no'
-  };
-
-  if (bcc) {
-    data.bcc = Array.isArray(bcc) ? bcc : [bcc];
-  }
-
-  if (text) data.text = text;
-  if (html) data.html = html;
-  if (replyTo) data['h:Reply-To'] = replyTo;
+  const MAIL_FROM = from || process.env.EMAIL_FROM || 'Yorkshire Businesswoman <hello@yorkshirebusinesswoman.co.uk>';
 
   try {
-    const msg = await mg.messages.create(MAILGUN_DOMAIN, data);
-    return { success: true, id: msg.id };
+    const { data, error } = await resend.emails.send({
+      from: MAIL_FROM,
+      to: Array.isArray(to) ? to : [to],
+      bcc: bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : undefined,
+      subject,
+      text: text || '',
+      html: html || '',
+      reply_to: replyTo,
+    });
+
+    if (error) {
+      console.error('Error sending email via Resend:', error);
+      throw error;
+    }
+
+    console.log('Email sent successfully via Resend:', data?.id);
+    return { success: true, id: data?.id };
   } catch (error) {
-    console.error('Error sending email via Mailgun:', error);
+    console.error('Error in sendEmail (Resend):', error);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Resend failed in dev mode. Mocking success.');
+      return { success: true, mock: true };
+    }
+    
     throw error;
   }
 }

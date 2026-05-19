@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
+import { sendEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -10,15 +9,6 @@ export async function POST(req: Request) {
 
     if (!recipientId || !senderId || !message || !senderEmail || !senderName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    // Ensure Mailgun is configured
-    const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
-    const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
-
-    if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN) {
-      console.warn('Mailgun API keys missing, simulating success for dev.');
-      return NextResponse.json({ success: true, mock: true });
     }
 
     // Fetch Recipient Email from Firestore
@@ -35,28 +25,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Recipient does not have a valid email address' }, { status: 400 });
     }
 
-    // Initialize Mailgun
-    const mailgun = new Mailgun(formData);
-    const url = process.env.MAILGUN_URL || 'https://api.mailgun.net';
-    const mg = mailgun.client({ 
-      username: 'api', 
-      key: MAILGUN_API_KEY.trim(),
-      url: url 
-    });
-
-    // Construct Email
-    const data = {
-      from: `Yorkshire Businesswoman Network <noreply@${MAILGUN_DOMAIN}>`,
-      to: [recipientEmail],
-      'h:Reply-To': `${senderName} <${senderEmail}>`,
+    // Send Email using the central email library
+    const result = await sendEmail({
+      to: recipientEmail,
+      replyTo: `${senderName} <${senderEmail}>`,
       subject: `New Connection Request from ${senderName}`,
       text: `Hi ${recipientName},\n\n${senderName} from the Yorkshire Businesswoman network would like to connect with you!\n\nHere is their message:\n\n"${message}"\n\n---\nYou can reply directly to this email to respond to ${senderName}.`
-    };
+    });
 
-    // Send Email
-    const msg = await mg.messages.create(MAILGUN_DOMAIN, data);
-
-    return NextResponse.json({ success: true, id: msg.id });
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error('Error sending connection request:', error);
     return NextResponse.json({ error: error.message || 'Failed to send connection request' }, { status: 500 });

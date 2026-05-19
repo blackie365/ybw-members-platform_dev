@@ -1,7 +1,6 @@
 import { adminAuth, adminDb } from '../src/lib/firebase-admin';
-import FormData from 'form-data';
-import Mailgun from 'mailgun.js';
 import * as dotenv from 'dotenv';
+import { execSync } from 'child_process';
 dotenv.config({ path: '.env.local' });
 
 async function checkSystemHealth() {
@@ -30,22 +29,14 @@ async function checkSystemHealth() {
     }
   }
 
-  // 2. Check Mailgun
-  console.log('\n2. Checking Mailgun...');
-  const apiKey = process.env.MAILGUN_API_KEY;
-  const domain = process.env.MAILGUN_DOMAIN;
-  
-  if (!apiKey || !domain) {
-    console.error('❌ Mailgun credentials missing from .env.local');
-  } else {
-    try {
-      const mailgun = new Mailgun(FormData);
-      const mg = mailgun.client({ username: 'api', key: apiKey, url: 'https://api.eu.mailgun.net' });
-      const info = await mg.domains.get(domain);
-      console.log(`✅ Mailgun connection successful for domain: ${info.domain.name}`);
-    } catch (err: any) {
-      console.error(`❌ Mailgun connection failed: ${err.message}`);
-    }
+  // 2. Check Sendmail
+  console.log('\n2. Checking Sendmail...');
+  try {
+    const sendmailPath = execSync('which sendmail').toString().trim();
+    console.log(`✅ Sendmail binary found at: ${sendmailPath}`);
+  } catch (err) {
+    console.error('❌ Sendmail binary not found in system path.');
+    console.warn('   Note: Sendmail might still work if configured with an absolute path in src/lib/email.ts');
   }
 
   // 3. Check Environment Variables
