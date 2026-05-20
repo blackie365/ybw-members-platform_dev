@@ -94,7 +94,7 @@ export default function PrivacyPolicyPage() {
               You have a choice about whether or not you wish to receive information from us. If you do not want to receive direct marketing communications from us, you can select your choices by ticking the relevant boxes situated on the form on which we collect your information.
             </p>
             <p>
-              We will not contact you for marketing purposes by email, phone or text message unless you have given your prior consent. You can change your marketing preferences at any time by contacting us or using the 'unsubscribe' link at the bottom of our emails.
+              We will not contact you for marketing purposes by email, phone or text message unless you have given your prior consent. You can change your marketing preferences at any time by contacting us or using the &apos;unsubscribe&apos; link at the bottom of our emails.
             </p>
           </section>
 
@@ -108,7 +108,7 @@ export default function PrivacyPolicyPage() {
           <section className="mb-12">
             <h2>8. Security precautions</h2>
             <p>
-              When you give us personal information, we take steps to ensure that it’s treated securely. Any sensitive information (such as credit or debit card details) is encrypted and protected with SSL encryption.
+              When you give us personal information, we take steps to ensure that it&apos;s treated securely. Any sensitive information (such as credit or debit card details) is encrypted and protected with SSL encryption.
             </p>
           </section>
 

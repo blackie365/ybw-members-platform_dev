@@ -31,8 +31,8 @@ export const getFreeWelcomeEmailTemplate = async (firstName: string, appUrl: str
 
 export const getEventTicketConfirmationEmailTemplate = async (firstName: string, appUrl: string) => {
   return await renderEmail(
-    <EmailLayout previewText={`You're going to the event, ${firstName}!`}>
-      <EmailHeading>You're going to the event!</EmailHeading>
+    <EmailLayout previewText={`You&apos;re going to the event, ${firstName}!`}>
+      <EmailHeading>You&apos;re going to the event!</EmailHeading>
       <EmailText>Hi {firstName},</EmailText>
       <EmailText>This email confirms your successful ticket purchase and RSVP.</EmailText>
       <EmailText>Your name has been automatically added to the guest list. You can view the event details and see who else is attending by visiting the event page on the Yorkshire Businesswoman platform.</EmailText>

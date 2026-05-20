@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { addGhostMember, editGhostMember } from '@/lib/ghost';
+import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 
 // You can find this secret in your .env.local file

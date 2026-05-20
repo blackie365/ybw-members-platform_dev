@@ -43,7 +43,7 @@ export function PasswordResetEmail({ firstName, resetLink }: { firstName: string
       </EmailHighlightBox>
 
       <EmailText>
-        If you have any questions or need assistance, please don't hesitate to contact our support team.
+        If you have any questions or need assistance, please don&apos;t hesitate to contact our support team.
       </EmailText>
 
       <EmailText>
