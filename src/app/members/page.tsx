@@ -17,6 +17,15 @@ async function getMembers() {
         return value;
       }));
 
+      // Find the best image URL, preferring storage over gravatar
+      const avatarUrl = sanitizedData.avatarUrl || "";
+      const profileImage = sanitizedData.profileImage || "";
+      const image = [avatarUrl, profileImage, sanitizedData.image].find(url => 
+        url && typeof url === 'string' && url.includes('storage.googleapis.com')
+      ) || [avatarUrl, profileImage, sanitizedData.image].find(url => 
+        url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+      ) || avatarUrl || profileImage;
+
       return {
         id: doc.id,
         ...sanitizedData,
@@ -25,7 +34,7 @@ async function getMembers() {
         role: sanitizedData.jobTitle || sanitizedData.role,
         bio: sanitizedData.bio,
         location: sanitizedData.location || sanitizedData.city,
-        image: sanitizedData.profileImage || sanitizedData.image || sanitizedData.avatarUrl,
+        image: image,
         linkedin: sanitizedData.linkedinUrl || sanitizedData.linkedin,
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
@@ -33,12 +42,15 @@ async function getMembers() {
       // Only show Premium and Founder members (the 88 active members)
       const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
       
-      const hasImage = !!member.image;
+      // Validate the image - if it's a blank gravatar, we consider it "missing"
+      const isBlankGravatar = typeof member.image === 'string' && member.image.includes('gravatar.com/avatar') && member.image.includes('d=blank');
+      const hasRealImage = !!member.image && !isBlankGravatar;
+      
       const hasName = member.name && member.name.trim().length > 0;
       
-      // We keep the requirement for an image and name for a professional look,
+      // We keep the requirement for a real image and name for a professional look,
       // but ensure only the premium tier is considered.
-      return isPremium && hasImage && hasName;
+      return isPremium && hasRealImage && hasName;
     });
     return members;
   } catch (error: any) {

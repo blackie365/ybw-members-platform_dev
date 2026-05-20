@@ -98,7 +98,19 @@ export default async function MemberProfilePage({
     notFound();
   }
 
-  const profileImage = member.avatarUrl || member.profileImage;
+  // Find the best image URL, preferring storage over gravatar
+  const avatarUrl = member.avatarUrl || "";
+  const profileImageSource = member.profileImage || "";
+  const profileImage = [avatarUrl, profileImageSource, member.image].find((url: any) => 
+    url && typeof url === 'string' && url.includes('storage.googleapis.com')
+  ) || [avatarUrl, profileImageSource, member.image].find((url: any) => 
+    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+  ) || avatarUrl || profileImageSource;
+
+  // Check if image is a blank gravatar
+  const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
+  const hasRealImage = profileImage && !isBlankGravatar;
+
   const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
   const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
   const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
@@ -127,7 +139,7 @@ export default async function MemberProfilePage({
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
             {/* Avatar */}
             <div className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-full ring-4 ring-background shadow-xl overflow-hidden flex-shrink-0">
-              {profileImage && !profileImage.includes('gravatar.com/avatar') ? (
+              {hasRealImage ? (
                 <Image
                   src={profileImage}
                   alt={firstName}

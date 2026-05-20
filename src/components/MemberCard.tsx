@@ -5,7 +5,15 @@ import Link from 'next/link';
 import { ArrowRight, MapPin, Briefcase } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
-  const profileImage = member.avatarUrl || member.profileImage;
+  // Find the best image URL, preferring storage over gravatar
+  const avatarUrl = member.avatarUrl || "";
+  const profileImageSource = member.profileImage || "";
+  const profileImage = [avatarUrl, profileImageSource, member.image].find(url => 
+    url && typeof url === 'string' && url.includes('storage.googleapis.com')
+  ) || [avatarUrl, profileImageSource, member.image].find(url => 
+    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+  ) || avatarUrl || profileImageSource;
+
   const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
   const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
   const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
@@ -13,6 +21,10 @@ export function MemberCard({ member }: { member: any }) {
   const jobTitle = member.jobTitle || '';
   const companyName = member.companyName || '';
   const location = member.location || '';
+
+  // Check if image is a blank gravatar
+  const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
+  const hasRealImage = profileImage && !isBlankGravatar;
 
   return (
     <Link
@@ -28,7 +40,7 @@ export function MemberCard({ member }: { member: any }) {
         
         {/* Avatar */}
         <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-background shadow-md">
-          {profileImage && !profileImage.includes('gravatar.com/avatar') ? (
+          {hasRealImage ? (
             <Image
               src={profileImage}
               alt={firstName || 'Member'}
