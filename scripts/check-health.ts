@@ -1,6 +1,6 @@
 import { adminAuth, adminDb } from '../src/lib/firebase-admin';
 import * as dotenv from 'dotenv';
-import { execSync } from 'child_process';
+import { Resend } from 'resend';
 dotenv.config({ path: '.env.local' });
 
 async function checkSystemHealth() {
@@ -16,35 +16,33 @@ async function checkSystemHealth() {
       console.log(`Attempting to fetch user: ${testEmail}`);
       const user = await adminAuth.getUserByEmail(testEmail);
       console.log(`✅ Firebase Auth connection successful. User UID: ${user.uid}`);
-      
-      console.log('Attempting to generate a test reset link...');
-      const link = await adminAuth.generatePasswordResetLink(testEmail);
-      console.log(`✅ Firebase link generation successful.`);
-      console.log(`Link: ${link.substring(0, 50)}...`);
     } catch (err: any) {
       console.error(`❌ Firebase test failed: ${err.message}`);
-      if (err.message.includes('INTERNAL ASSERT FAILED')) {
-        console.error('   This is a known SDK bug. The fallback logic will be used.');
-      }
     }
   }
 
-  // 2. Check Sendmail
-  console.log('\n2. Checking Sendmail...');
-  try {
-    const sendmailPath = execSync('which sendmail').toString().trim();
-    console.log(`✅ Sendmail binary found at: ${sendmailPath}`);
-  } catch (err) {
-    console.error('❌ Sendmail binary not found in system path.');
-    console.warn('   Note: Sendmail might still work if configured with an absolute path in src/lib/email.ts');
+  // 2. Check Resend
+  console.log('\n2. Checking Resend...');
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.error('❌ RESEND_API_KEY missing from .env.local');
+  } else {
+    try {
+      const resend = new Resend(resendKey);
+      const { data, error } = await resend.domains.list();
+      if (error) throw error;
+      console.log(`✅ Resend API connection successful. Found ${data?.data.length} domains.`);
+    } catch (err: any) {
+      console.error(`❌ Resend connection failed: ${err.message}`);
+    }
   }
 
   // 3. Check Environment Variables
   console.log('\n3. Checking Environment Variables...');
-  const required = ['NEXT_PUBLIC_APP_URL', 'NEXT_PUBLIC_FIREBASE_API_KEY'];
+  const required = ['NEXT_PUBLIC_APP_URL', 'NEXT_PUBLIC_FIREBASE_API_KEY', 'CLERK_SECRET_KEY'];
   required.forEach(v => {
     if (!process.env[v]) {
-      console.warn(`⚠️  Missing ${v} - this may cause link errors on the website.`);
+      console.warn(`⚠️  Missing ${v}`);
     } else {
       console.log(`✅ ${v} is set.`);
     }

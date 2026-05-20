@@ -84,7 +84,7 @@ export default function PrivacyPolicyPage() {
               We will not sell or rent your information to third parties. We will not share your information with third parties for marketing purposes.
             </p>
             <p>
-              <strong>Third Party Service Providers working on our behalf:</strong> We may pass your information to our third-party service providers (such as Stripe for payments and Mailgun for email delivery) for the purposes of completing tasks and providing services to you on our behalf. However, when we use third-party service providers, we disclose only the personal information that is necessary to deliver the service.
+              <strong>Third Party Service Providers working on our behalf:</strong> We may pass your information to our third-party service providers (such as Stripe for payments and Resend for email delivery) for the purposes of completing tasks and providing services to you on our behalf. However, when we use third-party service providers, we disclose only the personal information that is necessary to deliver the service.
             </p>
           </section>
 
