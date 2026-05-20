@@ -13,27 +13,39 @@ async function getMemberBySlug(slug: string) {
   try {
     if (!adminDb) return null;
     
+    // 1. Try slug field
     let snapshot = await adminDb.collection('newMemberCollection')
       .where('slug', '==', slug)
       .limit(1)
       .get();
       
     if (!snapshot.empty) {
-      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+      const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+        return member;
+      }
     }
     
+    // 2. Try memberSlug field
     snapshot = await adminDb.collection('newMemberCollection')
       .where('memberSlug', '==', slug)
       .limit(1)
       .get();
 
     if (!snapshot.empty) {
-      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+      const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+        return member;
+      }
     }
     
+    // 3. Try document ID
     const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
     if (docRef.exists) {
-      return { id: docRef.id, ...docRef.data() } as any;
+      const member = { id: docRef.id, ...docRef.data() } as any;
+      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+        return member;
+      }
     }
 
     return null;

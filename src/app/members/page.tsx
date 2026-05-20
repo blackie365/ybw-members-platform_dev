@@ -30,11 +30,15 @@ async function getMembers() {
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
     }).filter((member: any) => {
+      // Only show Premium and Founder members (the 88 active members)
+      const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
+      
       const hasImage = !!member.image;
-      const hasBio = member.bio && member.bio.trim().length > 20;
       const hasName = member.name && member.name.trim().length > 0;
       
-      return hasImage && hasBio && hasName;
+      // We keep the requirement for an image and name for a professional look,
+      // but ensure only the premium tier is considered.
+      return isPremium && hasImage && hasName;
     });
     return members;
   } catch (error: any) {
