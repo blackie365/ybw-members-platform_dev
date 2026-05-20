@@ -26,3 +26,43 @@ export async function getEventMetadata(slug: string) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Updates event metadata in Firestore.
+ */
+export async function updateEventMetadata(slug: string, data: Partial<Event>) {
+  try {
+    if (!adminDb) return { success: false, error: 'Database not initialized' };
+
+    await adminDb.collection('events').doc(slug).set({
+      ...data,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating event metadata:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Fetches all event metadata from Firestore.
+ */
+export async function getAllEventsMetadata() {
+  try {
+    if (!adminDb) return { success: false, error: 'Database not initialized' };
+
+    const snapshot = await adminDb.collection('events').get();
+    const events: Record<string, any> = {};
+    
+    snapshot.forEach(doc => {
+      events[doc.id] = doc.data();
+    });
+
+    return { success: true, data: events };
+  } catch (error: any) {
+    console.error('Error fetching all events metadata:', error);
+    return { success: false, error: error.message };
+  }
+}
