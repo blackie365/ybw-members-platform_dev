@@ -64,12 +64,14 @@ export async function POST(req: Request) {
     const slug = slugify(fullName || email.split('@')[0])
 
     try {
-      // Sync to Firestore
+      // Sync to Firestore using standardized schema
       await adminDb.collection('newMemberCollection').doc(id).set({
         firstName,
         lastName,
+        displayName: fullName,
         email,
-        slug,
+        memberSlug: slug,
+        avatarUrl: image_url,
         profileImage: image_url,
         status: 'active',
         membershipTier: 'free',

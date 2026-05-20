@@ -15,10 +15,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
   const filteredAndSortedMembers = useMemo(() => {
     let result = initialMembers.filter((member) => {
       const term = searchTerm.toLowerCase();
-      const firstName = (member.firstName || member['First Name'] || '').toLowerCase();
-      const lastName = (member.lastName || member['Last Name'] || '').toLowerCase();
+      const firstName = (member.firstName || "").toLowerCase();
+      const lastName = (member.lastName || "").toLowerCase();
       const company = (member.companyName || '').toLowerCase();
-      const bio = (member.bio || member['Bio'] || '').toLowerCase();
+      const bio = (member.bio || '').toLowerCase();
       const jobTitle = (member.jobTitle || '').toLowerCase();
 
       const matchesSearch = firstName.includes(term) ||
@@ -37,8 +37,8 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
     });
 
     return result.sort((a, b) => {
-      const nameA = (a.firstName || a['First Name'] || '').toLowerCase();
-      const nameB = (b.firstName || b['First Name'] || '').toLowerCase();
+      const nameA = (a.firstName || '').toLowerCase();
+      const nameB = (b.firstName || '').toLowerCase();
       
       if (sortOrder === 'asc') {
         return nameA.localeCompare(nameB);

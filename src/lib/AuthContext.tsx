@@ -20,8 +20,10 @@ export interface AuthUser {
 export interface MemberProfile {
   firstName: string;
   lastName: string;
+  displayName?: string;
   email: string;
   slug: string;
+  memberSlug?: string;
   companyName?: string;
   jobTitle?: string;
   bio?: string;
@@ -30,6 +32,7 @@ export interface MemberProfile {
   twitterUrl?: string;
   instagramUrl?: string;
   profileImage?: string;
+  avatarUrl?: string;
   bannerImage?: string;
   location?: string;
   industrySector?: string;
@@ -157,8 +160,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const profileData: MemberProfile = {
           firstName: data.firstName || '',
           lastName: data.lastName || '',
+          displayName: data.displayName,
           email: data.email || '',
           slug: data.slug || '',
+          memberSlug: data.memberSlug,
           companyName: data.companyName,
           jobTitle: data.jobTitle,
           bio: data.bio,
@@ -167,6 +172,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           twitterUrl: data.twitterUrl,
           instagramUrl: data.instagramUrl,
           profileImage: data.profileImage,
+          avatarUrl: data.avatarUrl,
           bannerImage: data.bannerImage,
           location: data.location,
           industrySector: data.industrySector,

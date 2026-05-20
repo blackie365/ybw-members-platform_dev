@@ -42,12 +42,15 @@ interface Member {
   id: string
   firstName: string
   lastName: string
+  displayName?: string
   email: string
   profileImage?: string
+  avatarUrl?: string
   membershipTier: string
   role: string
   industrySector?: string
   location?: string
+  status?: string
   isFeatured?: boolean
   createdAt: string
   updatedAt?: string
@@ -243,26 +246,15 @@ export default function AdminMembersPage() {
   }
 
   const filteredMembers = members.filter((member) => {
-    // Get all possible name sources
-    const m = member as any
-    const firstName = m.firstName || m["First Name"] || m.displayName?.split(' ')[0] || ""
-    const lastName = m.lastName || m["Last Name"] || m.displayName?.split(' ').slice(1).join(' ') || ""
-    const fullName = `${firstName} ${lastName}`.toLowerCase()
-    const displayName = (m.displayName || "").toLowerCase()
-    const searchName = (m.searchName || "").toLowerCase()
-    
-    // Get all possible email sources
-    const email = (m.email || m.Email || "").toLowerCase()
-    
-    // Get all possible industry sources
-    const industry = (m.industrySector || m.industry || m.category || m.Category || "").toLowerCase()
-    
+    const fullName = `${member.firstName || ""} ${member.lastName || ""}`.toLowerCase()
+    const displayName = (member.displayName || "").toLowerCase()
+    const email = (member.email || "").toLowerCase()
+    const industry = (member.industrySector || "").toLowerCase()
     const searchTerm = search.toLowerCase().trim()
 
     const matchesSearch =
       fullName.includes(searchTerm) ||
       displayName.includes(searchTerm) ||
-      searchName.includes(searchTerm) ||
       email.includes(searchTerm) ||
       industry.includes(searchTerm)
     
@@ -395,73 +387,68 @@ export default function AdminMembersPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredMembers.map((member) => {
-                        const m = member as any
-                        const firstName = m.firstName || m["First Name"] || m.displayName?.split(' ')[0] || ""
-                        const lastName = m.lastName || m["Last Name"] || m.displayName?.split(' ').slice(1).join(' ') || ""
-                        const fullName = `${firstName} ${lastName}`.trim() || m.displayName || "Unknown Member"
-                        const initial = firstName?.[0] || m.displayName?.[0] || "?"
-                        const displayEmail = m.email || m.Email || "No email"
-                        const displayIndustry = m.industrySector || m.industry || m.category || m.Category || "-"
+                        const fullName = member.displayName || `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown Member"
+                        const initial = (member.firstName?.[0] || member.displayName?.[0] || "?").toUpperCase()
 
                         return (
                           <TableRow key={member.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9">
-                                  <AvatarImage src={m.avatarUrl || m.profileImage} alt={fullName} />
+                                  <AvatarImage src={member.avatarUrl || member.profileImage} alt={fullName} />
                                   <AvatarFallback className="bg-accent/10 text-accent text-sm">
                                     {initial}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
                                   <p className="font-medium">{fullName}</p>
-                                  <p className="text-sm text-muted-foreground">{displayEmail}</p>
+                                  <p className="text-sm text-muted-foreground">{member.email}</p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <Select
                                 value={member.membershipTier || "free"}
-                              onValueChange={(value) => updateMemberTier(member.id, value)}
-                              disabled={updating === member.id}
-                            >
-                              <SelectTrigger className="w-[130px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="free">Free</SelectItem>
-                                <SelectItem value="premium">Premium</SelectItem>
-                                <SelectItem value="founder">Founder</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={member.role || "member"}
-                              onValueChange={(value) => updateMemberRole(member.id, value)}
-                              disabled={updating === member.id}
-                            >
-                              <SelectTrigger className="w-[110px] h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="member">Member</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center">
-                              <Switch
-                                checked={!!member.isFeatured}
-                                onCheckedChange={() => handleToggleFeatured(member.id, !!member.isFeatured)}
+                                onValueChange={(value) => updateMemberTier(member.id, value)}
                                 disabled={updating === member.id}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {displayIndustry}
-                          </TableCell>
+                              >
+                                <SelectTrigger className="w-[130px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="free">Free</SelectItem>
+                                  <SelectItem value="premium">Premium</SelectItem>
+                                  <SelectItem value="founder">Founder</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={member.role || "member"}
+                                onValueChange={(value) => updateMemberRole(member.id, value)}
+                                disabled={updating === member.id}
+                              >
+                                <SelectTrigger className="w-[110px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="member">Member</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex justify-center">
+                                <Switch
+                                  checked={!!member.isFeatured}
+                                  onCheckedChange={() => handleToggleFeatured(member.id, !!member.isFeatured)}
+                                  disabled={updating === member.id}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {member.industrySector || "-"}
+                            </TableCell>
                           <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                             {formatDate(member.createdAt)}
                           </TableCell>

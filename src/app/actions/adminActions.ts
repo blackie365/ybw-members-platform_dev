@@ -120,8 +120,8 @@ export async function getAnalyticsData() {
         ...data,
         createdAt: data.createdAt || new Date().toISOString(),
         membershipTier: data.membershipTier || 'free',
-        industrySector: data.industrySector || data.industry || 'Unknown',
-        location: data.location || data.city || 'Unknown'
+        industrySector: data.industrySector || 'Unknown',
+        location: data.location || 'Unknown'
       };
     });
 

@@ -5,18 +5,18 @@ import Link from 'next/link';
 import { ArrowRight, MapPin, Briefcase } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
-  const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
-  const firstName = member.firstName || member['First Name'] || '';
-  const lastName = member.lastName || member['Last Name'] || '';
-  const initial = firstName ? firstName[0].toUpperCase() : '?';
-  const bio = member.bio || member['Bio'] || '';
+  const profileImage = member.avatarUrl || member.profileImage;
+  const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
+  const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
+  const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
+  const bio = member.bio || '';
   const jobTitle = member.jobTitle || '';
   const companyName = member.companyName || '';
   const location = member.location || '';
 
   return (
     <Link
-      href={`/members/${member.memberSlug || member.slug || member.id}`}
+      href={`/members/${member.memberSlug || member.id}`}
       className="group relative flex flex-col bg-card border border-border overflow-hidden transition-all duration-300 hover:border-accent/40 hover:shadow-lg"
     >
       {/* Top accent bar that appears on hover */}

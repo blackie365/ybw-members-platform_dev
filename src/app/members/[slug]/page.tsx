@@ -51,12 +51,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: 'Member Not Found' };
   }
 
-  const firstName = member.firstName || member['First Name'] || '';
-  const lastName = member.lastName || member['Last Name'] || '';
-  const fullName = `${firstName} ${lastName}`.trim();
-  const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
+  const firstName = member.firstName || '';
+  const lastName = member.lastName || '';
+  const fullName = `${firstName} ${lastName}`.trim() || member.displayName || 'Unknown Member';
+  const profileImage = member.avatarUrl || member.profileImage;
   const title = member.jobTitle ? `${member.jobTitle} at ${member.companyName}` : (member.companyName || '');
-  const description = member.bio || member['Bio'] || `View ${fullName}'s profile on Yorkshire Businesswoman.`;
+  const description = member.bio || `View ${fullName}'s profile on Yorkshire Businesswoman.`;
 
   return {
     title: `${fullName} | Member Directory`,
@@ -86,11 +86,11 @@ export default async function MemberProfilePage({
     notFound();
   }
 
-  const profileImage = member.avatarUrl || member.profileImage || member['Profile Image'];
-  const firstName = member.firstName || member['First Name'] || '';
-  const lastName = member.lastName || member['Last Name'] || '';
-  const initial = firstName ? firstName[0].toUpperCase() : '?';
-  const bio = member.bio || member['Bio'] || '';
+  const profileImage = member.avatarUrl || member.profileImage;
+  const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
+  const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
+  const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
+  const bio = member.bio || '';
   const isFeatured = member.isFeatured === true;
 
   return (
