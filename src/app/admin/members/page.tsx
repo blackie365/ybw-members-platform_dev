@@ -243,11 +243,20 @@ export default function AdminMembersPage() {
   }
 
   const filteredMembers = members.filter((member) => {
-    const fullName = `${member.firstName || ""} ${member.lastName || ""}`.toLowerCase()
+    const firstName = member.firstName || (member as any).displayName?.split(' ')[0] || ""
+    const lastName = member.lastName || (member as any).displayName?.split(' ').slice(1).join(' ') || ""
+    const fullName = `${firstName} ${lastName}`.toLowerCase()
+    const displayName = ((member as any).displayName || "").toLowerCase()
+    const email = (member.email || "").toLowerCase()
+    const industry = (member.industrySector || (member as any).industry || "").toLowerCase()
+    const searchTerm = search.toLowerCase()
+
     const matchesSearch =
-      fullName.includes(search.toLowerCase()) ||
-      member.email?.toLowerCase().includes(search.toLowerCase()) ||
-      member.industrySector?.toLowerCase().includes(search.toLowerCase())
+      fullName.includes(searchTerm) ||
+      displayName.includes(searchTerm) ||
+      email.includes(searchTerm) ||
+      industry.includes(searchTerm)
+    
     const matchesTier = tierFilter === "all" || member.membershipTier === tierFilter
     return matchesSearch && matchesTier
   })
@@ -376,22 +385,28 @@ export default function AdminMembersPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredMembers.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-9 w-9">
-                                <AvatarImage src={member.profileImage} alt={`${member.firstName} ${member.lastName}`} />
-                                <AvatarFallback className="bg-accent/10 text-accent text-sm">
-                                  {member.firstName?.[0]}{member.lastName?.[0] || "?"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{member.firstName} {member.lastName}</p>
-                                <p className="text-sm text-muted-foreground">{member.email}</p>
+                      {filteredMembers.map((member) => {
+                        const firstName = member.firstName || (member as any).displayName?.split(' ')[0] || ""
+                        const lastName = member.lastName || (member as any).displayName?.split(' ').slice(1).join(' ') || ""
+                        const fullName = `${firstName} ${lastName}`.trim() || (member as any).displayName || "Unknown Member"
+                        const initial = firstName?.[0] || (member as any).displayName?.[0] || "?"
+
+                        return (
+                          <TableRow key={member.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                  <AvatarImage src={member.profileImage} alt={fullName} />
+                                  <AvatarFallback className="bg-accent/10 text-accent text-sm">
+                                    {initial}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium">{fullName}</p>
+                                  <p className="text-sm text-muted-foreground">{member.email}</p>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
+                            </TableCell>
                           <TableCell>
                             <Select
                               value={member.membershipTier || "free"}
@@ -464,7 +479,7 @@ export default function AdminMembersPage() {
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </div>
