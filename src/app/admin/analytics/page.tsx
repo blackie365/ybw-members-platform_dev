@@ -3,33 +3,37 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin } from "lucide-react"
-import { db } from "@/lib/firebase"
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore"
-import type { MemberProfile } from "@/lib/AuthContext"
+import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin, Loader2 } from "lucide-react"
+import { getAnalyticsData } from "@/app/actions/adminActions"
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell,
+  Legend
+} from "recharts"
 
 interface AnalyticsData {
-  membersByMonth: { month: string; count: number }[]
-  membersByTier: { tier: string; count: number }[]
-  membersByIndustry: { industry: string; count: number }[]
-  membersByLocation: { location: string; count: number }[]
-  eventAttendance: { event: string; attendees: number; capacity: number }[]
+  membersByMonth: { name: string; count: number }[]
+  membersByTier: { name: string; value: number }[]
+  membersByIndustry: { name: string; value: number }[]
+  membersByLocation: { name: string; value: number }[]
+  eventAttendance: { name: string; attendees: number; capacity: number }[]
   totalMembers: number
   totalEvents: number
   totalMessages: number
 }
 
+const COLORS = ['#b79c65', '#1c1917', '#57534e', '#e7e5e4', '#d4d4d8', '#71717a', '#3f3f46', '#18181b'];
+
 export default function AdminAnalyticsPage() {
-  const [data, setData] = useState<AnalyticsData>({
-    membersByMonth: [],
-    membersByTier: [],
-    membersByIndustry: [],
-    membersByLocation: [],
-    eventAttendance: [],
-    totalMembers: 0,
-    totalEvents: 0,
-    totalMessages: 0,
-  })
+  const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,99 +42,10 @@ export default function AdminAnalyticsPage() {
 
   const fetchAnalytics = async () => {
     try {
-      // Fetch all members
-      const membersRef = collection(db, "users")
-      const membersSnap = await getDocs(membersRef)
-      const members = membersSnap.docs.map((doc) => {
-        const data = doc.data() as MemberProfile
-        return {
-          ...data,
-          createdAt: doc.data().createdAt?.toMillis?.() || Date.now(),
-        }
-      })
-
-      // Members by month (last 6 months)
-      const monthlyData: Record<string, number> = {}
-      const now = new Date()
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const key = d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" })
-        monthlyData[key] = 0
+      const res = await getAnalyticsData()
+      if (res.success && res.data) {
+        setData(res.data)
       }
-      members.forEach((m) => {
-        const d = new Date(m.createdAt)
-        const key = d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" })
-        if (key in monthlyData) {
-          monthlyData[key]++
-        }
-      })
-      const membersByMonth = Object.entries(monthlyData).map(([month, count]) => ({
-        month,
-        count,
-      }))
-
-      // Members by tier
-      const tierCounts: Record<string, number> = { free: 0, premium: 0, professional: 0 }
-      members.forEach((m) => {
-        const tier = m.membershipTier || "free"
-        tierCounts[tier] = (tierCounts[tier] || 0) + 1
-      })
-      const membersByTier = Object.entries(tierCounts).map(([tier, count]) => ({
-        tier: tier.charAt(0).toUpperCase() + tier.slice(1),
-        count,
-      }))
-
-      // Members by industry (top 6)
-      const industryCounts: Record<string, number> = {}
-      members.forEach((m) => {
-        const ind = m.industrySector || (m as any).industry
-        if (ind) {
-          industryCounts[ind] = (industryCounts[ind] || 0) + 1
-        }
-      })
-      const membersByIndustry = Object.entries(industryCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([industry, count]) => ({ industry, count }))
-
-      // Members by location (top 6)
-      const locationCounts: Record<string, number> = {}
-      members.forEach((m) => {
-        if (m.location) {
-          locationCounts[m.location] = (locationCounts[m.location] || 0) + 1
-        }
-      })
-      const membersByLocation = Object.entries(locationCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([location, count]) => ({ location, count }))
-
-      // Fetch events
-      const eventsRef = collection(db, "events")
-      const eventsSnap = await getDocs(eventsRef)
-      const events = eventsSnap.docs.map((doc) => doc.data())
-      const eventAttendance = events
-        .slice(0, 5)
-        .map((e) => ({
-          event: e.title?.slice(0, 25) + (e.title?.length > 25 ? "..." : "") || "Untitled",
-          attendees: e.attendees?.length || 0,
-          capacity: e.capacity || 50,
-        }))
-
-      // Fetch message threads
-      const threadsRef = collection(db, "messageThreads")
-      const threadsSnap = await getDocs(threadsRef)
-
-      setData({
-        membersByMonth,
-        membersByTier,
-        membersByIndustry,
-        membersByLocation,
-        eventAttendance,
-        totalMembers: members.length,
-        totalEvents: events.length,
-        totalMessages: threadsSnap.size,
-      })
     } catch (error) {
       console.error("Failed to fetch analytics:", error)
     } finally {
@@ -138,261 +53,241 @@ export default function AdminAnalyticsPage() {
     }
   }
 
-  const maxMonthlyCount = Math.max(...data.membersByMonth.map((d) => d.count), 1)
-  const maxIndustryCount = Math.max(...data.membersByIndustry.map((d) => d.count), 1)
-
-  const tierColors: Record<string, string> = {
-    Free: "bg-muted",
-    Premium: "bg-accent",
-    Professional: "bg-amber-500",
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <p className="text-muted-foreground">Gathering community insights...</p>
+      </div>
+    )
   }
+
+  if (!data) return null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-3xl font-bold text-foreground">Analytics</h1>
-        <p className="text-muted-foreground mt-1">
-          Insights into your community
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl font-bold text-foreground">Analytics</h1>
+          <p className="text-muted-foreground mt-1">
+            Real-time insights into your community growth and engagement
+          </p>
+        </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Total Members
             </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : data.totalMembers}</div>
+            <div className="text-3xl font-serif font-bold text-foreground">{data.totalMembers}</div>
+            <p className="text-xs text-muted-foreground mt-1">Across all tiers</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Events
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Managed Events
             </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : data.totalEvents}</div>
+            <div className="text-3xl font-serif font-bold text-foreground">{data.totalEvents}</div>
+            <p className="text-xs text-muted-foreground mt-1">Stored in metadata</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Conversations
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Connections
             </CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <MessageSquare className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : data.totalMessages}</div>
+            <div className="text-3xl font-serif font-bold text-foreground">{data.totalMessages}</div>
+            <p className="text-xs text-muted-foreground mt-1">Message threads</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="growth" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="growth">Member Growth</TabsTrigger>
-          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
+      <Tabs defaultValue="growth" className="space-y-6">
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="growth" className="px-6">Growth</TabsTrigger>
+          <TabsTrigger value="demographics" className="px-6">Demographics</TabsTrigger>
+          <TabsTrigger value="engagement" className="px-6">Engagement</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="growth" className="space-y-4">
+        <TabsContent value="growth">
           <Card>
             <CardHeader>
-              <CardTitle>Member Growth</CardTitle>
-              <CardDescription>New members over the last 6 months</CardDescription>
+              <CardTitle className="font-serif">Member Growth</CardTitle>
+              <CardDescription>New member registrations over the last 12 months</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  Loading...
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-end justify-between gap-2 h-[200px]">
-                    {data.membersByMonth.map((item) => (
-                      <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-                        <div
-                          className="w-full bg-accent rounded-t transition-all"
-                          style={{
-                            height: `${(item.count / maxMonthlyCount) * 160}px`,
-                            minHeight: item.count > 0 ? "8px" : "2px",
-                          }}
-                        />
-                        <span className="text-xs text-muted-foreground">{item.month}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-center gap-8 text-sm">
-                    {data.membersByMonth.map((item) => (
-                      <span key={item.month} className="text-muted-foreground">
-                        {item.count}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="h-[400px] w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.membersByMonth}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#888' }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8f8f8' }}
+                      contentStyle={{ 
+                        borderRadius: '8px', 
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      fill="#b79c65" 
+                      radius={[4, 4, 0, 0]} 
+                      barSize={40}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="breakdown" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* By Tier */}
+        <TabsContent value="demographics">
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Membership Tiers */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Membership Tiers
-                </CardTitle>
+                <CardTitle className="font-serif">Membership Tiers</CardTitle>
+                <CardDescription>Distribution of members by plan</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="h-[150px] flex items-center justify-center text-muted-foreground">
-                    Loading...
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {data.membersByTier.map((item) => (
-                      <div key={item.tier} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{item.tier}</span>
-                          <span className="text-muted-foreground">{item.count}</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${tierColors[item.tier] || "bg-accent"}`}
-                            style={{
-                              width: `${(item.count / data.totalMembers) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.membersByTier}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {data.membersByTier.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
-            {/* By Industry */}
+            {/* Top Industries */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  Top Industries
-                </CardTitle>
+                <CardTitle className="font-serif">Top Industries</CardTitle>
+                <CardDescription>Members grouped by sector</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="h-[150px] flex items-center justify-center text-muted-foreground">
-                    Loading...
-                  </div>
-                ) : data.membersByIndustry.length === 0 ? (
-                  <div className="h-[150px] flex items-center justify-center text-muted-foreground">
-                    No industry data yet
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {data.membersByIndustry.map((item, idx) => (
-                      <div key={item.industry} className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground w-4">{idx + 1}</span>
-                        <div className="flex-1">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="truncate">{item.industry}</span>
-                            <span className="text-muted-foreground shrink-0">{item.count}</span>
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-accent rounded-full"
-                              style={{
-                                width: `${(item.count / maxIndustryCount) * 100}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={data.membersByIndustry}
+                      margin={{ left: 20, right: 30 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false}
+                        width={100}
+                        tick={{ fontSize: 11, fill: '#666' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      />
+                      <Bar 
+                        dataKey="value" 
+                        fill="#1c1917" 
+                        radius={[0, 4, 4, 0]}
+                        barSize={20}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
 
-            {/* By Location */}
+            {/* Top Locations */}
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Member Locations
-                </CardTitle>
+                <CardTitle className="font-serif">Top Locations</CardTitle>
+                <CardDescription>Geographic distribution of members</CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
-                  <div className="h-[100px] flex items-center justify-center text-muted-foreground">
-                    Loading...
-                  </div>
-                ) : data.membersByLocation.length === 0 ? (
-                  <div className="h-[100px] flex items-center justify-center text-muted-foreground">
-                    No location data yet
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {data.membersByLocation.map((item) => (
-                      <div
-                        key={item.location}
-                        className="bg-muted px-3 py-2 rounded-lg"
-                      >
-                        <span className="font-medium">{item.location}</span>
-                        <span className="text-muted-foreground ml-2">({item.count})</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
+                  {data.membersByLocation.map((loc, idx) => (
+                    <div key={loc.name} className="flex flex-col items-center p-4 bg-muted/30 rounded-lg">
+                      <MapPin className="h-4 w-4 text-accent mb-2" />
+                      <span className="text-sm font-medium text-foreground">{loc.name}</span>
+                      <span className="text-2xl font-serif font-bold text-accent mt-1">{loc.value}</span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="events" className="space-y-4">
+        <TabsContent value="engagement">
           <Card>
             <CardHeader>
-              <CardTitle>Event Attendance</CardTitle>
-              <CardDescription>Recent event capacity vs attendance</CardDescription>
+              <CardTitle className="font-serif">Event RSVPs</CardTitle>
+              <CardDescription>Registration counts for managed events</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  Loading...
-                </div>
-              ) : data.eventAttendance.length === 0 ? (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  No events yet
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {data.eventAttendance.map((event) => (
-                    <div key={event.event} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="truncate">{event.event}</span>
-                        <span className="text-muted-foreground shrink-0">
-                          {event.attendees} / {event.capacity}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-accent rounded-full"
-                          style={{
-                            width: `${(event.attendees / event.capacity) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="h-[400px] w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.eventAttendance}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: '#888' }}
+                      interval={0}
+                      angle={-15}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                    <Legend />
+                    <Bar name="Registered" dataKey="attendees" fill="#b79c65" radius={[4, 4, 0, 0]} />
+                    <Bar name="Capacity" dataKey="capacity" fill="#e7e5e4" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

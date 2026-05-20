@@ -98,13 +98,125 @@ export async function toggleFeaturedStatus(memberId: string, isFeatured: boolean
       
       await batch.commit();
     } else {
-      const targetRef = adminDb.collection('newMemberCollection').doc(memberId);
-      await targetRef.update({ isFeatured: false });
+      await adminDb.collection('newMemberCollection').doc(memberId).update({ isFeatured: false });
     }
 
+    revalidatePath('/');
     return { success: true };
   } catch (error: any) {
     console.error('Error toggling featured status:', error);
-    return { success: false, error: error.message || 'Failed to toggle status' };
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getAnalyticsData() {
+  try {
+    // 1. Fetch all members
+    const membersRef = adminDb.collection('newMemberCollection');
+    const membersSnap = await membersRef.get();
+    const members = membersSnap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        createdAt: data.createdAt || new Date().toISOString(),
+        membershipTier: data.membershipTier || 'free',
+        industrySector: data.industrySector || data.industry || 'Unknown',
+        location: data.location || data.city || 'Unknown'
+      };
+    });
+
+    // 2. Members by month (last 12 months)
+    const monthlyData: Record<string, number> = {};
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      monthlyData[key] = 0;
+    }
+    
+    members.forEach(m => {
+      const d = new Date(m.createdAt);
+      const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      if (key in monthlyData) {
+        monthlyData[key]++;
+      }
+    });
+    
+    const membersByMonth = Object.entries(monthlyData).map(([name, count]) => ({
+      name,
+      count
+    }));
+
+    // 3. Members by tier
+    const tierCounts: Record<string, number> = { free: 0, premium: 0, founder: 0 };
+    members.forEach(m => {
+      const tier = (m.membershipTier || 'free').toLowerCase();
+      tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+    });
+    const membersByTier = Object.entries(tierCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    }));
+
+    // 4. Members by industry (top 8)
+    const industryCounts: Record<string, number> = {};
+    members.forEach(m => {
+      const ind = m.industrySector;
+      if (ind && ind !== 'Unknown') {
+        industryCounts[ind] = (industryCounts[ind] || 0) + 1;
+      }
+    });
+    const membersByIndustry = Object.entries(industryCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, value]) => ({ name, value }));
+
+    // 5. Members by location (top 8)
+    const locationCounts: Record<string, number> = {};
+    members.forEach(m => {
+      const loc = m.location;
+      if (loc && loc !== 'Unknown') {
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+      }
+    });
+    const membersByLocation = Object.entries(locationCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, value]) => ({ name, value }));
+
+    // 6. Fetch events metadata
+    const eventsRef = adminDb.collection('events');
+    const eventsSnap = await eventsRef.get();
+    const eventAttendance = eventsSnap.docs
+      .slice(0, 10)
+      .map(doc => {
+        const e = doc.data();
+        return {
+          name: e.title || doc.id,
+          attendees: e.registeredCount || 0,
+          capacity: e.capacity || 50
+        };
+      });
+
+    // 7. Message threads
+    const threadsRef = adminDb.collection('messageThreads');
+    const threadsSnap = await threadsRef.get();
+
+    return {
+      success: true,
+      data: {
+        membersByMonth,
+        membersByTier,
+        membersByIndustry,
+        membersByLocation,
+        eventAttendance,
+        totalMembers: members.length,
+        totalEvents: eventsSnap.size,
+        totalMessages: threadsSnap.size
+      }
+    };
+  } catch (error: any) {
+    console.error('Error fetching analytics data:', error);
+    return { success: false, error: error.message };
   }
 }
