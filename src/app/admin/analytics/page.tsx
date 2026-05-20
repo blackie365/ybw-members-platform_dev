@@ -20,12 +20,14 @@ import {
 } from "recharts"
 
 interface AnalyticsData {
-  membersByMonth: { name: string; count: number }[]
+  membersByMonth: { name: string; platform: number; ghost: number; total: number }[]
   membersByTier: { name: string; value: number }[]
+  ghostStatusData: { name: string; value: number }[]
   membersByIndustry: { name: string; value: number }[]
   membersByLocation: { name: string; value: number }[]
   eventAttendance: { name: string; attendees: number; capacity: number }[]
   totalMembers: number
+  totalGhostMembers: number
   totalEvents: number
   totalMessages: number
 }
@@ -76,17 +78,43 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Total Members
+              Platform Members
             </CardTitle>
             <Users className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-serif font-bold text-foreground">{data.totalMembers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Across all tiers</p>
+            <p className="text-xs text-muted-foreground mt-1">Clerk / Firestore</p>
+          </CardContent>
+        </Card>
+        <Card className="border-accent/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Ghost Members
+            </CardTitle>
+            <Users className="h-4 w-4 text-[#3eb0ef]" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-serif font-bold text-foreground">{data.totalGhostMembers}</div>
+            <p className="text-xs text-muted-foreground mt-1">Newsletter / CMS</p>
+          </CardContent>
+        </Card>
+        <Card className="border-accent/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Total Community
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-serif font-bold text-foreground">
+              {data.totalMembers + data.totalGhostMembers}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Combined reach</p>
           </CardContent>
         </Card>
         <Card className="border-accent/10">
@@ -101,18 +129,6 @@ export default function AdminAnalyticsPage() {
             <p className="text-xs text-muted-foreground mt-1">Stored in metadata</p>
           </CardContent>
         </Card>
-        <Card className="border-accent/10">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Connections
-            </CardTitle>
-            <MessageSquare className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-serif font-bold text-foreground">{data.totalMessages}</div>
-            <p className="text-xs text-muted-foreground mt-1">Message threads</p>
-          </CardContent>
-        </Card>
       </div>
 
       <Tabs defaultValue="growth" className="space-y-6">
@@ -125,8 +141,8 @@ export default function AdminAnalyticsPage() {
         <TabsContent value="growth">
           <Card>
             <CardHeader>
-              <CardTitle className="font-serif">Member Growth</CardTitle>
-              <CardDescription>New member registrations over the last 12 months</CardDescription>
+              <CardTitle className="font-serif">Community Growth</CardTitle>
+              <CardDescription>New member registrations from both Platform and Ghost sources</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[400px] w-full mt-4">
@@ -153,11 +169,20 @@ export default function AdminAnalyticsPage() {
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                       }}
                     />
+                    <Legend verticalAlign="top" height={36}/>
                     <Bar 
-                      dataKey="count" 
+                      name="Platform"
+                      dataKey="platform" 
                       fill="#b79c65" 
                       radius={[4, 4, 0, 0]} 
-                      barSize={40}
+                      barSize={20}
+                    />
+                    <Bar 
+                      name="Ghost"
+                      dataKey="ghost" 
+                      fill="#3eb0ef" 
+                      radius={[4, 4, 0, 0]} 
+                      barSize={20}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -168,11 +193,11 @@ export default function AdminAnalyticsPage() {
 
         <TabsContent value="demographics">
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Membership Tiers */}
+            {/* Membership Tiers (Platform) */}
             <Card>
               <CardHeader>
-                <CardTitle className="font-serif">Membership Tiers</CardTitle>
-                <CardDescription>Distribution of members by plan</CardDescription>
+                <CardTitle className="font-serif">Platform Tiers</CardTitle>
+                <CardDescription>Members on the new platform by plan</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
@@ -189,6 +214,37 @@ export default function AdminAnalyticsPage() {
                       >
                         {data.membersByTier.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ghost Subscription Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Ghost Subscriptions</CardTitle>
+                <CardDescription>Newsletter subscribers by status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.ghostStatusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {data.ghostStatusData.map((entry, index) => (
+                          <Cell key={`cell-ghost-${index}`} fill={index === 1 ? '#3eb0ef' : COLORS[(index + 2) % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />

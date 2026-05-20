@@ -111,45 +111,72 @@ export async function toggleFeaturedStatus(memberId: string, isFeatured: boolean
 
 export async function getAnalyticsData() {
   try {
-    // 1. Fetch all members
+    // 1. Fetch Firestore members
     const membersRef = adminDb.collection('newMemberCollection');
     const membersSnap = await membersRef.get();
-    const members = membersSnap.docs.map(doc => {
+    const firestoreMembers = membersSnap.docs.map(doc => {
       const data = doc.data();
       return {
         ...data,
         createdAt: data.createdAt || new Date().toISOString(),
         membershipTier: data.membershipTier || 'free',
         industrySector: data.industrySector || 'Unknown',
-        location: data.location || 'Unknown'
+        location: data.location || 'Unknown',
+        source: 'platform'
       };
     });
 
-    // 2. Members by month (last 12 months)
-    const monthlyData: Record<string, number> = {};
+    // 2. Fetch Ghost members
+    let ghostMembers: any[] = [];
+    try {
+      const ghostData = await getGhostMembers({ limit: 'all' });
+      ghostMembers = (ghostData as any[] || []).map(m => ({
+        id: m.id,
+        email: m.email,
+        name: m.name,
+        createdAt: m.created_at,
+        status: m.status, // free, paid, comped
+        source: 'ghost'
+      }));
+    } catch (err) {
+      console.error('Error fetching Ghost members for analytics:', err);
+    }
+
+    // 3. Members by month (last 12 months) - Combined
+    const monthlyData: Record<string, { platform: number; ghost: number }> = {};
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-      monthlyData[key] = 0;
+      monthlyData[key] = { platform: 0, ghost: 0 };
     }
     
-    members.forEach(m => {
+    firestoreMembers.forEach(m => {
       const d = new Date(m.createdAt);
       const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
       if (key in monthlyData) {
-        monthlyData[key]++;
+        monthlyData[key].platform++;
+      }
+    });
+
+    ghostMembers.forEach(m => {
+      const d = new Date(m.createdAt);
+      const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      if (key in monthlyData) {
+        monthlyData[key].ghost++;
       }
     });
     
-    const membersByMonth = Object.entries(monthlyData).map(([name, count]) => ({
+    const membersByMonth = Object.entries(monthlyData).map(([name, counts]) => ({
       name,
-      count
+      platform: counts.platform,
+      ghost: counts.ghost,
+      total: counts.platform + counts.ghost
     }));
 
-    // 3. Members by tier
+    // 4. Members by tier (Firestore)
     const tierCounts: Record<string, number> = { free: 0, premium: 0, founder: 0 };
-    members.forEach(m => {
+    firestoreMembers.forEach(m => {
       const tier = (m.membershipTier || 'free').toLowerCase();
       tierCounts[tier] = (tierCounts[tier] || 0) + 1;
     });
@@ -158,11 +185,24 @@ export async function getAnalyticsData() {
       value
     }));
 
-    // 4. Members by industry (top 8)
+    // 5. Ghost Subscription Status
+    const ghostStatusCounts: Record<string, number> = { free: 0, paid: 0, comped: 0 };
+    ghostMembers.forEach(m => {
+      const status = (m.status || 'free').toLowerCase();
+      if (status in ghostStatusCounts) {
+        ghostStatusCounts[status]++;
+      }
+    });
+    const ghostStatusData = Object.entries(ghostStatusCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    }));
+
+    // 6. Members by industry (top 8)
     const industryCounts: Record<string, number> = {};
-    members.forEach(m => {
+    firestoreMembers.forEach(m => {
       const ind = m.industrySector;
-      if (ind && ind !== 'Unknown') {
+      if (ind && ind !== 'Unknown' && ind !== 'Other') {
         industryCounts[ind] = (industryCounts[ind] || 0) + 1;
       }
     });
@@ -171,11 +211,11 @@ export async function getAnalyticsData() {
       .slice(0, 8)
       .map(([name, value]) => ({ name, value }));
 
-    // 5. Members by location (top 8)
+    // 7. Members by location (top 8)
     const locationCounts: Record<string, number> = {};
-    members.forEach(m => {
+    firestoreMembers.forEach(m => {
       const loc = m.location;
-      if (loc && loc !== 'Unknown') {
+      if (loc && loc !== 'Unknown' && loc !== '') {
         locationCounts[loc] = (locationCounts[loc] || 0) + 1;
       }
     });
@@ -184,7 +224,7 @@ export async function getAnalyticsData() {
       .slice(0, 8)
       .map(([name, value]) => ({ name, value }));
 
-    // 6. Fetch events metadata
+    // 8. Fetch events metadata
     const eventsRef = adminDb.collection('events');
     const eventsSnap = await eventsRef.get();
     const eventAttendance = eventsSnap.docs
@@ -198,7 +238,7 @@ export async function getAnalyticsData() {
         };
       });
 
-    // 7. Message threads
+    // 9. Message threads
     const threadsRef = adminDb.collection('messageThreads');
     const threadsSnap = await threadsRef.get();
 
@@ -207,10 +247,12 @@ export async function getAnalyticsData() {
       data: {
         membersByMonth,
         membersByTier,
+        ghostStatusData,
         membersByIndustry,
         membersByLocation,
         eventAttendance,
-        totalMembers: members.length,
+        totalMembers: firestoreMembers.length,
+        totalGhostMembers: ghostMembers.length,
         totalEvents: eventsSnap.size,
         totalMessages: threadsSnap.size
       }
