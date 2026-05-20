@@ -1,35 +1,72 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
+import { getEventMetadata } from '@/app/actions/eventActions';
 
 export function EventTicketCard({ post }: { post: any }) {
   const [loading, setLoading] = useState(false);
+  const [priceData, setPriceData] = useState({
+    amount: 5000, // Default £50
+    display: '£50',
+    isFree: false,
+    source: 'default'
+  });
+  
   const { user } = useAuth();
   const router = useRouter();
 
-  // Extract price from Ghost tags (e.g., "#ticket-price-50" or "ticket-price-free")
-  // If no tag is found, we default to £50.00
-  let priceAmount = 5000; // in pence
-  let displayPrice = '£50';
-  let isFree = false;
+  useEffect(() => {
+    async function resolvePrice() {
+      // 1. Try to get price from Firestore first (The Robust Way)
+      const metadata = await getEventMetadata(post.slug);
+      
+      if (metadata.success && metadata.data?.price !== undefined) {
+        const price = metadata.data.price;
+        setPriceData({
+          amount: price * 100,
+          display: price === 0 ? 'Free' : `£${price}`,
+          isFree: price === 0,
+          source: 'firestore'
+        });
+        return;
+      }
 
-  if (post.tags) {
-    const priceTag = post.tags.find((t: any) => t.slug.startsWith('ticket-price-') || t.slug.startsWith('hash-ticket-price-'));
-    if (priceTag) {
-      const priceString = priceTag.slug.split('-').pop()?.toLowerCase();
-      if (priceString === 'free') {
-        priceAmount = 0;
-        displayPrice = 'Free';
-        isFree = true;
-      } else if (priceString && !isNaN(parseInt(priceString, 10))) {
-        const numericPrice = parseInt(priceString, 10);
-        priceAmount = numericPrice * 100; // Stripe expects pence
-        displayPrice = `£${numericPrice}`;
+      // 2. Fallback to Ghost Tags (The Easy Way)
+      if (post.tags) {
+        const priceTag = post.tags.find((t: any) => 
+          t.slug.includes('ticket-price') || 
+          t.name.toLowerCase().includes('ticket price')
+        );
+
+        if (priceTag) {
+          const slugMatch = priceTag.slug.match(/ticket-price-([a-z0-9]+)/i);
+          const nameMatch = priceTag.name.match(/ticket price ([a-z0-9]+)/i);
+          const priceString = (slugMatch?.[1] || nameMatch?.[1] || priceTag.slug.split('-').pop())?.toLowerCase();
+
+          if (priceString === 'free') {
+            setPriceData({ amount: 0, display: 'Free', isFree: true, source: 'tag' });
+          } else if (priceString) {
+            const digits = priceString.match(/\d+/);
+            if (digits) {
+              const numericPrice = parseInt(digits[0], 10);
+              setPriceData({
+                amount: numericPrice * 100,
+                display: `£${numericPrice}`,
+                isFree: false,
+                source: 'tag'
+              });
+            }
+          }
+        }
       }
     }
-  }
+
+    resolvePrice();
+  }, [post.slug, post.tags]);
+
+  const { amount: priceAmount, display: displayPrice, isFree } = priceData;
 
   const handleCheckout = async () => {
     // If they aren't logged in, force them to login or register first so we know who bought the ticket!
