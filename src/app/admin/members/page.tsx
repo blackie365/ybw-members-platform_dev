@@ -56,6 +56,7 @@ interface Member {
 interface EventMetadata {
   id: string
   price: number
+  accessLevel?: 'public' | 'members-only'
   capacity?: number
   updatedAt?: string
 }
@@ -140,7 +141,12 @@ export default function AdminMembersPage() {
 
     setUpdating(slug)
     try {
-      const res = await updateEventMetadata(slug, { price } as any)
+      const currentMeta = eventsMetadata[slug] || {}
+      const res = await updateEventMetadata(slug, { 
+        price,
+        accessLevel: currentMeta.accessLevel || 'public' 
+      } as any)
+      
       if (res.success) {
         setEventsMetadata(prev => ({
           ...prev,
@@ -149,6 +155,31 @@ export default function AdminMembersPage() {
         alert(`Price for ${slug} updated to £${price}`)
       } else {
         alert("Failed to update: " + res.error)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleAccess = async (slug: string, currentAccess?: string) => {
+    const newAccess = currentAccess === 'members-only' ? 'public' : 'members-only'
+    setUpdating(slug)
+    try {
+      const currentMeta = eventsMetadata[slug] || {}
+      const res = await updateEventMetadata(slug, { 
+        accessLevel: newAccess,
+        price: currentMeta.price !== undefined ? currentMeta.price : 50 
+      } as any)
+      
+      if (res.success) {
+        setEventsMetadata(prev => ({
+          ...prev,
+          [slug]: { ...prev[slug], id: slug, accessLevel: newAccess as any }
+        }))
+      } else {
+        alert("Failed to update access: " + res.error)
       }
     } catch (err) {
       console.error(err)
@@ -466,6 +497,7 @@ export default function AdminMembersPage() {
                       <TableHead>Event</TableHead>
                       <TableHead>Current Price</TableHead>
                       <TableHead>New Price (£)</TableHead>
+                      <TableHead className="text-center">Members Only</TableHead>
                       <TableHead className="w-[100px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -473,6 +505,7 @@ export default function AdminMembersPage() {
                     {events.map((event) => {
                       const meta = eventsMetadata[event.slug]
                       const isUpdating = updating === event.slug
+                      const isMembersOnly = meta?.accessLevel === 'members-only'
                       return (
                         <TableRow key={event.id}>
                           <TableCell>
@@ -500,6 +533,18 @@ export default function AdminMembersPage() {
                               value={editingPrice[event.slug] || ""}
                               onChange={(e) => setEditingPrice(prev => ({ ...prev, [event.slug]: e.target.value }))}
                             />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <Switch 
+                                checked={isMembersOnly}
+                                onCheckedChange={() => handleToggleAccess(event.slug, meta?.accessLevel)}
+                                disabled={isUpdating}
+                              />
+                              <span className="text-[10px] text-muted-foreground uppercase font-medium">
+                                {isMembersOnly ? 'Private' : 'Public'}
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Button 

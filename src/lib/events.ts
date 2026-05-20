@@ -18,6 +18,7 @@ export interface Event {
   image?: string;
   status: 'published' | 'draft' | 'archived';
   eventType: EventType;
+  accessLevel?: 'public' | 'members-only';
   price?: number;
   capacity?: number;
   registeredCount?: number;

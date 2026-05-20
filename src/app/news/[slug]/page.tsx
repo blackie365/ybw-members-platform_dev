@@ -2,12 +2,14 @@ import { getSinglePost, getPosts } from '@/lib/ghost';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
+import { auth } from '@clerk/nextjs/server';
+import { getEventMetadata } from '@/app/actions/eventActions';
 
 export const revalidate = 0;
 
@@ -62,6 +64,26 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const relatedPosts = await getRelatedPosts(post.id, post.tags);
   const isEvent = post.tags?.some((t: any) => t.slug === 'events');
+
+  // Check event access level if it's an event
+  let accessLevel = 'public';
+  if (isEvent) {
+    const metadata = await getEventMetadata(post.slug);
+    if (metadata.success && metadata.data?.accessLevel === 'members-only') {
+      accessLevel = 'members-only';
+      const session = await auth();
+      if (!session.userId) {
+        // Option 1: Redirect to login
+        // redirect(`/login?redirect=/news/${post.slug}`);
+        
+        // Option 2: Show a "Members Only" gate instead of redirecting
+        // We'll proceed to render the page but hide the content if it's members-only
+      }
+    }
+  }
+
+  const session = await auth();
+  const isLocked = accessLevel === 'members-only' && !session.userId;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -171,49 +193,77 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             </header>
 
             {/* Article body */}
-            <div 
-              className="prose prose-lg max-w-none
-                prose-headings:font-serif prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-foreground
-                prose-p:text-muted-foreground prose-p:leading-relaxed
-                prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
-                prose-strong:text-foreground prose-strong:font-semibold
-                prose-ul:text-muted-foreground prose-ol:text-muted-foreground
-                prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
-                prose-img:rounded-none
-                [&>p:first-of-type]:text-lg [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-relaxed [&>p:first-of-type]:text-foreground/80 [&>p:first-of-type]:mb-8" 
-              dangerouslySetInnerHTML={{ 
-                __html: (() => {
-                  let html = post.html || '';
-                  const customExcerptText = (post.custom_excerpt || '').trim();
-                  
-                  const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
-                  if (firstParaMatch && customExcerptText) {
-                    const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
-                    
-                    if (firstParaText === customExcerptText) {
-                      html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
-                    }
-                  }
-                  return html;
-                })() 
-              }} 
-            />
-            
-            <div className="mt-12">
-              <AdSlot type="mid-article" />
-            </div>
-
-            {isEvent && (
-              <div className="mt-12 pt-8 border-t border-border">
-                <EventRSVP eventSlug={post.slug} eventTitle={post.title} />
+            {isLocked ? (
+              <div className="bg-accent/5 border border-accent/20 rounded-2xl p-12 text-center my-12">
+                <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">
+                  <Lock className="w-8 h-8 text-accent" />
+                </div>
+                <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Members Only Event</h2>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  This event details and ticket booking are reserved for registered members of Yorkshire Businesswoman.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Link 
+                    href={`/login?redirect=/news/${post.slug}`}
+                    className="w-full sm:w-auto px-8 py-3 bg-accent text-white font-semibold rounded-xl hover:bg-accent/90 transition-colors"
+                  >
+                    Login to View
+                  </Link>
+                  <Link 
+                    href="/membership"
+                    className="w-full sm:w-auto px-8 py-3 border border-accent text-accent font-semibold rounded-xl hover:bg-accent/5 transition-colors"
+                  >
+                    Become a Member
+                  </Link>
+                </div>
               </div>
+            ) : (
+              <>
+                <div 
+                  className="prose prose-lg max-w-none
+                    prose-headings:font-serif prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-foreground
+                    prose-p:text-muted-foreground prose-p:leading-relaxed
+                    prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
+                    prose-strong:text-foreground prose-strong:font-semibold
+                    prose-ul:text-muted-foreground prose-ol:text-muted-foreground
+                    prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
+                    prose-img:rounded-none
+                    [&>p:first-of-type]:text-lg [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-relaxed [&>p:first-of-type]:text-foreground/80 [&>p:first-of-type]:mb-8" 
+                  dangerouslySetInnerHTML={{ 
+                    __html: (() => {
+                      let html = post.html || '';
+                      const customExcerptText = (post.custom_excerpt || '').trim();
+                      
+                      const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
+                      if (firstParaMatch && customExcerptText) {
+                        const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
+                        
+                        if (firstParaText === customExcerptText) {
+                          html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
+                        }
+                      }
+                      return html;
+                    })() 
+                  }} 
+                />
+                
+                <div className="mt-12">
+                  <AdSlot type="mid-article" />
+                </div>
+
+                {isEvent && (
+                  <div className="mt-12 pt-8 border-t border-border">
+                    <EventRSVP eventSlug={post.slug} eventTitle={post.title} />
+                  </div>
+                )}
+              </>
             )}
           </article>
 
           {/* Sidebar */}
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
             <div className="sticky top-24 flex flex-col gap-8">
-              {isEvent && <EventTicketCard post={post} />}
+              {isEvent && !isLocked && <EventTicketCard post={post} />}
               <AdSlot type="sidebar-mpu" />
             </div>
           </aside>
