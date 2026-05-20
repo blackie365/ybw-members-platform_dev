@@ -243,17 +243,26 @@ export default function AdminMembersPage() {
   }
 
   const filteredMembers = members.filter((member) => {
-    const firstName = member.firstName || (member as any).displayName?.split(' ')[0] || ""
-    const lastName = member.lastName || (member as any).displayName?.split(' ').slice(1).join(' ') || ""
+    // Get all possible name sources
+    const m = member as any
+    const firstName = m.firstName || m["First Name"] || m.displayName?.split(' ')[0] || ""
+    const lastName = m.lastName || m["Last Name"] || m.displayName?.split(' ').slice(1).join(' ') || ""
     const fullName = `${firstName} ${lastName}`.toLowerCase()
-    const displayName = ((member as any).displayName || "").toLowerCase()
-    const email = (member.email || "").toLowerCase()
-    const industry = (member.industrySector || (member as any).industry || "").toLowerCase()
-    const searchTerm = search.toLowerCase()
+    const displayName = (m.displayName || "").toLowerCase()
+    const searchName = (m.searchName || "").toLowerCase()
+    
+    // Get all possible email sources
+    const email = (m.email || m.Email || "").toLowerCase()
+    
+    // Get all possible industry sources
+    const industry = (m.industrySector || m.industry || m.category || m.Category || "").toLowerCase()
+    
+    const searchTerm = search.toLowerCase().trim()
 
     const matchesSearch =
       fullName.includes(searchTerm) ||
       displayName.includes(searchTerm) ||
+      searchName.includes(searchTerm) ||
       email.includes(searchTerm) ||
       industry.includes(searchTerm)
     
@@ -386,30 +395,33 @@ export default function AdminMembersPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredMembers.map((member) => {
-                        const firstName = member.firstName || (member as any).displayName?.split(' ')[0] || ""
-                        const lastName = member.lastName || (member as any).displayName?.split(' ').slice(1).join(' ') || ""
-                        const fullName = `${firstName} ${lastName}`.trim() || (member as any).displayName || "Unknown Member"
-                        const initial = firstName?.[0] || (member as any).displayName?.[0] || "?"
+                        const m = member as any
+                        const firstName = m.firstName || m["First Name"] || m.displayName?.split(' ')[0] || ""
+                        const lastName = m.lastName || m["Last Name"] || m.displayName?.split(' ').slice(1).join(' ') || ""
+                        const fullName = `${firstName} ${lastName}`.trim() || m.displayName || "Unknown Member"
+                        const initial = firstName?.[0] || m.displayName?.[0] || "?"
+                        const displayEmail = m.email || m.Email || "No email"
+                        const displayIndustry = m.industrySector || m.industry || m.category || m.Category || "-"
 
                         return (
                           <TableRow key={member.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9">
-                                  <AvatarImage src={member.profileImage} alt={fullName} />
+                                  <AvatarImage src={m.avatarUrl || m.profileImage} alt={fullName} />
                                   <AvatarFallback className="bg-accent/10 text-accent text-sm">
                                     {initial}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
                                   <p className="font-medium">{fullName}</p>
-                                  <p className="text-sm text-muted-foreground">{member.email}</p>
+                                  <p className="text-sm text-muted-foreground">{displayEmail}</p>
                                 </div>
                               </div>
                             </TableCell>
-                          <TableCell>
-                            <Select
-                              value={member.membershipTier || "free"}
+                            <TableCell>
+                              <Select
+                                value={member.membershipTier || "free"}
                               onValueChange={(value) => updateMemberTier(member.id, value)}
                               disabled={updating === member.id}
                             >
@@ -448,7 +460,7 @@ export default function AdminMembersPage() {
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
-                            {member.industrySector || "-"}
+                            {displayIndustry}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                             {formatDate(member.createdAt)}
