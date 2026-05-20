@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createDraftArticle } from '@/lib/ghost';
+import { createDraftArticle } from '@/lib/ghost-admin';
 
 export async function POST(req: Request) {
   try {

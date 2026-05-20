@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { addGhostMember, getPosts } from '@/lib/ghost';
+import { getPosts } from '@/lib/ghost';
+import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getDailyNewsletterTemplate } from '@/lib/email-templates';
