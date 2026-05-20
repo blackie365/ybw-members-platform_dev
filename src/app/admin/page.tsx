@@ -139,7 +139,7 @@ export default function AdminOverviewPage() {
       change: `${stats.totalEvents} total`,
       trend: "neutral",
       icon: Calendar,
-      href: "/admin/events",
+      href: "/admin/members", // Point to the members page where the Events tab is located
     },
     {
       title: "Active Conversations",

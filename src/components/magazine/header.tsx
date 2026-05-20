@@ -13,6 +13,7 @@ import { Logo } from "@/components/Logo"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { useAuth } from "@/lib/AuthContext"
 import { useRouter } from "next/navigation"
+import { Shield } from "lucide-react"
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -25,7 +26,7 @@ const navigation = [
 ];
 
 export function Header() {
-  const { user, signOut } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -86,6 +87,15 @@ export function Header() {
                       >
                         Dashboard
                       </Link>
+                      {isAdmin && (
+                        <Link
+                          href="/admin/members"
+                          onClick={() => setIsOpen(false)}
+                          className="block py-3 font-serif text-lg text-accent font-semibold transition-colors hover:text-accent/80"
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
                       {!user && (
                         <>
                           <Link
@@ -151,6 +161,18 @@ export function Header() {
             <ThemeToggle />
             {user ? (
               <>
+                {isAdmin && (
+                  <Link href="/admin/members" passHref title="Admin Panel">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="hidden lg:flex hover:bg-muted text-accent" 
+                      aria-label="Admin Panel"
+                    >
+                      <Shield className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/dashboard" passHref>
                   <Button 
                     variant="ghost" 

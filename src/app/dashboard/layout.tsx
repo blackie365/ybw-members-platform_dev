@@ -37,7 +37,7 @@ const quickActions = [
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -113,6 +113,23 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     </li>
                   );
                 })}
+                
+                {isAdmin && (
+                  <li>
+                    <Link 
+                      href="/admin/members" 
+                      className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                        pathname.startsWith('/admin') 
+                          ? 'bg-accent/10 text-accent font-medium' 
+                          : 'text-foreground hover:bg-muted hover:text-accent border border-accent/20'
+                      }`}
+                    >
+                      <Users className={`h-4 w-4 ${pathname.startsWith('/admin') ? 'text-accent' : 'text-accent'}`} />
+                      <span className="flex-1 font-semibold text-accent">Admin Panel</span>
+                      <ChevronRight className="h-4 w-4 text-accent" />
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
 
