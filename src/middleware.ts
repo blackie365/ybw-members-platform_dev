@@ -16,7 +16,6 @@ const isPublicRoute = createRouteMatcher([
   '/register(.*)',
   '/new-edition(.*)',
   '/unsubscribe(.*)',
-  '/forgot-password(.*)',
   '/privacy',
   '/cookies',
 ])
