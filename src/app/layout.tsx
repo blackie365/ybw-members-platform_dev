@@ -76,7 +76,10 @@ export default async function RootLayout({
   }).catch(() => []);
 
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      domain="yorkshirebusinesswoman.co.uk"
+    >
       <html lang="en" className="bg-background" suppressHydrationWarning>
         <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
           <Providers>
