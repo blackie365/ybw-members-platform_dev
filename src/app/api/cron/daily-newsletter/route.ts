@@ -23,6 +23,11 @@ async function logCronExecution(status: string, message: string, details?: any) 
 }
 
 export async function GET(request: Request) {
+  return NextResponse.json({ 
+    success: true, 
+    message: 'The automated Resend newsletter has been disabled in favor of Beehiiv.' 
+  });
+
   const startTime = Date.now();
   try {
     // 1. Verify cron secret to prevent unauthorized execution
@@ -73,14 +78,13 @@ export async function GET(request: Request) {
       
       const membersSnapshot = await adminDb.collection('newMemberCollection')
         .where('status', '==', 'active')
-        .where('membershipTier', 'in', ['premium', 'founder'])
-        .where('isNewsletterRecipient', '==', true)
+        .where('userInactive', '==', false)
+        .where('isNewsletterAuthorized', '==', true)
         .get();
 
       membersSnapshot.forEach(doc => {
         const data = doc.data();
-        // Fallback to newsletterSubscribed check if needed
-        if (data.email && data.newsletterSubscribed !== false) {
+        if (data.email) {
           emails.push(data.email);
         }
       });
