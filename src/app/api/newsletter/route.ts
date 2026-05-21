@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, member: result });
+    return NextResponse.json({ success: true, beehiiv: beehiivResult, ghost: ghostResult });
   } catch (error: any) {
     console.error('Newsletter signup error:', error);
     return NextResponse.json({ error: error.message || 'Failed to subscribe' }, { status: 500 });

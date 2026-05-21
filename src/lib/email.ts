@@ -33,12 +33,12 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
   try {
     const { data, error } = await resend.emails.send({
       from: MAIL_FROM,
-      to: Array.isArray(to) ? to : [to],
-      bcc: bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : undefined,
+      to: to as any,
+      bcc: bcc as any,
       subject,
       text: text || '',
       html: html || '',
-      reply_to: replyTo,
+      replyTo: replyTo,
     });
 
     if (error) {
