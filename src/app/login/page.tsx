@@ -67,7 +67,7 @@ function LoginForm() {
                 footerActionLink: 'text-[#b79c65] hover:text-[#a08b57] font-bold transition-colors underline-offset-4 hover:underline',
                 identityPreviewText: 'text-stone-900 font-medium',
                 identityPreviewEditButtonIcon: 'text-[#b79c65]',
-                formFieldAction: 'text-[#b79c65] hover:text-[#a08b57] font-semibold text-xs',
+                formFieldAction: 'text-[#b79c65] hover:text-[#a08b57] font-bold text-sm hover:underline underline-offset-4',
               }
             }}
             fallbackRedirectUrl={fallbackRedirect}
