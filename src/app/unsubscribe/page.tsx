@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Header } from "@/components/magazine/header";
-import { Footer } from "@/components/magazine/footer";
 
 export default function UnsubscribePage() {
   const [email, setEmail] = useState("");
@@ -39,7 +37,6 @@ export default function UnsubscribePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-stone-50">
-      <Header />
       <main className="flex-1 flex items-center justify-center py-20 px-4">
         <div className="max-w-md w-full bg-white p-8 border border-stone-200 shadow-sm text-center">
           <h1 className="font-serif text-3xl text-stone-900 mb-4">Unsubscribe</h1>
@@ -77,7 +74,6 @@ export default function UnsubscribePage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -86,3 +86,33 @@ export async function bulkAddBeehiivSubscribers(subscribers: AddSubscriberParams
   }
   return results;
 }
+
+/**
+ * Removes a subscriber from Beehiiv.
+ */
+export async function deleteBeehiivSubscriber(email: string) {
+  if (!BEEHIIV_API_KEY || !BEEHIIV_PUBLICATION_ID) {
+    return { success: false, error: 'API Configuration missing' };
+  }
+
+  try {
+    const response = await fetch(`${BEEHIIV_API_URL}/publications/${BEEHIIV_PUBLICATION_ID}/subscriptions/by_email/${email}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${BEEHIIV_API_KEY}`
+      }
+    });
+
+    if (response.status === 204) {
+      console.log('Successfully removed subscriber from Beehiiv:', email);
+      return { success: true };
+    }
+
+    const data = await response.json();
+    console.error('Beehiiv API Error:', data);
+    return { success: false, error: data.errors?.[0]?.message || 'Failed to remove subscriber' };
+  } catch (error: any) {
+    console.error('Error in deleteBeehiivSubscriber:', error.message);
+    return { success: false, error: error.message };
+  }
+}

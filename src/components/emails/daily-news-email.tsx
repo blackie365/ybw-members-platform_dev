@@ -24,6 +24,7 @@ interface DailyNewsEmailProps {
   recipientName?: string
   editorNote?: string
   date?: Date
+  hideFooter?: boolean
 }
 
 // Elegant color palette
@@ -47,6 +48,7 @@ export function DailyNewsEmail({
   recipientName,
   editorNote,
   date = new Date(),
+  hideFooter = false,
 }: DailyNewsEmailProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://yorkshirebusinesswoman.co.uk"
   const formattedDate = format(date, "EEEE, MMMM d, yyyy")
@@ -575,175 +577,177 @@ export function DailyNewsEmail({
                   </tr>
 
                   {/* Footer */}
-                  <tr>
-                    <td
-                      style={{
-                        padding: "32px 40px",
-                        borderTop: `1px solid ${colors.border}`,
-                        backgroundColor: colors.muted,
-                      }}
-                    >
-                      <table cellPadding="0" cellSpacing="0" width="100%">
-                        <tbody>
-                          <tr>
-                            <td align="center">
-                              <img
-                                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
-                                alt="Yorkshire Businesswoman"
-                                style={{
-                                  maxHeight: "36px",
-                                  width: "auto",
-                                  display: "block",
-                                  marginBottom: "16px",
-                                }}
-                              />
-                              <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "13px",
-                                  color: colors.secondary,
-                                  margin: "0 0 16px 0",
-                                  lineHeight: 1.6,
-                                }}
-                              >
-                                Empowering women in business across Yorkshire.
-                              </p>
-                              <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "12px",
-                                  margin: "0 0 20px 0",
-                                }}
-                              >
-                                <a
-                                  href="https://www.linkedin.com/company/yorkshire-businesswoman"
+                  {!hideFooter && (
+                    <tr>
+                      <td
+                        style={{
+                          padding: "32px 40px",
+                          borderTop: `1px solid ${colors.border}`,
+                          backgroundColor: colors.muted,
+                        }}
+                      >
+                        <table cellPadding="0" cellSpacing="0" width="100%">
+                          <tbody>
+                            <tr>
+                              <td align="center">
+                                <img
+                                  src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
+                                  alt="Yorkshire Businesswoman"
                                   style={{
+                                    maxHeight: "36px",
+                                    width: "auto",
+                                    display: "block",
+                                    marginBottom: "16px",
+                                  }}
+                                />
+                                <p
+                                  style={{
+                                    fontFamily: fonts.sans,
+                                    fontSize: "13px",
                                     color: colors.secondary,
-                                    textDecoration: "none",
+                                    margin: "0 0 16px 0",
+                                    lineHeight: 1.6,
                                   }}
                                 >
-                                  LinkedIn
-                                </a>
-                                <span
+                                  Empowering women in business across Yorkshire.
+                                </p>
+                                <p
                                   style={{
-                                    color: colors.border,
-                                    margin: "0 10px",
+                                    fontFamily: fonts.sans,
+                                    fontSize: "12px",
+                                    margin: "0 0 20px 0",
                                   }}
                                 >
-                                  &middot;
-                                </span>
-                                <a
-                                  href="https://twitter.com/YorksBizWoman"
+                                  <a
+                                    href="https://www.linkedin.com/company/yorkshire-businesswoman"
+                                    style={{
+                                      color: colors.secondary,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    LinkedIn
+                                  </a>
+                                  <span
+                                    style={{
+                                      color: colors.border,
+                                      margin: "0 10px",
+                                    }}
+                                  >
+                                    &middot;
+                                  </span>
+                                  <a
+                                    href="https://twitter.com/YorksBizWoman"
+                                    style={{
+                                      color: colors.secondary,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    Twitter
+                                  </a>
+                                  <span
+                                    style={{
+                                      color: colors.border,
+                                      margin: "0 10px",
+                                    }}
+                                  >
+                                    &middot;
+                                  </span>
+                                  <a
+                                    href="https://www.facebook.com/YorkshireBusinesswoman"
+                                    style={{
+                                      color: colors.secondary,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    Facebook
+                                  </a>
+                                  <span
+                                    style={{
+                                      color: colors.border,
+                                      margin: "0 10px",
+                                    }}
+                                  >
+                                    &middot;
+                                  </span>
+                                  <a
+                                    href="https://www.instagram.com/yorkshire_businesswoman"
+                                    style={{
+                                      color: colors.secondary,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    Instagram
+                                  </a>
+                                </p>
+                                <hr
                                   style={{
+                                    border: "none",
+                                    borderTop: `1px solid ${colors.border}`,
+                                    margin: "0 0 16px 0",
+                                  }}
+                                />
+                                <p
+                                  style={{
+                                    fontFamily: fonts.sans,
+                                    fontSize: "11px",
                                     color: colors.secondary,
-                                    textDecoration: "none",
+                                    margin: "0 0 8px 0",
                                   }}
                                 >
-                                  Twitter
-                                </a>
-                                <span
+                                  You received this email because you subscribed to
+                                  the Daily News Digest.
+                                </p>
+                                <p
                                   style={{
-                                    color: colors.border,
-                                    margin: "0 10px",
+                                    fontFamily: fonts.sans,
+                                    fontSize: "11px",
+                                    margin: 0,
                                   }}
                                 >
-                                  &middot;
-                                </span>
-                                <a
-                                  href="https://www.facebook.com/YorkshireBusinesswoman"
+                                  <a
+                                    href={`${siteUrl}/dashboard/profile`}
+                                    style={{
+                                      color: colors.accent,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    Manage preferences
+                                  </a>
+                                  <span
+                                    style={{
+                                      color: colors.border,
+                                      margin: "0 8px",
+                                    }}
+                                  >
+                                    &middot;
+                                  </span>
+                                  <a
+                                    href={`${siteUrl}/unsubscribe`}
+                                    style={{
+                                      color: colors.accent,
+                                      textDecoration: "none",
+                                    }}
+                                  >
+                                    Unsubscribe
+                                  </a>
+                                </p>
+                                <p
                                   style={{
+                                    fontFamily: fonts.sans,
+                                    fontSize: "10px",
                                     color: colors.secondary,
-                                    textDecoration: "none",
+                                    margin: "16px 0 0 0",
                                   }}
                                 >
-                                  Facebook
-                                </a>
-                                <span
-                                  style={{
-                                    color: colors.border,
-                                    margin: "0 10px",
-                                  }}
-                                >
-                                  &middot;
-                                </span>
-                                <a
-                                  href="https://www.instagram.com/yorkshire_businesswoman"
-                                  style={{
-                                    color: colors.secondary,
-                                    textDecoration: "none",
-                                  }}
-                                >
-                                  Instagram
-                                </a>
-                              </p>
-                              <hr
-                                style={{
-                                  border: "none",
-                                  borderTop: `1px solid ${colors.border}`,
-                                  margin: "0 0 16px 0",
-                                }}
-                              />
-                              <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "11px",
-                                  color: colors.secondary,
-                                  margin: "0 0 8px 0",
-                                }}
-                              >
-                                You received this email because you subscribed to
-                                the Daily News Digest.
-                              </p>
-                              <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "11px",
-                                  margin: 0,
-                                }}
-                              >
-                                <a
-                                  href={`${siteUrl}/dashboard/profile`}
-                                  style={{
-                                    color: colors.accent,
-                                    textDecoration: "none",
-                                  }}
-                                >
-                                  Manage preferences
-                                </a>
-                                <span
-                                  style={{
-                                    color: colors.border,
-                                    margin: "0 8px",
-                                  }}
-                                >
-                                  &middot;
-                                </span>
-                                <a
-                                  href={`${siteUrl}/unsubscribe`}
-                                  style={{
-                                    color: colors.accent,
-                                    textDecoration: "none",
-                                  }}
-                                >
-                                  Unsubscribe
-                                </a>
-                              </p>
-                              <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "10px",
-                                  color: colors.secondary,
-                                  margin: "16px 0 0 0",
-                                }}
-                              >
-                                Yorkshire Businesswoman &middot; 10 Shetland Drive, Congleton, England, CW12 4FN
-                              </p>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
+                                  Yorkshire Businesswoman &middot; 10 Shetland Drive, Congleton, England, CW12 4FN
+                                </p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </td>

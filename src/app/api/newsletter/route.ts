@@ -61,7 +61,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Instantly send the "Your First Newsletter" (Preview of latest content)
+    // 4. Send Welcome Email (via Beehiiv automation usually, but we'll disable the Resend fallback)
+    /* 
     const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
 
     if (posts && posts.length > 0) {
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         html
       });
     }
+    */
 
     return NextResponse.json({ success: true, beehiiv: beehiivResult, ghost: ghostResult });
   } catch (error: any) {
