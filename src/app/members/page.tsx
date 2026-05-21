@@ -39,8 +39,9 @@ async function getMembers() {
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
     }).filter((member: any) => {
-      // Only show Premium and Founder members (the 88 active members)
+      // Only show Premium and Founder members who are ACTIVE
       const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
+      const isActive = member.status === 'active' || member.status === 'paid' || member.status === 'comped';
       
       // Validate the image - if it's a blank gravatar, we consider it "missing"
       const isBlankGravatar = typeof member.image === 'string' && member.image.includes('gravatar.com/avatar') && member.image.includes('d=blank');
@@ -48,9 +49,12 @@ async function getMembers() {
       
       const hasName = member.name && member.name.trim().length > 0;
       
-      // We keep the requirement for a real image and name for a professional look,
-      // but ensure only the premium tier is considered.
-      return isPremium && hasRealImage && hasName;
+      // EX-MEMBER PROTECTION: Strictly filter for premium tier AND active status.
+      // We also require a real image and name for the professional community look.
+      // Additionally, we check for the explicit newsletter authorization as a second layer of verification.
+      const isAuthorized = member.isNewsletterAuthorized === true;
+      
+      return isPremium && isActive && hasRealImage && hasName && isAuthorized;
     });
     return members;
   } catch (error: any) {

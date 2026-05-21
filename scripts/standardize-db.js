@@ -186,10 +186,75 @@ async function runMigration() {
             }
         });
 
+        // --- NEW IMAGE HEURISTICS ---
+        // Look through ALL fields for a storage URL to set as the primary avatar
+        let bestImage = null;
+        Object.entries(originalData).forEach(([k, v]) => {
+            if (typeof v === 'string' && v.includes('storage.googleapis.com')) {
+                bestImage = v;
+            }
+        });
+        
+        // If we found a storage URL, prioritize it over everything else (like gravatar)
+        if (bestImage) {
+            standardizedData.avatarUrl = bestImage;
+            standardizedData.profileImage = bestImage;
+        }
+        // --- END IMAGE HEURISTICS ---
+
         // Ensure display name exists
         if (!standardizedData.displayName && (standardizedData.firstName || standardizedData.lastName)) {
             standardizedData.displayName = `${standardizedData.firstName || ''} ${standardizedData.lastName || ''}`.trim();
         }
+
+        // --- NEW NAME CLEANING HEURISTICS ---
+        if (standardizedData.displayName) {
+            const originalName = standardizedData.displayName;
+            
+            // Function to clean name (strips Mr, Mrs, Ms, Miss, Dr and Title Cases)
+            const toTitleCase = (str) => {
+                if (!str) return '';
+                return str.toLowerCase().split(/([\s\-])/).map(part => {
+                    if (part === ' ' || part === '-') return part;
+                    return part.charAt(0).toUpperCase() + part.slice(1);
+                }).join('');
+            };
+
+            const cleanName = (name) => {
+                if (!name) return '';
+                let cleaned = name.replace(/^(mr|mrs|ms|miss|dr|prof|sir|lady|rev)\.?\s+/gi, '');
+                cleaned = cleaned.trim();
+                return toTitleCase(cleaned);
+            };
+
+            const cleanedName = cleanName(originalName);
+            if (originalName !== cleanedName) {
+                standardizedData.displayName = cleanedName;
+                const nameParts = cleanedName.split(' ');
+                standardizedData.firstName = nameParts[0] || '';
+                standardizedData.lastName = nameParts.slice(1).join(' ') || '';
+            }
+        }
+        // --- END NAME CLEANING HEURISTICS ---
+
+        // --- NEW STATUS/TIER HEURISTICS ---
+        // If they have a storage image, are 'paid', 'comped', or 'isPremium', ensure they are in the 'premium' tier
+        const isActuallyPremium = 
+            !!bestImage ||
+            standardizedData.status === 'paid' || 
+            standardizedData.status === 'comped' || 
+            standardizedData.isPremium === true || 
+            standardizedData.membershipTier === 'Active Member' ||
+            originalData['Member status'] === 'paid' ||
+            originalData['Member status'] === 'comped' ||
+            originalData['Active'] === 'true' ||
+            originalData['Active'] === true;
+
+        if (isActuallyPremium && (!standardizedData.membershipTier || standardizedData.membershipTier === 'free' || standardizedData.membershipTier === 'undefined')) {
+            standardizedData.membershipTier = 'premium';
+            standardizedData.status = 'active';
+        }
+        // --- END STATUS/TIER HEURISTICS ---
 
         // Clean up empty strings or nulls for critical fields if necessary
         if (standardizedData.tags && typeof standardizedData.tags === 'string') {

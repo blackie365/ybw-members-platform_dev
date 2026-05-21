@@ -21,7 +21,10 @@ async function getMemberBySlug(slug: string) {
       
     if (!snapshot.empty) {
       const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
-      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+      const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
+      const isActive = member.status === 'active' || member.status === 'paid' || member.status === 'comped';
+      const isAuthorized = member.isNewsletterAuthorized === true;
+      if (isPremium && isActive && isAuthorized) {
         return member;
       }
     }
@@ -34,7 +37,10 @@ async function getMemberBySlug(slug: string) {
 
     if (!snapshot.empty) {
       const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
-      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+      const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
+      const isActive = member.status === 'active' || member.status === 'paid' || member.status === 'comped';
+      const isAuthorized = member.isNewsletterAuthorized === true;
+      if (isPremium && isActive && isAuthorized) {
         return member;
       }
     }
@@ -43,7 +49,10 @@ async function getMemberBySlug(slug: string) {
     const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
     if (docRef.exists) {
       const member = { id: docRef.id, ...docRef.data() } as any;
-      if (member.membershipTier === 'premium' || member.membershipTier === 'founder') {
+      const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
+      const isActive = member.status === 'active' || member.status === 'paid' || member.status === 'comped';
+      const isAuthorized = member.isNewsletterAuthorized === true;
+      if (isPremium && isActive && isAuthorized) {
         return member;
       }
     }

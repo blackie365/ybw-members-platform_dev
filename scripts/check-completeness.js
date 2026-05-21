@@ -1,6 +1,7 @@
 require('dotenv').config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const path = require('path');
+const fs = require('fs');
 
 // Initialize Firebase Admin
 try {
@@ -37,7 +38,7 @@ async function checkPremiumCompleteness() {
         if (!hasName) missingName++;
     });
 
-    console.log(`Total Premium: ${snapshot.size}`);
+    console.log(`Total Premium/Founder: ${snapshot.size}`);
     console.log(`Complete: ${complete}`);
     console.log(`Missing Image: ${missingImage}`);
     console.log(`Missing Bio: ${missingBio}`);

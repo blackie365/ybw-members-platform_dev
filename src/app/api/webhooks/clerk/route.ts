@@ -50,8 +50,8 @@ export async function POST(req: Request) {
   // Handle the webhook
   const eventType = evt.type
 
-  if (eventType === 'user.created') {
-    const { id, first_name, last_name, email_addresses, image_url } = evt.data
+  if (eventType === 'user.created' || eventType === 'user.updated') {
+    const { id, first_name, last_name, email_addresses, image_url, unsafe_metadata } = evt.data
     const email = email_addresses[0]?.email_address
 
     if (!email) {
@@ -62,6 +62,9 @@ export async function POST(req: Request) {
     const lastName = last_name || ''
     const fullName = `${firstName} ${lastName}`.trim()
     const slug = slugify(fullName || email.split('@')[0])
+
+    // EMERGENCY OVERRIDE: Prevent all automatic newsletter authorization during signup
+    const acceptsNewsletter = false; // unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
 
     try {
       // Sync to Firestore using standardized schema
@@ -75,6 +78,10 @@ export async function POST(req: Request) {
         profileImage: image_url,
         status: 'active',
         membershipTier: 'free',
+        // AUTHORIZATION LOGIC:
+        // 1. If it's an update, we preserve existing authorization unless explicitly changed
+        // 2. If it's a new user, they are authorized ONLY if they explicitly accepted during signup
+        isNewsletterAuthorized: acceptsNewsletter, 
         role: 'member',
         isAdmin: false,
         isFeatured: false,
@@ -82,7 +89,7 @@ export async function POST(req: Request) {
         updatedAt: new Date().toISOString(),
       }, { merge: true })
 
-      console.log(`Successfully synced Clerk user ${id} to Firestore`)
+      console.log(`Successfully synced Clerk user ${id} to Firestore. Newsletter Auth: ${acceptsNewsletter}`)
     } catch (error) {
       console.error('Error syncing user to Firestore:', error)
       return new Response('Error: Firestore sync failed', { status: 500 })

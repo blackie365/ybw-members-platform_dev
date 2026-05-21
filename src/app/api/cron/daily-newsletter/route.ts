@@ -73,6 +73,7 @@ export async function GET(request: Request) {
       
       const membersSnapshot = await adminDb.collection('newMemberCollection')
         .where('status', '==', 'active')
+        .where('membershipTier', 'in', ['premium', 'founder'])
         .where('isNewsletterRecipient', '==', true)
         .get();
 

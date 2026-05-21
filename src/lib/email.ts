@@ -15,6 +15,10 @@ interface SendEmailParams {
  * This is the modern, robust standard for Next.js apps on Vercel.
  */
 export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }: SendEmailParams) {
+  // EMERGENCY DISABLE: All outgoing emails from Resend are blocked.
+  console.log('🛑 EMERGENCY BLOCK: Outgoing email to', to, 'blocked.');
+  return { success: true, id: 'blocked-by-emergency' };
+
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
   if (!RESEND_API_KEY) {
