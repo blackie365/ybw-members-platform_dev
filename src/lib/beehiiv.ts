@@ -32,10 +32,6 @@ export async function addBeehiivSubscriber({
   referringSite = 'yorkshirebusinesswoman.co.uk',
   customFields = {}
 }: AddSubscriberParams) {
-  // EMERGENCY BLOCK: All outgoing subscriber syncs to Beehiiv are blocked.
-  console.log('🛑 EMERGENCY BLOCK: Subscriber sync for', email, 'blocked.');
-  return { success: true, message: 'blocked-by-emergency' };
-
   if (!BEEHIIV_API_KEY || !BEEHIIV_PUBLICATION_ID) {
     console.warn('Beehiiv API Key or Publication ID is missing. Skipping Beehiiv sync for:', email);
     return { success: false, error: 'API Configuration missing' };
