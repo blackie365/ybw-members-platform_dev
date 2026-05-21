@@ -3,6 +3,7 @@
 import { SignIn } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import Link from 'next/link';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -73,6 +74,14 @@ function LoginForm() {
             fallbackRedirectUrl={fallbackRedirect}
             signUpUrl="/register"
           />
+          <div className="absolute bottom-12 text-center w-full lg:w-1/2 left-0 lg:left-auto lg:right-0 px-8">
+            <Link 
+              href="/forgot-password" 
+              className="text-[#b79c65] hover:text-[#a08b57] font-bold text-sm transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
       </div>
     </div>
