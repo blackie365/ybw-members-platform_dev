@@ -63,8 +63,8 @@ export async function POST(req: Request) {
     const fullName = `${firstName} ${lastName}`.trim()
     const slug = slugify(fullName || email.split('@')[0])
 
-    // EMERGENCY OVERRIDE: Prevent all automatic newsletter authorization during signup
-    const acceptsNewsletter = false; // unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
+    // Check metadata for newsletter preference (from signup form)
+    const acceptsNewsletter = unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
 
     try {
       // Sync to Firestore using standardized schema
