@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         status: 'active',
         newsletterSubscribed: true,
         isNewsletterRecipient: true,
-        membershipTier: 'Free Subscriber',
+        membershipTier: 'free',
         beehiivSync: beehiivResult.success,
         updatedAt: new Date().toISOString()
       };

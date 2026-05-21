@@ -122,11 +122,15 @@ export async function getAnalyticsData() {
         membershipTier: data.membershipTier || 'free',
         industrySector: data.industrySector || 'Unknown',
         location: data.location || 'Unknown',
-        source: 'platform'
+        source: 'platform',
+        userInactive: data.userInactive === true
       };
     });
 
-    // 2. Fetch Ghost members
+    // 2. Filter for active members only for certain stats
+    const activePlatformMembers = firestoreMembers.filter(m => !m.userInactive);
+
+    // 3. Fetch Ghost members
     let ghostMembers: any[] = [];
     try {
       const ghostData = await getGhostMembers({ limit: 'all' });
@@ -142,7 +146,7 @@ export async function getAnalyticsData() {
       console.error('Error fetching Ghost members for analytics:', err);
     }
 
-    // 3. Members by month (last 12 months) - Combined
+    // 4. Members by month (last 12 months) - Combined
     const monthlyData: Record<string, { platform: number; ghost: number }> = {};
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
@@ -151,7 +155,9 @@ export async function getAnalyticsData() {
       monthlyData[key] = { platform: 0, ghost: 0 };
     }
     
-    firestoreMembers.forEach(m => {
+    // Growth should probably only count active platform members or all platform signups? 
+    // Usually growth is net, but let's stick to active members for accuracy of current state.
+    activePlatformMembers.forEach(m => {
       const d = new Date(m.createdAt);
       const key = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
       if (key in monthlyData) {
@@ -174,18 +180,32 @@ export async function getAnalyticsData() {
       total: counts.platform + counts.ghost
     }));
 
-    // 4. Members by tier (Firestore)
-    const tierCounts: Record<string, number> = { free: 0, premium: 0, founder: 0 };
-    firestoreMembers.forEach(m => {
+    // 5. Members by tier (Firestore) - Standardized
+    const tierCounts: Record<string, number> = { 
+      'free': 0, 
+      'complimentary': 0, 
+      'paid_monthly': 0, 
+      'paid_annual': 0 
+    };
+    
+    activePlatformMembers.forEach(m => {
       const tier = (m.membershipTier || 'free').toLowerCase();
-      tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+      // Handle any legacy naming just in case, though standardize-tiers-final.js should have caught them
+      if (tier.includes('monthly')) tierCounts['paid_monthly']++;
+      else if (tier.includes('annual')) tierCounts['paid_annual']++;
+      else if (tier.includes('comp')) tierCounts['complimentary']++;
+      else if (tier.includes('free')) tierCounts['free']++;
+      else tierCounts['free']++; // Fallback
     });
-    const membersByTier = Object.entries(tierCounts).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value
-    }));
+    
+    const membersByTier = Object.entries(tierCounts)
+      .filter(([_, value]) => value > 0) // Only show tiers that have members
+      .map(([name, value]) => ({
+        name: name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        value
+      }));
 
-    // 5. Ghost Subscription Status
+    // 6. Ghost Subscription Status
     const ghostStatusCounts: Record<string, number> = { free: 0, paid: 0, comped: 0 };
     ghostMembers.forEach(m => {
       const status = (m.status || 'free').toLowerCase();
@@ -198,9 +218,9 @@ export async function getAnalyticsData() {
       value
     }));
 
-    // 6. Members by industry (top 8)
+    // 7. Members by industry (top 8)
     const industryCounts: Record<string, number> = {};
-    firestoreMembers.forEach(m => {
+    activePlatformMembers.forEach(m => {
       const ind = m.industrySector;
       if (ind && ind !== 'Unknown' && ind !== 'Other') {
         industryCounts[ind] = (industryCounts[ind] || 0) + 1;
@@ -211,9 +231,9 @@ export async function getAnalyticsData() {
       .slice(0, 8)
       .map(([name, value]) => ({ name, value }));
 
-    // 7. Members by location (top 8)
+    // 8. Members by location (top 8)
     const locationCounts: Record<string, number> = {};
-    firestoreMembers.forEach(m => {
+    activePlatformMembers.forEach(m => {
       const loc = m.location;
       if (loc && loc !== 'Unknown' && loc !== '') {
         locationCounts[loc] = (locationCounts[loc] || 0) + 1;
@@ -224,23 +244,21 @@ export async function getAnalyticsData() {
       .slice(0, 8)
       .map(([name, value]) => ({ name, value }));
 
-    // 8. Fetch events metadata
-    const eventsRef = adminDb.collection('events');
-    const eventsSnap = await eventsRef.get();
-    const eventAttendance = eventsSnap.docs
-      .slice(0, 10)
-      .map(doc => {
-        const e = doc.data();
-        return {
-          name: e.title || doc.id,
-          attendees: e.registeredCount || 0,
-          capacity: e.capacity || 50
-        };
-      });
+    // 9. Status breakdown (Active vs Inactive)
+    const statusCounts = {
+      active: activePlatformMembers.length,
+      inactive: firestoreMembers.length - activePlatformMembers.length
+    };
+    const platformStatusData = Object.entries(statusCounts).map(([name, value]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value
+    }));
 
-    // 9. Message threads
-    const threadsRef = adminDb.collection('messageThreads');
-    const threadsSnap = await threadsRef.get();
+    // 10. Summary stats
+    const totalMembers = activePlatformMembers.length;
+    const totalGhostMembers = ghostMembers.length;
+    const totalEvents = (await adminDb.collection('events').get()).size;
+    const totalMessages = (await adminDb.collection('messageThreads').get()).size;
 
     return {
       success: true,
@@ -248,13 +266,14 @@ export async function getAnalyticsData() {
         membersByMonth,
         membersByTier,
         ghostStatusData,
+        platformStatusData,
         membersByIndustry,
         membersByLocation,
-        eventAttendance,
-        totalMembers: firestoreMembers.length,
-        totalGhostMembers: ghostMembers.length,
-        totalEvents: eventsSnap.size,
-        totalMessages: threadsSnap.size
+        totalMembers,
+        totalGhostMembers,
+        totalEvents,
+        totalMessages,
+        eventAttendance: [] 
       }
     };
   } catch (error: any) {

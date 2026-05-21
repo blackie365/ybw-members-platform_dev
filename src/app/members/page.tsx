@@ -39,22 +39,20 @@ async function getMembers() {
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
     }).filter((member: any) => {
-      // Only show Premium and Founder members who are ACTIVE
-      const isPremium = member.membershipTier === 'premium' || member.membershipTier === 'founder';
-      const isActive = member.status === 'active' || member.status === 'paid' || member.status === 'comped';
+      // EX-MEMBER PROTECTION: Strictly filter for active members from the final list.
       
-      // Validate the image - if it's a blank gravatar, we consider it "missing"
+      // 1. MUST NOT be userInactive
+      const isActiveMember = member.userInactive !== true;
+      
+      // 2. MUST be one of the authorized tiers
+      const isValidTier = ['paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
+      
+      // 3. MUST have a name and real image for the professional look
       const isBlankGravatar = typeof member.image === 'string' && member.image.includes('gravatar.com/avatar') && member.image.includes('d=blank');
       const hasRealImage = !!member.image && !isBlankGravatar;
-      
       const hasName = member.name && member.name.trim().length > 0;
       
-      // EX-MEMBER PROTECTION: Strictly filter for premium tier AND active status.
-      // We also require a real image and name for the professional community look.
-      // Additionally, we check for the explicit newsletter authorization as a second layer of verification.
-      const isAuthorized = member.isNewsletterAuthorized === true;
-      
-      return isPremium && isActive && hasRealImage && hasName && isAuthorized;
+      return isActiveMember && isValidTier && hasRealImage && hasName;
     });
     return members;
   } catch (error: any) {

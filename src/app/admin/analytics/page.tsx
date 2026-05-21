@@ -23,6 +23,7 @@ interface AnalyticsData {
   membersByMonth: { name: string; platform: number; ghost: number; total: number }[]
   membersByTier: { name: string; value: number }[]
   ghostStatusData: { name: string; value: number }[]
+  platformStatusData: { name: string; value: number }[]
   membersByIndustry: { name: string; value: number }[]
   membersByLocation: { name: string; value: number }[]
   eventAttendance: { name: string; attendees: number; capacity: number }[]
@@ -197,7 +198,7 @@ export default function AdminAnalyticsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="font-serif">Platform Tiers</CardTitle>
-                <CardDescription>Members on the new platform by plan</CardDescription>
+                <CardDescription>Active members by subscription plan</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
@@ -214,6 +215,37 @@ export default function AdminAnalyticsPage() {
                       >
                         {data.membersByTier.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Platform Status (Active vs Inactive) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Platform Status</CardTitle>
+                <CardDescription>Total database records (Active vs Inactive)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.platformStatusData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {data.platformStatusData.map((entry, index) => (
+                          <Cell key={`cell-status-${index}`} fill={index === 0 ? '#b79c65' : '#e7e5e4'} />
                         ))}
                       </Pie>
                       <Tooltip />

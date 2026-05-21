@@ -40,10 +40,11 @@ async function syncToBeehiiv() {
         return;
     }
 
-    console.log(`\n🐝 Starting Beehiiv Sync (STRICT 88 Authorized Members Only)...`);
+    console.log(`\n🐝 Starting Beehiiv Sync (STRICT Final List Authorized Members Only)...`);
 
     const snapshot = await db.collection('newMemberCollection')
         .where('isNewsletterAuthorized', '==', true)
+        .where('userInactive', '==', false)
         .get();
 
     const validSubscribers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

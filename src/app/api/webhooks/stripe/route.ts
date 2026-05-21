@@ -36,18 +36,25 @@ export async function POST(req: Request) {
       const { postId, postSlug, userId, plan } = session.metadata || {};
       
       // If this was a subscription checkout, update the user immediately
-      if (plan === 'premium' && userId) {
+      if (plan && userId) {
         const usersRef = adminDb.collection('newMemberCollection');
         const userDoc = await usersRef.doc(userId).get();
         
         if (userDoc.exists) {
+          const membershipTier = plan.toLowerCase().includes('annual') || plan.toLowerCase().includes('year') ? 'paid_annual' : 'paid_monthly';
+          const billingInterval = membershipTier === 'paid_annual' ? 'year' : 'month';
+
           await userDoc.ref.update({
-            isPaidMember: true,
+            status: 'active',
+            membershipTier: membershipTier,
+            billingInterval: billingInterval,
             stripeCustomerId: session.customer,
             subscriptionId: session.subscription,
             lastPaymentDate: new Date().toISOString(),
+            userInactive: false,
+            isNewsletterAuthorized: true,
           });
-          console.log(`Successfully activated premium subscription for user ${userId}`);
+          console.log(`Successfully activated ${membershipTier} subscription for user ${userId}`);
 
           // Trigger Welcome Email Workflow non-blockingly
           const userData = userDoc.data() || {};
@@ -119,12 +126,9 @@ export async function POST(req: Request) {
     
     // Handle subscription (membership) successful payment
     if (event.type === 'invoice.payment_succeeded') {
-      // In newer Stripe types, invoice is properly typed but 'subscription' might need to be accessed differently 
-      // or we just cast to any to bypass strict type checking for the webhook
       const invoice = event.data.object as any;
       
       if (invoice.subscription) {
-        // Upgrade member status to paid
         const customerEmail = invoice.customer_email;
         if (customerEmail) {
           const usersRef = adminDb.collection('newMemberCollection');
@@ -132,13 +136,31 @@ export async function POST(req: Request) {
           
           if (!snapshot.empty) {
             const userDoc = snapshot.docs[0];
+            const userData = userDoc.data();
+            
+            // Determine tier based on subscription interval if possible
+            let tier = userData.membershipTier || 'paid_monthly';
+            let interval = userData.billingInterval || 'month';
+            
+            try {
+              const sub = await stripe.subscriptions.retrieve(invoice.subscription);
+              interval = sub.items.data[0].plan.interval; // 'month' or 'year'
+              tier = interval === 'year' ? 'paid_annual' : 'paid_monthly';
+            } catch (e) {
+              console.error('Error retrieving subscription for tier update:', e);
+            }
+
             await userDoc.ref.update({
-              isPaidMember: true,
+              status: 'active',
+              membershipTier: tier,
+              billingInterval: interval,
               stripeCustomerId: invoice.customer,
               subscriptionId: invoice.subscription,
               lastPaymentDate: new Date().toISOString(),
+              userInactive: false,
+              isNewsletterAuthorized: true,
             });
-            console.log(`Upgraded user ${customerEmail} to Paid Member`);
+            console.log(`Updated user ${customerEmail} to ${tier} Member`);
           }
         }
       }
