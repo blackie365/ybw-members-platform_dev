@@ -47,6 +47,29 @@ function LoginForm() {
         {/* Right side - Clerk SignIn */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background min-h-[500px]">
           <SignIn 
+            appearance={{
+              variables: {
+                colorPrimary: '#b79c65', // Yorkshire Gold
+                fontFamily: 'var(--font-serif)',
+                borderRadius: '0.2rem',
+              },
+              elements: {
+                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-sm font-semibold h-12 px-4 py-2 rounded-none transition-all shadow-md active:scale-95',
+                card: 'shadow-none border-none bg-transparent',
+                headerTitle: 'font-serif text-3xl text-stone-900 font-medium tracking-tight',
+                headerSubtitle: 'text-stone-500 text-base leading-relaxed',
+                socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-12 transition-all border shadow-sm',
+                socialButtonsBlockButtonText: 'font-semibold text-sm',
+                dividerLine: 'bg-stone-100',
+                dividerText: 'text-stone-400 uppercase text-[10px] tracking-[0.2em] font-bold bg-background px-3',
+                formFieldLabel: 'text-stone-900 font-semibold text-sm mb-2',
+                formFieldInput: 'bg-white border-stone-200 text-stone-900 rounded-none h-12 focus:ring-2 focus:ring-[#b79c65]/20 focus:border-[#b79c65] transition-all border',
+                footerActionLink: 'text-[#b79c65] hover:text-[#a08b57] font-bold transition-colors underline-offset-4 hover:underline',
+                identityPreviewText: 'text-stone-900 font-medium',
+                identityPreviewEditButtonIcon: 'text-[#b79c65]',
+                formFieldAction: 'text-[#b79c65] hover:text-[#a08b57] font-semibold text-xs',
+              }
+            }}
             fallbackRedirectUrl={fallbackRedirect}
             signUpUrl="/register"
           />
