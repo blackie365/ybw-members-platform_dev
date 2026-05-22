@@ -356,7 +356,10 @@ export default function AdminMembersPage() {
                   <SelectContent>
                     <SelectItem value="all">All tiers</SelectItem>
                     <SelectItem value="free">Free</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="complimentary">Complimentary</SelectItem>
+                    <SelectItem value="paid_monthly">Paid Monthly</SelectItem>
+                    <SelectItem value="paid_annual">Paid Annual</SelectItem>
+                    <SelectItem value="premium">Premium (Legacy)</SelectItem>
                     <SelectItem value="founder">Founder</SelectItem>
                   </SelectContent>
                 </Select>
@@ -417,6 +420,9 @@ export default function AdminMembersPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="free">Free</SelectItem>
+                                  <SelectItem value="complimentary">Complimentary</SelectItem>
+                                  <SelectItem value="paid_monthly">Paid Monthly</SelectItem>
+                                  <SelectItem value="paid_annual">Paid Annual</SelectItem>
                                   <SelectItem value="premium">Premium</SelectItem>
                                   <SelectItem value="founder">Founder</SelectItem>
                                 </SelectContent>

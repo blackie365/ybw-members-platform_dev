@@ -69,15 +69,23 @@
 .cl-rootBox, 
 .cl-signIn-root, 
 .cl-signUp-root,
+.cl-footer,
 .cl-internal-ml9k5m,
 .cl-internal-1au92ec,
 .cl-internal-b3fm6y,
 .cl-internal-1h6fgzy,
+.cl-internal-1move57,
 [data-clerk-component="SignIn"],
 [data-clerk-component="SignUp"] {
   box-shadow: none !important;
   border: none !important;
   background-color: transparent !important;
+}
+
+/* Specifically hide the footer if requested */
+.cl-footer,
+.cl-internal-1move57 {
+  display: none !important;
 }
 
 .cl-internal-1f4p2mz {

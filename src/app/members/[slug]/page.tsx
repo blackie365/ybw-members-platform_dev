@@ -22,7 +22,7 @@ async function getMemberBySlug(slug: string) {
     if (!snapshot.empty) {
       const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
       const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
+      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
       
       if (isActiveMember && isValidTier) {
         return member;
@@ -38,7 +38,7 @@ async function getMemberBySlug(slug: string) {
     if (!snapshot.empty) {
       const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
       const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
+      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
       
       if (isActiveMember && isValidTier) {
         return member;
@@ -50,7 +50,7 @@ async function getMemberBySlug(slug: string) {
     if (docRef.exists) {
       const member = { id: docRef.id, ...docRef.data() } as any;
       const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
+      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
       
       if (isActiveMember && isValidTier) {
         return member;

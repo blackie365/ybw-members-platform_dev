@@ -45,14 +45,12 @@ async function getMembers() {
       const isActiveMember = member.userInactive !== true;
       
       // 2. MUST be one of the authorized tiers
-      const isValidTier = ['paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
+      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
       
-      // 3. MUST have a name and real image for the professional look
-      const isBlankGravatar = typeof member.image === 'string' && member.image.includes('gravatar.com/avatar') && member.image.includes('d=blank');
-      const hasRealImage = !!member.image && !isBlankGravatar;
+      // 3. MUST have a name
       const hasName = member.name && member.name.trim().length > 0;
       
-      return isActiveMember && isValidTier && hasRealImage && hasName;
+      return isActiveMember && isValidTier && hasName;
     });
     return members;
   } catch (error: any) {

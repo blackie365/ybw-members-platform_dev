@@ -99,7 +99,8 @@ function SignUpContent() {
                 identityPreviewText: 'text-stone-900 font-medium text-base',
                 identityPreviewEditButtonIcon: 'text-[#8b3e2f]',
                 formFieldAction: 'text-[#8b3e2f] hover:text-[#722f25] font-bold text-[11px] uppercase tracking-wider hover:underline underline-offset-4',
-                footer: 'mt-8 border-t border-stone-100 pt-8 bg-transparent cl-internal-1move57',
+                footer: 'hidden',
+                footerAction: 'bg-transparent border-none shadow-none',
               }
             }}
           />
