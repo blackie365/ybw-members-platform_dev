@@ -7,6 +7,7 @@ import { Search, ArrowDownAZ, ArrowUpAZ, Users } from 'lucide-react';
 export function MembersDirectoryClient({ initialMembers }: { initialMembers: any[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [visibleCount, setVisibleCount] = useState(16);
   
   const [filterMentoring, setFilterMentoring] = useState(false);
   const [filterSeeking, setFilterSeeking] = useState(false);
@@ -48,6 +49,16 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
     });
   }, [initialMembers, searchTerm, sortOrder, filterMentoring, filterSeeking, filterBoard]);
 
+  const displayedMembers = useMemo(() => {
+    return filteredAndSortedMembers.slice(0, visibleCount);
+  }, [filteredAndSortedMembers, visibleCount]);
+
+  const hasMore = visibleCount < filteredAndSortedMembers.length;
+
+  const loadMore = () => {
+    setVisibleCount(prev => prev + 16);
+  };
+
   return (
     <div>
       {/* Controls Section */}
@@ -64,7 +75,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
               name="search"
               id="search"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setVisibleCount(16); // Reset visible count when searching
+              }}
               className="block w-full border border-input bg-card py-3.5 pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
               placeholder="Search by name, company, or expertise..."
             />
@@ -96,7 +110,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
             Filter by:
           </span>
           <button
-            onClick={() => setFilterMentoring(!filterMentoring)}
+            onClick={() => {
+              setFilterMentoring(!filterMentoring);
+              setVisibleCount(16); // Reset visible count
+            }}
             className={`inline-flex items-center px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors border ${
               filterMentoring
                 ? 'bg-accent text-accent-foreground border-accent'
@@ -106,7 +123,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
             Open to Coaching
           </button>
           <button
-            onClick={() => setFilterSeeking(!filterSeeking)}
+            onClick={() => {
+              setFilterSeeking(!filterSeeking);
+              setVisibleCount(16); // Reset visible count
+            }}
             className={`inline-flex items-center px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors border ${
               filterSeeking
                 ? 'bg-accent text-accent-foreground border-accent'
@@ -116,7 +136,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
             Seeking a Coach
           </button>
           <button
-            onClick={() => setFilterBoard(!filterBoard)}
+            onClick={() => {
+              setFilterBoard(!filterBoard);
+              setVisibleCount(16); // Reset visible count
+            }}
             className={`inline-flex items-center px-4 py-2 text-xs font-medium uppercase tracking-wider transition-colors border ${
               filterBoard
                 ? 'bg-accent text-accent-foreground border-accent'
@@ -131,7 +154,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
       {/* Results Stats */}
       <div className="mb-8 flex items-center justify-between border-b border-border pb-4">
         <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium text-foreground">{filteredAndSortedMembers.length}</span> of {initialMembers.length} members
+          Showing <span className="font-medium text-foreground">{displayedMembers.length}</span> of {filteredAndSortedMembers.length} members
         </p>
         {(filterMentoring || filterSeeking || filterBoard || searchTerm) && (
           <button
@@ -140,6 +163,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
               setFilterMentoring(false);
               setFilterSeeking(false);
               setFilterBoard(false);
+              setVisibleCount(16);
             }}
             className="text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors"
           >
@@ -150,8 +174,8 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
 
       {/* Grid */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredAndSortedMembers.length > 0 ? (
-          filteredAndSortedMembers.map((member: any, index: number) => (
+        {displayedMembers.length > 0 ? (
+          displayedMembers.map((member: any, index: number) => (
             <MemberCard key={member.id || member.email || member.slug || index} member={member} />
           ))
         ) : (
@@ -170,6 +194,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
                 setFilterMentoring(false);
                 setFilterSeeking(false);
                 setFilterBoard(false);
+                setVisibleCount(16);
               }}
               className="inline-flex items-center px-5 py-2.5 text-sm font-medium text-accent-foreground bg-accent hover:bg-accent/90 transition-colors"
             >
@@ -178,6 +203,18 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
           </div>
         )}
       </div>
+
+      {/* See More Link */}
+      {hasMore && (
+        <div className="mt-12 text-center">
+          <button
+            onClick={loadMore}
+            className="inline-flex items-center justify-center px-8 py-3 border border-accent text-accent font-medium uppercase tracking-wider text-xs hover:bg-accent hover:text-white transition-all duration-300"
+          >
+            See More Members
+          </button>
+        </div>
+      )}
     </div>
   );
 }
