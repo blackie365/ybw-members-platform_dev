@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Send, Copy, Eye, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { previewNewsletterAction, sendBulkNewsletterAction } from "@/app/actions/adminActions";
+import { Mail, Send, Copy, Eye, Loader2, CheckCircle2, AlertCircle, TestTube } from "lucide-react";
+import { previewNewsletterAction, sendBulkNewsletterAction, sendTestNewsletterAction } from "@/app/actions/adminActions";
 import { toast } from "sonner";
 
 export default function NewsletterAdminPage() {
   const [editorNote, setEditorNote] = useState("");
   const [subject, setSubject] = useState("Your Daily Briefing | Yorkshire Businesswoman");
+  const [testEmail, setTestEmail] = useState("");
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
   const fetchPreview = async () => {
@@ -39,6 +41,23 @@ export default function NewsletterAdminPage() {
       toast.success("HTML copied to clipboard");
       setTimeout(() => setCopySuccess(false), 2000);
     }
+  };
+
+  const handleSendTest = async () => {
+    if (!testEmail || !testEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsSendingTest(true);
+    const result = await sendTestNewsletterAction(testEmail, editorNote, subject);
+    
+    if (result.success) {
+      toast.success(`Test email sent successfully to ${testEmail}!`);
+    } else {
+      toast.error(`Failed to send test email: ${result.error}`);
+    }
+    setIsSendingTest(false);
   };
 
   const handleSend = async () => {
@@ -106,6 +125,35 @@ export default function NewsletterAdminPage() {
                 {isLoadingPreview ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
                 Update Preview
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Send Test Email</CardTitle>
+              <CardDescription>Send a draft to a single address.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Recipient Email</label>
+                <div className="flex gap-2">
+                  <Input 
+                    type="email"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    placeholder="test@example.com"
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleSendTest} 
+                    disabled={isSendingTest || !testEmail}
+                    variant="secondary"
+                    className="shrink-0"
+                  >
+                    {isSendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

@@ -85,6 +85,32 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
   }
 }
 
+export async function sendTestNewsletterAction(email: string, editorNote?: string, subject?: string) {
+  try {
+    if (!email || !email.includes('@')) {
+      throw new Error("Invalid email address");
+    }
+
+    // 1. Get latest posts
+    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    
+    // 2. Generate HTML
+    const html = await getDailyNewsletterTemplate(posts, "Test Subscriber", editorNote);
+    
+    // 3. Send test email
+    await sendEmail({
+      to: email,
+      subject: `[TEST] ${subject || "Your Daily Briefing | Yorkshire Businesswoman"}`,
+      html
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in sendTestNewsletterAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getAnalyticsData() {
   try {
     if (!adminDb) throw new Error("Database not initialized");
