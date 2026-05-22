@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface Attendee {
   uid: string;
@@ -106,12 +107,12 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
             {processing ? 'Updating...' : (isAttending ? 'Cancel RSVP' : 'RSVP Now')}
           </button>
         ) : (
-          <a
+          <Link
             href="/login"
             className="shrink-0 inline-flex justify-center items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
           >
             Log in to RSVP
-          </a>
+          </Link>
         )}
       </div>
 
@@ -120,10 +121,10 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
           <h4 className="text-sm font-medium text-zinc-900 dark:text-white mb-4">Members Attending</h4>
           <div className="flex flex-wrap gap-3">
             {attendees.map((attendee) => (
-              <div 
+              <Link 
                 key={attendee.uid}
+                href={`/members/${attendee.uid}`}
                 className="group relative flex items-center gap-x-3 rounded-full bg-zinc-50 dark:bg-zinc-800/50 pr-3 p-1 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-700/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                onClick={() => window.location.href = `/members/${attendee.uid}`}
               >
                 {attendee.image ? (
                   <Image
@@ -146,7 +147,7 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">{attendee.company}</span>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

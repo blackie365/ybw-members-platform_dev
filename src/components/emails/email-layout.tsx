@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { ReactNode } from "react"
 
 interface EmailLayoutProps {
