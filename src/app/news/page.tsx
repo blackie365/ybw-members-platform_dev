@@ -33,11 +33,13 @@ export default async function NewsPage(props: {
               {tag ? 'Filtered by' : 'Stay Informed'}
             </p>
             <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl capitalize text-balance">
-              {tag ? tag.replace(/-/g, ' ') : 'Latest News'}
+              {tag === 'events' ? 'Yorkshire BusinessWoman Events' : (tag ? tag.replace(/-/g, ' ') : 'Latest News')}
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
               {tag 
-                ? `Explore all articles tagged with ${tag.replace(/-/g, ' ')}.`
+                ? (tag === 'events' 
+                    ? 'Explore all articles and updates for Yorkshire BusinessWoman events.' 
+                    : `Explore all articles tagged with ${tag.replace(/-/g, ' ')}.`)
                 : 'Insights, stories, and updates from Yorkshire\'s business community.'}
             </p>
           </div>
