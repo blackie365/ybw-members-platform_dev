@@ -75,6 +75,35 @@ if (!admin.apps.length) {
 
 // Specify the correct database ID used by the project
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
-export const adminDb = getFirestore(admin.app(), dbId);
-export const adminAuth = admin.auth();
-export const adminStorage = admin.storage();
+
+// Use lazy getters to avoid accessing admin.app() when Firebase isn't initialized
+function getAdminApp() {
+  if (!admin.apps.length) {
+    throw new Error('Firebase Admin SDK is not initialized. Check your environment variables: FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL');
+  }
+  return admin.app();
+}
+
+export const adminDb = (() => {
+  try {
+    return getFirestore(getAdminApp(), dbId);
+  } catch {
+    return null;
+  }
+})();
+
+export const adminAuth = (() => {
+  try {
+    return admin.auth(getAdminApp());
+  } catch {
+    return null;
+  }
+})();
+
+export const adminStorage = (() => {
+  try {
+    return admin.storage(getAdminApp());
+  } catch {
+    return null;
+  }
+})();
