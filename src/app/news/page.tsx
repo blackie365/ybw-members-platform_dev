@@ -30,7 +30,7 @@ export default async function NewsPage(props: {
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
-              {tag ? 'Filtered by' : 'Stay Informed'}
+              {tag === 'events' ? 'Networking & Growth' : (tag ? 'Filtered by' : 'Stay Informed')}
             </p>
             <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl capitalize text-balance">
               {tag === 'events' ? 'Yorkshire BusinessWoman Events' : (tag ? tag.replace(/-/g, ' ') : 'Latest News')}
@@ -38,7 +38,7 @@ export default async function NewsPage(props: {
             <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
               {tag 
                 ? (tag === 'events' 
-                    ? 'Explore all articles and updates for Yorkshire BusinessWoman events.' 
+                    ? 'Join us at one of our many fantastic events, designed to inspire, connect, and empower women across the region.' 
                     : `Explore all articles tagged with ${tag.replace(/-/g, ' ')}.`)
                 : 'Insights, stories, and updates from Yorkshire\'s business community.'}
             </p>
