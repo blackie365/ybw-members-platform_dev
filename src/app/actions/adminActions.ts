@@ -84,3 +84,81 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
     return { success: false, error: error.message };
   }
 }
+
+export async function getAnalyticsData() {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    // 1. Fetch Firestore Members
+    const snapshot = await adminDb.collection('newMemberCollection').get();
+    const totalMembers = snapshot.docs.filter(d => !d.data().userInactive).length;
+    const totalInactive = snapshot.size - totalMembers;
+
+    // 2. Fetch Ghost Members
+    const ghostMembers = await getGhostMembers({ limit: 'all' });
+    const totalGhostMembers = Array.isArray(ghostMembers) ? ghostMembers.length : 0;
+
+    // 3. Fetch Events
+    const eventsSnapshot = await adminDb.collection('events').get();
+    const totalEvents = eventsSnapshot.size;
+
+    // 4. Group Members by Tier
+    const tierCounts: Record<string, number> = {};
+    snapshot.docs.forEach(doc => {
+      if (doc.data().userInactive) return;
+      const tier = doc.data().membershipTier || 'free';
+      tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+    });
+
+    // 5. Group by Industry
+    const industryCounts: Record<string, number> = {};
+    snapshot.docs.forEach(doc => {
+      if (doc.data().userInactive) return;
+      const industry = doc.data().industrySector || 'Other';
+      industryCounts[industry] = (industryCounts[industry] || 0) + 1;
+    });
+
+    // 6. Group by Location
+    const locationCounts: Record<string, number> = {};
+    snapshot.docs.forEach(doc => {
+      if (doc.data().userInactive) return;
+      const location = doc.data().location || doc.data().city || 'Unknown';
+      locationCounts[location] = (locationCounts[location] || 0) + 1;
+    });
+
+    // 7. Mock Growth Data (for now, can be improved with real timestamps)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const membersByMonth = months.map(month => ({
+      name: month,
+      platform: Math.floor(totalMembers / 6),
+      ghost: Math.floor(totalGhostMembers / 6),
+      total: Math.floor((totalMembers + totalGhostMembers) / 6)
+    }));
+
+    return {
+      success: true,
+      data: {
+        totalMembers,
+        totalGhostMembers,
+        totalEvents,
+        totalMessages: 0,
+        membersByTier: Object.entries(tierCounts).map(([name, value]) => ({ name, value })),
+        membersByIndustry: Object.entries(industryCounts).map(([name, value]) => ({ name, value })).slice(0, 8),
+        membersByLocation: Object.entries(locationCounts).map(([name, value]) => ({ name, value })).slice(0, 8),
+        platformStatusData: [
+          { name: 'Active', value: totalMembers },
+          { name: 'Inactive', value: totalInactive }
+        ],
+        ghostStatusData: [
+          { name: 'Subscribed', value: totalGhostMembers },
+          { name: 'Unsubscribed', value: 0 }
+        ],
+        membersByMonth,
+        eventAttendance: []
+      }
+    };
+  } catch (error: any) {
+    console.error("Error in getAnalyticsData:", error);
+    return { success: false, error: error.message };
+  }
+}
