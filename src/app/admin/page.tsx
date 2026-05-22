@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { collection, query, getDocs, where, orderBy, limit, Timestamp } from "firebase/firestore"
+import { getGhostStatsAction } from "@/app/actions/adminActions"
 
 interface Stats {
   totalMembers: number
@@ -14,6 +15,7 @@ interface Stats {
   upcomingEvents: number
   totalMessages: number
   activeThreads: number
+  ghostMembers: number
 }
 
 interface RecentMember {
@@ -34,6 +36,7 @@ export default function AdminOverviewPage() {
     upcomingEvents: 0,
     totalMessages: 0,
     activeThreads: 0,
+    ghostMembers: 0,
   })
   const [recentMembers, setRecentMembers] = useState<RecentMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,6 +112,15 @@ export default function AdminOverviewPage() {
         console.warn("MessageThreads collection may not exist yet")
       }
 
+      // Fetch Ghost Stats
+      let ghostMembers = 0
+      try {
+        const ghostStats = await getGhostStatsAction()
+        ghostMembers = ghostStats.total
+      } catch (e) {
+        console.error("Failed to fetch Ghost stats:", e)
+      }
+
       setStats({
         totalMembers,
         newMembersThisMonth,
@@ -117,6 +129,7 @@ export default function AdminOverviewPage() {
         upcomingEvents,
         totalMessages: 0,
         activeThreads,
+        ghostMembers,
       })
     } catch (error) {
       console.error("Failed to fetch stats:", error)
@@ -157,6 +170,14 @@ export default function AdminOverviewPage() {
       trend: stats.memberGrowth > 0 ? "up" : "down",
       icon: TrendingUp,
       href: "/admin/analytics",
+    },
+    {
+      title: "Newsletter Subscribers",
+      value: stats.ghostMembers,
+      change: "From Ghost database",
+      trend: "neutral",
+      icon: Users,
+      href: "/admin/members",
     },
   ]
 
