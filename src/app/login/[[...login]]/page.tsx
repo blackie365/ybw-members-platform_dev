@@ -47,6 +47,7 @@ function LoginForm() {
         {/* Right side - Clerk SignIn */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background min-h-[500px]">
           <SignIn 
+            path="/login"
             appearance={{
               variables: {
                 colorPrimary: '#b79c65', // Yorkshire Gold

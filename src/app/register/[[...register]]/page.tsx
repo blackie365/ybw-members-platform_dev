@@ -81,6 +81,7 @@ function RegisterForm() {
         {/* Right side - Clerk SignUp */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
           <SignUp 
+            path="/register"
             appearance={{
               variables: {
                 colorPrimary: '#b79c65', // Yorkshire Gold
