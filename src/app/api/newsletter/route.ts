@@ -61,19 +61,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Send Welcome Email (via Beehiiv automation usually, but we'll disable the Resend fallback)
-    /* 
-    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    // 4. Send Welcome Email
+    try {
+      const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
 
-    if (posts && posts.length > 0) {
-      const html = await getDailyNewsletterTemplate(posts);
-      await sendEmail({
-        to: email,
-        subject: 'Welcome to Yorkshire Businesswoman: Your First Newsletter',
-        html
-      });
+      if (posts && posts.length > 0) {
+        const html = await getDailyNewsletterTemplate(posts);
+        await sendEmail({
+          to: email,
+          subject: 'Welcome to Yorkshire Businesswoman',
+          html
+        });
+        console.log('✅ Welcome email sent to:', email);
+      }
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail the whole request if only the welcome email fails
     }
-    */
 
     return NextResponse.json({ success: true, beehiiv: beehiivResult, ghost: ghostResult });
   } catch (error: any) {
