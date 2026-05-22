@@ -4,17 +4,22 @@ import GhostAdminAPI from '@tryghost/admin-api';
 
 const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
 
-// Initialize Admin API conditionally (only works on server-side with an Admin Key)
-let ghostAdmin: any = null;
-if (process.env.GHOST_ADMIN_API_KEY) {
+function getGhostAdmin() {
+  const key = process.env.GHOST_ADMIN_API_KEY;
+  if (!key) {
+    console.warn("GHOST_ADMIN_API_KEY is not set.");
+    return null;
+  }
+  
   try {
-    ghostAdmin = new GhostAdminAPI({
+    return new GhostAdminAPI({
       url: GHOST_API_URL,
-      key: process.env.GHOST_ADMIN_API_KEY,
+      key: key,
       version: "v5.0"
     });
   } catch (error) {
     console.error("Failed to initialize Ghost Admin API:", error);
+    return null;
   }
 }
 
@@ -23,13 +28,14 @@ if (process.env.GHOST_ADMIN_API_KEY) {
  * REQUIRES: GHOST_ADMIN_API_KEY to be set in .env.local
  */
 export async function getGhostMembers(options?: { limit?: number | string; filter?: string; page?: number }) {
-  if (!ghostAdmin) {
-    console.warn("Ghost Admin API is not initialized. Ensure GHOST_ADMIN_API_KEY is set in .env.local.");
+  const admin = getGhostAdmin();
+  if (!admin) {
+    console.warn("Ghost Admin API is not initialized. Ensure GHOST_ADMIN_API_KEY is set.");
     return [];
   }
   
   try {
-    const members = await ghostAdmin.members.browse(options);
+    const members = await admin.members.browse(options);
     return members;
   } catch (error) {
     console.error("Error fetching ghost members:", error);
@@ -41,12 +47,13 @@ export async function getGhostMembers(options?: { limit?: number | string; filte
  * Create a new draft article via Ghost Admin API
  */
 export async function createDraftArticle({ title, html, customExcerpt }: { title: string, html: string, customExcerpt?: string }) {
-  if (!ghostAdmin) {
-    throw new Error("Ghost Admin API is not initialized. Cannot create article.");
+  const admin = getGhostAdmin();
+  if (!admin) {
+    throw new Error("Ghost Admin API is not initialized. Please check GHOST_ADMIN_API_KEY.");
   }
   
   try {
-    const response = await ghostAdmin.posts.add({
+    const response = await admin.posts.add({
       title,
       html,
       status: 'draft',
@@ -55,7 +62,8 @@ export async function createDraftArticle({ title, html, customExcerpt }: { title
     }, { source: 'html' });
     
     return response;
-  } catch (error) {
+  }
+  catch (error) {
     console.error("Error creating draft article:", error);
     throw error;
   }
@@ -65,13 +73,14 @@ export async function createDraftArticle({ title, html, customExcerpt }: { title
  * Add a new member to Ghost via Admin API
  */
 export async function addGhostMember(data: { email: string; name?: string; note?: string; labels?: string[] }) {
-  if (!ghostAdmin) {
+  const admin = getGhostAdmin();
+  if (!admin) {
     console.warn("Ghost Admin API is not initialized. Cannot sync member to Ghost.");
     return null;
   }
 
   try {
-    const member = await ghostAdmin.members.add(data);
+    const member = await admin.members.add(data);
     return member;
   } catch (err: any) {
     // If the member already exists, we can safely ignore the error
@@ -88,16 +97,17 @@ export async function addGhostMember(data: { email: string; name?: string; note?
  * Update an existing member in Ghost via Admin API (e.g. to mark as paid via Stripe ID)
  */
 export async function editGhostMember(id: string, data: any) {
-  if (!ghostAdmin) {
+  const admin = getGhostAdmin();
+  if (!admin) {
     console.warn("Ghost Admin API is not initialized. Cannot edit member in Ghost.");
     return null;
   }
 
   try {
-    const member = await ghostAdmin.members.edit(Object.assign({}, data, { id }));
+    const member = await admin.members.edit(Object.assign({}, data, { id }));
     return member;
   } catch (err) {
     console.error("Error editing Ghost member via Admin API:", err);
-    throw err;
+    return null;
   }
 }
