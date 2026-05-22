@@ -73,7 +73,7 @@ function SignUpContent() {
             signInUrl="/sign-in"
             appearance={{
               variables: {
-                colorPrimary: '#b79c65', // Yorkshire Gold
+                colorPrimary: '#8b3e2f', // Brick Color
                 fontFamily: 'var(--font-serif)',
                 borderRadius: '0',
                 colorBackground: 'transparent',
@@ -84,18 +84,18 @@ function SignUpContent() {
                 navbar: 'hidden',
                 header: 'hidden',
                 main: 'bg-transparent shadow-none border-none',
-                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95 shadow-none border-none',
+                formButtonPrimary: 'bg-[#8b3e2f] hover:bg-[#722f25] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95 shadow-none border-none',
                 socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border mb-4 shadow-none bg-white',
                 socialButtonsBlockButtonText: 'font-semibold text-sm',
                 dividerLine: 'bg-stone-100',
                 dividerText: 'text-stone-400 uppercase text-[10px] tracking-[0.2em] font-bold bg-background px-3',
                 formFieldLabel: 'text-stone-900 font-semibold text-[11px] uppercase tracking-wider mb-2',
-                formFieldInput: 'bg-white border-stone-200 text-stone-900 rounded-none h-14 px-5 focus:ring-2 focus:ring-[#b79c65]/20 focus:border-[#b79c65] transition-all border outline-none text-base shadow-none',
-                footerActionLink: 'text-[#b79c65] hover:text-[#a08b57] font-bold transition-colors underline-offset-4 hover:underline',
+                formFieldInput: 'bg-white border-stone-200 text-stone-900 rounded-none h-14 px-5 focus:ring-2 focus:ring-[#8b3e2f]/20 focus:border-[#8b3e2f] transition-all border outline-none text-base shadow-none',
+                footerActionLink: 'text-[#8b3e2f] hover:text-[#722f25] font-bold transition-colors underline-offset-4 hover:underline',
                 footerActionText: 'text-stone-600 font-medium',
                 identityPreviewText: 'text-stone-900 font-medium text-base',
-                identityPreviewEditButtonIcon: 'text-[#b79c65]',
-                formFieldAction: 'text-[#b79c65] hover:text-[#a08b57] font-bold text-[11px] uppercase tracking-wider hover:underline underline-offset-4',
+                identityPreviewEditButtonIcon: 'text-[#8b3e2f]',
+                formFieldAction: 'text-[#8b3e2f] hover:text-[#722f25] font-bold text-[11px] uppercase tracking-wider hover:underline underline-offset-4',
                 footer: 'mt-8 border-t border-stone-100 pt-8 bg-transparent',
               }
             }}
