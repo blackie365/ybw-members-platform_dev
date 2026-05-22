@@ -56,7 +56,8 @@ if (!admin.apps.length) {
             clientEmail,
             privateKey,
           }),
-          projectId: finalProjectId
+          projectId: finalProjectId,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${finalProjectId}.firebasestorage.app`
         });
         
         console.log('[Firebase Admin] Initialization successful');
@@ -76,3 +77,4 @@ if (!admin.apps.length) {
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
 export const adminDb = getFirestore(admin.app(), dbId);
 export const adminAuth = admin.auth();
+export const adminStorage = admin.storage();

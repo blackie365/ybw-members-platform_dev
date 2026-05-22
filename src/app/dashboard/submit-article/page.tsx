@@ -3,8 +3,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { ImageIcon, X, Upload } from 'lucide-react';
 
@@ -46,7 +44,7 @@ export default function SubmitArticlePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || isSubmitting) return;
 
     setIsSubmitting(true);
     setStatus('idle');
@@ -56,25 +54,25 @@ export default function SubmitArticlePage() {
     let featureImage = '';
 
     try {
-      // 1. Upload image if exists
+      // 1. Upload image if exists (Server-side via API to avoid permissions issues)
       if (imageFile) {
-        const fileExtension = imageFile.name.split('.').pop();
-        const storageRef = ref(storage, `article-images/${user.uid}-${Date.now()}.${fileExtension}`);
-        const uploadTask = uploadBytesResumable(storageRef, imageFile);
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', imageFile);
+        uploadFormData.append('folder', 'article-images');
 
-        featureImage = await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', 
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress);
-            },
-            (error) => reject(error),
-            async () => {
-              const url = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(url);
-            }
-          );
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData,
         });
+
+        if (!uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          throw new Error(uploadData.error || 'Failed to upload image');
+        }
+
+        const { url } = await uploadRes.json();
+        featureImage = url;
+        setUploadProgress(100);
       }
 
       // 2. Submit article

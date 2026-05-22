@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { getProfile, updateProfile } from '@/app/actions/profile';
 import { ProfileCompleteness } from '@/components/ProfileCompleteness';
@@ -193,38 +191,33 @@ export default function DashboardProfile() {
     setMessage({ type: '', text: '' });
 
     try {
-      const fileExtension = file.name.split('.').pop();
-      const storageRef = ref(storage, `${type}-images/${user.uid || Date.now()}.${fileExtension}`);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('folder', `${type}-images`);
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!uploadRes.ok) {
+        const uploadData = await uploadRes.json();
+        throw new Error(uploadData.error || 'Failed to upload image');
+      }
+
+      const { url: downloadURL } = await uploadRes.json();
       
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      
-      uploadTask.on(
-        'state_changed',
-        () => {},
-        (error) => {
-          console.error('Error uploading image:', error);
-          setMessage({ type: 'error', text: 'Failed to upload image. Please try again.' });
-          if (type === 'profile') {
-            setUploadingImage(false);
-          } else {
-            setUploadingBanner(false);
-          }
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          if (type === 'profile') {
-            setFormData(prev => ({ ...prev, profileImage: downloadURL }));
-            setUploadingImage(false);
-          } else {
-            setFormData(prev => ({ ...prev, bannerImage: downloadURL }));
-            setUploadingBanner(false);
-          }
-          setMessage({ type: 'success', text: 'Image uploaded! Remember to save your profile.' });
-        }
-      );
-    } catch (error) {
-      console.error('Error initiating upload:', error);
-      setMessage({ type: 'error', text: 'Failed to initiate upload. Please try again.' });
+      if (type === 'profile') {
+        setFormData(prev => ({ ...prev, profileImage: downloadURL }));
+        setUploadingImage(false);
+      } else {
+        setFormData(prev => ({ ...prev, bannerImage: downloadURL }));
+        setUploadingBanner(false);
+      }
+      setMessage({ type: 'success', text: 'Image uploaded! Remember to save your profile.' });
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to upload image. Please try again.' });
       if (type === 'profile') {
         setUploadingImage(false);
       } else {
