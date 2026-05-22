@@ -1,7 +1,8 @@
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
 import { adminDb } from '@/lib/firebase-admin';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getMembers() {
   try {

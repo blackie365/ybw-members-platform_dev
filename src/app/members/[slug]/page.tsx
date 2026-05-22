@@ -7,9 +7,10 @@ import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 import { ConnectButton } from '@/components/ConnectButton';
 import { ArrowLeft, MapPin, Globe, Linkedin, Twitter, Instagram } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function getMemberBySlug(slug: string) {
+async function getMember(slug: string) {
   try {
     if (!adminDb) return null;
     
@@ -66,7 +67,7 @@ async function getMemberBySlug(slug: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const member = await getMemberBySlug(resolvedParams.slug);
+  const member = await getMember(resolvedParams.slug);
 
   if (!member) {
     return { title: 'Member Not Found' };
@@ -101,7 +102,7 @@ export default async function MemberProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = await params;
-  const member = await getMemberBySlug(resolvedParams.slug);
+  const member = await getMember(resolvedParams.slug);
 
   if (!member) {
     notFound();
