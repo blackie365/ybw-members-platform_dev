@@ -9,7 +9,7 @@ export function MemberCard({ member }: { member: any }) {
   const avatarUrl = member.avatarUrl || "";
   const profileImageSource = member.profileImage || "";
   const profileImage = [avatarUrl, profileImageSource, member.image].find(url => 
-    url && typeof url === 'string' && url.includes('storage.googleapis.com')
+    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
   ) || [avatarUrl, profileImageSource, member.image].find(url => 
     url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
   ) || avatarUrl || profileImageSource;

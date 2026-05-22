@@ -148,9 +148,16 @@ async function masterSync() {
     
     for (const fm of firestoreMembers) {
         if (!fm.email || !authorizedEmails.has(fm.email.toLowerCase())) {
-            // Check if this record has a Stripe ID - if so, we should keep it active!
-            if (fm.stripeCustomerId) {
-                console.log(`ℹ️ Preserving active status for ${fm.email} (Not in CSV, but has Stripe ID: ${fm.stripeCustomerId})`);
+            // Check if this record has a Stripe ID or a Firebase Storage image - if so, we should keep it active!
+            const avatarUrl = fm.avatarUrl || "";
+            const profileImage = fm.profileImage || "";
+            const image = fm.image || "";
+            const hasStorageImage = [avatarUrl, profileImage, image].some(url => 
+                url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
+            );
+
+            if (fm.stripeCustomerId || hasStorageImage) {
+                console.log(`ℹ️ Preserving active status for ${fm.email} (Not in CSV, but has ${fm.stripeCustomerId ? 'Stripe ID' : 'Storage Image'})`);
                 continue; 
             }
 
