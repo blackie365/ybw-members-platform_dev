@@ -72,21 +72,23 @@ export default async function MembersPage() {
     return (
       <div className="min-h-screen bg-background">
         {/* Hero Section */}
-        <div className="relative bg-primary py-20 sm:py-28">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-          </div>
+        <section className="relative bg-primary py-24 sm:py-32 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/15 via-transparent to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
           <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
-                Our Community
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-6">
+                Our Network
               </p>
-              <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl">
+              <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl text-balance">
                 Member Directory
               </h1>
+              <p className="mt-8 text-lg text-primary-foreground/70 max-w-2xl mx-auto leading-relaxed">
+                Connect with inspiring businesswomen across Yorkshire.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
 
         <div className="mx-auto max-w-3xl px-6 lg:px-8 py-16">
           <div className="bg-destructive/10 border border-destructive/20 text-destructive p-8 rounded-lg">
@@ -106,18 +108,36 @@ export default async function MembersPage() {
   const members = await getMembers();
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="relative bg-primary py-24 sm:py-32 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/15 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-6">
+              Our Network
+            </p>
+            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl text-balance">
+              Member Directory
+            </h1>
+            <p className="mt-8 text-lg text-primary-foreground/70 max-w-2xl mx-auto leading-relaxed">
+              Connect with inspiring businesswomen across Yorkshire.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Content Section */}
+      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
         {members.length === 0 ? (
-          <div className="text-center py-20 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50">
-            <p className="text-zinc-500 italic font-serif">No active members found in the directory.</p>
+          <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
+            <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
           </div>
         ) : (
           <MembersDirectoryClient initialMembers={members} />
         )}
-      </div>
+      </section>
     </div>
   );
 }
-
-
