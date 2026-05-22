@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, getDocs, doc, updateDoc, query, orderBy } from "firebase/firestore"
+import { collection, getDocs, doc, updateDoc, query, orderBy, where } from "firebase/firestore"
 import { Switch } from "@/components/ui/switch"
 import { toggleFeaturedStatus } from "@/app/actions/adminActions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -85,7 +85,7 @@ export default function AdminMembersPage() {
   const fetchMembers = async () => {
     try {
       const membersRef = collection(db, "newMemberCollection")
-      const q = query(membersRef, orderBy("createdAt", "desc"))
+      const q = query(membersRef, where("userInactive", "==", false), orderBy("createdAt", "desc"))
       const snap = await getDocs(q)
       const data = snap.docs.map((doc) => ({
         id: doc.id,

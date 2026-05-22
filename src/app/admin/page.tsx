@@ -50,7 +50,8 @@ export default function AdminOverviewPage() {
       }
 
       const membersRef = collection(db, "newMemberCollection")
-      const membersSnap = await getDocs(membersRef)
+      const q = query(membersRef, where("userInactive", "==", false))
+      const membersSnap = await getDocs(q)
       const totalMembers = membersSnap.size
 
       const startOfMonth = new Date()

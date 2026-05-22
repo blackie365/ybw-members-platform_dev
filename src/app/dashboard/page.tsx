@@ -12,7 +12,10 @@ export const revalidate = 60;
 async function getTotalMembers() {
   try {
     if (!adminDb) return 0;
-    const snapshot = await adminDb.collection('newMemberCollection').count().get();
+    const snapshot = await adminDb.collection('newMemberCollection')
+      .where('userInactive', '==', false)
+      .count()
+      .get();
     return snapshot.data().count || 0;
   } catch (err) {
     console.error('Error fetching total members count:', err);
