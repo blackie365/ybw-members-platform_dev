@@ -21,6 +21,11 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Skip auth checks for POST requests on public routes (fixes Clerk keyless mode redirect issue)
+  if (req.method === 'POST' && isPublicRoute(req)) {
+    return;
+  }
+  
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
