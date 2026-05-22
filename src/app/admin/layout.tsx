@@ -12,7 +12,8 @@ import {
   Settings,
   ChevronLeft,
   Loader2,
-  Shield
+  Shield,
+  Mail
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils"
 const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/members", label: "Members", icon: Users },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ]
 
