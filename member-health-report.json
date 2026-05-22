@@ -1,0 +1,1225 @@
+{
+  "total": 130,
+  "missingBio": [
+    "B Katenga",
+    "Laura Sails",
+    "Samantha J Hague",
+    "Leanne Hodgetts",
+    "Jetplus Services Limited",
+    "A M Beardsell",
+    "Shona Hayes",
+    "Debbie Dobson",
+    "Orla M Rhodes",
+    "Sinead Myers",
+    "Angie Khupe",
+    "N Wordsworth",
+    "Paula Farrell",
+    "Deborah Ogden",
+    "Liz Green",
+    "Ellie Brook",
+    "Lubna Khan-Salim",
+    "Rebecca Beaumont",
+    "Chadwick Lawrence",
+    "Mexi Bean",
+    "Martin Hughes",
+    "Laura Petyt",
+    "Francesca Macauley",
+    "Sandra Marvin",
+    "B O'connor",
+    "Kara Milner",
+    "K Cliffe",
+    "J L Loftus",
+    "Claire Alexander",
+    "Amelia-Rose Penny",
+    "Daneile Moore",
+    "H M Mack",
+    "Mandy Taylor",
+    "J Leatham",
+    "Lucy Guest",
+    "Kathryn Shires",
+    "Anny Lian-Green",
+    "Jane Snowden",
+    "Uzma Qureshi",
+    "J Head",
+    "Rachel Cheshire",
+    "Kirsty Chaplin"
+  ],
+  "missingAvatar": [
+    "Chadwick Lawrence"
+  ],
+  "externalAvatar": [
+    "Rachel M Coates (https://yas.co.uk/wp-content/uploads/2024/05/Rachel-Coates-Show-Director-2024.jpg)",
+    "Alka Davi Bohorun (https://www.managers.org.uk/-/media/Images/Insights/Interview/Alka-Bohorun.jpg)",
+    "Natalie Anderson (https://images.squarespace-cdn.com/content/v1/582098059f74567268593a8d/1557144414652-3M6YQG6QW6QW6QW6QW6Q/Natalie+Anderson+Stevie+Roy.jpg)",
+    "Victoria Ellis (https://www.pumpcourtchambers.com/wp-content/uploads/2021/05/Victoria-Ellis-768x1024.jpg)",
+    "Chris Williams (https://leedsplayhouse.org.uk/wp-content/uploads/2023/06/Chris-Williams.jpg)",
+    "Katie Mallinson (https://blogs.hud.ac.uk/hbsblog/wp-content/uploads/2023/05/Katie-Mallinson.jpg)",
+    "Rebecca Rhoades (https://www.rebeccarhoades.com/cdn/shop/files/Rebecca_Rhoades_Signature_Print.jpg)",
+    "Fiona Broomfield (https://www.fantasticmedia.co.uk/wp-content/uploads/2022/04/Fiona-Broomfield.jpg)",
+    "Vanessa Eve (https://www.quiltercheviot.com/siteassets/people/vanessa-eve.jpg)",
+    "Sharon Jandu (https://nexusleeds.co.uk/wp-content/uploads/2021/06/Sharon-Jandu.jpg)",
+    "Natalie Moran (https://www.livingnorth.com/images/natalie-moran-ceo.jpg)",
+    "Amy Hacker (https://nexusleeds.co.uk/wp-content/uploads/2021/06/Amy-Hacker.jpg)",
+    "Harriett Bryant (https://media.licdn.com/dms/image/C4D03AQH9r8m8m8m8m/profile-displayphoto-shrink_800_800/0/1623456789012?e=2147483647&v=beta&t=HarriettBryant)",
+    "Nicole Horsman (https://www.nicolehorsman.com/headshot.jpg)",
+    "Sarah Barr-Young (https://www.jonesmyers.co.uk/wp-content/uploads/2021/05/Sarah-Barr-Young-Jones-Myers.jpg)",
+    "Milly Johnson (https://millyjohnson.co.uk/wp-content/uploads/2021/03/Milly-Johnson-by-David-Charles-Photography-1-scaled.jpg)",
+    "Jo Costello (https://www.forwardandthinking.com/wp-content/uploads/2022/03/Jo-Costello-Headshot.jpg)",
+    "Laura Petyt (https://app.circle.so/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBOFRwV2c9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--674fd75f2f5e3acd12a968f0bab701c35e7004c5/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBTU0lJYW5CbkJqb0dSVlE2RkhKbGMybDZaVjkwYjE5c2FXMXBkRnNIYVFJc0FXa0NMQUU2Q25OaGRtVnlld1k2Q25OMGNtbHdWQT09IiwiZXhwIjpudWxsLCJwdXIiOiJ2YXJpYXRpb24ifX0=--67365f61f655fbc86c65a51f2e9992ab818c41cd/ihOlh9LA.jpg)",
+    "Gaynor Faye (https://cam.co.uk/wp-content/uploads/2016/11/Gaynor-Faye.jpg)"
+  ],
+  "storageAvatar": [
+    "Victoria Reddington",
+    "Georgie Harmer",
+    "Claire Young",
+    "Maureen Connor",
+    "Nicole Brule-Walker",
+    "Marianne Smith",
+    "Dawn Patrick",
+    "H Green",
+    "K Navarro-Moreno Spittle",
+    "Charlotte Hall",
+    "Robin Howcroft",
+    "Megan Rawlins",
+    "Lisa Turton",
+    "Charlotte O'sullivan",
+    "Rob Blackwell",
+    "M D Clarke",
+    "K Storey",
+    "Salima Hafejee",
+    "Camille Johnson",
+    "B Katenga",
+    "Laura Sails",
+    "D L Clarke",
+    "Amy Russell",
+    "Brogan Huntington",
+    "Samantha J Hague",
+    "Emily Mills",
+    "Leanne Hodgetts",
+    "Paul Watson",
+    "Caroline Woolley",
+    "Jetplus Services Limited",
+    "Catherine Thristan",
+    "A M Beardsell",
+    "Shona Hayes",
+    "Debbie Dobson",
+    "Orla M Rhodes",
+    "Lisa Darwin",
+    "Sinead Myers",
+    "Sarah Stokes",
+    "Angie Khupe",
+    "N Wordsworth",
+    "Paula Farrell",
+    "Anna C Mcmanus-Hughes",
+    "L Mccardle",
+    "Judith Parsons",
+    "L Millard",
+    "R Allen",
+    "Deborah Ogden",
+    "Liz Green",
+    "Amanda Owen",
+    "Ellie Brook",
+    "Hazel Barry",
+    "C L Strachan",
+    "Rachel Fox",
+    "Perrin Read",
+    "Lubna Khan-Salim",
+    "Rebecca Beaumont",
+    "Nicola Donnelly",
+    "Tracy Foster",
+    "Mexi Bean",
+    "Martin Hughes",
+    "Sarah Baines",
+    "C M Thomas",
+    "Siobhan Atkinson",
+    "Focus 4hope",
+    "Cm Lodge",
+    "Rebecca Grace",
+    "Francesca Macauley",
+    "D A Whitaker",
+    "Sandra Marvin",
+    "B O'connor",
+    "Ellie Macdonald",
+    "Kara Milner",
+    "Marianna Macaluso",
+    "K Cliffe",
+    "Laura J Robinson",
+    "J L Loftus",
+    "Ann Seddon",
+    "Sarah Buckmaster",
+    "P R Jones",
+    "C Campbell",
+    "C J Crowther",
+    "E L Kirke",
+    "Claire Paxman",
+    "Claire Alexander",
+    "Amelia-Rose Penny",
+    "J Swann",
+    "Blacks Solicitors Llp",
+    "Daneile Moore",
+    "Nancy Prest",
+    "M H B Stoddart",
+    "Zoe Thompson",
+    "Anna Huck",
+    "Lois Kirtlan",
+    "Katherine F Busby",
+    "H M Mack",
+    "V Clapham",
+    "Gill Laidler",
+    "Christine Talbot",
+    "Sarah Resterick",
+    "Mandy Taylor",
+    "F L Ibbetson",
+    "J Leatham",
+    "Lucy Guest",
+    "Kathryn Shires",
+    "Anny Lian-Green",
+    "Jane Snowden",
+    "Uzma Qureshi",
+    "J Head",
+    "Rachel Cheshire",
+    "Kirsty Chaplin"
+  ],
+  "details": [
+    {
+      "name": "Rachel M Coates",
+      "email": "rachel-coates@btconnect.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://yas.co.uk/wp-content/uploads/2024/05/Rachel-Coates-Show-Director-2024.jpg"
+    },
+    {
+      "name": "Victoria Reddington",
+      "email": "vic@victoriareddington.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/XERuhGncw1VoLtvmYn8F/avatar-1770214253643-thumb.jpg"
+    },
+    {
+      "name": "Alka Davi Bohorun",
+      "email": "alks@bohoruns.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.managers.org.uk/-/media/Images/Insights/Interview/Alka-Bohorun.jpg"
+    },
+    {
+      "name": "Natalie Anderson",
+      "email": "contact@thecapsule.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://images.squarespace-cdn.com/content/v1/582098059f74567268593a8d/1557144414652-3M6YQG6QW6QW6QW6QW6Q/Natalie+Anderson+Stevie+Roy.jpg"
+    },
+    {
+      "name": "Georgie Harmer",
+      "email": "georgie@intandemcommunications.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/WUY5fnOZ3mLioD8LiIVb/avatar-1770214251532-thumb.jpg"
+    },
+    {
+      "name": "Claire Young",
+      "email": "claire@claireyoung.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/3GkMJmgOjgd5G2zfJrRa/avatar-1770214127996-thumb.jpg"
+    },
+    {
+      "name": "Maureen Connor",
+      "email": "maureen@snugaromatics.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/GHhSOpbsSpWEe8titPLv/avatar-1770214196105-thumb.jpg"
+    },
+    {
+      "name": "Nicole Brule-Walker",
+      "email": "nicole@innatelifeforcemethod.info",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/NPGDTCLmRYPLWAfdVZnY/avatar-1770214219970-thumb.jpg"
+    },
+    {
+      "name": "Victoria Ellis",
+      "email": "vicky.lindsell@hotmail.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.pumpcourtchambers.com/wp-content/uploads/2021/05/Victoria-Ellis-768x1024.jpg"
+    },
+    {
+      "name": "Chris Williams",
+      "email": "dara.romaniw@leedsplayhouse.org.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://leedsplayhouse.org.uk/wp-content/uploads/2023/06/Chris-Williams.jpg"
+    },
+    {
+      "name": "Marianne Smith",
+      "email": "marianne.smith@leeds.gov.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/64ijtGDjmIjdy0gL84J4/avatar-1770214143287-thumb.jpg"
+    },
+    {
+      "name": "Dawn Patrick",
+      "email": "dawn.patrick@quilter.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/hRt7LXvkMhM3JqLMJiQ9/avatar-1770214274005-thumb.jpg"
+    },
+    {
+      "name": "H Green",
+      "email": "hello@softoptionsotley.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/e2a88ed27d8bb8d0371f53b4a714b0d5.jpg"
+    },
+    {
+      "name": "Katie Mallinson",
+      "email": "kmallinson111@gmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://blogs.hud.ac.uk/hbsblog/wp-content/uploads/2023/05/Katie-Mallinson.jpg"
+    },
+    {
+      "name": "Rebecca Rhoades",
+      "email": "rebecca@rebeccarhoades.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.rebeccarhoades.com/cdn/shop/files/Rebecca_Rhoades_Signature_Print.jpg"
+    },
+    {
+      "name": "K Navarro-Moreno Spittle",
+      "email": "karina@spiritsisters.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/XUTHr5rpKMfIQTo31LTF/avatar-1770214254775-thumb.jpg"
+    },
+    {
+      "name": "Charlotte Hall",
+      "email": "charlotte.hall@travelcounsellors.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/LJkJ5DoQl4YOZ12yFXG9/avatar-1770214216884-thumb.jpg"
+    },
+    {
+      "name": "Fiona Broomfield",
+      "email": "f.broomfield@fantasticmedia.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.fantasticmedia.co.uk/wp-content/uploads/2022/04/Fiona-Broomfield.jpg"
+    },
+    {
+      "name": "Robin Howcroft",
+      "email": "robin.howcroft@quilter.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/Gtx1x5I866lTCAqa1YyG/avatar-1770214198177-thumb.jpg"
+    },
+    {
+      "name": "Vanessa Eve",
+      "email": "vanessa.eve@quiltercheviot.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.quiltercheviot.com/siteassets/people/vanessa-eve.jpg"
+    },
+    {
+      "name": "Megan Rawlins",
+      "email": "megan.rawlins@vantagemotorgroup.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/651e7b232d646eba794a117c-1779478157732.jpg"
+    },
+    {
+      "name": "Lisa Turton",
+      "email": "lisa.turton@eu.asmglobal.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/pkzmKPXoxOSfgWxj7Hrd/avatar-1770214280395-thumb.jpg"
+    },
+    {
+      "name": "Charlotte O'sullivan",
+      "email": "charlotte.o'sullivan@armouries.org.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/FWw0sZCGSko9NkM2WSYD/avatar-1770214191770-thumb.jpg"
+    },
+    {
+      "name": "Sharon Jandu",
+      "email": "sharon@yaba.uk.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://nexusleeds.co.uk/wp-content/uploads/2021/06/Sharon-Jandu.jpg"
+    },
+    {
+      "name": "Natalie Moran",
+      "email": "natalie@simononthestreets.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.livingnorth.com/images/natalie-moran-ceo.jpg"
+    },
+    {
+      "name": "Amy Hacker",
+      "email": "amy@aehadvisory.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://nexusleeds.co.uk/wp-content/uploads/2021/06/Amy-Hacker.jpg"
+    },
+    {
+      "name": "Rob Blackwell",
+      "email": "rob@topicuk.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/6984d34a6ee5011c6442e15e/public/1770330075794-avatar.jpg"
+    },
+    {
+      "name": "Harriett Bryant",
+      "email": "harriett.bryant@mhrleeds.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://media.licdn.com/dms/image/C4D03AQH9r8m8m8m8m/profile-displayphoto-shrink_800_800/0/1623456789012?e=2147483647&v=beta&t=HarriettBryant"
+    },
+    {
+      "name": "M D Clarke",
+      "email": "info@hifuclinicsuk.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/KBWnJDcXlsVDTvu1qQFj/avatar-1770214211556-thumb.jpg"
+    },
+    {
+      "name": "K Storey",
+      "email": "kay@brandstormcreatives.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/cSPeVkmAR0VUSOBBN6iO/avatar-1770214264535-thumb.jpg"
+    },
+    {
+      "name": "Salima Hafejee",
+      "email": "hafejee20@hotmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/d1bb7df111c995ff23f30519214b0fa0.jpg"
+    },
+    {
+      "name": "Camille Johnson",
+      "email": "camille@pabstudios.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/IcalIf3mnQ2Uda1EJJUu/avatar-1770214204427-thumb.png"
+    },
+    {
+      "name": "B Katenga",
+      "email": "nanakatenga@yahoo.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/EB64AnfHe1pNoALsGFwQ/avatar-1770214183362-thumb.jpg"
+    },
+    {
+      "name": "Laura Sails",
+      "email": "laura.sails@work-clockwise.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/69flh8gRqDI9WypqGxIc/avatar-1770214145546-thumb.jpg"
+    },
+    {
+      "name": "D L Clarke",
+      "email": "danielle.hurst@artorius.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/050d57967ecddc38a440e57c13ef0c67.jpg"
+    },
+    {
+      "name": "Nicole Horsman",
+      "email": "nicole@embed-learning.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.nicolehorsman.com/headshot.jpg"
+    },
+    {
+      "name": "Amy Russell",
+      "email": "amy@crescentva.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/V1Fqhw3QfgAaCpQd8ILm/avatar-1770214246122-thumb.jpg"
+    },
+    {
+      "name": "Sarah Barr-Young",
+      "email": "sarah.barr-young@jonesmyers.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.jonesmyers.co.uk/wp-content/uploads/2021/05/Sarah-Barr-Young-Jones-Myers.jpg"
+    },
+    {
+      "name": "Brogan Huntington",
+      "email": "brogan@marketingadventures.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/B9cpdC30pn10WtR8PjT9/avatar-1770214166736-thumb.png"
+    },
+    {
+      "name": "Milly Johnson",
+      "email": "milly@millyjohnson.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://millyjohnson.co.uk/wp-content/uploads/2021/03/Milly-Johnson-by-David-Charles-Photography-1-scaled.jpg"
+    },
+    {
+      "name": "Samantha J Hague",
+      "email": "sam.hague@wcsukltd.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/VzvLZ3Rg1hmmqp1SJ0S3/avatar-1770214250479-thumb.jpg"
+    },
+    {
+      "name": "Emily Mills",
+      "email": "emily.mills@leedsmet-hotel.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/6BtXTkerewkfNBLlrZbM/avatar-1770214146580-thumb.jpg"
+    },
+    {
+      "name": "Leanne Hodgetts",
+      "email": "lealea.hodgetts@icloud.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/a33a22a8c42a8dfdfbd32fae18a8a074.jpg"
+    },
+    {
+      "name": "Paul Watson",
+      "email": "lucy@privilegeexecutivecars.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/1f288ffd42af3218a44fd8c0456bdfc0.jpg"
+    },
+    {
+      "name": "Caroline Woolley",
+      "email": "carolinewoolley17@gmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/faec9404aa85a54caa30a1f61dfab55f.jpg"
+    },
+    {
+      "name": "Jetplus Services Limited",
+      "email": "sharonmarway@hotmail.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/638787475dfd3015315e3f2d5086da24.jpg"
+    },
+    {
+      "name": "Catherine Thristan",
+      "email": "c.thristan@leeds.ac.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/C6fNoAY7I13n6Wdx5Avh/avatar-1770214175065-thumb.jpg"
+    },
+    {
+      "name": "A M Beardsell",
+      "email": "alison.beardsell@pfgl.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/c65d8250b3e27281a6b0407372c0d37a.jpg"
+    },
+    {
+      "name": "Shona Hayes",
+      "email": "sigpropertyco@outlook.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/1739a948964c50958433528e985e48f3.jpg"
+    },
+    {
+      "name": "Debbie Dobson",
+      "email": "dd@yorkshirebusinesswoman.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/69c4fd511c04a9eb3f6bd5e7/1774863553689-debbie-sq.jpg"
+    },
+    {
+      "name": "Orla M Rhodes",
+      "email": "orla@coppergateclinic.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/b34acfa12fc753910c5f6a5dee25b5a4.jpg"
+    },
+    {
+      "name": "Lisa Darwin",
+      "email": "lisa@fbfashionball.show",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/BxxXy1qF1P7kbLDb38dr/avatar-1770214174032-thumb.jpg"
+    },
+    {
+      "name": "Jo Costello",
+      "email": "jo@forwardandthinking.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://www.forwardandthinking.com/wp-content/uploads/2022/03/Jo-Costello-Headshot.jpg"
+    },
+    {
+      "name": "Sinead Myers",
+      "email": "sinead.myers@work-clockwise.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/PNsSjK329LmH1QvUAdGl/avatar-1770214226493-thumb.jpg"
+    },
+    {
+      "name": "Sarah Stokes",
+      "email": "sarah.stokes@work-clockwise.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/fNS6lgV6rWg9hWfaxlFe/avatar-1770214269798-thumb.jpg"
+    },
+    {
+      "name": "Angie Khupe",
+      "email": "angie@womeninhealthcare.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/1f157ba461db80c6a0a4e0866e2448d5.jpg"
+    },
+    {
+      "name": "N Wordsworth",
+      "email": "jmakin@proddowmackay-group.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/f186dc37e6a068974480c855aa6ca96d.jpg"
+    },
+    {
+      "name": "Paula Farrell",
+      "email": "paulalouisefarrell@yahoo.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/f6c4d5c68ba3b703640980cb386006df.jpg"
+    },
+    {
+      "name": "Anna C Mcmanus-Hughes",
+      "email": "anna@pink-dragonfly.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/AM1bMmQFoRqGB4VyhpwC/avatar-1770214164610-thumb.jpg"
+    },
+    {
+      "name": "L Mccardle",
+      "email": "zoe.hands@marriott.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/2UtVW1NJIoFUxNjN0mhu/avatar-1770214122432-thumb.jpg"
+    },
+    {
+      "name": "Judith Parsons",
+      "email": "judy@judithparsons.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/rYEpm4kS4dJude0p0QrX/avatar-1770214283585-thumb.jpg"
+    },
+    {
+      "name": "L Millard",
+      "email": "leonie.millard@forbessolicitors.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/b121088b36e1e6c6dda779e5c310a5d5.jpg"
+    },
+    {
+      "name": "R Allen",
+      "email": "madeleine@blossom-uk.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/4dGUmQI7WEuJvcg2Dyys/avatar-1770214136751-thumb.jpg"
+    },
+    {
+      "name": "Deborah Ogden",
+      "email": "deborah@deborahogden.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/WnZ8OyAqA3V84M8hBqWl/avatar-1770214252570-thumb.jpg"
+    },
+    {
+      "name": "Liz Green",
+      "email": "e.a.green@btinternet.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/a7d990da71aafaa67994fad9b6d20e38.jpg"
+    },
+    {
+      "name": "Amanda Owen",
+      "email": "hello@yorkshirebusinesswoman.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/5D6hUgLsWsQpVPlxd9Qp/avatar-1770214137806-thumb.jpg"
+    },
+    {
+      "name": "Ellie Brook",
+      "email": "ellie@edshift.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/69a7c323928ddfcf47636be069ece0b2.jpg"
+    },
+    {
+      "name": "Hazel Barry",
+      "email": "hazel@h2kbotanicals.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/2667719b4c53a19f7c60ec7f33d5546b.jpg"
+    },
+    {
+      "name": "C L Strachan",
+      "email": "claire@clairestrachan.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/CSMe6RwYBXQpDYOGwWfp/avatar-1770214179192-thumb.jpg"
+    },
+    {
+      "name": "Rachel Fox",
+      "email": "rachel.fox@sodexo.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/HnjJ87ilQDW6CBWcMMHS/avatar-1770214199191-thumb.jpg"
+    },
+    {
+      "name": "Perrin Read",
+      "email": "contact@rothreadphotography.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/Ur8cw1BCY5vo6lzEH8UF/avatar-1770214245070-thumb.jpg"
+    },
+    {
+      "name": "Lubna Khan-Salim",
+      "email": "drlubna@timetobloom.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/81b29f436667cf06186e26554ab5a2cc.jpg"
+    },
+    {
+      "name": "Rebecca Beaumont",
+      "email": "rebecca.beaumont@forbessolicitors.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/57357acb2d9170ab5cfdeb1ee03f658f.jpg"
+    },
+    {
+      "name": "Chadwick Lawrence",
+      "email": "sarahpower@chadlaw.co.uk",
+      "hasBio": false,
+      "hasAvatar": false,
+      "isStorage": false,
+      "avatarUrl": ""
+    },
+    {
+      "name": "Nicola Donnelly",
+      "email": "charlotte@thecutandcraft.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/TDbKdrrPRcH10UKPfe9r/avatar-1770214238738-thumb.jpg"
+    },
+    {
+      "name": "Tracy Foster",
+      "email": "tracy.foster@burns-club.org.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/R18Gxm7JDB2uht3NbqGr/avatar-1770214231954-thumb.jpg"
+    },
+    {
+      "name": "Mexi Bean",
+      "email": "mexibean@icloud.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/4fb19620b48a4202ea2fd3f670d36efb.jpg"
+    },
+    {
+      "name": "Martin Hughes",
+      "email": "rebecca.lowe@armouries.org.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/1qErnoGhxisE8jzN0H3a/avatar-1770214116379-thumb.jpg"
+    },
+    {
+      "name": "Laura Petyt",
+      "email": "info@phillipstoner.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://app.circle.so/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaHBBOFRwV2c9PSIsImV4cCI6bnVsbCwicHVyIjoiYmxvYl9pZCJ9fQ==--674fd75f2f5e3acd12a968f0bab701c35e7004c5/eyJfcmFpbHMiOnsibWVzc2FnZSI6IkJBaDdDRG9MWm05eWJXRjBTU0lJYW5CbkJqb0dSVlE2RkhKbGMybDZaVjkwYjE5c2FXMXBkRnNIYVFJc0FXa0NMQUU2Q25OaGRtVnlld1k2Q25OMGNtbHdWQT09IiwiZXhwIjpudWxsLCJwdXIiOiJ2YXJpYXRpb24ifX0=--67365f61f655fbc86c65a51f2e9992ab818c41cd/ihOlh9LA.jpg"
+    },
+    {
+      "name": "Sarah Baines",
+      "email": "sarah.baines@grantleyhall.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/a4fc43adef4966c78d14341277138a8a.jpg"
+    },
+    {
+      "name": "C M Thomas",
+      "email": "claire@wharfedalegrange.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/bg9h0Pa1q7glEy0jvJTY/avatar-1770214263483-thumb.jpg"
+    },
+    {
+      "name": "Siobhan Atkinson",
+      "email": "lisa.bottomley@htafcfoundation.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/F5LCgE2Lf5MtSzp3sBp6/avatar-1770214188601-thumb.jpg"
+    },
+    {
+      "name": "Focus 4hope",
+      "email": "focus4hope@gmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/2JKiPh1JDwBZyw0EjUj7/avatar-1770214118578-thumb.jpg"
+    },
+    {
+      "name": "Cm Lodge",
+      "email": "writeforyou444@gmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/UJ9vRkP1UcFqxcfvgsbm/avatar-1770214240803-thumb.jpg"
+    },
+    {
+      "name": "Rebecca Grace",
+      "email": "rebecca@theyorkshireplanner.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/07837e4444a9e86b59892c9c548c2d92.jpg"
+    },
+    {
+      "name": "Francesca Macauley",
+      "email": "francesca@autimatic.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/ab10e704d792c45f5f8ee5866a224e08.jpg"
+    },
+    {
+      "name": "D A Whitaker",
+      "email": "debbie@notjustnumbersltd.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/0uZzgEvqlejjSWmpb2oE/avatar-1770214111730-thumb.jpg"
+    },
+    {
+      "name": "Sandra Marvin",
+      "email": "sandramarvin@hotmail.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/77dxfznuyD0LObB8UIgf/avatar-1770214150753-thumb.jpg"
+    },
+    {
+      "name": "B O'connor",
+      "email": "lizzie.fee@adurocommunications.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/eabb532fb640eb6cfbabba07fe549aef.jpg"
+    },
+    {
+      "name": "Ellie Macdonald",
+      "email": "ellie@maccomms.net",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/azL8Beiu5YiehWIBZqCX/avatar-1770214261438-thumb.jpg"
+    },
+    {
+      "name": "Kara Milner",
+      "email": "kara_milner@icloud.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/22f7ec73587bc85293fa55929f956a3a.jpg"
+    },
+    {
+      "name": "Marianna Macaluso",
+      "email": "mm@woodhouseindependent.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/5ac3314fa6c6e3a9e70f46ef7da5e0f0.jpg"
+    },
+    {
+      "name": "K Cliffe",
+      "email": "katrina@wild-pr.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/d413a17172322d87e55bd6d2dca5bc4b.jpg"
+    },
+    {
+      "name": "Laura J Robinson",
+      "email": "laura@laurarobinsonpr.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/CRAK8Nulxk5EVkFlpuyn/avatar-1770214177099-thumb.jpg"
+    },
+    {
+      "name": "J L Loftus",
+      "email": "info@joloftus.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/1669e1c476b7c4405cca2365b8ae8e73.jpg"
+    },
+    {
+      "name": "Ann Seddon",
+      "email": "ann.seddon@sterlingeventgroup.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/3024c4d21d74dbf2c173a82c36b4d50c.jpg"
+    },
+    {
+      "name": "Sarah Buckmaster",
+      "email": "sarah@productionlightandsound.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/e2CgBIsfHnEiI2R510K4/avatar-1770214266656-thumb.jpg"
+    },
+    {
+      "name": "P R Jones",
+      "email": "rosjones@businesswellbeing.club",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/UfaFQGAOPDKHHzERHMtl/avatar-1770214241908-thumb.jpg"
+    },
+    {
+      "name": "C Campbell",
+      "email": "kate@grinninggraphics.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/DRq2vyGrm8WSFCykpgfQ/avatar-1770214181246-thumb.jpg"
+    },
+    {
+      "name": "C J Crowther",
+      "email": "clemy_9@hotmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/FFgKXvqiCb2vnefy3SKb/avatar-1770214189644-thumb.jpg"
+    },
+    {
+      "name": "E L Kirke",
+      "email": "enquiries@rcmwellness.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/GAMukLugiw9Xmd8PI0Sh/avatar-1770214194041-thumb.jpg"
+    },
+    {
+      "name": "Claire Paxman",
+      "email": "claire@paxmanscalpcooling.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/IZzPQ4wmAc32cohfNMsx/avatar-1770214203353-thumb.jpg"
+    },
+    {
+      "name": "Claire Alexander",
+      "email": "info@mummylovesorganics.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/cf9d81d17e7fc7347cfab4725eda4d05.jpg"
+    },
+    {
+      "name": "Amelia-Rose Penny",
+      "email": "amelia@pinotandpicasso.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/314a344a14bf12046e2137a3c9690c73.jpg"
+    },
+    {
+      "name": "J Swann",
+      "email": "jo@chocolatepr.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/HyxVXWGjqtjQTgzF1H0g/avatar-1770214200226-thumb.jpg"
+    },
+    {
+      "name": "Blacks Solicitors Llp",
+      "email": "anicholas@lawblacks.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/c0e62ff01805b9cfe7653907fdc92717.jpg"
+    },
+    {
+      "name": "Daneile Moore",
+      "email": "daneile.moore@leeds.gov.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/48dcd22a66fffb51149044de0267c443.jpg"
+    },
+    {
+      "name": "Gaynor Faye",
+      "email": "gaynorfaye@gmail.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": false,
+      "avatarUrl": "https://cam.co.uk/wp-content/uploads/2016/11/Gaynor-Faye.jpg"
+    },
+    {
+      "name": "Nancy Prest",
+      "email": "nancy@doodlehr.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/f93c7b6b577505470a4d59aac0ca2f25.jpg"
+    },
+    {
+      "name": "M H B Stoddart",
+      "email": "jof@yas.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/gRYW5aHqi6fX9hpqL3AH/avatar-1770214271860-thumb.jpg"
+    },
+    {
+      "name": "Zoe Thompson",
+      "email": "zoe@builditbrilliant.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/29ad00ba3a9d2abab63bde54875fa6b6.jpg"
+    },
+    {
+      "name": "Anna Huck",
+      "email": "ahuck@bartlettgroup.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/92dba3fba125fdbde542264691dc5814.jpg"
+    },
+    {
+      "name": "Lois Kirtlan",
+      "email": "loiskirtlan@hettyandbetty.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/51bc45b745a200f0b9a7ac05cfed07f3.jpg"
+    },
+    {
+      "name": "Katherine F Busby",
+      "email": "katherine@busbyandbear.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/muamo5SrGEtoHn4WTfzn/avatar-1770214279374-thumb.jpg"
+    },
+    {
+      "name": "H M Mack",
+      "email": "helen.knowles@wakefieldhospice.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/4afc4094767e28db4c57c87090d83f8c.jpg"
+    },
+    {
+      "name": "V Clapham",
+      "email": "vicky@bevic.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/I2GB8QzY1XPLiGumFBqk/avatar-1770214201287-thumb.jpg"
+    },
+    {
+      "name": "Gill Laidler",
+      "email": "editor@topicuk.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/EXDEZV1ztlYkvbpauHsX/avatar-1770214185440-thumb.jpg"
+    },
+    {
+      "name": "Christine Talbot",
+      "email": "christine.talbot7@btinternet.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/6qWGvDqSjdPXttMnR5lO/avatar-1770214147636-thumb.jpg"
+    },
+    {
+      "name": "Sarah Resterick",
+      "email": "sarah.restrick@clique.co.uk",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/i7qhAJnttTrUkvBivTTU/avatar-1770214276092-thumb.jpg"
+    },
+    {
+      "name": "Mandy Taylor",
+      "email": "mandy@yorkshirebusinesswoman.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/238349d094be05e1ebb7e2bbab62f427.jpg"
+    },
+    {
+      "name": "F L Ibbetson",
+      "email": "fiona@getaheadva.com",
+      "hasBio": true,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/GhYFbFkADwz59Af88nHq/avatar-1770214197148-thumb.jpg"
+    },
+    {
+      "name": "J Leatham",
+      "email": "pr@joleatham.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/4bc025d55c4de04877366e7d76c2b729.jpg"
+    },
+    {
+      "name": "Lucy Guest",
+      "email": "hello@lucyguestmarketing.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/pob5UXONDt9iSSmsIMU2/avatar-1770214282586-thumb.jpg"
+    },
+    {
+      "name": "Kathryn Shires",
+      "email": "saeeda.amin@fbc-uk.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/863c8f9a14ddbe6bf1480baf5b5d3ec7.jpg"
+    },
+    {
+      "name": "Anny Lian-Green",
+      "email": "anny@fatgreen.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/7bf4e0553a8a1d2a332539dffbf232ab.jpg"
+    },
+    {
+      "name": "Jane Snowden",
+      "email": "jane@snowdropsconsulting.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/4af98d49483d9d147128bba16535e964.jpg"
+    },
+    {
+      "name": "Uzma Qureshi",
+      "email": "uzma@myskyn.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/6sndQWerTEh6q2BRP5oA/avatar-1770214148672-thumb.jpg"
+    },
+    {
+      "name": "J Head",
+      "email": "jane.head@d3office.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/64d426af0adda1d921d0fbd6ec0e6c22.jpg"
+    },
+    {
+      "name": "Rachel Cheshire",
+      "email": "rachel@celebrationcheeses.com",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/En5TxuUzlR8KjC1VvUte/avatar-1770214186516-thumb.jpg"
+    },
+    {
+      "name": "Kirsty Chaplin",
+      "email": "mcplumbing1@live.co.uk",
+      "hasBio": false,
+      "hasAvatar": true,
+      "isStorage": true,
+      "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/uJFafsuS7mKhkEhEJ90j/avatar-1770214288014-thumb.png"
+    }
+  ]
+}

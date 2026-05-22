@@ -5,17 +5,24 @@ import Link from 'next/link';
 import { ArrowRight, MapPin, Briefcase } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
-  // Find the best image URL, preferring storage over gravatar
-  const avatarUrl = member.avatarUrl || "";
-  const profileImageSource = member.profileImage || "";
-  const profileImage = [avatarUrl, profileImageSource, member.image].find(url => 
-    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
-  ) || [avatarUrl, profileImageSource, member.image].find(url => 
-    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
-  ) || avatarUrl || profileImageSource;
+  // Name handling: prioritize displayName if it looks more complete than initials
+  const hasInitialsOnly = (member.firstName?.length === 1 || member.lastName?.length === 1);
+  const displayNameParts = member.displayName?.split(' ') || [];
+  
+  const firstName = (hasInitialsOnly && displayNameParts.length > 0) 
+    ? displayNameParts[0] 
+    : (member.firstName || displayNameParts[0] || '');
+    
+  const lastName = (hasInitialsOnly && displayNameParts.length > 1) 
+    ? displayNameParts.slice(1).join(' ') 
+    : (member.lastName || displayNameParts.slice(1).join(' ') || '');
 
-  const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
-  const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
+  // Image handling: Use the pre-calculated image from the page, or find the best one
+  const profileImage = member.image || [member.avatarUrl, member.profileImage].find(url => 
+    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
+  ) || [member.avatarUrl, member.profileImage].find(url => 
+    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+  ) || member.avatarUrl || member.profileImage;
   const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
   const bio = member.bio || '';
   const jobTitle = member.jobTitle || '';
