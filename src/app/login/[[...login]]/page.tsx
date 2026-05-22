@@ -82,11 +82,11 @@ function LoginForm() {
                 borderRadius: '0',
               },
               elements: {
-                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all shadow-lg hover:shadow-xl active:scale-95',
+                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95',
                 card: 'shadow-none border-none bg-transparent w-full max-w-none p-0',
                 headerTitle: 'hidden',
                 headerSubtitle: 'hidden',
-                socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border shadow-sm mb-4',
+                socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border mb-4',
                 socialButtonsBlockButtonText: 'font-semibold text-sm',
                 dividerLine: 'bg-stone-100',
                 dividerText: 'text-stone-400 uppercase text-[10px] tracking-[0.2em] font-bold bg-background px-3',
