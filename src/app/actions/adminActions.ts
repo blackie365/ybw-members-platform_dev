@@ -125,10 +125,13 @@ export async function getAnalyticsData() {
       let loc = doc.data().location || doc.data().city || 'Unknown';
       
       // Dynamic Normalization for Charting
-      loc = loc.toString().split(',')[0].trim(); // Take just the city name
+      loc = loc.toString().split(',')[0].split('/')[0].trim(); // Take just the primary city name
       if (loc.toLowerCase() === 'wakefield') loc = 'Wakefield';
       if (loc.toLowerCase() === 'leeds') loc = 'Leeds';
       if (loc.toLowerCase() === 'huddersfield') loc = 'Huddersfield';
+      if (loc.toLowerCase() === 'harrogate') loc = 'Harrogate';
+      if (loc.toLowerCase() === 'manchester') loc = 'Manchester';
+      if (loc.toLowerCase() === 'york') loc = 'York';
       
       locationCounts[loc] = (locationCounts[loc] || 0) + 1;
     });
