@@ -122,8 +122,15 @@ export async function getAnalyticsData() {
     const locationCounts: Record<string, number> = {};
     snapshot.docs.forEach(doc => {
       if (doc.data().userInactive) return;
-      const location = doc.data().location || doc.data().city || 'Unknown';
-      locationCounts[location] = (locationCounts[location] || 0) + 1;
+      let loc = doc.data().location || doc.data().city || 'Unknown';
+      
+      // Dynamic Normalization for Charting
+      loc = loc.toString().split(',')[0].trim(); // Take just the city name
+      if (loc.toLowerCase() === 'wakefield') loc = 'Wakefield';
+      if (loc.toLowerCase() === 'leeds') loc = 'Leeds';
+      if (loc.toLowerCase() === 'huddersfield') loc = 'Huddersfield';
+      
+      locationCounts[loc] = (locationCounts[loc] || 0) + 1;
     });
 
     // 7. Mock Growth Data (for now, can be improved with real timestamps)
