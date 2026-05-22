@@ -84,14 +84,15 @@ function LoginForm() {
                 boxShadow: 'none',
               },
               elements: {
-                rootBox: 'shadow-none w-full border-none',
+                rootBox: 'shadow-none w-full border-none bg-transparent',
                 card: 'shadow-none border-none bg-transparent w-full max-w-none p-0 sm:p-0',
                 navbar: 'hidden',
                 header: 'hidden',
+                main: 'bg-transparent shadow-none border-none',
                 formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95 shadow-none border-none',
                 headerTitle: 'hidden',
                 headerSubtitle: 'hidden',
-                socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border mb-4 shadow-none',
+                socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border mb-4 shadow-none bg-white',
                 socialButtonsBlockButtonText: 'font-semibold text-sm',
                 dividerLine: 'bg-stone-100',
                 dividerText: 'text-stone-400 uppercase text-[10px] tracking-[0.2em] font-bold bg-background px-3',
@@ -101,7 +102,7 @@ function LoginForm() {
                 identityPreviewText: 'text-stone-900 font-medium text-base',
                 identityPreviewEditButtonIcon: 'text-[#b79c65]',
                 formFieldAction: 'text-[#b79c65] hover:text-[#a08b57] font-bold text-[11px] uppercase tracking-wider hover:underline underline-offset-4',
-                footer: 'mt-8 border-t border-stone-100 pt-8',
+                footer: 'mt-8 border-t border-stone-100 pt-8 bg-transparent',
               }
             }}
             fallbackRedirectUrl={fallbackRedirect}

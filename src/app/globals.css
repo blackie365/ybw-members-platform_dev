@@ -63,6 +63,23 @@
   --sidebar-ring: oklch(0.52 0.14 28);
 }
 
+/* Force Clerk to drop shadows and backgrounds */
+.cl-card, 
+.cl-rootBox, 
+.cl-signIn-root, 
+.cl-signUp-root,
+[data-clerk-component="SignIn"],
+[data-clerk-component="SignUp"] {
+  box-shadow: none !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.cl-internal-1au92ec, /* Common internal Clerk shadow class */
+.cl-internal-b3fm6y {
+  box-shadow: none !important;
+}
+
 .dark {
   --background: oklch(0.13 0.01 50);
   --foreground: oklch(0.96 0.005 60);
