@@ -180,7 +180,7 @@ export function DailyNewsEmail({
                               <p
                                 style={{
                                   fontFamily: fonts.sans,
-                                  fontSize: "15px",
+                                  fontSize: "13px",
                                   color: colors.secondary,
                                   margin: 0,
                                   lineHeight: 1.6,
@@ -225,17 +225,17 @@ export function DailyNewsEmail({
                                   From the Editor
                                 </p>
                                 <p
-                                  style={{
-                                    fontFamily: fonts.serif,
-                                    fontSize: "15px",
-                                    fontStyle: "italic",
-                                    color: colors.primary,
-                                    margin: 0,
-                                    lineHeight: 1.7,
-                                  }}
-                                >
-                                  {editorNote}
-                                </p>
+                                    style={{
+                                      fontFamily: fonts.serif,
+                                      fontSize: "13px",
+                                      fontStyle: "italic",
+                                      color: colors.primary,
+                                      margin: 0,
+                                      lineHeight: 1.7,
+                                    }}
+                                  >
+                                    {editorNote}
+                                  </p>
                               </td>
                             </tr>
                           </tbody>
@@ -328,7 +328,7 @@ export function DailyNewsEmail({
                                           <p
                                             style={{
                                               fontFamily: fonts.sans,
-                                              fontSize: "15px",
+                                              fontSize: "13px",
                                               color: colors.secondary,
                                               margin: "0 0 16px 0",
                                               lineHeight: 1.7,
@@ -542,17 +542,17 @@ export function DailyNewsEmail({
                                 Explore more on Yorkshire Businesswoman
                               </h3>
                               <p
-                                style={{
-                                  fontFamily: fonts.sans,
-                                  fontSize: "14px",
-                                  color: colors.secondary,
-                                  margin: "0 0 24px 0",
-                                  lineHeight: 1.6,
-                                }}
-                              >
-                                Discover leadership insights, career strategies,
-                                and inspiring stories.
-                              </p>
+                                    style={{
+                                      fontFamily: fonts.sans,
+                                      fontSize: "13px",
+                                      color: colors.secondary,
+                                      margin: "0 0 24px 0",
+                                      lineHeight: 1.6,
+                                    }}
+                                  >
+                                    Discover leadership insights, career strategies,
+                                    and inspiring stories.
+                                  </p>
                               <a
                                 href={`${siteUrl}/news`}
                                 style={{
@@ -846,8 +846,8 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                 <tr>
                   <td align="center">
                     <p style="font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.secondary}; margin: 0 0 16px 0;">${formattedDate}</p>
-                    <h1 style="font-family: ${fonts.serif}; font-size: 32px; font-weight: 400; color: ${colors.primary}; margin: 0 0 12px 0; line-height: 1.2;">${recipientName ? `Good morning, ${recipientName}.` : "Good morning."}</h1>
-                    <p style="font-family: ${fonts.sans}; font-size: 15px; color: ${colors.secondary}; margin: 0; line-height: 1.6;">Here are today's top stories from across Yorkshire.</p>
+                    <p style="font-family: ${fonts.sans}; font-size: 13px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.2;">${recipientName ? `Good morning, ${recipientName}.` : "Good morning."}</p>
+                    <p style="font-family: ${fonts.sans}; font-size: 13px; color: ${colors.secondary}; margin: 0; line-height: 1.6;">Here are today's top stories from across Yorkshire.</p>
                   </td>
                 </tr>
               </table>
@@ -864,7 +864,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                 <tr>
                   <td style="padding: 24px;">
                     <p style="font-family: ${fonts.sans}; font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 12px 0;">From the Editor</p>
-                    <p style="font-family: ${fonts.serif}; font-size: 15px; font-style: italic; color: ${colors.primary}; margin: 0; line-height: 1.7;">${editorNote}</p>
+                    <p style="font-family: ${fonts.serif}; font-size: 13px; font-style: italic; color: ${colors.primary}; margin: 0; line-height: 1.7;">${editorNote}</p>
                   </td>
                 </tr>
               </table>
@@ -885,7 +885,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                 ${featuredStory.feature_image ? `<img src="${featuredStory.feature_image}" alt="${featuredStory.title}" style="width: 100%; height: auto; display: block; margin-bottom: 24px;" />` : ""}
                 ${featuredStory.primary_tag ? `<p style="font-family: ${fonts.sans}; font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 10px 0;">${featuredStory.primary_tag.name}</p>` : ""}
                 <h2 style="font-family: ${fonts.serif}; font-size: 26px; font-weight: 400; color: ${colors.primary}; margin: 0 0 14px 0; line-height: 1.3;">${featuredStory.title}</h2>
-                <p style="font-family: ${fonts.sans}; font-size: 15px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.7;">${featuredStory.custom_excerpt || featuredStory.excerpt || ""}</p>
+                <p style="font-family: ${fonts.sans}; font-size: 13px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.7;">${featuredStory.custom_excerpt || featuredStory.excerpt || ""}</p>
                 <p style="font-family: ${fonts.sans}; font-size: 12px; color: ${colors.secondary}; margin: 0;">${featuredStory.primary_author?.name || "YBW Editorial"} &middot; ${featuredStory.reading_time || 3} min read</p>
               </a>
             </td>
@@ -926,7 +926,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
           <tr>
             <td style="padding: 0 40px 40px 40px;" align="center">
               <h3 style="font-family: ${fonts.serif}; font-size: 22px; font-weight: 400; color: ${colors.primary}; margin: 0 0 12px 0; line-height: 1.3;">Explore more on Yorkshire Businesswoman</h3>
-              <p style="font-family: ${fonts.sans}; font-size: 14px; color: ${colors.secondary}; margin: 0 0 24px 0; line-height: 1.6;">Discover leadership insights, career strategies, and inspiring stories.</p>
+              <p style="font-family: ${fonts.sans}; font-size: 13px; color: ${colors.secondary}; margin: 0 0 24px 0; line-height: 1.6;">Discover leadership insights, career strategies, and inspiring stories.</p>
               <a href="${siteUrl}/news" style="display: inline-block; font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.card}; background-color: ${colors.primary}; padding: 14px 32px; text-decoration: none;">Visit the Magazine</a>
             </td>
           </tr>
