@@ -96,7 +96,7 @@ export function NewsletterSection() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="bg-[#b79c65] hover:bg-[#a08b57] text-white px-8 h-12 text-sm font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                  className="h-14 gap-2 bg-accent px-8 text-[11px] font-semibold uppercase tracking-[0.15em] text-accent-foreground shadow-lg transition-all hover:bg-accent/90 hover:shadow-xl disabled:opacity-50"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
