@@ -1,8 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, MapPin, Briefcase } from 'lucide-react';
+import { ArrowUpRight, MapPin } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
   // Name handling: prioritize displayName if it looks more complete than initials
@@ -17,14 +16,14 @@ export function MemberCard({ member }: { member: any }) {
     ? displayNameParts.slice(1).join(' ') 
     : (member.lastName || displayNameParts.slice(1).join(' ') || '');
 
-  // Image handling: Use the pre-calculated image from the page, or find the best one
-   const profileImage = member.image || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
-     url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app') || url.includes('firebasestorage.googleapis.com'))
-   ) || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
-     url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
-   ) || member.avatarUrl || member.profileImage;
-   const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || member.name?.[0] || '?').toUpperCase();
-  const bio = member.bio || '';
+  // Image handling
+  const profileImage = member.image || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
+    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app') || url.includes('firebasestorage.googleapis.com'))
+  ) || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
+    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+  ) || member.avatarUrl || member.profileImage;
+  
+  const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || member.name?.[0] || '?').toUpperCase();
   const jobTitle = member.jobTitle || '';
   const companyName = member.companyName || '';
   const location = member.location || '';
@@ -33,101 +32,81 @@ export function MemberCard({ member }: { member: any }) {
   const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
   const hasRealImage = profileImage && !isBlankGravatar;
 
+  const tags = [
+    member.openToMentoring && 'Coaching',
+    member.seekingMentorship && 'Seeking Coach',
+    member.openToBoardRoles && 'NED',
+  ].filter(Boolean);
+
   return (
     <Link
       href={`/members/${member.memberSlug || member.id}`}
-      className="group relative flex flex-col bg-card border border-border overflow-hidden transition-all duration-300 hover:border-accent/40 hover:shadow-lg"
+      className="group relative flex flex-col bg-background p-6 sm:p-8 transition-colors hover:bg-secondary"
     >
-      {/* Top accent bar that appears on hover */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-accent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-      
-      {/* Profile header with image */}
-      <div className="relative bg-primary/5 p-6 pb-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(var(--accent-rgb),0.08),transparent_60%)]" />
-        
+      {/* Content */}
+      <div className="flex items-start gap-5">
         {/* Avatar */}
-        <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-background shadow-md bg-accent/5">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-muted">
           {hasRealImage ? (
             <img
               src={profileImage}
               alt={firstName || 'Member'}
               className="h-full w-full object-cover"
               onError={(e) => {
-                // If image fails, hide it and show initials
                 (e.target as HTMLImageElement).style.display = 'none';
                 const parent = (e.target as HTMLElement).parentElement;
                 if (parent) {
                   const fallback = document.createElement('div');
-                  fallback.className = "flex h-full w-full items-center justify-center text-2xl font-serif font-medium text-accent bg-accent/10";
+                  fallback.className = "flex h-full w-full items-center justify-center text-xl font-serif text-foreground bg-muted";
                   fallback.innerText = initial;
                   parent.appendChild(fallback);
                 }
               }}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl font-serif font-medium text-accent bg-accent/10">
+            <div className="flex h-full w-full items-center justify-center text-xl font-serif text-foreground bg-muted">
               {initial}
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-serif text-lg sm:text-xl font-normal text-foreground leading-tight">
+              {firstName} {lastName}
+            </h2>
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+          </div>
+          
+          {(jobTitle || companyName) && (
+            <p className="mt-1 text-sm text-muted-foreground truncate">
+              {jobTitle}{jobTitle && companyName && ', '}{companyName}
+            </p>
+          )}
+          
+          {location && (
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+              <MapPin className="w-3 h-3" />
+              <span>{location}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex flex-col flex-1 p-6 pt-4 -mt-6 relative">
-        {/* Name and title */}
-        <div className="text-center mb-4">
-          <h2 className="font-serif text-xl font-medium text-foreground group-hover:text-accent transition-colors">
-            {firstName} {lastName}
-          </h2>
-          {(jobTitle || companyName) && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {jobTitle}{jobTitle && companyName && ' at '}{companyName}
-            </p>
-          )}
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="mt-5 pt-5 border-t border-border flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span 
+              key={tag} 
+              className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
-
-        {/* Location */}
-        {location && (
-          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-4">
-            <MapPin className="w-3.5 h-3.5" />
-            <span>{location}</span>
-          </div>
-        )}
-        
-        {/* Bio excerpt */}
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 text-center flex-1">
-          {bio}
-        </p>
-
-        {/* Tags */}
-        {(member.openToMentoring || member.seekingMentorship || member.openToBoardRoles) && (
-          <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-            {member.openToMentoring && (
-              <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10 rounded-full">
-                Coaching
-              </span>
-            )}
-            {member.seekingMentorship && (
-              <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10 rounded-full">
-                Seeking Coach
-              </span>
-            )}
-            {member.openToBoardRoles && (
-              <span className="inline-flex items-center px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10 rounded-full">
-                NED
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* View profile link */}
-        <div className="mt-6 pt-4 border-t border-border">
-          <span className="inline-flex items-center justify-center w-full gap-2 text-xs font-medium uppercase tracking-wider text-accent group-hover:text-foreground transition-colors">
-            View Profile
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </div>
-      </div>
+      )}
     </Link>
   );
 }

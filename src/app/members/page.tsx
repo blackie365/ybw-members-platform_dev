@@ -72,24 +72,24 @@ export default async function MembersPage() {
     return (
       <div className="min-h-screen bg-background">
         {/* Hero Section */}
-        <div className="relative bg-primary py-20 sm:py-28">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-          </div>
-          <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
-                Our Community
-              </p>
-              <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl">
+        <section className="relative border-b border-border">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8 py-24 sm:py-32">
+            <div className="max-w-3xl">
+              <span className="inline-block text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground mb-6">
+                Our Network
+              </span>
+              <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-foreground leading-[1.1]">
                 Member Directory
               </h1>
+              <p className="mt-8 text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
+                Connect with inspiring businesswomen across Yorkshire.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
 
         <div className="mx-auto max-w-3xl px-6 lg:px-8 py-16">
-          <div className="bg-destructive/10 border border-destructive/20 text-destructive p-8 rounded-lg">
+          <div className="bg-destructive/5 border border-destructive/20 text-destructive p-8">
             <h2 className="font-serif text-xl font-medium mb-3">Configuration Required</h2>
             <p className="text-sm leading-relaxed">
               The members directory cannot load because the Firebase Admin credentials are missing from this environment.
@@ -108,35 +108,32 @@ export default async function MembersPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <div className="relative bg-primary py-20 sm:py-28">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-        </div>
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
-              Our Community
-            </p>
-            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl">
+      <section className="relative border-b border-border">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8 py-24 sm:py-32">
+          <div className="max-w-3xl">
+            <span className="inline-block text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground mb-6">
+              Our Network
+            </span>
+            <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-normal tracking-tight text-foreground leading-[1.1]">
               Member Directory
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
+            <p className="mt-8 text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
               Connect with inspiring businesswomen across Yorkshire.
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Content Section */}
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
+      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
         {members.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
-            <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
+          <div className="text-center py-24 border border-dashed border-border bg-card/50">
+            <p className="text-muted-foreground font-serif text-lg">No active members found in the directory.</p>
           </div>
         ) : (
           <MembersDirectoryClient initialMembers={members} />
         )}
-      </div>
+      </section>
     </div>
   );
 }
