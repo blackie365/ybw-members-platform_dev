@@ -17,6 +17,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/newsletter',
   '/api/webhook(.*)',
   '/api/ghost(.*)',
+  '/clerk-sync-keyless(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
