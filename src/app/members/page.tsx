@@ -28,9 +28,10 @@ async function getMembers() {
       // Find the best image URL, preferring storage over gravatar
       const avatarUrl = sanitizedData.avatarUrl || "";
       const profileImage = sanitizedData.profileImage || "";
-      const image = [avatarUrl, profileImage, sanitizedData.image].find(url => 
-        url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
-      ) || [avatarUrl, profileImage, sanitizedData.image].find(url => 
+      const profileImageSource = sanitizedData.profileImageSource || "";
+      const image = [avatarUrl, profileImage, profileImageSource, sanitizedData.image].find(url => 
+        url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app') || url.includes('firebasestorage.googleapis.com'))
+      ) || [avatarUrl, profileImage, profileImageSource, sanitizedData.image].find(url => 
         url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
       ) || avatarUrl || profileImage;
 

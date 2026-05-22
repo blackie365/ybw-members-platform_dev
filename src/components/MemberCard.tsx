@@ -18,12 +18,12 @@ export function MemberCard({ member }: { member: any }) {
     : (member.lastName || displayNameParts.slice(1).join(' ') || '');
 
   // Image handling: Use the pre-calculated image from the page, or find the best one
-  const profileImage = member.image || [member.avatarUrl, member.profileImage].find(url => 
-    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
-  ) || [member.avatarUrl, member.profileImage].find(url => 
-    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
-  ) || member.avatarUrl || member.profileImage;
-  const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
+   const profileImage = member.image || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
+     url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app') || url.includes('firebasestorage.googleapis.com'))
+   ) || [member.avatarUrl, member.profileImage, member.profileImageSource].find(url => 
+     url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+   ) || member.avatarUrl || member.profileImage;
+   const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || member.name?.[0] || '?').toUpperCase();
   const bio = member.bio || '';
   const jobTitle = member.jobTitle || '';
   const companyName = member.companyName || '';
