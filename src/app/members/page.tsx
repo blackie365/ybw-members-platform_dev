@@ -106,24 +106,11 @@ export default async function MembersPage() {
   const members = await getMembers();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section from v0-style layout but keeping our brand headers */}
-      <div className="sm:flex sm:items-center sm:justify-between border-b border-border pb-8 mb-12 max-w-7xl mx-auto px-6 lg:px-8 mt-12">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-serif">
-            Members Directory
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
-            Discover and connect with our vibrant community of professionals and businesswomen across Yorkshire.
-          </p>
-        </div>
-      </div>
-
-      {/* Content Section */}
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 pb-16">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {members.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
-            <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
+          <div className="text-center py-20 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50">
+            <p className="text-zinc-500 italic font-serif">No active members found in the directory.</p>
           </div>
         ) : (
           <MembersDirectoryClient initialMembers={members} />
@@ -132,4 +119,5 @@ export default async function MembersPage() {
     </div>
   );
 }
+
 

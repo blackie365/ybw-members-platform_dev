@@ -61,13 +61,25 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
 
   return (
     <div>
-      {/* Controls Section - v0 inspired layout */}
+      {/* Header Section */}
+      <div className="sm:flex sm:items-center sm:justify-between border-b border-zinc-200 dark:border-zinc-800 pb-8 mb-8">
+        <div>
+          <h1 className="text-3xl font-serif font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+            Members Directory
+          </h1>
+          <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl">
+            Discover and connect with our vibrant community of professionals and businesswomen across Yorkshire.
+          </p>
+        </div>
+      </div>
+
+      {/* Controls Section */}
       <div className="flex flex-col gap-4 mb-12">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Search Bar */}
           <div className="relative flex-1 max-w-2xl">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-              <Search className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <Search className="h-5 w-5 text-zinc-400" aria-hidden="true" />
             </div>
             <input
               type="text"
@@ -78,7 +90,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
                 setSearchTerm(e.target.value);
                 setVisibleCount(16);
               }}
-              className="block w-full rounded-xl border-0 py-4 pl-11 pr-4 text-foreground shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-accent sm:text-sm sm:leading-6 bg-card transition-shadow"
+              className="block w-full rounded-xl border-0 py-4 pl-11 pr-4 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-accent sm:text-sm sm:leading-6 dark:bg-zinc-800/50 dark:text-white dark:ring-zinc-700 transition-shadow"
               placeholder="Search by name, company, or expertise..."
             />
           </div>
@@ -87,33 +99,33 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
           <button
             type="button"
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            className="inline-flex items-center gap-x-2 rounded-xl bg-card px-4 py-4 text-sm font-semibold text-foreground shadow-sm ring-1 ring-inset ring-border hover:bg-secondary transition-colors"
+            className="inline-flex items-center gap-x-2 rounded-xl bg-white dark:bg-zinc-800 px-4 py-4 text-sm font-semibold text-zinc-900 dark:text-white shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
           >
             {sortOrder === 'asc' ? (
               <>
-                <ArrowDownAZ className="-ml-0.5 h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <ArrowDownAZ className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 Sort A-Z
               </>
             ) : (
               <>
-                <ArrowUpAZ className="-ml-0.5 h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <ArrowUpAZ className="-ml-0.5 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 Sort Z-A
               </>
             )}
           </button>
         </div>
 
-        {/* Filter Pills */}
+        {/* Coaching Filters */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
               setFilterMentoring(!filterMentoring);
               setVisibleCount(16);
             }}
-            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors border ${
+            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
               filterMentoring
-                ? 'bg-accent text-accent-foreground border-accent'
-                : 'bg-secondary text-muted-foreground hover:bg-secondary/80 border-transparent'
+                ? 'bg-accent/10 text-accent ring-1 ring-inset ring-accent/20'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
             }`}
           >
             Open to Coaching
@@ -123,10 +135,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
               setFilterSeeking(!filterSeeking);
               setVisibleCount(16);
             }}
-            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors border ${
+            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
               filterSeeking
-                ? 'bg-accent text-accent-foreground border-accent'
-                : 'bg-secondary text-muted-foreground hover:bg-secondary/80 border-transparent'
+                ? 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-700/10 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-400/30'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
             }`}
           >
             Seeking a Coach
@@ -136,10 +148,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
               setFilterBoard(!filterBoard);
               setVisibleCount(16);
             }}
-            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors border ${
+            className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
               filterBoard
-                ? 'bg-accent text-accent-foreground border-accent'
-                : 'bg-secondary text-muted-foreground hover:bg-secondary/80 border-transparent'
+                ? 'bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-700/10 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-400/30'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
             }`}
           >
             Board Roles (NED)
@@ -148,8 +160,8 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
       </div>
 
       {/* Results Stats */}
-      <div className="mb-6 flex items-center justify-between text-sm text-muted-foreground">
-        <p>Showing <span className="font-semibold text-foreground">{displayedMembers.length}</span> of {filteredAndSortedMembers.length} members</p>
+      <div className="mb-6 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
+        <p>Showing <span className="font-semibold text-zinc-900 dark:text-white">{displayedMembers.length}</span> of {filteredAndSortedMembers.length} members</p>
         {(filterMentoring || filterSeeking || filterBoard || searchTerm) && (
           <button
             onClick={() => {
@@ -159,7 +171,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
               setFilterBoard(false);
               setVisibleCount(16);
             }}
-            className="text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors"
+            className="text-xs font-medium uppercase tracking-wider text-accent hover:text-zinc-900 transition-colors"
           >
             Clear filters
           </button>
@@ -173,10 +185,10 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
             <MemberCard key={member.id || member.email || member.slug || index} member={member} />
           ))
         ) : (
-          <div className="col-span-full py-24 text-center rounded-2xl border-2 border-dashed border-border bg-card/50">
-            <Users className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" aria-hidden="true" />
-            <h3 className="text-lg font-serif font-medium text-foreground mb-2">No members found</h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto px-4">
+          <div className="col-span-full py-24 text-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+            <Users className="mx-auto h-12 w-12 text-zinc-400 mb-4" aria-hidden="true" />
+            <h3 className="text-lg font-serif font-medium text-zinc-900 dark:text-white mb-2">No members found</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 max-w-md mx-auto px-4">
               {searchTerm 
                 ? `We couldn't find anyone matching "${searchTerm}". Try adjusting your search or filters.`
                 : 'Try adjusting your filters to see more members.'
@@ -190,7 +202,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
                 setFilterBoard(false);
                 setVisibleCount(16);
               }}
-              className="inline-flex items-center px-6 py-2.5 text-sm font-medium text-accent-foreground bg-accent hover:bg-accent/90 rounded-full transition-colors"
+              className="inline-flex items-center px-6 py-2.5 text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-xl transition-colors"
             >
               Clear all filters
             </button>
@@ -203,7 +215,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: any
         <div className="mt-16 text-center">
           <button
             onClick={loadMore}
-            className="inline-flex items-center justify-center px-10 py-3.5 bg-accent text-accent-foreground font-medium uppercase tracking-wider text-xs rounded-full hover:bg-accent/90 transition-all duration-300 shadow-md hover:shadow-lg active:scale-95"
+            className="inline-flex items-center justify-center px-10 py-3.5 bg-accent text-white font-semibold uppercase tracking-wider text-xs rounded-xl hover:bg-accent/90 transition-all duration-300 shadow-sm hover:shadow-md active:scale-95"
           >
             See More Members
           </button>
