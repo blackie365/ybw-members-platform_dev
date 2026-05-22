@@ -5,9 +5,9 @@ import GhostAdminAPI from '@tryghost/admin-api';
 const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
 
 function getGhostAdmin() {
-  const key = process.env.GHOST_ADMIN_API_KEY;
+  const key = process.env.GHOST_ADMIN_API_KEY || process.env.GHOST_ADMIN_KEY;
   if (!key) {
-    console.warn("GHOST_ADMIN_API_KEY is not set.");
+    console.warn("Ghost Admin API key not found in GHOST_ADMIN_API_KEY or GHOST_ADMIN_KEY.");
     return null;
   }
   
