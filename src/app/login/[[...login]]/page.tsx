@@ -80,11 +80,15 @@ function LoginForm() {
                 colorPrimary: '#b79c65', // Yorkshire Gold
                 fontFamily: 'var(--font-serif)',
                 borderRadius: '0',
+                colorBackground: 'transparent',
+                boxShadow: 'none',
               },
               elements: {
-                rootBox: 'shadow-none w-full',
+                rootBox: 'shadow-none w-full border-none',
                 card: 'shadow-none border-none bg-transparent w-full max-w-none p-0 sm:p-0',
-                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95 shadow-none',
+                navbar: 'hidden',
+                header: 'hidden',
+                formButtonPrimary: 'bg-[#1c1917] hover:bg-[#292524] text-white text-[11px] font-semibold uppercase tracking-[0.2em] h-14 px-8 rounded-none transition-all active:scale-95 shadow-none border-none',
                 headerTitle: 'hidden',
                 headerSubtitle: 'hidden',
                 socialButtonsBlockButton: 'border-stone-200 hover:bg-stone-50 text-stone-900 rounded-none h-14 transition-all border mb-4 shadow-none',
