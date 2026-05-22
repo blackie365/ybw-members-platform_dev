@@ -36,11 +36,11 @@ export default async function NewsPage(props: {
               {tag === 'events' ? 'Yorkshire BusinessWoman Events' : (tag ? tag.replace(/-/g, ' ') : 'Latest News')}
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
-              {tag 
-                ? (tag === 'events' 
-                    ? 'Join us at one of our many fantastic events, designed to inspire, connect, and empower women across the region.' 
-                    : `Explore all articles tagged with ${tag.replace(/-/g, ' ')}.`)
-                : 'Insights, stories, and updates from Yorkshire\'s business community.'}
+              {tag === 'events' 
+                ? 'Join us at one of our many fantastic events, designed to inspire, connect, and empower women across the region.' 
+                : (tag 
+                  ? `Explore all articles tagged with ${tag.replace(/-/g, ' ')}.`
+                  : 'Insights, stories, and updates from Yorkshire\'s business community.')}
             </p>
           </div>
         </div>

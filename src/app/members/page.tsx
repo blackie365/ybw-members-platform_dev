@@ -5,15 +5,12 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function getMembers() {
-  console.log('[MembersPage] Fetching members...');
   try {
     if (!adminDb) {
-      console.error('[MembersPage] adminDb is not initialized');
       return [];
     }
 
     const snapshot = await adminDb.collection('newMemberCollection').get();
-    console.log(`[MembersPage] Found ${snapshot.size} total documents in newMemberCollection`);
 
     const members = snapshot.docs.map((doc: any) => {
       const data = doc.data();
@@ -62,21 +59,9 @@ async function getMembers() {
       return isActiveMember && isValidTier && hasName;
     });
 
-    console.log(`[MembersPage] Returning ${members.length} visible members after filtering`);
-    if (members.length === 0 && snapshot.size > 0) {
-      console.log('[MembersPage] ERROR: All members were filtered out!');
-      // Log why the first one was filtered out
-      const first = snapshot.docs[0].data();
-      console.log('[MembersPage] First doc sample:', {
-        email: first.email,
-        userInactive: first.userInactive,
-        membershipTier: first.membershipTier,
-        displayName: first.displayName
-      });
-    }
     return members;
   } catch (error: any) {
-    console.error('[MembersPage] Critical error fetching members:', error);
+    console.error('Failed to fetch members from newMemberCollection:', error);
     return [];
   }
 }
@@ -145,8 +130,7 @@ export default async function MembersPage() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
         {members.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
-            <p className="text-muted-foreground">No active members found in the directory.</p>
-            <p className="text-xs mt-2 opacity-50">Database Connection: {adminDb ? 'Active' : 'Inactive'}</p>
+            <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
           </div>
         ) : (
           <MembersDirectoryClient initialMembers={members} />

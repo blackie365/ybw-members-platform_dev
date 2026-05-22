@@ -5,7 +5,6 @@ import { MemberCard } from '@/components/MemberCard';
 import { Search, ArrowDownAZ, ArrowUpAZ, Users } from 'lucide-react';
 
 export function MembersDirectoryClient({ initialMembers }: { initialMembers: any[] }) {
-  console.log('[MembersDirectoryClient] Received members:', initialMembers?.length);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [visibleCount, setVisibleCount] = useState(16);
