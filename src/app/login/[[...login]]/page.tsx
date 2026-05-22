@@ -49,7 +49,7 @@ function LoginForm() {
                 </div>
                 <div>
                   <h3 className="font-medium text-primary-foreground text-lg">Member Network</h3>
-                  <p className="mt-1 text-sm text-primary-foreground/60 leading-relaxed">Connect with 130+ professional women across Yorkshire</p>
+                  <p className="mt-1 text-sm text-primary-foreground/60 leading-relaxed">Connect with 200+ professional women across Yorkshire</p>
                 </div>
               </div>
             </div>
