@@ -63,6 +63,17 @@ async function getMembers() {
     });
 
     console.log(`[MembersPage] Returning ${members.length} visible members after filtering`);
+    if (members.length === 0 && snapshot.size > 0) {
+      console.log('[MembersPage] ERROR: All members were filtered out!');
+      // Log why the first one was filtered out
+      const first = snapshot.docs[0].data();
+      console.log('[MembersPage] First doc sample:', {
+        email: first.email,
+        userInactive: first.userInactive,
+        membershipTier: first.membershipTier,
+        displayName: first.displayName
+      });
+    }
     return members;
   } catch (error: any) {
     console.error('[MembersPage] Critical error fetching members:', error);
@@ -132,7 +143,14 @@ export default async function MembersPage() {
 
       {/* Content Section */}
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
-        <MembersDirectoryClient initialMembers={members} />
+        {members.length === 0 ? (
+          <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
+            <p className="text-muted-foreground">No active members found in the directory.</p>
+            <p className="text-xs mt-2 opacity-50">Database Connection: {adminDb ? 'Active' : 'Inactive'}</p>
+          </div>
+        ) : (
+          <MembersDirectoryClient initialMembers={members} />
+        )}
       </div>
     </div>
   );
