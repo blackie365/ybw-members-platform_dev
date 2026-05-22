@@ -64,6 +64,7 @@ async function masterSync() {
     const snapshot = await db.collection('newMemberCollection').get();
     const firestoreMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const authorizedEmails = new Set(records.map(r => r.email.toLowerCase().trim()));
+    const standardizedDocIds = new Set();
 
     let updatedCount = 0;
     let inactivatedCount = 0;
@@ -123,6 +124,8 @@ async function masterSync() {
         const existing = firestoreMembers.find(m => m.email?.toLowerCase() === email);
         const memberRef = existing ? db.collection('newMemberCollection').doc(existing.id) : db.collection('newMemberCollection').doc();
 
+        standardizedDocIds.add(memberRef.id);
+
         await memberRef.set({
             email,
             displayName: cleanedDisplayName,
@@ -147,20 +150,7 @@ async function masterSync() {
     let batch = db.batch();
     
     for (const fm of firestoreMembers) {
-        if (!fm.email || !authorizedEmails.has(fm.email.toLowerCase())) {
-            // Check if this record has a Stripe ID or a Firebase Storage image - if so, we should keep it active!
-            const avatarUrl = fm.avatarUrl || "";
-            const profileImage = fm.profileImage || "";
-            const image = fm.image || "";
-            const hasStorageImage = [avatarUrl, profileImage, image].some(url => 
-                url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
-            );
-
-            if (fm.stripeCustomerId || hasStorageImage) {
-                console.log(`ℹ️ Preserving active status for ${fm.email} (Not in CSV, but has ${fm.stripeCustomerId ? 'Stripe ID' : 'Storage Image'})`);
-                continue; 
-            }
-
+        if (!standardizedDocIds.has(fm.id)) {
             const mRef = db.collection('newMemberCollection').doc(fm.id);
             batch.update(mRef, {
                 userInactive: true,
