@@ -68,6 +68,9 @@
 .cl-rootBox, 
 .cl-signIn-root, 
 .cl-signUp-root,
+.cl-internal-ml9k5m,
+.cl-internal-1au92ec,
+.cl-internal-b3fm6y,
 [data-clerk-component="SignIn"],
 [data-clerk-component="SignUp"] {
   box-shadow: none !important;
@@ -75,8 +78,11 @@
   background-color: transparent !important;
 }
 
-.cl-internal-1au92ec, /* Common internal Clerk shadow class */
-.cl-internal-b3fm6y {
+.cl-internal-1f4p2mz {
+  border: none !important;
+}
+
+.cl-internal-1kp23r1 {
   box-shadow: none !important;
 }
 
