@@ -107,28 +107,20 @@ export default async function MembersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <div className="relative bg-primary py-20 sm:py-28">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-        </div>
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70 mb-4">
-              Our Community
-            </p>
-            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl">
-              Member Directory
-            </h1>
-            <p className="mt-6 text-lg leading-relaxed text-primary-foreground/70">
-              Connect with inspiring businesswomen across Yorkshire.
-            </p>
-          </div>
+      {/* Hero Section from v0-style layout but keeping our brand headers */}
+      <div className="sm:flex sm:items-center sm:justify-between border-b border-border pb-8 mb-12 max-w-7xl mx-auto px-6 lg:px-8 mt-12">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-serif">
+            Members Directory
+          </h1>
+          <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
+            Discover and connect with our vibrant community of professionals and businesswomen across Yorkshire.
+          </p>
         </div>
       </div>
 
       {/* Content Section */}
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 pb-16">
         {members.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
             <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
@@ -140,3 +132,4 @@ export default async function MembersPage() {
     </div>
   );
 }
+
