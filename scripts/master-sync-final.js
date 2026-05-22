@@ -143,9 +143,17 @@ async function masterSync() {
     }
 
     // 4. Mark everyone else as Inactive
-    const batch = db.batch();
+    let inactivatedBatchCount = 0;
+    let batch = db.batch();
+    
     for (const fm of firestoreMembers) {
         if (!fm.email || !authorizedEmails.has(fm.email.toLowerCase())) {
+            // Check if this record has a Stripe ID - if so, we should keep it active!
+            if (fm.stripeCustomerId) {
+                console.log(`ℹ️ Preserving active status for ${fm.email} (Not in CSV, but has Stripe ID: ${fm.stripeCustomerId})`);
+                continue; 
+            }
+
             const mRef = db.collection('newMemberCollection').doc(fm.id);
             batch.update(mRef, {
                 userInactive: true,
@@ -154,10 +162,17 @@ async function masterSync() {
                 status: 'inactive'
             });
             inactivatedCount++;
+            inactivatedBatchCount++;
+
+            if (inactivatedBatchCount >= 400) {
+                await batch.commit();
+                batch = db.batch();
+                inactivatedBatchCount = 0;
+            }
         }
     }
 
-    if (inactivatedCount > 0) {
+    if (inactivatedBatchCount > 0) {
         await batch.commit();
     }
 
