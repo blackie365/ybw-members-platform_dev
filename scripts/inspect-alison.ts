@@ -18,7 +18,20 @@ async function inspectAlison() {
   console.log(`Found ${snapshot.size} records for ${email}:`);
   snapshot.docs.forEach(doc => {
     console.log(`\n--- Doc ID: ${doc.id} ---`);
-    console.log(JSON.stringify(doc.data(), null, 2));
+    const data = doc.data();
+    console.log(JSON.stringify(data, null, 2));
+    
+    // Simulate getMembers logic
+    const avatarUrl = data.avatarUrl || "";
+    const profileImage = data.profileImage || "";
+    const image = [avatarUrl, profileImage, data.image].find(url => 
+      url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
+    ) || [avatarUrl, profileImage, data.image].find(url => 
+      url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
+    ) || avatarUrl || profileImage;
+    
+    console.log('\n--- Simulated getMembers Logic ---');
+    console.log('Resulting image URL:', image);
   });
 }
 

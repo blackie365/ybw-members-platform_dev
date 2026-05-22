@@ -6,10 +6,8 @@
     "Samantha J Hague",
     "Leanne Hodgetts",
     "Jetplus Services Limited",
-    "A M Beardsell",
     "Shona Hayes",
     "Debbie Dobson",
-    "Orla M Rhodes",
     "Sinead Myers",
     "Angie Khupe",
     "N Wordsworth",
@@ -100,10 +98,10 @@
     "Caroline Woolley",
     "Jetplus Services Limited",
     "Catherine Thristan",
-    "A M Beardsell",
+    "Alison Beardsell",
     "Shona Hayes",
     "Debbie Dobson",
-    "Orla M Rhodes",
+    "Orla Rhodes",
     "Lisa Darwin",
     "Sinead Myers",
     "Sarah Stokes",
@@ -155,7 +153,7 @@
     "Claire Alexander",
     "Amelia-Rose Penny",
     "J Swann",
-    "Blacks Solicitors Llp",
+    "A Nicholas",
     "Daneile Moore",
     "Nancy Prest",
     "M H B Stoddart",
@@ -558,9 +556,9 @@
       "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/C6fNoAY7I13n6Wdx5Avh/avatar-1770214175065-thumb.jpg"
     },
     {
-      "name": "A M Beardsell",
+      "name": "Alison Beardsell",
       "email": "alison.beardsell@pfgl.co.uk",
-      "hasBio": false,
+      "hasBio": true,
       "hasAvatar": true,
       "isStorage": true,
       "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/c65d8250b3e27281a6b0407372c0d37a.jpg"
@@ -582,9 +580,9 @@
       "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/69c4fd511c04a9eb3f6bd5e7/1774863553689-debbie-sq.jpg"
     },
     {
-      "name": "Orla M Rhodes",
+      "name": "Orla Rhodes",
       "email": "orla@coppergateclinic.co.uk",
-      "hasBio": false,
+      "hasBio": true,
       "hasAvatar": true,
       "isStorage": true,
       "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/profile-images/b34acfa12fc753910c5f6a5dee25b5a4.jpg"
@@ -1022,7 +1020,7 @@
       "avatarUrl": "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/HyxVXWGjqtjQTgzF1H0g/avatar-1770214200226-thumb.jpg"
     },
     {
-      "name": "Blacks Solicitors Llp",
+      "name": "A Nicholas",
       "email": "anicholas@lawblacks.com",
       "hasBio": true,
       "hasAvatar": true,

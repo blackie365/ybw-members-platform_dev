@@ -56,7 +56,7 @@ async function finalEnrichmentSweep() {
     },
     'alison.beardsell@pfgl.co.uk': {
       name: "Alison Beardsell",
-      bio: "Alison Beardsell is a professional based in Yorkshire, providing expertise in financial services and business development."
+      bio: "With over 21 years of experience in Financial Services—including 17 years as a qualified advisor—Alison brings extensive technical and advisory expertise to the team. She achieved Chartered Financial Planner status in 2022 and is currently working towards her Fellowship of the Personal Finance Society."
     }
   };
 
