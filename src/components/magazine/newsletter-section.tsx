@@ -9,9 +9,19 @@ export function NewsletterSection() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [lastAttemptTime, setLastAttemptTime] = useState<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Rate limit check: 2 minutes = 120,000 milliseconds
+    const now = Date.now()
+    if (lastAttemptTime && now - lastAttemptTime < 120000) {
+      const remainingSeconds = Math.ceil((120000 - (now - lastAttemptTime)) / 1000)
+      setError(`Please wait ${remainingSeconds} seconds before trying again.`)
+      return
+    }
+
     if (email) {
       setIsLoading(true)
       setError("")
@@ -27,6 +37,7 @@ export function NewsletterSection() {
         }
         
         setIsSubmitted(true)
+        setLastAttemptTime(now)
       } catch (err) {
         setError("Something went wrong. Please try again.")
       } finally {
