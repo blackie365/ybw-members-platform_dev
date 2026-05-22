@@ -5,18 +5,28 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function getMembers() {
+  console.log('[MembersPage] Fetching members...');
   try {
-    if (!adminDb) return [];
+    if (!adminDb) {
+      console.error('[MembersPage] adminDb is not initialized');
+      return [];
+    }
+
     const snapshot = await adminDb.collection('newMemberCollection').get();
+    console.log(`[MembersPage] Found ${snapshot.size} total documents in newMemberCollection`);
+
     const members = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       
-      const sanitizedData = JSON.parse(JSON.stringify(data, (key, value) => {
-        if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
-          return new Date(value._seconds * 1000).toISOString();
+      // Manually sanitize data to avoid JSON circular issues or other serialization errors
+      const sanitizedData: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value && typeof value === 'object' && '_seconds' in value) {
+          sanitizedData[key] = new Date((value as any)._seconds * 1000).toISOString();
+        } else {
+          sanitizedData[key] = value;
         }
-        return value;
-      }));
+      }
 
       // Find the best image URL, preferring storage over gravatar
       const avatarUrl = sanitizedData.avatarUrl || "";
@@ -40,8 +50,6 @@ async function getMembers() {
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
     }).filter((member: any) => {
-      // EX-MEMBER PROTECTION: Strictly filter for active members from the final list.
-      
       // 1. MUST NOT be userInactive
       const isActiveMember = member.userInactive !== true;
       
@@ -53,9 +61,11 @@ async function getMembers() {
       
       return isActiveMember && isValidTier && hasName;
     });
+
+    console.log(`[MembersPage] Returning ${members.length} visible members after filtering`);
     return members;
   } catch (error: any) {
-    console.error('Failed to fetch members from newMemberCollection:', error);
+    console.error('[MembersPage] Critical error fetching members:', error);
     return [];
   }
 }
