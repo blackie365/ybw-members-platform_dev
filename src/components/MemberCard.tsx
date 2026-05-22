@@ -46,14 +46,23 @@ export function MemberCard({ member }: { member: any }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(var(--accent-rgb),0.08),transparent_60%)]" />
         
         {/* Avatar */}
-        <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-background shadow-md">
+        <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-background shadow-md bg-accent/5">
           {hasRealImage ? (
-            <Image
+            <img
               src={profileImage}
               alt={firstName || 'Member'}
-              fill
-              className="object-cover"
-              sizes="96px"
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                // If image fails, hide it and show initials
+                (e.target as HTMLImageElement).style.display = 'none';
+                const parent = (e.target as HTMLElement).parentElement;
+                if (parent) {
+                  const fallback = document.createElement('div');
+                  fallback.className = "flex h-full w-full items-center justify-center text-2xl font-serif font-medium text-accent bg-accent/10";
+                  fallback.innerText = initial;
+                  parent.appendChild(fallback);
+                }
+              }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-2xl font-serif font-medium text-accent bg-accent/10">
