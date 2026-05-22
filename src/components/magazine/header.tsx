@@ -194,21 +194,25 @@ export function Header() {
                 </Button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/sign-in"
-                  className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/70 hover:text-foreground transition-colors"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="bg-accent text-white px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-lg transition-all hover:bg-accent/90 active:scale-95"
-                >
-                  Join Us
-                </Link>
-              </>
-            )}
+                <>
+                  <Link href="/sign-in" passHref>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="hidden lg:flex hover:bg-muted" 
+                      aria-label="Sign In"
+                    >
+                      <User className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link
+                    href="/sign-up"
+                    className="bg-accent text-white px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-lg transition-all hover:bg-accent/90 active:scale-95 ml-2"
+                  >
+                    Join Us
+                  </Link>
+                </>
+              )}
           </div>
         </nav>
       </div>
