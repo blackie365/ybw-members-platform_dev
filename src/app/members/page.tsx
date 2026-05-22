@@ -21,7 +21,7 @@ async function getMembers() {
       // Manually sanitize data to avoid JSON circular issues or other serialization errors
       const sanitizedData: any = {};
       for (const [key, value] of Object.entries(data)) {
-        if (value && typeof value === 'object' && '_seconds' in value) {
+        if (value && typeof value === 'object' && value !== null && '_seconds' in value) {
           sanitizedData[key] = new Date((value as any)._seconds * 1000).toISOString();
         } else {
           sanitizedData[key] = value;
