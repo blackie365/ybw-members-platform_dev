@@ -65,12 +65,14 @@
 
 /* Force Clerk to drop shadows and backgrounds */
 .cl-card, 
+.cl-cardBox,
 .cl-rootBox, 
 .cl-signIn-root, 
 .cl-signUp-root,
 .cl-internal-ml9k5m,
 .cl-internal-1au92ec,
 .cl-internal-b3fm6y,
+.cl-internal-1h6fgzy,
 [data-clerk-component="SignIn"],
 [data-clerk-component="SignUp"] {
   box-shadow: none !important;
