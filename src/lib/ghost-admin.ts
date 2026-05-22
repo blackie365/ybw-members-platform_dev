@@ -46,7 +46,7 @@ export async function getGhostMembers(options?: { limit?: number | string; filte
 /**
  * Create a new draft article via Ghost Admin API
  */
-export async function createDraftArticle({ title, html, customExcerpt }: { title: string, html: string, customExcerpt?: string }) {
+export async function createDraftArticle({ title, html, customExcerpt, featureImage }: { title: string, html: string, customExcerpt?: string, featureImage?: string }) {
   const admin = getGhostAdmin();
   if (!admin) {
     throw new Error("Ghost Admin API is not initialized. Please check GHOST_ADMIN_API_KEY.");
@@ -58,6 +58,7 @@ export async function createDraftArticle({ title, html, customExcerpt }: { title
       html,
       status: 'draft',
       custom_excerpt: customExcerpt,
+      feature_image: featureImage,
       tags: ['Member Submission']
     }, { source: 'html' });
     

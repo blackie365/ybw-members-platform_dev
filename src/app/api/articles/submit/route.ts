@@ -4,7 +4,7 @@ import { createDraftArticle } from '@/lib/ghost-admin';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, content, authorName, authorEmail } = body;
+    const { title, content, authorName, authorEmail, featureImage } = body;
 
     if (!title || !content) {
       return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
@@ -30,7 +30,8 @@ export async function POST(req: Request) {
     await createDraftArticle({
       title,
       html: finalHtml,
-      customExcerpt
+      customExcerpt,
+      featureImage
     });
 
     return NextResponse.json({ success: true });
