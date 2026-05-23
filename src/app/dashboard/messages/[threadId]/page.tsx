@@ -24,7 +24,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login?redirect=/dashboard/messages")
+      router.push("/sign-in?redirect=/dashboard/messages")
     }
   }, [user, authLoading, router])
 

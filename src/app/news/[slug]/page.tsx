@@ -204,13 +204,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link 
-                    href={`/login?redirect=/news/${post.slug}`}
+                    href={`/sign-in?redirect=/news/${post.slug}`}
                     className="w-full sm:w-auto px-8 py-3 bg-accent text-white font-semibold rounded-xl hover:bg-accent/90 transition-colors"
                   >
                     Login to View
                   </Link>
                   <Link 
-                    href="/membership"
+                    href="/sign-up"
                     className="w-full sm:w-auto px-8 py-3 border border-accent text-accent font-semibold rounded-xl hover:bg-accent/5 transition-colors"
                   >
                     Become a Member

@@ -101,15 +101,15 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
             className={`shrink-0 inline-flex justify-center items-center rounded-xl px-6 py-3 text-sm font-semibold transition-all shadow-sm ${
               isAttending 
                 ? 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 ring-1 ring-inset ring-zinc-300 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 dark:ring-zinc-700' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600'
+                : 'bg-accent text-white hover:bg-accent/90'
             } disabled:opacity-50`}
           >
             {processing ? 'Updating...' : (isAttending ? 'Cancel RSVP' : 'RSVP Now')}
           </button>
         ) : (
           <Link
-            href="/login"
-            className="shrink-0 inline-flex justify-center items-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
+            href="/sign-in"
+            className="shrink-0 inline-flex justify-center items-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-accent/90 transition-colors"
           >
             Log in to RSVP
           </Link>

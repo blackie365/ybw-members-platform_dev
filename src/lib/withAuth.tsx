@@ -71,7 +71,7 @@ export function WithAuth({ children, options = {}, fallback }: WithAuthProps) {
   const router = useRouter();
 
   const {
-    redirectTo = '/login',
+    redirectTo = '/sign-in',
     requiredTier,
     requiredRole,
     requireEmailVerified = false,

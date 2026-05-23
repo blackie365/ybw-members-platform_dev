@@ -99,14 +99,14 @@ export function Header() {
                       {!user && (
                         <>
                           <Link
-                            href="/login"
+                            href="/sign-in"
                             onClick={() => setIsOpen(false)}
                             className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                           >
                             Sign In
                           </Link>
                           <Link
-                            href="/membership"
+                            href="/sign-up"
                             onClick={() => setIsOpen(false)}
                             className="block py-3 font-serif text-lg text-accent transition-colors hover:text-accent/80 font-semibold"
                           >

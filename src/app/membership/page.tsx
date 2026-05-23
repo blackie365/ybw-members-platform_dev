@@ -10,7 +10,7 @@ const tiers = [
   {
     name: 'Free Subscriber',
     id: 'tier-free',
-    href: '/register',
+    href: '/sign-up',
     priceMonthly: '£0',
     priceAnnually: '£0',
     icon: Users,
@@ -26,7 +26,7 @@ const tiers = [
   {
     name: 'Premium Member',
     id: 'tier-premium',
-    href: '/register?plan=premium',
+    href: '/sign-up?plan=premium',
     priceMonthly: '£25',
     priceAnnually: '£275',
     icon: Sparkles,
