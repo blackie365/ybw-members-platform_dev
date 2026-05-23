@@ -106,7 +106,7 @@ export function Header() {
                             Sign In
                           </Link>
                           <Link
-                            href="/sign-up"
+                            href="/membership"
                             onClick={() => setIsOpen(false)}
                             className="block py-3 font-serif text-lg text-accent transition-colors hover:text-accent/80 font-semibold"
                           >
@@ -206,7 +206,7 @@ export function Header() {
                     </Button>
                   </Link>
                   <Link
-                    href="/sign-up"
+                    href="/membership"
                     className="bg-accent text-white px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-lg transition-all hover:bg-accent/90 active:scale-95 ml-2"
                   >
                     Join Us

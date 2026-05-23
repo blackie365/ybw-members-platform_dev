@@ -210,7 +210,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                     Login to View
                   </Link>
                   <Link 
-                    href="/sign-up"
+                    href="/membership"
                     className="w-full sm:w-auto px-8 py-3 border border-accent text-accent font-semibold rounded-xl hover:bg-accent/5 transition-colors"
                   >
                     Become a Member

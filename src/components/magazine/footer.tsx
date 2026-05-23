@@ -17,7 +17,7 @@ const footerLinks = {
   resources: [
     { name: "Events", href: "/news?tag=events" },
     { name: "Member Dashboard", href: "/dashboard" },
-    { name: "Join Us", href: "/sign-up" },
+    { name: "Join Us", href: "/membership" },
     { name: "Login", href: "/sign-in" },
   ],
   legal: [
