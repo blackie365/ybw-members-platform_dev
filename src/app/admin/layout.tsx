@@ -40,12 +40,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       } else if (!isAdmin) {
         console.log('[AdminLayout] Not admin, redirecting to dashboard');
         router.push("/dashboard")
-      } else {
+      } else if (checking) {
         console.log('[AdminLayout] Admin verified, setting checking to false');
         setChecking(false)
       }
     }
-  }, [user, loading, isAdmin, router])
+  }, [user, loading, isAdmin, router, checking])
 
   if (loading || checking) {
     return (

@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
+import { useState } from 'react';
 import { ArrowUpRight, MapPin } from 'lucide-react';
 
 export function MemberCard({ member }: { member: any }) {
+  const [imageError, setImageError] = useState(false);
   // Name handling: prioritize displayName if it looks more complete than initials
   const hasInitialsOnly = (member.firstName?.length === 1 || member.lastName?.length === 1);
   const displayNameParts = member.displayName?.split(' ') || [];
@@ -47,21 +50,14 @@ export function MemberCard({ member }: { member: any }) {
       <div className="flex items-start gap-5">
         {/* Avatar */}
         <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-muted">
-          {hasRealImage ? (
-            <img
+          {hasRealImage && !imageError ? (
+            <Image
               src={profileImage}
               alt={firstName || 'Member'}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                const parent = (e.target as HTMLElement).parentElement;
-                if (parent) {
-                  const fallback = document.createElement('div');
-                  fallback.className = "flex h-full w-full items-center justify-center text-xl font-serif text-foreground bg-muted";
-                  fallback.innerText = initial;
-                  parent.appendChild(fallback);
-                }
-              }}
+              fill
+              className="object-cover"
+              onError={() => setImageError(true)}
+              unoptimized={profileImage.includes('gravatar.com')}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xl font-serif text-foreground bg-muted">

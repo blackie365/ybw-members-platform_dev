@@ -1,6 +1,7 @@
 import { getPosts } from '@/lib/ghost';
 import { adminDb } from '@/lib/firebase-admin';
 import MemberOffersClient from '@/app/dashboard/offers/MemberOffersClient';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -83,18 +84,18 @@ export default async function PublicOffersPage() {
             networking events, and member-only discounts.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a 
+            <Link 
               href="/membership" 
               className="px-6 py-2.5 bg-accent text-white font-medium hover:bg-accent/90 transition-colors"
             >
               View Membership Tiers
-            </a>
-            <a 
+            </Link>
+            <Link 
               href="/sign-in" 
               className="px-6 py-2.5 border border-border text-foreground font-medium hover:bg-muted transition-colors"
             >
               Member Sign In
-            </a>
+            </Link>
           </div>
         </div>
       </div>

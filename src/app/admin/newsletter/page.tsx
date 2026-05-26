@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +19,7 @@ export default function NewsletterAdminPage() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
-  const fetchPreview = async () => {
+  const fetchPreview = useCallback(async () => {
     setIsLoadingPreview(true);
     const result = await previewNewsletterAction(editorNote);
     if (result.success && result.html) {
@@ -28,11 +28,11 @@ export default function NewsletterAdminPage() {
       toast.error("Failed to load newsletter preview");
     }
     setIsLoadingPreview(false);
-  };
+  }, [editorNote]);
 
   useEffect(() => {
     fetchPreview();
-  }, []);
+  }, [fetchPreview]);
 
   const handleCopyHtml = () => {
     if (previewHtml) {
