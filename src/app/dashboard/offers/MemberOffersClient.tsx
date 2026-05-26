@@ -120,33 +120,18 @@ export default function MemberOffersClient({
                       Members Only
                     </span>
                   )}
-                  {offer.primary_author?.name && (
-                    <span className="text-zinc-500 dark:text-zinc-400">
-                      by {offer.primary_author.name}
-                    </span>
+                  {offer.userId && (
+                    <Link href={`/members/${offer.userId}`} className="text-zinc-500 dark:text-zinc-400 hover:text-accent transition-colors relative z-10">
+                      by {offer.primary_author?.name || offer.userName}
+                    </Link>
                   )}
                 </div>
                 
                 <h3 className="text-xl font-semibold leading-tight text-zinc-900 group-hover:text-accent dark:text-white dark:group-hover:text-accent mb-3">
-                  {offer.isMembersOnly && isPublicBoard ? (
-                    <span className="text-zinc-400 dark:text-zinc-500">
-                      {offer.title} (Member Exclusive)
-                    </span>
-                  ) : offer.isFirestoreOffer ? (
-                    offer.link ? (
-                      <a href={offer.link} target="_blank" rel="noopener noreferrer">
-                        <span className="absolute inset-0" />
-                        {offer.title}
-                      </a>
-                    ) : (
-                      <span>{offer.title}</span>
-                    )
-                  ) : (
-                    <Link href={`/news/${offer.slug}`}>
-                      <span className="absolute inset-0" />
-                      {offer.title}
-                    </Link>
-                  )}
+                  <Link href={offer.isMembersOnly && isPublicBoard ? "/membership" : (offer.link || `/dashboard/offers`)}>
+                    <span className="absolute inset-0" />
+                    {offer.title}
+                  </Link>
                 </h3>
                 
                 <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6 whitespace-pre-wrap">
@@ -166,7 +151,7 @@ export default function MemberOffersClient({
                   </Link>
                 ) : (
                   <span className="text-sm font-semibold text-accent group-hover:text-accent/80 flex items-center gap-1">
-                    {offer.isFirestoreOffer ? 'View Details' : 'Claim Offer'}
+                    {offer.isFirestoreOffer ? 'Claim Offer' : 'View Details'}
                     <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>

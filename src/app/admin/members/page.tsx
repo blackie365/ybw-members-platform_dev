@@ -34,7 +34,7 @@ import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calenda
 import { db } from "@/lib/firebase"
 import { collection, getDocs, doc, updateDoc, query, orderBy, where, deleteDoc } from "firebase/firestore"
 import { Switch } from "@/components/ui/switch"
-import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction, deactivateOfferAction, updateOfferStatusAction } from "@/app/actions/adminActions"
+import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction, deactivateOfferAction, updateOfferStatusAction, toggleOfferVisibilityAction } from "@/app/actions/adminActions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPosts } from "@/lib/ghost"
 import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
@@ -168,6 +168,23 @@ function AdminMembersContent() {
     } catch (error) {
       console.error("Failed to deactivate offer:", error)
       alert("Failed to deactivate offer")
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleOfferVisibility = async (offerId: string, isMembersOnly: boolean) => {
+    setUpdating(offerId)
+    try {
+      const res = await toggleOfferVisibilityAction(offerId, isMembersOnly)
+      if (res.success) {
+        setOffers(prev => prev.map(o => o.id === offerId ? { ...o, isMembersOnly } : o))
+      } else {
+        alert("Failed to update visibility: " + res.error)
+      }
+    } catch (error) {
+      console.error("Failed to update visibility:", error)
+      alert("Failed to update visibility")
     } finally {
       setUpdating(null)
     }
@@ -770,9 +787,16 @@ function AdminMembersContent() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="capitalize text-[10px]">
-                                {offer.isMembersOnly ? 'Members Only' : 'Public'}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Switch 
+                                  checked={!offer.isMembersOnly} 
+                                  onCheckedChange={(checked) => handleToggleOfferVisibility(offer.id, !checked)}
+                                  disabled={updating === offer.id}
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  {offer.isMembersOnly ? 'Members Only' : 'Public'}
+                                </span>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Select

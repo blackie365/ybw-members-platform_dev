@@ -160,6 +160,22 @@ export async function deactivateOfferAction(offerId: string) {
   return updateOfferStatusAction(offerId, 'pending');
 }
 
+export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly: boolean) {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    await adminDb.collection('offer_requests').doc(offerId).update({
+      isMembersOnly,
+      updatedAt: new Date().toISOString()
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in toggleOfferVisibilityAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function deleteOfferAction(offerId: string) {
   try {
     if (!adminDb) throw new Error("Database not initialized");
