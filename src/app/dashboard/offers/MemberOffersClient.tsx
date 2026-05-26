@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { claimOfferAction } from '@/app/actions/adminActions';
+import { claimOfferAction } from '@/app/actions/offerActions';
 import { toast } from 'sonner';
+import { OfferCard } from './OfferCard';
+import { ClaimOfferForm } from './ClaimOfferForm';
 
 export default function MemberOffersClient({ 
   initialOffers, 
@@ -61,8 +62,6 @@ export default function MemberOffersClient({
     }
   };
 
-  console.log('MemberOffersClient received offers:', initialOffers.length);
-
   const filteredOffers = (initialOffers || []).filter((offer) => {
     const query = searchQuery.toLowerCase();
     const titleMatch = offer.title?.toLowerCase().includes(query);
@@ -71,15 +70,6 @@ export default function MemberOffersClient({
     
     return titleMatch || excerptMatch || authorMatch;
   });
-
-  console.log('Filtered offers:', filteredOffers.length);
-  if (filteredOffers.length > 0) {
-    console.log('First filtered offer sample:', {
-      title: filteredOffers[0].title,
-      isFirestore: filteredOffers[0].isFirestoreOffer,
-      status: filteredOffers[0].status
-    });
-  }
 
   return (
     <div className="bg-white border border-zinc-200 rounded-xl p-6 lg:p-10 shadow-sm dark:bg-zinc-900/50 dark:border-zinc-800">
@@ -134,126 +124,23 @@ export default function MemberOffersClient({
       {filteredOffers && filteredOffers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {filteredOffers.map((offer: any) => (
-            <div key={offer.id} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-none p-5 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 transition-all hover:shadow-md hover:ring-zinc-900/10 dark:hover:ring-white/20">
-              {offer.feature_image && (
-                <div className="relative w-full mb-5 overflow-hidden rounded-none">
-                  <Image
-                    src={offer.feature_image}
-                    alt={offer.title}
-                    width={600}
-                    height={400}
-                    className="aspect-[16/9] w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
+            <div key={offer.id} className="flex flex-col gap-4">
+              <OfferCard 
+                offer={offer}
+                isPublicBoard={isPublicBoard}
+                claimingId={claimingId}
+                setClaimingId={setClaimingId}
+                router={router}
+              />
+              {claimingId === offer.id && (!offer.isMembersOnly || !isPublicBoard) && (
+                <ClaimOfferForm 
+                  claimerEmail={claimerEmail}
+                  setClaimerEmail={setClaimerEmail}
+                  isSubmitting={isSubmitting}
+                  handleClaimSubmit={(e) => handleClaimSubmit(e, offer.id)}
+                  setClaimingId={setClaimingId}
+                />
               )}
-              
-              <div className="flex-1 w-full">
-                <div className="flex items-center gap-x-2 text-xs mb-3">
-                  <span className="inline-flex items-center rounded-none bg-emerald-50 px-2 py-1 font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/20">
-                    Active Offer
-                  </span>
-                  {offer.isMembersOnly && (
-                    <span className="inline-flex items-center rounded-none bg-amber-50 px-2 py-1 font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/20">
-                      Members Only
-                    </span>
-                  )}
-                  {offer.userId && (
-                    <Link href={`/members/${offer.userId}`} className="text-zinc-500 dark:text-zinc-400 hover:text-accent transition-colors relative z-10">
-                      by {offer.primary_author?.name || offer.userName}
-                    </Link>
-                  )}
-                </div>
-                
-                <h3 className="text-xl font-semibold leading-tight text-zinc-900 hover:text-accent dark:text-white dark:hover:text-accent mb-3 relative z-10">
-                  {offer.isMembersOnly && isPublicBoard ? (
-                    <Link href="/membership">
-                      {offer.title} (Member Exclusive)
-                    </Link>
-                  ) : offer.isFirestoreOffer ? (
-                    offer.link ? (
-                      <a href={offer.link} target="_blank" rel="noopener noreferrer">
-                        {offer.title}
-                      </a>
-                    ) : (
-                      <button onClick={() => setClaimingId(offer.id === claimingId ? null : offer.id)}>
-                        {offer.title}
-                      </button>
-                    )
-                  ) : (
-                    <Link href={`/news/${offer.slug}`}>
-                      {offer.title}
-                    </Link>
-                  )}
-                </h3>
-                
-                <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6 whitespace-pre-wrap">
-                  {offer.isMembersOnly && isPublicBoard 
-                    ? "This offer is reserved for Yorkshire Businesswoman members. Join today to unlock this discount and many other exclusive perks."
-                    : (offer.custom_excerpt || offer.excerpt)}
-                </p>
-
-                {claimingId === offer.id && (!offer.isMembersOnly || !isPublicBoard) && (
-                  <div className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-accent/20 rounded-lg animate-in fade-in slide-in-from-top-2 relative z-20">
-                    <h4 className="text-sm font-semibold mb-2">Request this offer</h4>
-                    <p className="text-[10px] text-muted-foreground mb-3">Leave your email address and the offerer will contact you.</p>
-                    <form onSubmit={(e) => handleClaimSubmit(e, offer.id)} className="space-y-3">
-                      <input
-                        type="email"
-                        placeholder="Your Email"
-                        className="w-full text-xs p-2 border rounded dark:bg-zinc-800 dark:border-zinc-700"
-                        value={claimerEmail}
-                        onChange={(e) => setClaimerEmail(e.target.value)}
-                        required
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="flex-1 bg-accent text-white text-xs py-2 rounded font-medium disabled:opacity-50"
-                        >
-                          {isSubmitting ? 'Sending...' : 'Send Interest'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setClaimingId(null)}
-                          className="px-3 text-xs border rounded hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-auto w-full pt-4 border-t border-zinc-200 dark:border-zinc-700 relative z-10">
-                {offer.isMembersOnly && isPublicBoard ? (
-                  <Link href="/membership" className="text-sm font-semibold text-accent hover:text-accent/80 flex items-center gap-1">
-                    Join to unlock
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </Link>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      if (offer.isFirestoreOffer && !offer.link) {
-                        setClaimingId(offer.id);
-                      } else if (offer.link) {
-                        window.open(offer.link, '_blank');
-                      } else {
-                        router.push(`/news/${offer.slug}`);
-                      }
-                    }}
-                    className="text-sm font-semibold text-accent hover:text-accent/80 flex items-center gap-1 w-full text-left"
-                  >
-                    {offer.isFirestoreOffer && !offer.link ? 'Request Offer' : (offer.isFirestoreOffer ? 'Claim Offer' : 'View Details')}
-                    <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </button>
-                )}
-              </div>
             </div>
           ))}
         </div>

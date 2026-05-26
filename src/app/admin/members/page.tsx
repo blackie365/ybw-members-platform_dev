@@ -1,28 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -30,54 +12,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save, Tag, Check, Trash2, ExternalLink, X } from "lucide-react"
+import { Search, Download, Loader2, UserCog, Calendar, Tag } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, getDocs, doc, updateDoc, query, orderBy, where, deleteDoc } from "firebase/firestore"
-import { Switch } from "@/components/ui/switch"
-import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction, deactivateOfferAction, updateOfferStatusAction, toggleOfferVisibilityAction } from "@/app/actions/adminActions"
+import { collection, getDocs, doc, updateDoc, query, orderBy, where } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPosts } from "@/lib/ghost"
 import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
 
-interface Member {
-  id: string
-  firstName: string
-  lastName: string
-  displayName?: string
-  email: string
-  profileImage?: string
-  avatarUrl?: string
-  membershipTier: string
-  role: string
-  industrySector?: string
-  location?: string
-  status?: string
-  isFeatured?: boolean
-  createdAt: string
-  updatedAt?: string
-}
+// Import domain-specific actions
+import { 
+  toggleFeaturedStatus, 
+  getFirestoreOffersAction, 
+  approveOfferAction, 
+  deleteOfferAction, 
+  deactivateOfferAction, 
+  updateOfferStatusAction, 
+  toggleOfferVisibilityAction 
+} from "@/app/actions/adminActions"
 
-interface EventMetadata {
-  id: string
-  price: number
-  accessLevel?: 'public' | 'members-only'
-  capacity?: number
-  updatedAt?: string
-}
-
-interface Offer {
-  id: string
-  title: string
-  description: string
-  link?: string
-  imageUrl?: string
-  isMembersOnly?: boolean
-  userId: string
-  userEmail: string
-  userName: string
-  status: 'pending' | 'active' | 'expired'
-  createdAt: string
-}
+// Import modular sub-components
+import { MemberTable, type Member } from "./MemberTable"
+import { EventManager, type EventMetadata } from "./EventManager"
+import { OfferManager, type Offer } from "./OfferManager"
 
 function AdminMembersContent() {
   const router = useRouter()
@@ -212,23 +168,19 @@ function AdminMembersContent() {
   const fetchEvents = async () => {
     setLoadingEvents(true)
     try {
-      // 1. Get Ghost posts with 'events' tag
       const ghostEvents = await getPosts({ filter: 'tag:events', limit: 'all' })
       setEvents(ghostEvents)
 
-      // 2. Get Firestore metadata for these events
       const metadataRes = await getAllEventsMetadata()
       if (metadataRes.success && metadataRes.data) {
         setEventsMetadata(metadataRes.data)
         
-        // Initialize editing state with current prices
         const initialPrices: Record<string, string> = {}
         ghostEvents.forEach((event: any) => {
           const meta = metadataRes.data?.[event.slug]
           if (meta) {
             initialPrices[event.slug] = meta.price.toString()
           } else {
-            // Check if there's a price tag in Ghost as fallback
             const priceTag = event.tags?.find((t: any) => t.slug.includes('ticket-price'))
             if (priceTag) {
               const digits = priceTag.slug.match(/\d+/)
@@ -336,12 +288,10 @@ function AdminMembersContent() {
     try {
       const res = await toggleFeaturedStatus(memberId, !currentStatus)
       if (res.success) {
-        // If we set one to true, others might have been set to false by the server action
-        // For simplicity and correctness, let's just refetch or update locally
         setMembers((prev) =>
           prev.map((m) => {
             if (m.id === memberId) return { ...m, isFeatured: !currentStatus }
-            if (!currentStatus) return { ...m, isFeatured: false } // If setting new one to true, others become false
+            if (!currentStatus) return { ...m, isFeatured: false } 
             return m
           })
         )
@@ -406,21 +356,11 @@ function AdminMembersContent() {
     a.click()
   }
 
-  const tierBadgeColors: Record<string, string> = {
-    free: "bg-muted text-muted-foreground",
-    premium: "bg-accent/10 text-accent",
-    professional: "bg-amber-100 text-amber-800",
-    founder: "bg-purple-100 text-purple-800",
-  }
-
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(window.location.search)
     params.set("tab", value)
     const newUrl = `${window.location.pathname}?${params.toString()}`
     window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl)
-    // We still need to update local state if we want immediate feedback without a full re-render
-    // But Tabs uses 'value={activeTab}' which comes from searchParams.
-    // So we might need to force a re-render or just use router.push/replace if it's safe.
     router.replace(newUrl)
   }
 
@@ -500,119 +440,14 @@ function AdminMembersContent() {
                   No members found
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Tier</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-center">Featured</TableHead>
-                        <TableHead className="hidden md:table-cell">Industry</TableHead>
-                        <TableHead className="hidden lg:table-cell">Joined</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredMembers.map((member) => {
-                        const fullName = member.displayName || `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown Member"
-                        const initial = (member.firstName?.[0] || member.displayName?.[0] || "?").toUpperCase()
-
-                        return (
-                          <TableRow key={member.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                  <AvatarImage src={member.avatarUrl || member.profileImage} alt={fullName} />
-                                  <AvatarFallback className="bg-accent/10 text-accent text-sm">
-                                    {initial}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium">{fullName}</p>
-                                  <p className="text-sm text-muted-foreground">{member.email}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={member.membershipTier || "free"}
-                                onValueChange={(value) => updateMemberTier(member.id, value)}
-                                disabled={updating === member.id}
-                              >
-                                <SelectTrigger className="w-[130px] h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="free">Free</SelectItem>
-                                  <SelectItem value="complimentary">Complimentary</SelectItem>
-                                  <SelectItem value="paid_monthly">Paid Monthly</SelectItem>
-                                  <SelectItem value="paid_annual">Paid Annual</SelectItem>
-                                  <SelectItem value="premium">Premium</SelectItem>
-                                  <SelectItem value="founder">Founder</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={member.role || "member"}
-                                onValueChange={(value) => updateMemberRole(member.id, value)}
-                                disabled={updating === member.id}
-                              >
-                                <SelectTrigger className="w-[110px] h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="member">Member</SelectItem>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex justify-center">
-                                <Switch
-                                  checked={!!member.isFeatured}
-                                  onCheckedChange={() => handleToggleFeatured(member.id, !!member.isFeatured)}
-                                  disabled={updating === member.id}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {member.industrySector || "-"}
-                            </TableCell>
-                          <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                            {formatDate(member.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild>
-                                  <a href={`mailto:${member.email}`}>
-                                    <Mail className="h-4 w-4 mr-2" />
-                                    Send email
-                                  </a>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <a href={`/members/${member.id}`} target="_blank">
-                                    <UserCog className="h-4 w-4 mr-2" />
-                                    View profile
-                                  </a>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      )})}
-                    </TableBody>
-                  </Table>
-                </div>
+                <MemberTable 
+                  members={filteredMembers}
+                  updating={updating}
+                  updateMemberTier={updateMemberTier}
+                  updateMemberRole={updateMemberRole}
+                  handleToggleFeatured={handleToggleFeatured}
+                  formatDate={formatDate}
+                />
               )}
             </CardContent>
           </Card>
@@ -636,78 +471,15 @@ function AdminMembersContent() {
                   No events found in Ghost
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Current Price</TableHead>
-                      <TableHead>New Price (£)</TableHead>
-                      <TableHead className="text-center">Members Only</TableHead>
-                      <TableHead className="w-[100px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {events.map((event) => {
-                      const meta = eventsMetadata[event.slug]
-                      const isUpdating = updating === event.slug
-                      const isMembersOnly = meta?.accessLevel === 'members-only'
-                      return (
-                        <TableRow key={event.id}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{event.title}</span>
-                              <span className="text-xs text-muted-foreground">{event.slug}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {meta ? (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                                £{meta.price} (Live)
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground">
-                                Using Tag/Default
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              className="w-24 h-9"
-                              placeholder="e.g. 50"
-                              value={editingPrice[event.slug] || ""}
-                              onChange={(e) => setEditingPrice(prev => ({ ...prev, [event.slug]: e.target.value }))}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <Switch 
-                                checked={isMembersOnly}
-                                onCheckedChange={() => handleToggleAccess(event.slug, meta?.accessLevel)}
-                                disabled={isUpdating}
-                              />
-                              <span className="text-[10px] text-muted-foreground uppercase font-medium">
-                                {isMembersOnly ? 'Private' : 'Public'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="h-9 gap-2 border-accent text-accent hover:bg-accent hover:text-white"
-                              disabled={isUpdating}
-                              onClick={() => handleUpdatePrice(event.slug)}
-                            >
-                              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                              Save
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                <EventManager 
+                  events={events}
+                  eventsMetadata={eventsMetadata}
+                  updating={updating}
+                  editingPrice={editingPrice}
+                  setEditingPrice={setEditingPrice}
+                  handleUpdatePrice={handleUpdatePrice}
+                  handleToggleAccess={handleToggleAccess}
+                />
               )}
             </CardContent>
           </Card>
@@ -728,116 +500,17 @@ function AdminMembersContent() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Offer Details</TableHead>
-                        <TableHead>Visibility</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loadingOffers ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
-                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                          </TableCell>
-                        </TableRow>
-                      ) : offers.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                            No offers found.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        offers.map((offer) => (
-                          <TableRow key={offer.id}>
-                            <TableCell className="whitespace-nowrap">
-                              <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(offer.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{offer.userName}</span>
-                                <span className="text-xs text-muted-foreground">{offer.userEmail}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1 max-w-md">
-                                <span className="font-semibold">{offer.title}</span>
-                                <p className="text-xs text-muted-foreground line-clamp-2">{offer.description}</p>
-                                {offer.link && (
-                                  <a 
-                                    href={offer.link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-[10px] text-accent flex items-center gap-1 hover:underline"
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                    View Link
-                                  </a>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Switch 
-                                  checked={!offer.isMembersOnly} 
-                                  onCheckedChange={(checked) => handleToggleOfferVisibility(offer.id, !checked)}
-                                  disabled={updating === offer.id}
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  {offer.isMembersOnly ? 'Members Only' : 'Public'}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={offer.status}
-                                onValueChange={(value: 'active' | 'pending' | 'expired') => {
-                                  if (value === 'active') handleApproveOffer(offer.id)
-                                  else if (value === 'pending') handleDeactivateOffer(offer.id)
-                                  else updateOfferStatusAction(offer.id, value).then(() => fetchOffers())
-                                }}
-                                disabled={updating === offer.id}
-                              >
-                                <SelectTrigger className="w-[110px] h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pending">Pending</SelectItem>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="expired">Expired</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/5"
-                                onClick={() => handleDeleteOffer(offer.id)}
-                                disabled={updating === offer.id}
-                              >
-                                {updating === offer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <OfferManager 
+                offers={offers}
+                loadingOffers={loadingOffers}
+                updating={updating}
+                handleApproveOffer={handleApproveOffer}
+                handleDeactivateOffer={handleDeactivateOffer}
+                handleToggleOfferVisibility={handleToggleOfferVisibility}
+                handleDeleteOffer={handleDeleteOffer}
+                updateOfferStatusAction={updateOfferStatusAction}
+                fetchOffers={fetchOffers}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -857,4 +530,3 @@ export default function AdminMembersPage() {
     </Suspense>
   )
 }
-
