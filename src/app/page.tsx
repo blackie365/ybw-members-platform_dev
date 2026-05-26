@@ -3,6 +3,7 @@ import { ArticleGrid } from "@/components/magazine/article-grid"
 import { FeaturedInterview } from "@/components/magazine/featured-interview"
 import { CategoriesSection } from "@/components/magazine/categories-section"
 import { NewsletterSection } from "@/components/magazine/newsletter-section"
+import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
@@ -189,6 +190,7 @@ export default async function MagazinePage() {
         <ArticleGrid posts={posts.slice(3)} />
         <FeaturedInterview member={featuredMember} />
         <FeaturedOffers offers={offers} />
+        <HomeEconomicInsights />
         <CategoriesSection tags={tags} />
         <NewsletterSection />
       </div>

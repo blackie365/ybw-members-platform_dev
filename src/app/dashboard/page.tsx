@@ -4,7 +4,6 @@ import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents';
 import { RecentNews } from '@/components/dashboard/RecentNews';
 import { ExclusiveMemberOffers } from '@/components/dashboard/ExclusiveMemberOffers';
 import { ExternalNewsWidget } from '@/components/dashboard/ExternalNewsWidget';
-import { MarketInsightsWidget } from '@/components/dashboard/MarketInsightsWidget';
 import { StatsSkeleton, WidgetSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 export const revalidate = 60;
@@ -30,10 +29,6 @@ export default function DashboardPage() {
 
       <Suspense fallback={<WidgetSkeleton title="Yorkshire News Updates" />}>
         <ExternalNewsWidget />
-      </Suspense>
-
-      <Suspense fallback={<WidgetSkeleton title="Economic Insights" />}>
-        <MarketInsightsWidget />
       </Suspense>
     </div>
   );
