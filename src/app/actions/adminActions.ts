@@ -111,6 +111,60 @@ export async function sendTestNewsletterAction(email: string, editorNote?: strin
   }
 }
 
+export async function getFirestoreOffersAction() {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const snapshot = await adminDb.collection('offer_requests')
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const offers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Ensure dates are serializable
+        createdAt: data.createdAt || new Date().toISOString()
+      };
+    });
+
+    return { success: true, data: offers };
+  } catch (error: any) {
+    console.error("Error in getFirestoreOffersAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function approveOfferAction(offerId: string) {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    await adminDb.collection('offer_requests').doc(offerId).update({
+      status: 'active',
+      updatedAt: new Date().toISOString()
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in approveOfferAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteOfferAction(offerId: string) {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    await adminDb.collection('offer_requests').doc(offerId).delete();
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in deleteOfferAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   try {
     if (!adminDb) throw new Error("Database not initialized");

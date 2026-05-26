@@ -33,7 +33,7 @@ import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calenda
 import { db } from "@/lib/firebase"
 import { collection, getDocs, doc, updateDoc, query, orderBy, where, deleteDoc } from "firebase/firestore"
 import { Switch } from "@/components/ui/switch"
-import { toggleFeaturedStatus } from "@/app/actions/adminActions"
+import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction } from "@/app/actions/adminActions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPosts } from "@/lib/ghost"
 import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
@@ -121,14 +121,12 @@ export default function AdminMembersPage() {
   const fetchOffers = async () => {
     setLoadingOffers(true)
     try {
-      const offersRef = collection(db, "offer_requests")
-      const q = query(offersRef, orderBy("createdAt", "desc"))
-      const snap = await getDocs(q)
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Offer[]
-      setOffers(data)
+      const res = await getFirestoreOffersAction()
+      if (res.success && res.data) {
+        setOffers(res.data as Offer[])
+      } else {
+        console.error("Failed to fetch offers:", res.error)
+      }
     } catch (error) {
       console.error("Failed to fetch offers:", error)
     } finally {
@@ -139,9 +137,12 @@ export default function AdminMembersPage() {
   const handleApproveOffer = async (offerId: string) => {
     setUpdating(offerId)
     try {
-      const offerRef = doc(db, "offer_requests", offerId)
-      await updateDoc(offerRef, { status: 'active' })
-      setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'active' } : o))
+      const res = await approveOfferAction(offerId)
+      if (res.success) {
+        setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'active' } : o))
+      } else {
+        alert("Failed to approve offer: " + res.error)
+      }
     } catch (error) {
       console.error("Failed to approve offer:", error)
       alert("Failed to approve offer")
@@ -155,9 +156,12 @@ export default function AdminMembersPage() {
 
     setUpdating(offerId)
     try {
-      const offerRef = doc(db, "offer_requests", offerId)
-      await deleteDoc(offerRef)
-      setOffers(prev => prev.filter(o => o.id !== offerId))
+      const res = await deleteOfferAction(offerId)
+      if (res.success) {
+        setOffers(prev => prev.filter(o => o.id !== offerId))
+      } else {
+        alert("Failed to delete offer: " + res.error)
+      }
     } catch (error) {
       console.error("Failed to delete offer:", error)
       alert("Failed to delete offer")

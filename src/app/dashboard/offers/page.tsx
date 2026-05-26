@@ -36,7 +36,11 @@ async function getFirestoreOffers() {
           status: data.status // Explicitly include for filtering
         };
       })
-      .filter(offer => offer.status === 'active');
+      .filter(offer => {
+        const isActive = offer.status === 'active';
+        console.log(`Checking offer ${offer.id}: status=${offer.status}, isActive=${isActive}`);
+        return isActive;
+      });
     
     console.log(`Returning ${activeOffers.length} active Firestore offers`);
     return activeOffers;

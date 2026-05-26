@@ -18,6 +18,15 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
     return titleMatch || excerptMatch || authorMatch;
   });
 
+  console.log('Filtered offers:', filteredOffers.length);
+  if (filteredOffers.length > 0) {
+    console.log('First filtered offer sample:', {
+      title: filteredOffers[0].title,
+      isFirestore: filteredOffers[0].isFirestoreOffer,
+      status: filteredOffers[0].status
+    });
+  }
+
   return (
     <div className="bg-white border border-zinc-200 rounded-xl p-6 lg:p-10 shadow-sm dark:bg-zinc-900/50 dark:border-zinc-800">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
