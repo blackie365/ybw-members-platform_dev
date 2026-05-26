@@ -17,27 +17,44 @@ export interface MarketInsight {
 
 const parser = new Parser();
 
+const SOURCES = [
+  { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml' },
+  { name: 'Sky News Business', url: 'https://news.sky.com/feeds/rss/business.xml' },
+  { name: 'Guardian Economy', url: 'https://www.theguardian.com/business/economics/rss' },
+];
+
 export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
   try {
-    // Fetch live economic news from BBC Business/Economy RSS
-    const feed = await parser.parseURL('https://feeds.bbci.co.uk/news/business/rss.xml');
-    
-    // Take the top 3-6 items for the insight points
-    const points: MarketInsightPoint[] = feed.items.slice(0, 6).map(item => ({
-      summary: item.title || 'Economic Update',
-      fullText: item.contentSnippet || item.description || '',
-      sourceUrl: item.link,
-      sourceName: 'BBC Business News',
-    }));
+    // Fetch from multiple sources in parallel
+    const feedPromises = SOURCES.map(async (source) => {
+      try {
+        const feed = await parser.parseURL(source.url);
+        return feed.items.slice(0, 2).map(item => ({
+          summary: item.title || 'Economic Update',
+          fullText: item.contentSnippet || item.description || '',
+          sourceUrl: item.link,
+          sourceName: source.name,
+        }));
+      } catch (err) {
+        console.error(`Error fetching from ${source.name}:`, err);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(feedPromises);
+    const allPoints: MarketInsightPoint[] = results.flat();
+
+    // Shuffle the points to mix the sources
+    const shuffledPoints = allPoints.sort(() => Math.random() - 0.5).slice(0, 6);
 
     return {
-      id: 'live-bbc-economy',
+      id: 'live-multi-source-insights',
       title: 'Latest Economic Insights',
-      points,
+      points: shuffledPoints,
       createdAt: new Date().toISOString()
     };
   } catch (error) {
-    console.error('Error fetching live economic insights from BBC:', error);
+    console.error('Error fetching live economic insights:', error);
     return null;
   }
 }
