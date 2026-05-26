@@ -111,6 +111,39 @@ export async function sendTestNewsletterAction(email: string, editorNote?: strin
   }
 }
 
+export async function toggleFeaturedStatus(memberId: string, status: boolean) {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const memberRef = adminDb.collection('newMemberCollection').doc(memberId);
+    
+    // If setting to true, we might want to ensure only one is featured
+    // (Optional: depending on business logic, but for now let's just toggle)
+    if (status) {
+      // Deactivate others
+      const snapshot = await adminDb.collection('newMemberCollection')
+        .where('isFeatured', '==', true)
+        .get();
+      
+      const batch = adminDb.batch();
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { isFeatured: false });
+      });
+      await batch.commit();
+    }
+
+    await memberRef.update({ 
+      isFeatured: status,
+      updatedAt: new Date().toISOString()
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in toggleFeaturedStatus:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getAnalyticsData() {
   try {
     if (!adminDb) throw new Error("Database not initialized");

@@ -29,9 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save } from "lucide-react"
+import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save, Tag, Check, Trash2, ExternalLink } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, getDocs, doc, updateDoc, query, orderBy, where } from "firebase/firestore"
+import { collection, getDocs, doc, updateDoc, query, orderBy, where, deleteDoc } from "firebase/firestore"
 import { Switch } from "@/components/ui/switch"
 import { toggleFeaturedStatus } from "@/app/actions/adminActions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -64,6 +64,19 @@ interface EventMetadata {
   updatedAt?: string
 }
 
+interface Offer {
+  id: string
+  title: string
+  description: string
+  link?: string
+  imageUrl?: string
+  userId: string
+  userEmail: string
+  userName: string
+  status: 'pending' | 'active' | 'expired'
+  createdAt: string
+}
+
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,9 +90,14 @@ export default function AdminMembersPage() {
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({})
 
+  // Offers state
+  const [offers, setOffers] = useState<Offer[]>([])
+  const [loadingOffers, setLoadingOffers] = useState(false)
+
   useEffect(() => {
     fetchMembers()
     fetchEvents()
+    fetchOffers()
   }, [])
 
   const fetchMembers = async () => {
@@ -96,6 +114,54 @@ export default function AdminMembersPage() {
       console.error("Failed to fetch members:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchOffers = async () => {
+    setLoadingOffers(true)
+    try {
+      const offersRef = collection(db, "offer_requests")
+      const q = query(offersRef, orderBy("createdAt", "desc"))
+      const snap = await getDocs(q)
+      const data = snap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Offer[]
+      setOffers(data)
+    } catch (error) {
+      console.error("Failed to fetch offers:", error)
+    } finally {
+      setLoadingOffers(false)
+    }
+  }
+
+  const handleApproveOffer = async (offerId: string) => {
+    setUpdating(offerId)
+    try {
+      const offerRef = doc(db, "offer_requests", offerId)
+      await updateDoc(offerRef, { status: 'active' })
+      setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'active' } : o))
+    } catch (error) {
+      console.error("Failed to approve offer:", error)
+      alert("Failed to approve offer")
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleDeleteOffer = async (offerId: string) => {
+    if (!confirm("Are you sure you want to delete this offer? This action cannot be undone.")) return
+
+    setUpdating(offerId)
+    try {
+      const offerRef = doc(db, "offer_requests", offerId)
+      await deleteDoc(offerRef)
+      setOffers(prev => prev.filter(o => o.id !== offerId))
+    } catch (error) {
+      console.error("Failed to delete offer:", error)
+      alert("Failed to delete offer")
+    } finally {
+      setUpdating(null)
     }
   }
 
@@ -323,6 +389,10 @@ export default function AdminMembersPage() {
           <TabsTrigger value="events" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Events Manager
+          </TabsTrigger>
+          <TabsTrigger value="offers" className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            Member Offers
           </TabsTrigger>
         </TabsList>
 
@@ -584,6 +654,119 @@ export default function AdminMembersPage() {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="offers">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Member Offers</CardTitle>
+                  <CardDescription>Review and manage member-submitted offers and discounts.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchOffers} disabled={loadingOffers}>
+                  {loadingOffers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Offer Details</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingOffers ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                          <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ) : offers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                          No offers found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      offers.map((offer) => (
+                        <TableRow key={offer.id}>
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(offer.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{offer.userName}</span>
+                              <span className="text-xs text-muted-foreground">{offer.userEmail}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1 max-w-md">
+                              <span className="font-semibold">{offer.title}</span>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{offer.description}</p>
+                              {offer.link && (
+                                <a 
+                                  href={offer.link} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-[10px] text-accent flex items-center gap-1 hover:underline"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  View Link
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={offer.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                              {offer.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {offer.status === 'pending' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-8 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  onClick={() => handleApproveOffer(offer.id)}
+                                  disabled={updating === offer.id}
+                                >
+                                  {updating === offer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                  Approve
+                                </Button>
+                              )}
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/5"
+                                onClick={() => handleDeleteOffer(offer.id)}
+                                disabled={updating === offer.id}
+                              >
+                                {updating === offer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
