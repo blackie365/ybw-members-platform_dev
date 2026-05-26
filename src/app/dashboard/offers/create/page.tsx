@@ -14,6 +14,7 @@ export default function CreateOfferPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [link, setLink] = useState('');
+  const [isMembersOnly, setIsMembersOnly] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,6 +86,7 @@ export default function CreateOfferPage() {
           description,
           link,
           imageUrl,
+          isMembersOnly,
           userId: user.uid,
           userEmail: user.email,
           userName: user.displayName || 'Yorkshire Businesswoman Member',
@@ -203,6 +205,27 @@ export default function CreateOfferPage() {
                 className="block w-full rounded-none border-0 py-3 px-4 text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 focus:ring-2 focus:ring-inset focus:ring-accent sm:text-sm dark:bg-zinc-900 dark:text-white dark:ring-zinc-700"
                 placeholder="Describe the offer, how members can claim it, and any terms..."
               />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 border border-border">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">Offer Visibility</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">Should this offer be exclusive to members or open to the public?</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-xs font-medium ${!isMembersOnly ? 'text-accent' : 'text-zinc-400'}`}>Public</span>
+                <button
+                  type="button"
+                  onClick={() => setIsMembersOnly(!isMembersOnly)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ring-offset-2 ring-accent ${isMembersOnly ? 'bg-accent' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isMembersOnly ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+                <span className={`text-xs font-medium ${isMembersOnly ? 'text-accent' : 'text-zinc-400'}`}>Members Only</span>
+              </div>
             </div>
 
             <div>

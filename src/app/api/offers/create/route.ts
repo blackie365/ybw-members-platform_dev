@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, link, imageUrl, userId, userEmail, userName } = body;
+    const { title, description, link, imageUrl, isMembersOnly, userId, userEmail, userName } = body;
 
     if (!userId || !title || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       description,
       link: link || '',
       imageUrl: imageUrl || '',
+      isMembersOnly: isMembersOnly ?? true,
       userId,
       userEmail,
       userName,

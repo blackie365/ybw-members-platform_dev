@@ -70,6 +70,7 @@ interface Offer {
   description: string
   link?: string
   imageUrl?: string
+  isMembersOnly?: boolean
   userId: string
   userEmail: string
   userName: string
@@ -676,66 +677,72 @@ export default function AdminMembersPage() {
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Offer Details</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loadingOffers ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
-                          <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                        </TableCell>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Member</TableHead>
+                        <TableHead>Offer Details</TableHead>
+                        <TableHead>Visibility</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ) : offers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                          No offers found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      offers.map((offer) => (
-                        <TableRow key={offer.id}>
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex flex-col">
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(offer.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingOffers ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{offer.userName}</span>
-                              <span className="text-xs text-muted-foreground">{offer.userEmail}</span>
-                            </div>
+                        </TableRow>
+                      ) : offers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                            No offers found.
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1 max-w-md">
-                              <span className="font-semibold">{offer.title}</span>
-                              <p className="text-xs text-muted-foreground line-clamp-2">{offer.description}</p>
-                              {offer.link && (
-                                <a 
-                                  href={offer.link} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="text-[10px] text-accent flex items-center gap-1 hover:underline"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  View Link
-                                </a>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={offer.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                              {offer.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
+                        </TableRow>
+                      ) : (
+                        offers.map((offer) => (
+                          <TableRow key={offer.id}>
+                            <TableCell className="whitespace-nowrap">
+                              <div className="flex flex-col">
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(offer.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{offer.userName}</span>
+                                <span className="text-xs text-muted-foreground">{offer.userEmail}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1 max-w-md">
+                                <span className="font-semibold">{offer.title}</span>
+                                <p className="text-xs text-muted-foreground line-clamp-2">{offer.description}</p>
+                                {offer.link && (
+                                  <a 
+                                    href={offer.link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-[10px] text-accent flex items-center gap-1 hover:underline"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    View Link
+                                  </a>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize text-[10px]">
+                                {offer.isMembersOnly ? 'Members Only' : 'Public'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={offer.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                                {offer.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {offer.status === 'pending' && (
                                 <Button 
