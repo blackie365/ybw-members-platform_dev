@@ -24,6 +24,7 @@ const navItems = [
   { name: 'Messages', href: '/dashboard/messages', icon: Mail, badge: true },
   { name: 'Events', href: '/events', icon: Calendar },
   { name: 'Directory', href: '/dashboard/directory', icon: Users },
+  { name: 'Member Offers', href: '/dashboard/offers', icon: Gift },
   { name: 'Job & Board Roles', href: '/dashboard/opportunities', icon: Briefcase },
   { name: 'Video Library', href: '/dashboard/videos', icon: Video },
 ];
