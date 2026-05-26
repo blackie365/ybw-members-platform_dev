@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
+import { claimOfferAction } from '@/app/actions/adminActions';
+import { toast } from 'sonner';
 
 export default function MemberOffersClient({ 
   initialOffers, 
@@ -15,13 +17,48 @@ export default function MemberOffersClient({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimerEmail, setClaimerEmail] = useState('');
+  const [claimerName, setClaimerName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const router = useRouter();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setClaimerEmail(user.email || '');
+      setClaimerName(user.displayName || '');
+    }
+  }, [user]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
     router.refresh();
-    setTimeout(() => setIsRefreshing(true), 500); // Keep spinner a bit for feedback
-    setTimeout(() => setIsRefreshing(false), 2000);
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  const handleClaimSubmit = async (e: React.FormEvent, offerId: string) => {
+    e.preventDefault();
+    if (!claimerEmail) {
+      toast.error('Please provide an email address');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await claimOfferAction(offerId, claimerEmail, claimerName);
+      if (res.success) {
+        toast.success('Interest sent to the offerer!');
+        setClaimingId(null);
+      } else {
+        toast.error(res.error || 'Failed to send interest');
+      }
+    } catch (error) {
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   console.log('MemberOffersClient received offers:', initialOffers.length);
@@ -127,11 +164,26 @@ export default function MemberOffersClient({
                   )}
                 </div>
                 
-                <h3 className="text-xl font-semibold leading-tight text-zinc-900 group-hover:text-accent dark:text-white dark:group-hover:text-accent mb-3">
-                  <Link href={offer.isMembersOnly && isPublicBoard ? "/membership" : (offer.link || `/dashboard/offers`)}>
-                    <span className="absolute inset-0" />
-                    {offer.title}
-                  </Link>
+                <h3 className="text-xl font-semibold leading-tight text-zinc-900 hover:text-accent dark:text-white dark:hover:text-accent mb-3 relative z-10">
+                  {offer.isMembersOnly && isPublicBoard ? (
+                    <Link href="/membership">
+                      {offer.title} (Member Exclusive)
+                    </Link>
+                  ) : offer.isFirestoreOffer ? (
+                    offer.link ? (
+                      <a href={offer.link} target="_blank" rel="noopener noreferrer">
+                        {offer.title}
+                      </a>
+                    ) : (
+                      <button onClick={() => setClaimingId(offer.id === claimingId ? null : offer.id)}>
+                        {offer.title}
+                      </button>
+                    )
+                  ) : (
+                    <Link href={`/news/${offer.slug}`}>
+                      {offer.title}
+                    </Link>
+                  )}
                 </h3>
                 
                 <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6 whitespace-pre-wrap">
@@ -139,9 +191,42 @@ export default function MemberOffersClient({
                     ? "This offer is reserved for Yorkshire Businesswoman members. Join today to unlock this discount and many other exclusive perks."
                     : (offer.custom_excerpt || offer.excerpt)}
                 </p>
+
+                {claimingId === offer.id && (!offer.isMembersOnly || !isPublicBoard) && (
+                  <div className="mb-6 p-4 bg-white dark:bg-zinc-900 border border-accent/20 rounded-lg animate-in fade-in slide-in-from-top-2 relative z-20">
+                    <h4 className="text-sm font-semibold mb-2">Request this offer</h4>
+                    <p className="text-[10px] text-muted-foreground mb-3">Leave your email address and the offerer will contact you.</p>
+                    <form onSubmit={(e) => handleClaimSubmit(e, offer.id)} className="space-y-3">
+                      <input
+                        type="email"
+                        placeholder="Your Email"
+                        className="w-full text-xs p-2 border rounded dark:bg-zinc-800 dark:border-zinc-700"
+                        value={claimerEmail}
+                        onChange={(e) => setClaimerEmail(e.target.value)}
+                        required
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="flex-1 bg-accent text-white text-xs py-2 rounded font-medium disabled:opacity-50"
+                        >
+                          {isSubmitting ? 'Sending...' : 'Send Interest'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setClaimingId(null)}
+                          className="px-3 text-xs border rounded hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
 
-              <div className="mt-auto w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
+              <div className="mt-auto w-full pt-4 border-t border-zinc-200 dark:border-zinc-700 relative z-10">
                 {offer.isMembersOnly && isPublicBoard ? (
                   <Link href="/membership" className="text-sm font-semibold text-accent hover:text-accent/80 flex items-center gap-1">
                     Join to unlock
@@ -150,12 +235,23 @@ export default function MemberOffersClient({
                     </svg>
                   </Link>
                 ) : (
-                  <span className="text-sm font-semibold text-accent group-hover:text-accent/80 flex items-center gap-1">
-                    {offer.isFirestoreOffer ? 'Claim Offer' : 'View Details'}
+                  <button 
+                    onClick={() => {
+                      if (offer.isFirestoreOffer && !offer.link) {
+                        setClaimingId(offer.id);
+                      } else if (offer.link) {
+                        window.open(offer.link, '_blank');
+                      } else {
+                        router.push(`/news/${offer.slug}`);
+                      }
+                    }}
+                    className="text-sm font-semibold text-accent hover:text-accent/80 flex items-center gap-1 w-full text-left"
+                  >
+                    {offer.isFirestoreOffer && !offer.link ? 'Request Offer' : (offer.isFirestoreOffer ? 'Claim Offer' : 'View Details')}
                     <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
-                  </span>
+                  </button>
                 )}
               </div>
             </div>

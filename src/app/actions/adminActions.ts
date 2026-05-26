@@ -189,6 +189,46 @@ export async function deleteOfferAction(offerId: string) {
   }
 }
 
+export async function claimOfferAction(offerId: string, claimerEmail: string, claimerName: string = "A interested person") {
+  try {
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const offerDoc = await adminDb.collection('offer_requests').doc(offerId).get();
+    if (!offerDoc.exists) throw new Error("Offer not found");
+
+    const offerData = offerDoc.data();
+    const offererEmail = offerData?.userEmail;
+    const offerTitle = offerData?.title;
+
+    if (!offererEmail) throw new Error("Offerer email not found");
+
+    // Send email to the person who made the offer
+    await sendEmail({
+      to: offererEmail,
+      subject: `New interest in your offer: ${offerTitle}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Great news!</h2>
+          <p>Someone is interested in your offer <strong>"${offerTitle}"</strong> on the Yorkshire Businesswoman platform.</p>
+          <p><strong>Contact Details:</strong></p>
+          <ul>
+            <li><strong>Name:</strong> ${claimerName}</li>
+            <li><strong>Email:</strong> ${claimerEmail}</li>
+          </ul>
+          <p>You can now reach out to them directly to discuss the next steps.</p>
+          <hr />
+          <p style="font-size: 12px; color: #666;">This is an automated message from the Yorkshire Businesswoman Platform.</p>
+        </div>
+      `
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in claimOfferAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   try {
     if (!adminDb) throw new Error("Database not initialized");
