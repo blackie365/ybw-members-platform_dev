@@ -14,7 +14,7 @@ export async function HomeEconomicInsights() {
           <h2 className="font-serif text-4xl font-medium text-foreground mb-4 italic">Economic Insights</h2>
           <div className="h-1 w-20 bg-accent mx-auto mb-6"></div>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg leading-relaxed">
-            Essential market trends and economic briefings curated for Yorkshire's business community.
+            Essential market trends and economic briefings curated for Yorkshire&apos;s business community.
           </p>
         </div>
         
