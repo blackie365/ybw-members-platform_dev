@@ -109,6 +109,11 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
                   <span className="inline-flex items-center rounded-none bg-emerald-50 px-2 py-1 font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/20">
                     Active Offer
                   </span>
+                  {offer.isMembersOnly && (
+                    <span className="inline-flex items-center rounded-none bg-amber-50 px-2 py-1 font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/20">
+                      Members Only
+                    </span>
+                  )}
                   {offer.primary_author?.name && (
                     <span className="text-zinc-500 dark:text-zinc-400">
                       by {offer.primary_author.name}

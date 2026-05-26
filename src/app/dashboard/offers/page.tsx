@@ -35,12 +35,11 @@ async function getFirestoreOffers() {
           published_at: data.createdAt || new Date().toISOString(),
           status: data.status // Explicitly include for filtering
         };
-        console.log(`Mapped Firestore offer ${doc.id}:`, mapped);
         return mapped;
       })
       .filter(offer => {
-        const isActive = offer.status === 'active';
-        return isActive;
+        // In the dashboard, we show all active offers (both public and members-only)
+        return offer.status === 'active';
       });
     
     console.log(`Returning ${activeOffers.length} active Firestore offers`);
