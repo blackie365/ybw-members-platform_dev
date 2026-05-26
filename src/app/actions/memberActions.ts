@@ -2,6 +2,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { getGhostMembers } from "@/lib/ghost-admin";
+import { revalidatePath } from "next/cache";
 
 export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   try {
@@ -25,6 +26,9 @@ export async function toggleFeaturedStatus(memberId: string, status: boolean) {
       isFeatured: status,
       updatedAt: new Date().toISOString()
     });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/directory');
 
     return { success: true };
   } catch (error: any) {

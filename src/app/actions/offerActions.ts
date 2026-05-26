@@ -1,6 +1,7 @@
 'use server';
 
 import { adminDb } from "@/lib/firebase-admin";
+import { revalidatePath } from "next/cache";
 
 export async function getFirestoreOffersAction() {
   try {
@@ -35,6 +36,10 @@ export async function updateOfferStatusAction(offerId: string, status: 'active' 
       updatedAt: new Date().toISOString()
     });
 
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/offers');
+    revalidatePath('/offers');
+
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateOfferStatusAction:", error);
@@ -59,6 +64,10 @@ export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly
       updatedAt: new Date().toISOString()
     });
 
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/offers');
+    revalidatePath('/offers');
+
     return { success: true };
   } catch (error: any) {
     console.error("Error in toggleOfferVisibilityAction:", error);
@@ -71,6 +80,10 @@ export async function deleteOfferAction(offerId: string) {
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('offer_requests').doc(offerId).delete();
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/offers');
+    revalidatePath('/offers');
 
     return { success: true };
   } catch (error: any) {

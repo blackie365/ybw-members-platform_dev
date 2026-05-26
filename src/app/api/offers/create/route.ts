@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { revalidatePath } from 'next/cache';
 
 export async function POST(request: Request) {
   try {
@@ -34,6 +35,11 @@ export async function POST(request: Request) {
 
     const docRef = await adminDb.collection('offer_requests').add(docData);
     console.log('[Offers API] Successfully created offer doc:', docRef.id);
+
+    // Revalidate paths
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/offers');
+    revalidatePath('/offers');
 
     return NextResponse.json({ success: true, id: docRef.id });
   } catch (error: any) {
