@@ -45,7 +45,7 @@ const tiers = [
   {
     name: 'Corporate Partner',
     id: 'tier-corporate',
-    href: '/news?tag=contact',
+    href: '/contact',
     priceMonthly: '£150',
     priceAnnually: '£1440',
     icon: Building2,

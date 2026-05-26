@@ -31,6 +31,7 @@ const navItems = [
 
 const quickActions = [
   { name: 'Submit an Article', href: '/dashboard/submit-article', icon: FileText },
+  { name: 'Submit an Offer', href: '/dashboard/offers/create', icon: Gift },
   { name: 'Update Profile Picture', href: '/dashboard/profile', icon: User },
 ];
 
