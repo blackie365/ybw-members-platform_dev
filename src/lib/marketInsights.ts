@@ -45,7 +45,7 @@ export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
     const allPoints: MarketInsightPoint[] = results.flat();
 
     // Shuffle the points to mix the sources
-    const shuffledPoints = allPoints.sort(() => Math.random() - 0.5).slice(0, 6);
+    const shuffledPoints = allPoints.sort(() => Math.random() - 0.5).slice(0, 4);
 
     return {
       id: 'live-multi-source-insights',

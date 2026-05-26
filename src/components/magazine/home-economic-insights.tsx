@@ -18,16 +18,16 @@ export async function HomeEconomicInsights() {
           </p>
         </div>
         
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {marketInsight.points.map((point: any, index: number) => (
-            <div key={index} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-900/50 p-8 border border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <div key={index} className="group relative flex flex-col items-start justify-between bg-zinc-50 dark:bg-zinc-900/50 p-6 border border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
               <div className="flex items-center gap-x-4 text-[10px] uppercase tracking-widest mb-6">
-                <span className="inline-flex items-center bg-white dark:bg-zinc-800 px-4 py-1.5 font-bold text-accent border border-accent/20 shadow-sm">
+                <span className="inline-flex items-center bg-white dark:bg-zinc-800 px-3 py-1 font-bold text-accent border border-accent/20 shadow-sm">
                   {point.sourceName || 'Report'}
                 </span>
               </div>
               
-              <h3 className="font-serif text-2xl font-medium leading-tight text-foreground mb-5">
+              <h3 className="font-serif text-xl font-medium leading-tight text-foreground mb-5">
                 {point.sourceUrl ? (
                   <a href={point.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
                     {point.summary}
@@ -37,7 +37,7 @@ export async function HomeEconomicInsights() {
                 )}
               </h3>
               
-              <p className="text-muted-foreground leading-relaxed line-clamp-5 text-sm mb-8">
+              <p className="text-muted-foreground leading-relaxed line-clamp-4 text-xs mb-8">
                 {point.fullText}
               </p>
               
