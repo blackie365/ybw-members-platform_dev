@@ -33,11 +33,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (!loading) {
+      console.log('[AdminLayout] Auth check:', { hasUser: !!user, isAdmin, checking });
       if (!user) {
+        console.log('[AdminLayout] No user, redirecting to sign-in');
         router.push("/sign-in?redirect=/admin")
       } else if (!isAdmin) {
+        console.log('[AdminLayout] Not admin, redirecting to dashboard');
         router.push("/dashboard")
       } else {
+        console.log('[AdminLayout] Admin verified, setting checking to false');
         setChecking(false)
       }
     }

@@ -219,16 +219,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!isLoaded) return;
 
-    if (user) {
+    const uid = user?.uid;
+    if (uid) {
       setLoading(true);
-      fetchProfile(user.uid).finally(() => {
+      fetchProfile(uid).finally(() => {
         setLoading(false);
       });
     } else {
       setProfile(null);
       setLoading(false);
     }
-  }, [user, isLoaded, fetchProfile]);
+  }, [user?.uid, isLoaded, fetchProfile]);
 
   const isAdmin = !!user && (
     profile?.role === 'admin' || 

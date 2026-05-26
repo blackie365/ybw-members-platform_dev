@@ -22,7 +22,7 @@ async function getFirestoreOffers() {
     const activeOffers = snapshot.docs
       .map(doc => {
         const data = doc.data();
-        return {
+        const mapped = {
           id: doc.id,
           title: data.title || 'Untitled Offer',
           feature_image: data.imageUrl || null,
@@ -35,10 +35,11 @@ async function getFirestoreOffers() {
           published_at: data.createdAt || new Date().toISOString(),
           status: data.status // Explicitly include for filtering
         };
+        console.log(`Mapped Firestore offer ${doc.id}:`, mapped);
+        return mapped;
       })
       .filter(offer => {
         const isActive = offer.status === 'active';
-        console.log(`Checking offer ${offer.id}: status=${offer.status}, isActive=${isActive}`);
         return isActive;
       });
     

@@ -136,20 +136,28 @@ export async function getFirestoreOffersAction() {
   }
 }
 
-export async function approveOfferAction(offerId: string) {
+export async function updateOfferStatusAction(offerId: string, status: 'active' | 'pending' | 'expired') {
   try {
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('offer_requests').doc(offerId).update({
-      status: 'active',
+      status,
       updatedAt: new Date().toISOString()
     });
 
     return { success: true };
   } catch (error: any) {
-    console.error("Error in approveOfferAction:", error);
+    console.error("Error in updateOfferStatusAction:", error);
     return { success: false, error: error.message };
   }
+}
+
+export async function approveOfferAction(offerId: string) {
+  return updateOfferStatusAction(offerId, 'active');
+}
+
+export async function deactivateOfferAction(offerId: string) {
+  return updateOfferStatusAction(offerId, 'pending');
 }
 
 export async function deleteOfferAction(offerId: string) {

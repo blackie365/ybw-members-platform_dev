@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,11 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save, Tag, Check, Trash2, ExternalLink } from "lucide-react"
+import { Search, MoreHorizontal, Mail, UserCog, Download, Loader2, Star, Calendar, Save, Tag, Check, Trash2, ExternalLink, X } from "lucide-react"
 import { db } from "@/lib/firebase"
 import { collection, getDocs, doc, updateDoc, query, orderBy, where, deleteDoc } from "firebase/firestore"
 import { Switch } from "@/components/ui/switch"
-import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction } from "@/app/actions/adminActions"
+import { toggleFeaturedStatus, getFirestoreOffersAction, approveOfferAction, deleteOfferAction, deactivateOfferAction, updateOfferStatusAction } from "@/app/actions/adminActions"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPosts } from "@/lib/ghost"
 import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
@@ -78,7 +79,11 @@ interface Offer {
   createdAt: string
 }
 
-export default function AdminMembersPage() {
+function AdminMembersContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get("tab") || "members"
+
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -146,6 +151,23 @@ export default function AdminMembersPage() {
     } catch (error) {
       console.error("Failed to approve offer:", error)
       alert("Failed to approve offer")
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleDeactivateOffer = async (offerId: string) => {
+    setUpdating(offerId)
+    try {
+      const res = await deactivateOfferAction(offerId)
+      if (res.success) {
+        setOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'pending' } : o))
+      } else {
+        alert("Failed to deactivate offer: " + res.error)
+      }
+    } catch (error) {
+      console.error("Failed to deactivate offer:", error)
+      alert("Failed to deactivate offer")
     } finally {
       setUpdating(null)
     }
@@ -374,6 +396,17 @@ export default function AdminMembersPage() {
     founder: "bg-purple-100 text-purple-800",
   }
 
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(window.location.search)
+    params.set("tab", value)
+    const newUrl = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl)
+    // We still need to update local state if we want immediate feedback without a full re-render
+    // But Tabs uses 'value={activeTab}' which comes from searchParams.
+    // So we might need to force a re-render or just use router.push/replace if it's safe.
+    router.replace(newUrl)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -385,7 +418,7 @@ export default function AdminMembersPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="members" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="members" className="flex items-center gap-2">
             <UserCog className="h-4 w-4" />
@@ -742,24 +775,27 @@ export default function AdminMembersPage() {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={offer.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                                {offer.status}
-                              </Badge>
+                              <Select
+                                value={offer.status}
+                                onValueChange={(value: 'active' | 'pending' | 'expired') => {
+                                  if (value === 'active') handleApproveOffer(offer.id)
+                                  else if (value === 'pending') handleDeactivateOffer(offer.id)
+                                  else updateOfferStatusAction(offer.id, value).then(() => fetchOffers())
+                                }}
+                                disabled={updating === offer.id}
+                              >
+                                <SelectTrigger className="w-[110px] h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="active">Active</SelectItem>
+                                  <SelectItem value="expired">Expired</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              {offer.status === 'pending' && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-8 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  onClick={() => handleApproveOffer(offer.id)}
-                                  disabled={updating === offer.id}
-                                >
-                                  {updating === offer.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
-                                  Approve
-                                </Button>
-                              )}
                               <Button 
                                 size="sm" 
                                 variant="outline" 
@@ -783,6 +819,18 @@ export default function AdminMembersPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function AdminMembersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    }>
+      <AdminMembersContent />
+    </Suspense>
   )
 }
 
