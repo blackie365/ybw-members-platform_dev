@@ -71,6 +71,7 @@ function SignUpContent() {
             path="/sign-up"
             routing="path"
             signInUrl="/sign-in"
+            forceRedirectUrl="/dashboard"
             appearance={{
               variables: {
                 colorPrimary: '#8b3e2f', // Brick Color
