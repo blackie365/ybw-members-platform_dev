@@ -6,14 +6,13 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function getPublicOffers() {
+async function getAllActiveOffers() {
   try {
     if (!adminDb) return [];
     
-    // 1. Fetch only ACTIVE and PUBLIC offers from Firestore
+    // 1. Fetch ALL ACTIVE offers from Firestore
     const snapshot = await adminDb.collection('offer_requests')
       .where('status', '==', 'active')
-      .where('isMembersOnly', '==', false)
       .get();
     
     const firestoreOffers = snapshot.docs.map(doc => {
@@ -27,7 +26,7 @@ async function getPublicOffers() {
         primary_author: { name: data.userName || 'Member' },
         isFirestoreOffer: true,
         link: data.link || '',
-        isMembersOnly: false,
+        isMembersOnly: data.isMembersOnly ?? true,
         published_at: data.createdAt || new Date().toISOString(),
         status: data.status
       };
@@ -35,18 +34,16 @@ async function getPublicOffers() {
 
     return firestoreOffers;
   } catch (error) {
-    console.error('Error fetching public Firestore offers:', error);
+    console.error('Error fetching all active Firestore offers:', error);
     return [];
   }
 }
 
 export default async function PublicOffersPage() {
-  // 1. Fetch public offers from Firestore
-  const firestoreOffers = await getPublicOffers();
+  // 1. Fetch all active offers from Firestore
+  const firestoreOffers = await getAllActiveOffers();
   
   // 2. Fetch public posts from Ghost (posts with member-offers tag are generally public unless we filter otherwise)
-  // For public board, we only show firestore ones marked as public, 
-  // and ghost posts (which are public by nature in Ghost)
   const ghostOffers = await getPosts({ limit: 50, filter: 'tag:member-offers,tag:hash-member-offer' });
   
   const allOffers = [...firestoreOffers, ...ghostOffers];
@@ -75,7 +72,7 @@ export default async function PublicOffersPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
-        <MemberOffersClient initialOffers={allOffers} />
+        <MemberOffersClient initialOffers={allOffers} isPublicBoard={true} />
         
         <div className="mt-12 p-8 border border-dashed border-border rounded-xl bg-card text-center">
           <h3 className="font-serif text-xl font-medium mb-4">Want access to exclusive member-only offers?</h3>

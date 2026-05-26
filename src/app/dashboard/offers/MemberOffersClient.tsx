@@ -6,7 +6,13 @@ import Link from 'next/link';
 
 import { useRouter } from 'next/navigation';
 
-export default function MemberOffersClient({ initialOffers }: { initialOffers: any[] }) {
+export default function MemberOffersClient({ 
+  initialOffers, 
+  isPublicBoard = false 
+}: { 
+  initialOffers: any[], 
+  isPublicBoard?: boolean 
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
@@ -122,7 +128,11 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
                 </div>
                 
                 <h3 className="text-xl font-semibold leading-tight text-zinc-900 group-hover:text-accent dark:text-white dark:group-hover:text-accent mb-3">
-                  {offer.isFirestoreOffer ? (
+                  {offer.isMembersOnly && isPublicBoard ? (
+                    <span className="text-zinc-400 dark:text-zinc-500">
+                      {offer.title} (Member Exclusive)
+                    </span>
+                  ) : offer.isFirestoreOffer ? (
                     offer.link ? (
                       <a href={offer.link} target="_blank" rel="noopener noreferrer">
                         <span className="absolute inset-0" />
@@ -140,17 +150,28 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
                 </h3>
                 
                 <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6 whitespace-pre-wrap">
-                  {offer.custom_excerpt || offer.excerpt}
+                  {offer.isMembersOnly && isPublicBoard 
+                    ? "This offer is reserved for Yorkshire Businesswoman members. Join today to unlock this discount and many other exclusive perks."
+                    : (offer.custom_excerpt || offer.excerpt)}
                 </p>
               </div>
 
               <div className="mt-auto w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                <span className="text-sm font-semibold text-accent group-hover:text-accent/80 flex items-center gap-1">
-                  {offer.isFirestoreOffer ? 'View Details' : 'Claim Offer'}
-                  <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </span>
+                {offer.isMembersOnly && isPublicBoard ? (
+                  <Link href="/membership" className="text-sm font-semibold text-accent hover:text-accent/80 flex items-center gap-1">
+                    Join to unlock
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </Link>
+                ) : (
+                  <span className="text-sm font-semibold text-accent group-hover:text-accent/80 flex items-center gap-1">
+                    {offer.isFirestoreOffer ? 'View Details' : 'Claim Offer'}
+                    <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </span>
+                )}
               </div>
             </div>
           ))}
