@@ -37,7 +37,7 @@ export async function ExclusiveMemberOffers() {
         {offers.length > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {offers.map((offer: any) => (
-              <div key={offer.id} className="group relative flex flex-col items-start justify-between border border-border p-5 hover:bg-muted/30 transition-colors">
+              <div key={offer.id} className="group relative flex flex-col items-start justify-between border border-border p-5 hover:bg-muted/30 transition-colors overflow-hidden">
                 {offer.imageUrl && (
                   <div className="relative w-full mb-5 overflow-hidden">
                     <Image
@@ -49,17 +49,17 @@ export async function ExclusiveMemberOffers() {
                     />
                   </div>
                 )}
-                <div className="flex items-center gap-x-3 text-[10px] uppercase tracking-wider mb-3">
-                  <span className="text-accent font-medium">{offer.userName || 'Member'}</span>
-                  {offer.isMembersOnly && <span className="text-muted-foreground">| Members Only</span>}
+                <div className="flex items-center gap-x-3 text-[10px] uppercase tracking-wider mb-3 w-full overflow-hidden">
+                  <span className="text-accent font-medium truncate">{offer.userName || 'Member'}</span>
+                  {offer.isMembersOnly && <span className="text-muted-foreground shrink-0">| Members Only</span>}
                 </div>
-                <h3 className="font-serif text-xl font-medium leading-snug text-foreground group-hover:text-accent transition-colors mb-4">
+                <h3 className="font-serif text-xl font-medium leading-snug text-foreground group-hover:text-accent transition-colors mb-4 break-words w-full">
                   <Link href="/dashboard/offers">
                     <span className="absolute inset-0" />
                     <span className="line-clamp-2">{offer.title}</span>
                   </Link>
                 </h3>
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-6">
+                <p className="text-sm text-muted-foreground line-clamp-3 mb-6 break-words w-full">
                   {offer.description}
                 </p>
                 <div className="mt-auto pt-4 border-t border-border w-full">
