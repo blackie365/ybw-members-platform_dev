@@ -116,7 +116,7 @@ export default function CreateOfferPage() {
   };
 
   return (
-    <div className="bg-white border border-border rounded-none p-8 lg:p-12 shadow-sm dark:bg-zinc-950 max-w-4xl mx-auto">
+    <div className="min-h-[600px] bg-white border border-border rounded-none p-8 lg:p-12 shadow-sm dark:bg-zinc-950 max-w-4xl mx-auto w-full">
       <div className="mb-8 border-b border-border pb-8">
         <h2 className="font-serif text-3xl font-medium text-foreground">Submit a Member Offer</h2>
         <p className="mt-4 text-zinc-600 dark:text-zinc-400">
