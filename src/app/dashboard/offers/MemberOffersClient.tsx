@@ -7,7 +7,9 @@ import Link from 'next/link';
 export default function MemberOffersClient({ initialOffers }: { initialOffers: any[] }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredOffers = initialOffers.filter((offer) => {
+  console.log('MemberOffersClient received offers:', initialOffers.length);
+
+  const filteredOffers = (initialOffers || []).filter((offer) => {
     const query = searchQuery.toLowerCase();
     const titleMatch = offer.title?.toLowerCase().includes(query);
     const excerptMatch = offer.custom_excerpt?.toLowerCase().includes(query) || offer.excerpt?.toLowerCase().includes(query);

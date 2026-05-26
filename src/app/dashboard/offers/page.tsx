@@ -12,26 +12,34 @@ async function getFirestoreOffers() {
       return [];
     }
     
+    console.log('Fetching Firestore offers...');
     const offersRef = adminDb.collection('offer_requests');
-    const snapshot = await offersRef.where('status', '==', 'active').get();
+    // Fetch everything and filter in JS to be safe against status case sensitivity
+    const snapshot = await offersRef.get();
     
-    console.log(`Fetched ${snapshot.size} active Firestore offers`);
+    console.log(`Found ${snapshot.size} total offers in Firestore`);
     
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        title: data.title || 'Untitled Offer',
-        feature_image: data.imageUrl || null,
-        slug: data.link ? '' : `internal-${doc.id}`, 
-        excerpt: data.description || '',
-        primary_author: { name: data.userName || 'Member' },
-        isFirestoreOffer: true,
-        link: data.link || '',
-        isMembersOnly: data.isMembersOnly ?? true,
-        published_at: data.createdAt || new Date().toISOString()
-      };
-    });
+    const activeOffers = snapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title || 'Untitled Offer',
+          feature_image: data.imageUrl || null,
+          slug: data.link ? '' : `internal-${doc.id}`, 
+          excerpt: data.description || '',
+          primary_author: { name: data.userName || 'Member' },
+          isFirestoreOffer: true,
+          link: data.link || '',
+          isMembersOnly: data.isMembersOnly ?? true,
+          published_at: data.createdAt || new Date().toISOString(),
+          status: data.status // Explicitly include for filtering
+        };
+      })
+      .filter(offer => offer.status === 'active');
+    
+    console.log(`Returning ${activeOffers.length} active Firestore offers`);
+    return activeOffers;
   } catch (error) {
     console.error('Error fetching Firestore offers:', error);
     return [];
