@@ -83,20 +83,31 @@ export default function MemberOffersClient({ initialOffers }: { initialOffers: a
                 </div>
                 
                 <h3 className="text-xl font-semibold leading-tight text-zinc-900 group-hover:text-accent dark:text-white dark:group-hover:text-accent mb-3">
-                  <Link href={`/news/${offer.slug}`}>
-                    <span className="absolute inset-0" />
-                    {offer.title}
-                  </Link>
+                  {offer.isFirestoreOffer ? (
+                    offer.link ? (
+                      <a href={offer.link} target="_blank" rel="noopener noreferrer">
+                        <span className="absolute inset-0" />
+                        {offer.title}
+                      </a>
+                    ) : (
+                      <span>{offer.title}</span>
+                    )
+                  ) : (
+                    <Link href={`/news/${offer.slug}`}>
+                      <span className="absolute inset-0" />
+                      {offer.title}
+                    </Link>
+                  )}
                 </h3>
                 
-                <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6">
+                <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 line-clamp-3 mb-6 whitespace-pre-wrap">
                   {offer.custom_excerpt || offer.excerpt}
                 </p>
               </div>
 
               <div className="mt-auto w-full pt-4 border-t border-zinc-200 dark:border-zinc-700">
                 <span className="text-sm font-semibold text-accent group-hover:text-accent/80 flex items-center gap-1">
-                  Claim Offer
+                  {offer.isFirestoreOffer ? 'View Details' : 'Claim Offer'}
                   <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
