@@ -5,16 +5,22 @@ import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { motion } from "framer-motion"
 import useEmblaCarousel from "embla-carousel-react"
 import Autoplay from "embla-carousel-autoplay"
 
 export function HeroSection({ posts }: { posts: any[] }) {
+  const [mounted, setMounted] = React.useState(false)
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, duration: 40 },
     [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
   )
 
   const [currentIndex, setCurrentIndex] = React.useState(0)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   React.useEffect(() => {
     if (!emblaApi) return
@@ -31,7 +37,10 @@ export function HeroSection({ posts }: { posts: any[] }) {
     }
   }, [emblaApi])
 
-  if (!posts || posts.length === 0) return null
+  if (!mounted || !posts || posts.length === 0) {
+    // Render a placeholder or nothing during SSR to avoid hydration mismatches
+    return <div className="w-full h-[85vh] bg-zinc-900 animate-pulse" />
+  }
 
   // Use first 5 posts for carousel slides
   const carouselPosts = posts.slice(0, 5)
@@ -77,12 +86,15 @@ export function HeroSection({ posts }: { posts: any[] }) {
                     key={index}
                     className="relative h-1 flex-1 max-w-16 bg-white/20 overflow-hidden"
                   >
-                    <div
-                      className={`absolute inset-y-0 left-0 bg-accent transition-all duration-500 ${
-                        index === currentIndex ? "w-full" : index < currentIndex ? "w-full" : "w-0"
-                      }`}
-                      style={{
-                        animation: index === currentIndex ? "progress 5s linear forwards" : "none"
+                    <motion.div
+                      className="absolute inset-y-0 left-0 bg-accent"
+                      initial={{ width: "0%" }}
+                      animate={{ 
+                        width: index === currentIndex ? "100%" : index < currentIndex ? "100%" : "0%" 
+                      }}
+                      transition={{ 
+                        duration: index === currentIndex ? 5 : 0.5,
+                        ease: "linear"
                       }}
                     />
                   </div>
@@ -150,14 +162,6 @@ export function HeroSection({ posts }: { posts: any[] }) {
           </div>
         </div>
       </div>
-
-      {/* CSS for progress animation */}
-      <style jsx>{`
-        @keyframes progress {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-      `}</style>
     </section>
   )
 }
