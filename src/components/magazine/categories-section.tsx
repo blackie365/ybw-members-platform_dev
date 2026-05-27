@@ -14,7 +14,7 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
               Explore
             </span>
             <h2 className="font-serif text-3xl font-medium text-foreground lg:text-4xl">
-              Topics
+              Topics by Category
             </h2>
           </div>
           <Link 
