@@ -1,4 +1,4 @@
-import { revalidateTag } from 'next/cache';
+import { revalidateTag, revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
@@ -54,15 +54,20 @@ export async function POST(req: Request) {
 
     // Verify the secret to prevent unauthorized cache purging
     if (secret !== process.env.GHOST_WEBHOOK_SECRET) {
+      console.warn('[Webhook] Unauthorized revalidation attempt');
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
-    // In Next.js App Router, revalidateTag is a synchronous function that marks the tag to be revalidated
-    // TypeScript bug in some @types/react versions expects 2 arguments
-    // @ts-ignore
+    // In Next.js App Router, revalidateTag marks the tag to be revalidated
+    // We revalidate 'ghost-posts' which covers all getPosts calls
     revalidateTag('ghost-posts');
+    revalidateTag('ghost-pages');
+    
+    // Explicitly revalidate key paths to ensure the UI updates immediately
+    revalidatePath('/');
+    revalidatePath('/news');
 
-    console.log('[Webhook] Successfully revalidated Ghost posts cache');
+    console.log('[Webhook] Successfully revalidated Ghost content and paths');
     
     return NextResponse.json({ revalidated: true, now: Date.now() });
   } catch (err: any) {

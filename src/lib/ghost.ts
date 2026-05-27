@@ -27,7 +27,7 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
         'Accept-Version': 'v5.0'
       },
       next: { 
-        revalidate: 3600, // Background rebuild every hour, but instantly purged by webhook
+        revalidate: 60, // Revalidate every minute, but can also be purged by webhook
         tags: ['ghost-posts'] 
       }
     });
@@ -64,7 +64,7 @@ export async function getPage(pageSlug: string) {
         'Accept-Version': 'v5.0'
       },
       next: { 
-        revalidate: 3600,
+        revalidate: 60,
         tags: ['ghost-pages', `ghost-page-${pageSlug}`]
       }
     });
@@ -92,7 +92,7 @@ export async function getSinglePost(postSlug: string) {
         'Accept-Version': 'v5.0'
       },
       next: { 
-        revalidate: 3600,
+        revalidate: 60,
         tags: ['ghost-posts', `ghost-post-${postSlug}`]
       }
     });
@@ -134,7 +134,7 @@ export async function getTags(options?: { limit?: number | string; include?: str
         'Accept-Version': 'v5.0'
       },
       next: { 
-        revalidate: 3600,
+        revalidate: 60,
         tags: ['ghost-tags']
       }
     });
