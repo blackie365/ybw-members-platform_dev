@@ -34,7 +34,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="font-serif text-3xl font-medium leading-tight md:text-4xl"
+              className="font-serif text-2xl font-medium leading-tight md:text-3xl"
             >
               Upcoming Events
             </motion.h2>
@@ -61,7 +61,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="group border border-primary-foreground/10 bg-primary-foreground/5 transition-all duration-300 hover:border-accent hover:bg-primary-foreground/10"
+              className="group border border-primary-foreground/10 bg-primary-foreground/5 transition-all duration-300 hover:bg-primary-foreground/10"
             >
               <Link href={`/news/${event.slug}`} className="flex flex-col h-full">
                 {/* Image */}

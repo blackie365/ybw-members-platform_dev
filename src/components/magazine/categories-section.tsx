@@ -25,7 +25,7 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
             <Link
               key={tag.id}
               href={`/news?tag=${tag.slug}`}
-              className="group relative flex flex-col border border-border bg-card p-6 transition-all duration-300 hover:border-accent hover:shadow-lg dark:hover:shadow-accent/5"
+              className="group relative flex flex-col border border-border bg-card p-6 transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20"
             >
               {/* Number */}
               <span className="font-mono text-xs text-muted-foreground">
