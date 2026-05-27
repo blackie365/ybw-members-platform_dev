@@ -8,9 +8,7 @@ import useEmblaCarousel from "embla-carousel-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 export function HeroSection({ posts }: { posts: any[] }) {
-  if (!posts || posts.length === 0) return null;
-
-  const heroPosts = posts.slice(0, 3);
+  const heroPosts = React.useMemo(() => posts?.slice(0, 3) || [], [posts]);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 30 })
   const [selectedIndex, setSelectedIndex] = React.useState(0)
 
@@ -28,6 +26,8 @@ export function HeroSection({ posts }: { posts: any[] }) {
 
   const scrollPrev = React.useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi])
   const scrollNext = React.useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi])
+
+  if (!heroPosts || heroPosts.length === 0) return null;
 
   return (
     <section className="relative bg-primary overflow-hidden">
