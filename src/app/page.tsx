@@ -8,6 +8,7 @@ import { LatestEvents } from "@/components/magazine/latest-events"
 import { CategorySection } from "@/components/magazine/category-section"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
+import Link from "next/link"
 
 async function getFeaturedMembers() {
   try {
@@ -65,6 +66,15 @@ async function getFeaturedMembers() {
 export const revalidate = 0;
 
 export default async function MagazinePage() {
+  let heroFeatured = null;
+  let recentPosts = [];
+  let latestEvents = [];
+  let fashionPosts = [];
+  let healthPosts = [];
+  let tags = [];
+  let featuredMember = null;
+  let errorOccurred = false;
+
   try {
     // 1. Fetch the single most recent featured post
     const featuredPosts = await getPosts({
@@ -72,74 +82,77 @@ export default async function MagazinePage() {
       filter: "featured:true",
       order: "published_at DESC"
     });
-    const heroFeatured = featuredPosts.length > 0 ? featuredPosts[0] : null;
+    heroFeatured = featuredPosts.length > 0 ? featuredPosts[0] : null;
 
     // 2. Fetch the latest posts chronologically (fetch extra in case we need to filter out the featured one)
-    const recentPosts = await getPosts({ 
+    recentPosts = await getPosts({ 
       limit: 13, 
       order: "published_at DESC" 
     });
 
     // 2b. Fetch latest events
-    const latestEvents = await getPosts({
+    latestEvents = await getPosts({
       limit: 3,
       filter: "tag:events",
       order: "published_at DESC"
     });
 
     // 2c. Fetch category specific posts
-    const fashionPosts = await getPosts({
+    fashionPosts = await getPosts({
       limit: 3,
       filter: "tag:fashion-lifestyle",
       order: "published_at DESC"
     });
 
-    const healthPosts = await getPosts({
+    healthPosts = await getPosts({
       limit: 3,
       filter: "tag:health-wellbeing",
       order: "published_at DESC"
     });
 
-    // 3. Combine them: Hero featured post first, then chronological
-    let posts = [];
-    if (Array.isArray(recentPosts)) {
-      if (heroFeatured) {
-        posts = [heroFeatured, ...recentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
-      } else {
-        posts = recentPosts.slice(0, 12);
-      }
-    }
-
-    const tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
+    tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
     const featuredMembers = await getFeaturedMembers();
-    const featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
-
-    return (
-      <div className="bg-background">
-        <div className="flex-1">
-          <HeroSection posts={posts} />
-          <ArticleGrid posts={posts.slice(3)} />
-          <LatestEvents events={latestEvents} />
-          <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
-          <FeaturedInterview member={featuredMember} />
-          <CategorySection title="Health & Wellbeing" posts={healthPosts} />
-          <CategoriesSection tags={tags} />
-          <HomeEconomicInsights />
-          <NewsletterSection />
-        </div>
-      </div>
-    )
+    featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
   } catch (error) {
-    console.error("Critical error rendering MagazinePage:", error);
-    // Fallback to a minimal version of the page instead of a complete crash
+    console.error("Critical error fetching data for MagazinePage:", error);
+    errorOccurred = true;
+  }
+
+  if (errorOccurred) {
     return (
       <div className="bg-background min-h-screen flex items-center justify-center">
         <div className="text-center px-4">
           <h1 className="font-serif text-3xl mb-4">Welcome to Yorkshire BusinessWoman</h1>
           <p className="text-muted-foreground mb-8">We&apos;re currently updating our content. Please check back in a few moments.</p>
-          <a href="/news" className="text-accent font-medium hover:underline">View Latest News</a>
+          <Link href="/news" className="text-accent font-medium hover:underline">View Latest News</Link>
         </div>
       </div>
     );
   }
+
+  // Combine them: Hero featured post first, then chronological
+  let posts = [];
+  if (Array.isArray(recentPosts)) {
+    if (heroFeatured) {
+      posts = [heroFeatured, ...recentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
+    } else {
+      posts = recentPosts.slice(0, 12);
+    }
+  }
+
+  return (
+    <div className="bg-background">
+      <div className="flex-1">
+        <HeroSection posts={posts} />
+        <ArticleGrid posts={posts.slice(3)} />
+        <LatestEvents events={latestEvents} />
+        <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
+        <FeaturedInterview member={featuredMember} />
+        <CategorySection title="Health & Wellbeing" posts={healthPosts} />
+        <CategoriesSection tags={tags} />
+        <HomeEconomicInsights />
+        <NewsletterSection />
+      </div>
+    </div>
+  );
 }
