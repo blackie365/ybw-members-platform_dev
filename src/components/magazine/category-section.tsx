@@ -22,39 +22,37 @@ interface Post {
 export function CategorySection({ 
   title, 
   posts, 
-  accentColor = "accent" 
 }: { 
   title: string
   posts: Post[]
-  accentColor?: string
 }) {
   if (!posts || posts.length === 0) return null
 
   return (
-    <section className="bg-background border-t border-border/50">
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
-        {/* Header - Clean and minimal */}
-        <div className="flex items-end justify-between mb-10 border-b border-border pb-6">
+    <section className="bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+        {/* Header - Rocket.new style */}
+        <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <motion.h2
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="font-serif text-2xl font-medium text-foreground lg:text-3xl"
+            className="font-serif text-3xl font-medium text-foreground md:text-4xl"
           >
             {title}
           </motion.h2>
 
           <Link 
             href={`/news?tag=${title.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-')}`}
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-accent transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-accent transition-colors"
           >
             View All
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        {/* Posts Grid - Lighter spacing */}
+        {/* Posts Grid */}
         <div className="grid gap-6 md:grid-cols-3">
           {posts.map((post, index) => (
             <motion.article
@@ -63,7 +61,7 @@ export function CategorySection({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="group"
+              className="group border border-border bg-card transition-all duration-300 hover:border-accent hover:shadow-lg dark:hover:shadow-accent/5"
             >
               <Link href={`/news/${post.slug}`} className="flex flex-col h-full">
                 <div className="relative aspect-[16/10] overflow-hidden bg-muted">
@@ -75,14 +73,24 @@ export function CategorySection({
                   />
                 </div>
 
-                <div className="flex flex-1 flex-col pt-4">
-                  <h3 className="font-serif text-lg font-medium text-foreground group-hover:text-accent transition-colors line-clamp-2 leading-snug">
+                <div className="flex flex-1 flex-col p-6">
+                  {/* Number */}
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+
+                  <h3 className="mt-4 font-serif text-xl font-medium text-foreground group-hover:text-accent transition-colors line-clamp-2 leading-snug">
                     {post.title}
                   </h3>
                   
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground line-clamp-2 flex-1">
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground line-clamp-2 flex-1">
                     {post.custom_excerpt || post.excerpt || "Read the latest updates and insights."}
                   </p>
+
+                  {/* Footer */}
+                  <div className="mt-6 flex items-center justify-end pt-4 border-t border-border">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground transition-all group-hover:text-accent group-hover:translate-x-1" />
+                  </div>
                 </div>
               </Link>
             </motion.article>

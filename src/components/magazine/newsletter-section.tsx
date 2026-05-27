@@ -46,59 +46,59 @@ export function NewsletterSection() {
   }
 
   return (
-    <section className="bg-foreground text-background">
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
-        <div className="flex flex-col items-center justify-between gap-8 lg:flex-row">
-          {/* Text */}
-          <div className="text-center lg:text-left">
-            <h2 className="font-serif text-2xl font-medium lg:text-3xl">
-              Stay in the loop
-            </h2>
-            <p className="mt-2 text-sm text-background/60 max-w-md">
-              Weekly insights on leadership, finance, and career growth delivered to your inbox.
-            </p>
-          </div>
+    <section className="bg-accent text-accent-foreground">
+      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-2xl text-center">
+          {/* Header */}
+          <h2 className="font-serif text-3xl font-medium leading-tight md:text-4xl lg:text-5xl">
+            Stay ahead of
+            <br />
+            the curve.
+          </h2>
+          <p className="mt-4 text-base text-accent-foreground/80 lg:text-lg">
+            Weekly insights on leadership, finance, and career growth delivered to your inbox.
+          </p>
 
           {/* Form */}
           {isSubmitted ? (
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
-                <Check className="h-5 w-5 text-white" />
+            <div className="mt-10 flex items-center justify-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-foreground/20">
+                <Check className="h-6 w-6" />
               </div>
-              <div>
+              <div className="text-left">
                 <p className="font-medium">You&apos;re subscribed!</p>
-                <p className="text-xs text-background/60">Check your inbox soon.</p>
+                <p className="text-sm text-accent-foreground/70">Check your inbox soon.</p>
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="w-full max-w-md">
-              <div className="flex gap-2">
+            <form onSubmit={handleSubmit} className="mt-10">
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-2 justify-center">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="h-11 flex-1 border border-background/20 bg-transparent px-4 text-sm text-background placeholder:text-background/40 focus:border-accent focus:outline-none transition-colors"
+                  className="h-12 w-full border border-accent-foreground/30 bg-transparent px-4 text-sm text-accent-foreground placeholder:text-accent-foreground/50 focus:border-accent-foreground focus:outline-none transition-colors sm:max-w-sm"
                   required
                   disabled={isLoading}
                 />
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="h-11 gap-2 bg-accent px-5 text-xs font-medium text-white hover:bg-accent/90 disabled:opacity-50"
+                  className="h-12 gap-2 bg-accent-foreground px-6 text-sm font-medium text-accent hover:bg-accent-foreground/90 disabled:opacity-50"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
                       Subscribe
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowRight className="h-4 w-4" />
                     </>
                   )}
                 </Button>
               </div>
               {error && (
-                <p className="mt-2 text-xs text-red-400">{error}</p>
+                <p className="mt-3 text-sm text-accent-foreground/80">{error}</p>
               )}
             </form>
           )}
