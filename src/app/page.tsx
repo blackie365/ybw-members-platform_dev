@@ -10,6 +10,8 @@ import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
 
+// Homepage - Yorkshire BusinessWoman Magazine
+
 async function getFeaturedMembers() {
   try {
     if (!adminDb) return [];
