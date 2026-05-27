@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, Briefcase, TrendingUp, Lightbulb, Heart, Calendar, Users } from "lucide-react"
 
-// Map Ghost tags to specific Lucide icons
 const getIconForTag = (tagName: string) => {
   if (!tagName) return Briefcase;
   const name = tagName.toLowerCase();
@@ -18,59 +17,39 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
   if (!tags || tags.length === 0) return null;
 
   return (
-    <section className="relative bg-background">
-      {/* Subtle background pattern */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
-      
-      <div className="relative mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
-        {/* Section Header */}
-        <div className="mb-14 text-center">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
-            Explore Topics
-          </span>
-          <h2 className="mt-3 font-serif text-3xl font-medium text-foreground lg:text-4xl">
-            Browse by Category
+    <section className="bg-background">
+      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
+        {/* Section Header - Minimal */}
+        <div className="mb-10 border-b border-border pb-6">
+          <h2 className="font-serif text-2xl font-medium text-foreground lg:text-3xl">
+            Browse Topics
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Discover insights across leadership, finance, lifestyle and more from Yorkshire&apos;s leading businesswomen
-          </p>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Tags Grid - Compact cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {tags.map((tag) => {
             const Icon = getIconForTag(tag.name);
             return (
               <Link
                 key={tag.id}
                 href={`/news?tag=${tag.slug}`}
-                className="group relative flex flex-col overflow-hidden border border-border bg-card p-6 transition-all duration-300 hover:border-accent/50 hover:shadow-lg hover:-translate-y-1"
+                className="group flex items-center gap-4 border border-border bg-card p-4 transition-all hover:border-accent/50 hover:bg-accent/5"
               >
-                {/* Hover accent bar */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-accent scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
-                
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 transition-colors group-hover:bg-accent/20">
-                  <Icon className="h-5 w-5 text-accent" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 transition-colors group-hover:bg-accent/20">
+                  <Icon className="h-4 w-4 text-accent" />
                 </div>
                 
-                <h3 className="mt-5 font-serif text-lg font-medium text-foreground transition-colors group-hover:text-accent">
-                  {tag.name}
-                </h3>
-                
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground line-clamp-2">
-                  {tag.description || `Explore articles about ${tag.name.toLowerCase()}`}
-                </p>
-                
-                <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                  <span className="text-xs font-medium text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-foreground text-sm truncate group-hover:text-accent transition-colors">
+                    {tag.name}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
                     {tag.count?.posts || 0} articles
-                  </span>
-                  <div className="flex items-center gap-1 text-accent opacity-0 transition-all duration-300 group-hover:opacity-100">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider">
-                      Explore
-                    </span>
-                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
-                  </div>
+                  </p>
                 </div>
+                
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:text-accent" />
               </Link>
             );
           })}
