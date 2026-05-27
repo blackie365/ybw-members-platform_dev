@@ -55,7 +55,7 @@ function ArticleCard({ article, index }: { article: any; index: number }) {
   }
 
   return (
-    <article className="group flex flex-col border border-border bg-card transition-all duration-300 hover:border-accent hover:shadow-lg dark:hover:shadow-accent/5">
+    <article className="group flex flex-col border border-border bg-card transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20">
       <Link href={article.slug ? `/news/${article.slug}` : '#'} className="flex flex-col h-full">
         {/* Image */}
         <div className="relative aspect-[16/10] overflow-hidden bg-muted">

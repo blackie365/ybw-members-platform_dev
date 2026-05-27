@@ -61,7 +61,7 @@ export function CategorySection({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="group border border-border bg-card transition-all duration-300 hover:border-accent hover:shadow-lg dark:hover:shadow-accent/5"
+              className="group border border-border bg-card transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20"
             >
               <Link href={`/news/${post.slug}`} className="flex flex-col h-full">
                 <div className="relative aspect-[16/10] overflow-hidden bg-muted">

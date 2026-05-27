@@ -6,6 +6,7 @@ import { NewsletterSection } from "@/components/magazine/newsletter-section"
 import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights"
 import { LatestEvents } from "@/components/magazine/latest-events"
 import { CategorySection } from "@/components/magazine/category-section"
+import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
@@ -153,6 +154,7 @@ export default async function MagazinePage() {
         <LatestEvents events={latestEvents} />
         <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
         <FeaturedInterview member={featuredMember} />
+        <TestimonialsSection />
         <CategorySection title="Health & Wellbeing" posts={healthPosts} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
