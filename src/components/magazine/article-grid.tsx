@@ -50,13 +50,24 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
 }
 
 function ArticleCard({ article }: { article: any }) {
-  const publishedDate = article.published_at 
-    ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    : '';
+  if (!article) return null;
+  
+  let publishedDate = '';
+  try {
+    if (article.published_at) {
+      publishedDate = new Date(article.published_at).toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    }
+  } catch (e) {
+    console.error("Error formatting date:", e);
+  }
 
   return (
     <article className="group flex flex-col">
-      <Link href={`/news/${article.slug}`} className="flex flex-col h-full">
+      <Link href={article.slug ? `/news/${article.slug}` : '#'} className="flex flex-col h-full">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           <Image

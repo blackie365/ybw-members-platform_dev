@@ -75,6 +75,8 @@ if (!admin.apps.length) {
 
 // Specify the correct database ID used by the project
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
-export const adminDb = getFirestore(admin.app(), dbId);
-export const adminAuth = admin.auth();
-export const adminStorage = admin.storage();
+
+// Safely export services only if the app is initialized
+export const adminDb = admin.apps.length > 0 ? getFirestore(admin.app(), dbId) : null;
+export const adminAuth = admin.apps.length > 0 ? admin.auth() : null;
+export const adminStorage = admin.apps.length > 0 ? admin.storage() : null;

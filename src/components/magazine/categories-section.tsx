@@ -3,6 +3,7 @@ import { ArrowRight, Briefcase, TrendingUp, Lightbulb, Heart, Calendar, Users } 
 
 // Map Ghost tags to specific Lucide icons
 const getIconForTag = (tagName: string) => {
+  if (!tagName) return Briefcase;
   const name = tagName.toLowerCase();
   if (name.includes('leadership') || name.includes('business') || name.includes('career')) return Briefcase;
   if (name.includes('finance') || name.includes('money') || name.includes('wealth')) return TrendingUp;

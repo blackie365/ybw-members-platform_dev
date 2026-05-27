@@ -6,10 +6,14 @@ import { ArrowRight, Quote } from "lucide-react"
 import { motion } from "framer-motion"
 
 export function FeaturedInterview({ member }: { member?: any }) {
-  if (!member) return null;
+  if (!member || typeof member !== 'object') return null;
 
-  const memberBio = member.bio || "The old playbook for women in business was about fitting in. Today, it's about standing out and creating entirely new paradigms of leadership that work for everyone.";
+  const bio = member.bio || member.description || "";
+  const memberBio = typeof bio === 'string' ? bio : "The old playbook for women in business was about fitting in. Today, it's about standing out and creating entirely new paradigms of leadership that work for everyone.";
   const displayQuote = memberBio.length > 200 ? memberBio.substring(0, 250) + "..." : memberBio;
+
+  const memberName = typeof member.name === 'string' ? member.name : (typeof member.displayName === 'string' ? member.displayName : "Featured Member");
+  const memberImage = typeof member.image === 'string' ? member.image : (typeof member.profileImage === 'string' ? member.profileImage : "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80");
 
   return (
     <section className="relative overflow-hidden bg-[#fdfcfb] dark:bg-zinc-950 border-y border-border/50">
@@ -26,8 +30,8 @@ export function FeaturedInterview({ member }: { member?: any }) {
           >
             <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100 dark:bg-zinc-900 rounded-sm shadow-2xl">
               <Image
-                src={member.image || member.profileImage || member.photoUrl || member.avatarUrl || "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80"}
-                alt={member.name || member.displayName || "Executive portrait"}
+                src={memberImage}
+                alt={memberName}
                 fill
                 className="object-cover transition-transform duration-1000 hover:scale-105"
                 priority
@@ -77,10 +81,10 @@ export function FeaturedInterview({ member }: { member?: any }) {
               
               <div className="mt-12 space-y-2">
                 <h3 className="font-serif text-2xl font-medium text-foreground lg:text-3xl">
-                  {member.name || member.displayName || "Dr. Amelia Richardson"}
+                  {memberName}
                 </h3>
                 <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground/80">
-                  {member.role || member.jobTitle || "CEO"}{(member.company || member.companyName) ? ` — ${member.company || member.companyName}` : ""}
+                  {String(member.role || member.jobTitle || "CEO")}{(member.company || member.companyName) ? ` — ${String(member.company || member.companyName)}` : ""}
                 </p>
               </div>
 

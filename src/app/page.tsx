@@ -27,11 +27,12 @@ async function getFeaturedMembers() {
       const data = doc.data();
       members.push({
         id: doc.id,
-        ...data,
-        name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
-        image: data.profileImage || data.image || data.avatarUrl,
-        company: data.companyName || data.company,
-        role: data.jobTitle || data.role,
+        name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
+        image: String(data.profileImage || data.image || data.avatarUrl || ''),
+        company: String(data.companyName || data.company || ''),
+        role: String(data.jobTitle || data.role || ''),
+        bio: String(data.bio || ''),
+        slug: String(data.slug || doc.id),
         isFeatured: data.isFeatured === true,
       });
     } else {
@@ -41,11 +42,12 @@ async function getFeaturedMembers() {
         const data = doc.data();
         return {
           id: doc.id,
-          ...data,
-          name: data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
-          image: data.profileImage || data.image || data.avatarUrl,
-          company: data.companyName || data.company,
-          role: data.jobTitle || data.role,
+          name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
+          image: String(data.profileImage || data.image || data.avatarUrl || ''),
+          company: String(data.companyName || data.company || ''),
+          role: String(data.jobTitle || data.role || ''),
+          bio: String(data.bio || ''),
+          slug: String(data.slug || doc.id),
           isFeatured: data.isFeatured === true,
         }
       }).filter((member: any) => {
@@ -133,10 +135,11 @@ export default async function MagazinePage() {
   // Combine them: Hero featured post first, then chronological
   let posts = [];
   if (Array.isArray(recentPosts)) {
-    if (heroFeatured) {
-      posts = [heroFeatured, ...recentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
+    const validRecentPosts = recentPosts.filter((p: any) => p && typeof p === 'object' && p.id);
+    if (heroFeatured && heroFeatured.id) {
+      posts = [heroFeatured, ...validRecentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
     } else {
-      posts = recentPosts.slice(0, 12);
+      posts = validRecentPosts.slice(0, 12);
     }
   }
 
