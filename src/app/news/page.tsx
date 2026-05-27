@@ -13,7 +13,9 @@ export default async function NewsPage(props: {
   const tag = typeof searchParams.tag === 'string' ? searchParams.tag : undefined;
   const limit = 12;
 
-  const filter = tag ? `tag:${tag}+published_at:>='2024-01-01'` : `published_at:>='2024-01-01'`;
+  // The filter was previously restricting posts to after 2024-01-01.
+  // We're removing this to ensure all recent posts are fetched.
+  const filter = tag ? `tag:${tag}` : undefined;
   const posts = await getPosts({ limit, page, filter, order: 'published_at DESC' });
   
   const meta = (posts as any).meta;

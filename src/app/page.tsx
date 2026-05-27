@@ -66,7 +66,7 @@ export default async function MagazinePage() {
   // 1. Fetch the single most recent featured post
   const featuredPosts = await getPosts({
     limit: 1,
-    filter: "featured:true+published_at:>='2024-01-01'",
+    filter: "featured:true",
     order: "published_at DESC"
   });
   const heroFeatured = featuredPosts.length > 0 ? featuredPosts[0] : null;
@@ -74,7 +74,6 @@ export default async function MagazinePage() {
   // 2. Fetch the latest posts chronologically (fetch extra in case we need to filter out the featured one)
   const recentPosts = await getPosts({ 
     limit: 13, 
-    filter: "published_at:>='2024-01-01'", 
     order: "published_at DESC" 
   });
 

@@ -50,6 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 async function getRelatedPosts(currentPostId: string, tags: any[]) {
   if (!tags || tags.length === 0) return [];
   const primaryTag = tags[0];
+  // Removed the date filter from related posts as well to ensure they show up correctly.
   const related = await getPosts({ limit: 4, filter: `tag:${primaryTag.slug}+id:-${currentPostId}` });
   return related.slice(0, 3);
 }
@@ -204,7 +205,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link 
-                    href={`/sign-in?redirect=/news/${post.slug}`}
+                    href={`/login?redirect=/news/${post.slug}`}
                     className="w-full sm:w-auto px-8 py-3 bg-accent text-white font-semibold rounded-xl hover:bg-accent/90 transition-colors"
                   >
                     Login to View

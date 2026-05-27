@@ -19,7 +19,7 @@ export function NewsTicker({ posts }: { posts: Post[] }) {
       <div className="animate-marquee inline-block hover:[animation-play-state:paused]">
         {duplicatedPosts.map((post, idx) => (
           <span key={`${post.id}-${idx}`} className="mx-6 font-serif text-sm">
-            <span className="text-primary/60 mr-4 font-sans">•</span>
+            <span className="text-primary/60 mr-4 font-sans">{"•"}</span>
             <Link href={`/news/${post.slug}`} className="hover:text-primary/70 transition-colors">
               {post.title}
             </Link>
