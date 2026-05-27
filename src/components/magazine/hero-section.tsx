@@ -6,19 +6,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import useEmblaCarousel from "embla-carousel-react"
-import Autoplay from "embla-carousel-autoplay"
+// import Autoplay from "embla-carousel-autoplay"
 
 export function HeroSection({ posts }: { posts: any[] }) {
-  if (!posts || posts.length === 0) return null
-
-  // Use first 5 posts for carousel slides
-  const carouselPosts = posts.slice(0, 5)
-  // Use first 3 posts for the overlaid articles menu
-  const latestArticles = posts.slice(0, 3)
-
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, duration: 40 },
-    [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
+    // [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
   )
 
   const [currentIndex, setCurrentIndex] = React.useState(0)
@@ -37,6 +30,13 @@ export function HeroSection({ posts }: { posts: any[] }) {
       emblaApi.off("select", onSelect)
     }
   }, [emblaApi])
+
+  if (!posts || posts.length === 0) return null
+
+  // Use first 5 posts for carousel slides
+  const carouselPosts = posts.slice(0, 5)
+  // Use first 3 posts for the overlaid articles menu
+  const latestArticles = posts.slice(0, 3)
 
   return (
     <section className="relative w-full h-[85vh] min-h-[600px] max-h-[900px] overflow-hidden bg-primary">
