@@ -42,7 +42,7 @@ export function TestimonialsSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="font-serif text-3xl font-medium leading-tight text-foreground md:text-4xl lg:text-5xl"
+            className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl"
           >
             What Yorkshire
             <br />

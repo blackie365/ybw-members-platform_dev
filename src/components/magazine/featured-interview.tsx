@@ -28,7 +28,7 @@ export function FeaturedInterview({ member }: { member?: any }) {
           <span className="text-xs font-medium uppercase tracking-wider text-accent">
             Member Spotlight
           </span>
-          <h2 className="mt-2 font-serif text-3xl font-medium text-foreground md:text-4xl">
+          <h2 className="mt-2 font-serif text-2xl font-medium text-foreground md:text-3xl">
             Featured Member
           </h2>
         </div>

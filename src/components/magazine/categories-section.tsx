@@ -9,7 +9,7 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
       <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
         {/* Section Header - Rocket.new style with multi-line heading */}
         <div className="mb-16 max-w-2xl">
-          <h2 className="font-serif text-3xl font-medium leading-tight text-foreground md:text-4xl lg:text-5xl">
+          <h2 className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl">
             Discover what
             <br />
             inspires you.

@@ -11,7 +11,7 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
         {/* Section Header - Rocket.new style */}
         <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
-            <h2 className="font-serif text-3xl font-medium leading-tight text-foreground md:text-4xl">
+            <h2 className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl">
               Latest Stories
             </h2>
             <p className="mt-3 text-base text-muted-foreground">

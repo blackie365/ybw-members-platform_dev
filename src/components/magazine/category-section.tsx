@@ -38,7 +38,7 @@ export function CategorySection({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="font-serif text-3xl font-medium text-foreground md:text-4xl"
+            className="font-serif text-2xl font-medium text-foreground md:text-3xl"
           >
             {title}
           </motion.h2>

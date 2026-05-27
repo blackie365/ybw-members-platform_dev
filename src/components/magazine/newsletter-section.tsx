@@ -50,7 +50,7 @@ export function NewsletterSection() {
       <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
-          <h2 className="font-serif text-3xl font-medium leading-tight md:text-4xl lg:text-5xl">
+          <h2 className="font-serif text-2xl font-medium leading-tight md:text-3xl">
             Stay ahead of
             <br />
             the curve.

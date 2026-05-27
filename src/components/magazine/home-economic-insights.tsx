@@ -13,7 +13,7 @@ export async function HomeEconomicInsights() {
       <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
         {/* Header - Streamlined */}
         <div className="mb-10 border-b border-border pb-6">
-          <h2 className="font-serif text-2xl font-medium text-foreground lg:text-3xl">
+          <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">
             Economic Insights
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
