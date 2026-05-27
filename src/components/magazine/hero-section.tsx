@@ -6,12 +6,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import useEmblaCarousel from "embla-carousel-react"
-// import Autoplay from "embla-carousel-autoplay"
+import Autoplay from "embla-carousel-autoplay"
 
 export function HeroSection({ posts }: { posts: any[] }) {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, duration: 40 },
-    // [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
+    [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
   )
 
   const [currentIndex, setCurrentIndex] = React.useState(0)
