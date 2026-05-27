@@ -105,6 +105,13 @@ export function TestimonialsSection() {
             </motion.div>
           ))}
         </div>
+
+        {/* Placeholder Disclaimer */}
+        <div className="mt-12 text-center text-balance">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
+            Placeholder text only.
+          </p>
+        </div>
       </div>
     </section>
   )
