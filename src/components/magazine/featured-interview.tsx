@@ -1,84 +1,107 @@
+"use client"
+
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, Quote } from "lucide-react"
+import { motion } from "framer-motion"
 
 export function FeaturedInterview({ member }: { member?: any }) {
   if (!member) return null;
 
   const memberBio = member.bio || "The old playbook for women in business was about fitting in. Today, it's about standing out and creating entirely new paradigms of leadership that work for everyone.";
-  const displayQuote = memberBio.length > 100 ? memberBio.substring(0, 150) + "..." : memberBio;
+  const displayQuote = memberBio.length > 200 ? memberBio.substring(0, 250) + "..." : memberBio;
 
   return (
-    <section className="relative overflow-hidden bg-card">
-      {/* Subtle decorative elements */}
-      <div className="absolute top-0 right-0 w-1/3 h-full bg-accent/5" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full -translate-x-1/2 translate-y-1/2" />
-      
-      <div className="relative mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
-        {/* Section Label */}
-        <div className="mb-12 flex items-center gap-4">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
-            Featured Member
-          </span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
-          {/* Image Column */}
-          <div className="relative">
-            <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+    <section className="relative overflow-hidden bg-[#fdfcfb] dark:bg-zinc-950 border-y border-border/50">
+      <div className="mx-auto max-w-7xl px-4 py-24 lg:px-8 lg:py-32">
+        <div className="grid gap-16 lg:grid-cols-2 lg:items-center lg:gap-24">
+          
+          {/* Image Column - Left Side */}
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="relative"
+          >
+            <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100 dark:bg-zinc-900 rounded-sm shadow-2xl">
               <Image
                 src={member.image || member.profileImage || member.photoUrl || member.avatarUrl || "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80"}
                 alt={member.name || member.displayName || "Executive portrait"}
                 fill
-                className="object-cover"
+                className="object-cover transition-transform duration-1000 hover:scale-105"
+                priority
               />
-            </div>
-            {/* Decorative badge */}
-            <div className="absolute -bottom-4 -right-4 bg-primary p-5 lg:-bottom-6 lg:-right-6 lg:p-8">
-              <span className="block font-serif text-2xl font-medium text-primary-foreground lg:text-3xl">
-                Featured
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-primary-foreground/70">
-                Yorkshire<br />Businesswoman
-              </span>
-            </div>
-          </div>
-
-          {/* Content Column */}
-          <div className="flex flex-col justify-center">
-            <div className="relative">
-              <Quote className="absolute -top-2 -left-4 h-16 w-16 text-accent/20 lg:-top-4 lg:-left-8 lg:h-24 lg:w-24" />
-              <blockquote className="relative">
-                <p className="font-serif text-2xl font-medium leading-relaxed text-foreground lg:text-3xl">
-                  <span className="text-balance">
-                    &ldquo;{displayQuote}&rdquo;
-                  </span>
-                </p>
-              </blockquote>
+              <div className="absolute inset-0 ring-1 ring-inset ring-black/10" />
             </div>
             
-            <div className="mt-10 border-l-2 border-accent pl-6">
-              <p className="font-serif text-xl font-medium text-foreground">
-                {member.name || member.displayName || "Dr. Amelia Richardson"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {member.role || member.jobTitle || "CEO"}{(member.company || member.companyName) ? ` | ${member.company || member.companyName}` : ""}
-              </p>
-              {member.location && (
-                <p className="mt-1 text-xs text-muted-foreground/70">
-                  {member.location}
-                </p>
-              )}
-            </div>
-
-            <Link
-              href={`/members/${member.slug || member.id}`}
-              className="mt-10 inline-flex items-center gap-3 self-start border-b border-foreground/30 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-foreground transition-all hover:border-accent hover:text-accent"
+            {/* Signature Floating Badge */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+              className="absolute -bottom-8 -right-8 bg-accent p-8 lg:p-10 shadow-2xl"
             >
-              View Full Profile
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+              <span className="block font-serif text-3xl font-medium text-white lg:text-4xl">
+                Featured
+              </span>
+              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">
+                Member Spotlight
+              </span>
+            </motion.div>
+          </motion.div>
+
+          {/* Content Column - Right Side */}
+          <div className="flex flex-col">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-accent">
+                In Conversation With
+              </span>
+              
+              <div className="mt-10 relative">
+                <Quote className="absolute -top-10 -left-6 h-20 w-20 text-accent/10 lg:-top-14 lg:-left-12 lg:h-32 lg:w-32" />
+                <blockquote className="relative">
+                  <p className="font-serif text-3xl font-medium leading-[1.3] text-foreground lg:text-4xl xl:text-5xl">
+                    <span className="text-balance italic">
+                      &ldquo;{displayQuote}&rdquo;
+                    </span>
+                  </p>
+                </blockquote>
+              </div>
+              
+              <div className="mt-12 space-y-2">
+                <h3 className="font-serif text-2xl font-medium text-foreground lg:text-3xl">
+                  {member.name || member.displayName || "Dr. Amelia Richardson"}
+                </h3>
+                <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground/80">
+                  {member.role || member.jobTitle || "CEO"}{(member.company || member.companyName) ? ` — ${member.company || member.companyName}` : ""}
+                </p>
+              </div>
+
+              <div className="mt-12 flex flex-col sm:flex-row items-start gap-8 border-t border-border pt-12">
+                <Link
+                  href={`/members/${member.slug || member.id}`}
+                  className="group inline-flex items-center gap-4 bg-zinc-950 dark:bg-white px-8 py-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white dark:text-zinc-950 transition-all hover:bg-accent hover:text-white"
+                >
+                  Read Full Interview
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                
+                <Link
+                  href="/membership"
+                  className="inline-flex items-center gap-3 py-4 text-[11px] font-bold uppercase tracking-[0.2em] text-foreground/60 hover:text-accent transition-colors"
+                >
+                  Join the Network
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
