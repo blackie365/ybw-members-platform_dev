@@ -10,9 +10,7 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
         {/* Section Header - Rocket.new style with multi-line heading */}
         <div className="mb-16 max-w-2xl">
           <h2 className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl">
-            Discover what
-            <br />
-            inspires you.
+            Discover what inspires you.
           </h2>
           <p className="mt-4 text-base text-muted-foreground lg:text-lg">
             Explore our curated categories. Find stories that resonate with your journey.

@@ -44,9 +44,7 @@ export function TestimonialsSection() {
             transition={{ duration: 0.5 }}
             className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl"
           >
-            What Yorkshire
-            <br />
-            Says
+            What Yorkshire Says
           </motion.h2>
           <p className="mt-4 text-base text-muted-foreground lg:text-lg">
             Hear from the businesswomen shaping Yorkshire&apos;s future.
