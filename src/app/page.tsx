@@ -4,6 +4,7 @@ import { FeaturedInterview } from "@/components/magazine/featured-interview"
 import { CategoriesSection } from "@/components/magazine/categories-section"
 import { NewsletterSection } from "@/components/magazine/newsletter-section"
 import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights"
+import { LatestEvents } from "@/components/magazine/latest-events"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 
@@ -77,6 +78,13 @@ export default async function MagazinePage() {
     order: "published_at DESC" 
   });
 
+  // 2b. Fetch latest events
+  const latestEvents = await getPosts({
+    limit: 3,
+    filter: "tag:events",
+    order: "published_at DESC"
+  });
+
   // 3. Combine them: Hero featured post first, then chronological
   let posts = [];
   if (heroFeatured) {
@@ -94,6 +102,7 @@ export default async function MagazinePage() {
       <div className="flex-1">
         <HeroSection posts={posts} />
         <ArticleGrid posts={posts.slice(3)} />
+        <LatestEvents events={latestEvents} />
         <FeaturedInterview member={featuredMember} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
