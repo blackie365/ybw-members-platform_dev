@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { 
   getWelcomeEmailTemplate, 
   getFreeWelcomeEmailTemplate, 
+  getNewsletterWelcomeEmailTemplate,
   getEventTicketConfirmationEmailTemplate, 
   getPasswordResetEmailTemplate, 
   getMembershipExpiringEmailTemplate, 
@@ -34,6 +35,7 @@ async function sendTestEmails() {
     // Generate templates (awaiting the promises)
     const welcomePremium = await getWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk');
     const welcomeFree = await getFreeWelcomeEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk');
+    const newsletterWelcome = await getNewsletterWelcomeEmailTemplate('Rob');
     const ticket = await getEventTicketConfirmationEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk');
     const reset = await getPasswordResetEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk/reset?token=test');
     const expiring = await getMembershipExpiringEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00');
@@ -45,6 +47,7 @@ async function sendTestEmails() {
     const emails = [
       { subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Premium)', html: welcomePremium },
       { subject: '[NEW DESIGN] Welcome to Yorkshire Businesswoman (Free)', html: welcomeFree },
+      { subject: '[NEW DESIGN] Newsletter Subscription Confirmation', html: newsletterWelcome },
       { subject: '[NEW DESIGN] Your Event Ticket Confirmation', html: ticket },
       { subject: '[NEW DESIGN] Password Reset Request', html: reset },
       { subject: '[NEW DESIGN] Membership Expiring', html: expiring },

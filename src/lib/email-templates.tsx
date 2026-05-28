@@ -7,6 +7,7 @@ import { RenewalReminderEmail } from '@/components/emails/renewal-reminder-email
 import { EventInvitationEmail } from '@/components/emails/event-invitation-email';
 import { PaymentReceiptEmail } from '@/components/emails/payment-receipt-email';
 import { AccountUpdateEmail } from '@/components/emails/account-update-email';
+import { NewsletterWelcomeEmail } from '@/components/emails/newsletter-welcome-email';
 import {
   EmailLayout,
   EmailHeading,
@@ -18,6 +19,12 @@ import {
 async function renderEmail(Component: React.ReactElement) {
   return await render(Component);
 }
+
+export const getNewsletterWelcomeEmailTemplate = async (firstName: string) => {
+  return await renderEmail(
+    <NewsletterWelcomeEmail firstName={firstName} />
+  );
+};
 
 export const getWelcomeEmailTemplate = async (firstName: string, appUrl: string) => {
   return await renderEmail(

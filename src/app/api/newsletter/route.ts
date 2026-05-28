@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
-import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
+import { getNewsletterWelcomeEmailTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 
 export async function POST(request: Request) {
@@ -102,8 +102,7 @@ export async function POST(request: Request) {
 
     // 5. Send Welcome Email (Non-critical)
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
-      const html = await getFreeWelcomeEmailTemplate(firstName || 'there', siteUrl);
+      const html = await getNewsletterWelcomeEmailTemplate(firstName || 'there');
       await sendEmail({
         to: email,
         subject: 'Welcome to Yorkshire Businesswoman',
