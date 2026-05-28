@@ -90,7 +90,7 @@ export default async function MagazinePage() {
 
     // 2. Fetch the latest posts chronologically for the grid
     recentPosts = await getPosts({ 
-      limit: 12, 
+      limit: 15, 
       order: "published_at DESC" 
     });
 
@@ -134,9 +134,11 @@ export default async function MagazinePage() {
     );
   }
 
-  // Filter out carousel posts from the main grid to avoid duplicates
+  // Filter out carousel posts from the main grid to avoid duplicates and limit to 6 stories
   const featuredIds = (featuredPosts || []).map((p: any) => p.id);
-  const gridPosts = (recentPosts || []).filter((p: any) => !featuredIds.includes(p.id));
+  const gridPosts = (recentPosts || [])
+    .filter((p: any) => !featuredIds.includes(p.id))
+    .slice(0, 6);
 
   return (
     <div className="bg-background">
