@@ -565,7 +565,7 @@ export function DailyNewsEmail({
                                 Reach our exclusive network of ambitious women. Advertise your services directly to the Yorkshire Businesswoman community.
                               </p>
                               <a
-                                href={`${siteUrl}/dashboard/advertise`}
+                                href="mailto:editor@yorkshirebusinesswoman.co.uk"
                                 style={{
                                   display: "inline-block",
                                   fontFamily: fonts.sans,
@@ -1011,7 +1011,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                     <p style="font-family: ${fonts.sans}; font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 16px 0;">Member Opportunity</p>
                     <h2 style="font-family: ${fonts.serif}; font-size: 24px; font-weight: 400; color: #FFFFFF; margin: 0 0 12px 0; line-height: 1.3;">Showcase Your Business</h2>
                     <p style="font-family: ${fonts.sans}; font-size: 14px; color: #a8a29e; margin: 0 0 24px 0; line-height: 1.6; max-width: 400px; margin-left: auto; margin-right: auto;">Reach our exclusive network of ambitious women. Advertise your services directly to the Yorkshire Businesswoman community.</p>
-                    <a href="${siteUrl}/dashboard/advertise" style="display: inline-block; font-family: ${fonts.sans}; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #1c1917; background-color: ${colors.accent}; padding: 14px 28px; text-decoration: none; border-radius: 2px;">Advertise Your Services</a>
+                    <a href="mailto:editor@yorkshirebusinesswoman.co.uk" style="display: inline-block; font-family: ${fonts.sans}; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #1c1917; background-color: ${colors.accent}; padding: 14px 28px; text-decoration: none; border-radius: 2px;">Advertise Your Services</a>
                   </td>
                 </tr>
               </table>
