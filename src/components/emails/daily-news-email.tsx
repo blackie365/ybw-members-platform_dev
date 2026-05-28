@@ -634,7 +634,7 @@ export function DailyNewsEmail({
                                     and inspiring stories.
                                   </p>
                               <a
-                                href={`${siteUrl}/news`}
+                                href={`${siteUrl}/new-edition`}
                                 style={{
                                   display: "inline-block",
                                   fontFamily: fonts.sans,
@@ -1023,7 +1023,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
             <td style="padding: 0 40px 40px 40px;" align="center">
               <h3 style="font-family: ${fonts.serif}; font-size: 22px; font-weight: 400; color: ${colors.primary}; margin: 0 0 12px 0; line-height: 1.3;">Explore more on Yorkshire Businesswoman</h3>
               <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 24px 0; line-height: 1.6;">Discover leadership insights, career strategies, and inspiring stories.</p>
-              <a href="${siteUrl}/news" style="display: inline-block; font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.card}; background-color: ${colors.primary}; padding: 14px 32px; text-decoration: none;">Visit the Magazine</a>
+              <a href="${siteUrl}/new-edition" style="display: inline-block; font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.card}; background-color: ${colors.primary}; padding: 14px 32px; text-decoration: none;">Visit the Magazine</a>
             </td>
           </tr>
 
