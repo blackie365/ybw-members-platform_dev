@@ -34,7 +34,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="font-serif text-xl font-medium leading-tight"
+              className="font-serif text-2xl font-medium leading-tight"
             >
               Latest Events
             </motion.h2>

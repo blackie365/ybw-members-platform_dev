@@ -50,7 +50,7 @@ export function NewsletterSection() {
       <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-10">
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
-          <h2 className="font-serif text-xl font-medium leading-tight">
+          <h2 className="font-serif text-2xl font-medium leading-tight">
             Join our network
           </h2>
           <p className="mt-3 text-sm text-accent-foreground/80">
