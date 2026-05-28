@@ -47,13 +47,13 @@ export function NewsletterSection() {
 
   return (
     <section className="bg-accent text-accent-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-10">
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
-          <h2 className="font-serif text-2xl font-medium leading-tight md:text-3xl">
+          <h2 className="font-serif text-xl font-medium leading-tight">
             Join our network
           </h2>
-          <p className="mt-4 text-base text-accent-foreground/80 lg:text-lg">
+          <p className="mt-3 text-sm text-accent-foreground/80">
             Weekly insights on leadership, finance, and career growth delivered to your inbox.
           </p>
 

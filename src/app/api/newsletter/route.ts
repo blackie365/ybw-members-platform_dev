@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getPosts } from '@/lib/ghost';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
-import { getDailyNewsletterTemplate } from '@/lib/email-templates';
+import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 
 export async function POST(request: Request) {
@@ -63,17 +62,13 @@ export async function POST(request: Request) {
 
     // 4. Send Welcome Email
     try {
-      const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
-
-      if (posts && posts.length > 0) {
-        const html = await getDailyNewsletterTemplate(posts);
-        await sendEmail({
-          to: email,
-          subject: 'Welcome to Yorkshire Businesswoman',
-          html
-        });
-        console.log('✅ Welcome email sent to:', email);
-      }
+      const html = await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk');
+      await sendEmail({
+        to: email,
+        subject: 'Welcome to Yorkshire Businesswoman',
+        html
+      });
+      console.log('✅ Welcome email sent to:', email);
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
       // Don't fail the whole request if only the welcome email fails

@@ -69,7 +69,7 @@ export function DailyNewsEmail({
           color: colors.background,
         }}
       >
-        Your daily briefing: {featuredStory?.title || "Today's top stories"}
+        Your weekly briefing: {featuredStory?.title || "Today's top stories"}
       </div>
 
       <table
@@ -134,7 +134,7 @@ export function DailyNewsEmail({
                                   margin: 0,
                                 }}
                               >
-                                Daily News Digest
+                                Weekly News Digest
                               </p>
                             </td>
                           </tr>
@@ -186,7 +186,7 @@ export function DailyNewsEmail({
                                       lineHeight: 1.6,
                                     }}
                                   >
-                                    Here are today&apos;s top stories from across Yorkshire.
+                                    Here are this week&apos;s top stories from across Yorkshire.
                                   </p>
                             </td>
                           </tr>
@@ -392,7 +392,7 @@ export function DailyNewsEmail({
                             margin: "0 0 24px 0",
                           }}
                         >
-                          Latest News
+                          Weekly Highlights
                         </p>
 
                         {remainingStories.map((story, index) => (
@@ -508,6 +508,86 @@ export function DailyNewsEmail({
                       </td>
                     </tr>
                   )}
+
+                  {/* Advertise Services Section */}
+                  <tr>
+                    <td style={{ padding: "40px 40px 0 40px" }}>
+                      <table
+                        cellPadding="0"
+                        cellSpacing="0"
+                        width="100%"
+                        style={{
+                          backgroundColor: "#1c1917", // Dark elegant background
+                          borderRadius: "4px",
+                          overflow: "hidden"
+                        }}
+                      >
+                        <tbody>
+                          <tr>
+                            <td style={{ padding: "40px", textAlign: "center" }}>
+                              <p
+                                style={{
+                                  fontFamily: fonts.sans,
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  letterSpacing: "3px",
+                                  textTransform: "uppercase",
+                                  color: colors.accent,
+                                  margin: "0 0 16px 0",
+                                }}
+                              >
+                                Member Opportunity
+                              </p>
+                              <h2
+                                style={{
+                                  fontFamily: fonts.serif,
+                                  fontSize: "24px",
+                                  fontWeight: 400,
+                                  color: "#FFFFFF",
+                                  margin: "0 0 12px 0",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                Showcase Your Business
+                              </h2>
+                              <p
+                                style={{
+                                  fontFamily: fonts.sans,
+                                  fontSize: "14px",
+                                  color: "#a8a29e",
+                                  margin: "0 0 24px 0",
+                                  lineHeight: 1.6,
+                                  maxWidth: "400px",
+                                  marginLeft: "auto",
+                                  marginRight: "auto"
+                                }}
+                              >
+                                Reach our exclusive network of ambitious women. Advertise your services directly to the Yorkshire Businesswoman community.
+                              </p>
+                              <a
+                                href={`${siteUrl}/dashboard/advertise`}
+                                style={{
+                                  display: "inline-block",
+                                  fontFamily: fonts.sans,
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  letterSpacing: "2px",
+                                  textTransform: "uppercase",
+                                  color: "#1c1917",
+                                  backgroundColor: colors.accent,
+                                  padding: "14px 28px",
+                                  textDecoration: "none",
+                                  borderRadius: "2px"
+                                }}
+                              >
+                                Advertise Your Services
+                              </a>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
 
                   {/* Divider */}
                   <tr>
@@ -696,7 +776,7 @@ export function DailyNewsEmail({
                                   }}
                                 >
                                   You received this email because you subscribed to
-                                  the Daily News Digest.
+                                  the Weekly News Digest.
                                 </p>
                                 <p
                                   style={{
@@ -800,7 +880,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Daily News Digest - Yorkshire Businesswoman</title>
+  <title>Weekly News Digest - Yorkshire Businesswoman</title>
   <!--[if mso]>
   <style type="text/css">
     table {border-collapse: collapse;}
@@ -811,7 +891,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
 <body style="margin: 0; padding: 0; background-color: ${colors.background}; -webkit-font-smoothing: antialiased;">
   <!-- Preview text -->
   <div style="display: none; max-height: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: ${colors.background};">
-    Your daily briefing: ${featuredStory?.title || "Today's top stories"}
+    Your weekly briefing: ${featuredStory?.title || "Today's top stories"}
   </div>
 
   <table cellpadding="0" cellspacing="0" width="100%" style="background-color: ${colors.background};">
@@ -832,7 +912,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                 </tr>
                 <tr>
                   <td align="center" style="padding-top: 20px;">
-                    <p style="font-family: ${fonts.sans}; font-size: 11px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0;">Daily News Digest</p>
+                    <p style="font-family: ${fonts.sans}; font-size: 11px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0;">Weekly News Digest</p>
                   </td>
                 </tr>
               </table>
@@ -847,7 +927,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                   <td align="center">
               <p style="font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.secondary}; margin: 0 0 16px 0;">${formattedDate}</p>
               <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.2;">${recipientName ? `Good morning, ${recipientName}.` : "Good morning."}</p>
-              <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0; line-height: 1.6;">Here are today's top stories from across Yorkshire.</p>
+              <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0; line-height: 1.6;">Here are this week's top stories from across Yorkshire.</p>
             </td>
                 </tr>
               </table>
@@ -907,7 +987,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
           <!-- More Stories -->
           <tr>
             <td style="padding: 0 40px;">
-              <p style="font-family: ${fonts.sans}; font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 24px 0;">More Stories</p>
+              <p style="font-family: ${fonts.sans}; font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 24px 0;">Weekly Highlights</p>
               ${moreStoriesHtml}
             </td>
           </tr>
@@ -921,6 +1001,22 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
           `
               : ""
           }
+
+          <!-- Advertise Services Section -->
+          <tr>
+            <td style="padding: 0 40px 40px 40px;">
+              <table cellpadding="0" cellspacing="0" width="100%" style="background-color: #1c1917; border-radius: 4px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 40px; text-align: center;">
+                    <p style="font-family: ${fonts.sans}; font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: ${colors.accent}; margin: 0 0 16px 0;">Member Opportunity</p>
+                    <h2 style="font-family: ${fonts.serif}; font-size: 24px; font-weight: 400; color: #FFFFFF; margin: 0 0 12px 0; line-height: 1.3;">Showcase Your Business</h2>
+                    <p style="font-family: ${fonts.sans}; font-size: 14px; color: #a8a29e; margin: 0 0 24px 0; line-height: 1.6; max-width: 400px; margin-left: auto; margin-right: auto;">Reach our exclusive network of ambitious women. Advertise your services directly to the Yorkshire Businesswoman community.</p>
+                    <a href="${siteUrl}/dashboard/advertise" style="display: inline-block; font-family: ${fonts.sans}; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #1c1917; background-color: ${colors.accent}; padding: 14px 28px; text-decoration: none; border-radius: 2px;">Advertise Your Services</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
           <!-- CTA Section -->
           <tr>
@@ -949,7 +1045,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                       <a href="https://www.instagram.com/yorkshire_businesswoman" style="color: ${colors.secondary}; text-decoration: none;">Instagram</a>
                     </p>
                     <hr style="border: none; border-top: 1px solid ${colors.border}; margin: 0 0 16px 0;" />
-                    <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 8px 0;">You received this email because you subscribed to the Daily News Digest.</p>
+                    <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 8px 0;">You received this email because you subscribed to the Weekly News Digest.</p>
                     <p style="font-family: ${fonts.sans}; font-size: 11px; margin: 0;">
                       <a href="${siteUrl}/dashboard/profile" style="color: ${colors.accent}; text-decoration: none;">Manage preferences</a>
                       <span style="color: ${colors.border}; margin: 0 8px;">&middot;</span>

@@ -10,13 +10,13 @@ export async function HomeEconomicInsights() {
 
   return (
     <section className="bg-zinc-50 dark:bg-zinc-900/50">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-10">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Header - Streamlined */}
-        <div className="mb-8 border-b border-border pb-4">
-          <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">
+        <div className="mb-6 border-b border-border pb-4">
+          <h2 className="font-serif text-xl font-medium text-foreground">
             Economic Insights
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Market trends curated for Yorkshire&apos;s business community
           </p>
         </div>

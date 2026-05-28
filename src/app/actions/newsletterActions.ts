@@ -29,7 +29,11 @@ export async function getGhostStatsAction() {
 
 export async function previewNewsletterAction(editorNote?: string) {
   try {
-    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    const posts = await getPosts({ 
+      limit: 5, 
+      filter: 'featured:true',
+      order: 'published_at DESC' 
+    });
     const html = await getDailyNewsletterTemplate(posts, "Subscriber", editorNote);
     return { success: true, html };
   } catch (error) {
@@ -42,7 +46,11 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
   try {
     if (!adminDb) throw new Error("Database not initialized");
 
-    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    const posts = await getPosts({ 
+      limit: 5, 
+      filter: 'featured:true',
+      order: 'published_at DESC' 
+    });
     
     const snapshot = await adminDb.collection('newMemberCollection')
       .where('userInactive', '==', false)
@@ -65,7 +73,7 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
       await sendEmail({
         to: "newsletter@yorkshirebusinesswoman.co.uk",
         bcc: batch,
-        subject: subject || "Your Daily Briefing | Yorkshire Businesswoman",
+        subject: subject || "Your Weekly Briefing | Yorkshire Businesswoman",
         html
       });
       
@@ -85,12 +93,16 @@ export async function sendTestNewsletterAction(email: string, editorNote?: strin
       throw new Error("Invalid email address");
     }
 
-    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    const posts = await getPosts({ 
+      limit: 5, 
+      filter: 'featured:true',
+      order: 'published_at DESC' 
+    });
     const html = await getDailyNewsletterTemplate(posts, "Test Subscriber", editorNote);
     
     await sendEmail({
       to: email,
-      subject: `[TEST] ${subject || "Your Daily Briefing | Yorkshire Businesswoman"}`,
+      subject: `[TEST] ${subject || "Your Weekly Briefing | Yorkshire Businesswoman"}`,
       html
     });
 

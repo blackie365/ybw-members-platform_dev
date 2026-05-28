@@ -14,12 +14,12 @@ const testimonials = [
     keywords: ["Community", "Inspiration", "Support"]
   },
   {
-    quote: "Being part of this network has transformed how I approach business. The connections I've made are invaluable.",
-    name: "Sarah Mitchell",
-    role: "Founder & CEO",
-    company: "Northern Tech Solutions",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80",
-    keywords: ["Leadership", "Innovation", "Growth"]
+    quote: "I joined whilst we were in Lock Down and it was the community and support network that inspired me to join.",
+    name: "Fiona Ibbetson",
+    role: "Member for five years",
+    company: "Yorkshire BusinessWoman",
+    avatar: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/GhYFbFkADwz59Af88nHq/avatar-1770214197148-thumb.jpg",
+    keywords: ["Community", "Support", "Inspiration"]
   },
   {
     quote: "The support and mentorship from fellow members helped me scale my business beyond what I thought possible.",
@@ -33,20 +33,20 @@ const testimonials = [
 
 export function TestimonialsSection() {
   return (
-    <section className="bg-secondary/30 dark:bg-secondary/50">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+    <section className="bg-secondary/30 dark:bg-secondary/50 border-t border-border">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Section Header */}
-        <div className="mb-10 max-w-2xl">
+        <div className="mb-8 max-w-2xl">
           <motion.h2 
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl"
+            className="font-serif text-xl font-medium leading-tight text-foreground"
           >
             What Yorkshire Says
           </motion.h2>
-          <p className="mt-4 text-base text-muted-foreground lg:text-lg">
+          <p className="mt-2 text-sm text-muted-foreground">
             Hear from the businesswomen shaping Yorkshire&apos;s future.
           </p>
         </div>

@@ -22,13 +22,13 @@ export function FeaturedInterview({ member }: { member?: any }) {
 
   return (
     <section className="bg-background border-t border-border/50">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Section Header */}
-        <div className="mb-8">
-          <span className="text-xs font-medium uppercase tracking-wider text-accent">
+        <div className="mb-6">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-accent">
             Member Spotlight
           </span>
-          <h2 className="mt-2 font-serif text-2xl font-medium text-foreground md:text-3xl">
+          <h2 className="mt-1 font-serif text-xl font-medium text-foreground">
             Featured Member
           </h2>
         </div>

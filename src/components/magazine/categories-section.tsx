@@ -6,13 +6,13 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
 
   return (
     <section className="bg-background border-t border-border/50">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Section Header - Rocket.new style with multi-line heading */}
-        <div className="mb-10 max-w-2xl">
-          <h2 className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl lg:text-3xl">
+        <div className="mb-8 max-w-2xl">
+          <h2 className="font-serif text-xl font-medium leading-tight text-foreground">
             Topics by Category
           </h2>
-          <p className="mt-4 text-base text-muted-foreground lg:text-lg">
+          <p className="mt-2 text-sm text-muted-foreground">
             Explore our curated categories. Find stories that resonate with your journey.
           </p>
         </div>

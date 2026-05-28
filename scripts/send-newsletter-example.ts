@@ -9,9 +9,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const domain = process.env.MAILGUN_DOMAIN || 'yorkshirebusinesswoman.co.uk';
 
 async function sendNewsletterExample() {
-  console.log(`Fetching 5 latest posts for newsletter example...`);
+  console.log(`Fetching 5 latest featured posts for newsletter example...`);
   try {
-    const posts = await getPosts({ limit: 5, order: 'published_at DESC' });
+    const posts = await getPosts({ 
+      limit: 5, 
+      filter: 'featured:true',
+      order: 'published_at DESC' 
+    });
     
     if (!posts || posts.length === 0) {
       console.error('No posts found in Ghost to generate newsletter.');

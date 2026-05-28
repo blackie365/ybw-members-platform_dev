@@ -25,20 +25,20 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
 
   return (
     <section className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Header - Rocket.new style */}
-        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
             <motion.h2 
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="font-serif text-2xl font-medium leading-tight md:text-3xl"
+              className="font-serif text-xl font-medium leading-tight"
             >
               Latest Events
             </motion.h2>
-            <p className="mt-3 text-base text-primary-foreground/60">
+            <p className="mt-2 text-sm text-primary-foreground/60">
               Connect, learn, and grow with fellow businesswomen across Yorkshire.
             </p>
           </div>
