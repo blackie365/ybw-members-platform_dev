@@ -6,6 +6,14 @@ import { Quote } from "lucide-react"
 
 const testimonials = [
   {
+    quote: "I still cannot say enough great things about this group and I’m so grateful that I am a part of such an outstanding community of incredible women!",
+    name: "Zoe Hands",
+    role: "Member",
+    company: "Yorkshire BusinessWoman",
+    avatar: "/images/testimonials/zoe-hands.png",
+    keywords: ["Community", "Inspiration", "Support"]
+  },
+  {
     quote: "Being part of this network has transformed how I approach business. The connections I've made are invaluable.",
     name: "Sarah Mitchell",
     role: "Founder & CEO",
@@ -20,14 +28,6 @@ const testimonials = [
     company: "Yorkshire Creative Agency",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&q=80",
     keywords: ["Mentorship", "Scaling", "Community"]
-  },
-  {
-    quote: "This community understands the unique challenges women face in business. It's been a game-changer for my career.",
-    name: "Claire Thompson",
-    role: "Operations Director",
-    company: "Harrogate Hospitality Group",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&q=80",
-    keywords: ["Networking", "Support", "Empowerment"]
   }
 ]
 
@@ -86,13 +86,14 @@ export function TestimonialsSection() {
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-4 pt-6 border-t border-border">
-                <Image
-                  src={testimonial.avatar}
-                  alt={testimonial.name}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 rounded-full object-cover"
-                />
+                <div className="relative h-12 w-12 flex-shrink-0">
+                  <Image
+                    src={testimonial.avatar}
+                    alt={testimonial.name}
+                    fill
+                    className="rounded-full object-cover"
+                  />
+                </div>
                 <div>
                   <h4 className="font-medium text-foreground">
                     {testimonial.name}
