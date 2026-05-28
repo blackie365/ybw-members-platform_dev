@@ -36,7 +36,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
               transition={{ duration: 0.5 }}
               className="font-serif text-2xl font-medium leading-tight md:text-3xl"
             >
-              Upcoming Events
+              Latest Events
             </motion.h2>
             <p className="mt-3 text-base text-primary-foreground/60">
               Connect, learn, and grow with fellow businesswomen across Yorkshire.

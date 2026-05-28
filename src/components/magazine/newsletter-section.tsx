@@ -51,7 +51,7 @@ export function NewsletterSection() {
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
           <h2 className="font-serif text-2xl font-medium leading-tight md:text-3xl">
-            Stay ahead of the curve.
+            Join our network
           </h2>
           <p className="mt-4 text-base text-accent-foreground/80 lg:text-lg">
             Weekly insights on leadership, finance, and career growth delivered to your inbox.
