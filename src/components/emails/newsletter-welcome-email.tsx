@@ -13,15 +13,15 @@ interface NewsletterWelcomeEmailProps {
 
 export function NewsletterWelcomeEmail({ firstName }: NewsletterWelcomeEmailProps) {
   return (
-    <EmailLayout previewText={`You're now subscribed to the Yorkshire Businesswoman Daily Digest!`}>
-      <EmailHeading>You're on the list!</EmailHeading>
+    <EmailLayout previewText={`You&apos;re now subscribed to the Yorkshire Businesswoman Daily Digest!`}>
+      <EmailHeading>You&apos;re on the list!</EmailHeading>
       
       <EmailText>
         Hi {firstName},
       </EmailText>
       
       <EmailText>
-        Thanks for subscribing to the Yorkshire Businesswoman Daily Digest. You'll now receive our latest stories, business insights, and community updates directly in your inbox.
+        Thanks for subscribing to the Yorkshire Businesswoman Daily Digest. You&apos;ll now receive our latest stories, business insights, and community updates directly in your inbox.
       </EmailText>
 
       <EmailHighlightBox>
@@ -34,7 +34,7 @@ export function NewsletterWelcomeEmail({ firstName }: NewsletterWelcomeEmailProp
             lineHeight: 1.6,
           }}
         >
-          We're excited to have you with us! Keep an eye out for our next edition.
+          We&apos;re excited to have you with us! Keep an eye out for our next edition.
         </p>
       </EmailHighlightBox>
 
@@ -47,7 +47,7 @@ export function NewsletterWelcomeEmail({ firstName }: NewsletterWelcomeEmailProp
       </EmailButton>
 
       <p style={{ fontFamily: "'Inter', Arial, sans-serif", fontSize: "13px", color: "#78716c", marginTop: "32px", lineHeight: 1.6 }}>
-        If you didn't mean to subscribe, you can safely ignore this email or unsubscribe at any time using the link in our newsletters.
+        If you didn&apos;t mean to subscribe, you can safely ignore this email or unsubscribe at any time using the link in our newsletters.
       </p>
     </EmailLayout>
   )
