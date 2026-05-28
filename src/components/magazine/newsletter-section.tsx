@@ -15,8 +15,8 @@ export function NewsletterSection() {
     e.preventDefault()
     
     const now = Date.now()
-    if (lastAttemptTime && now - lastAttemptTime < 120000) {
-      const remainingSeconds = Math.ceil((120000 - (now - lastAttemptTime)) / 1000)
+    if (lastAttemptTime && now - lastAttemptTime < 30000) {
+      const remainingSeconds = Math.ceil((30000 - (now - lastAttemptTime)) / 1000)
       setError(`Please wait ${remainingSeconds} seconds before trying again.`)
       return
     }
@@ -51,7 +51,7 @@ export function NewsletterSection() {
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
           <h2 className="font-serif text-2xl font-medium leading-tight">
-            Join our network
+            Subscribe to Newsletter
           </h2>
           <p className="mt-3 text-sm text-accent-foreground/80">
             Weekly insights on leadership, finance, and career growth delivered to your inbox.
