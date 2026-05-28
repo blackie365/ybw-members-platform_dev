@@ -25,9 +25,9 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
 
   return (
     <section className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Header - Rocket.new style */}
-        <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
             <motion.h2 
               initial={{ opacity: 0, y: 10 }}

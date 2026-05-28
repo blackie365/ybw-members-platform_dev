@@ -47,7 +47,7 @@ export function NewsletterSection() {
 
   return (
     <section className="bg-accent text-accent-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 py-10 lg:px-8 lg:py-12">
         <div className="mx-auto max-w-2xl text-center">
           {/* Header */}
           <h2 className="font-serif text-2xl font-medium leading-tight md:text-3xl">

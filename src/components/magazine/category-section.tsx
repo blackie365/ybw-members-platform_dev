@@ -29,10 +29,10 @@ export function CategorySection({
   if (!posts || posts.length === 0) return null
 
   return (
-    <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+    <section className="bg-background border-t border-border/50">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Header - Rocket.new style */}
-        <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <motion.h2
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}

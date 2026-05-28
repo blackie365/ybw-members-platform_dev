@@ -7,9 +7,9 @@ export function ArticleGrid({ posts }: { posts: any[] }) {
 
   return (
     <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Section Header - Rocket.new style */}
-        <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
             <h2 className="font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl">
               Latest Stories

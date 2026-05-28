@@ -10,9 +10,9 @@ export async function HomeEconomicInsights() {
 
   return (
     <section className="bg-zinc-50 dark:bg-zinc-900/50">
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8 lg:py-20">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-10">
         {/* Header - Streamlined */}
-        <div className="mb-10 border-b border-border pb-6">
+        <div className="mb-8 border-b border-border pb-4">
           <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">
             Economic Insights
           </h2>

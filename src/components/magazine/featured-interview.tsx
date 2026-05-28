@@ -21,10 +21,10 @@ export function FeaturedInterview({ member }: { member?: any }) {
   const keywords = member.keywords || member.expertise || ["Leadership", "Innovation", "Strategy"];
 
   return (
-    <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+    <section className="bg-background border-t border-border/50">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Section Header */}
-        <div className="mb-12">
+        <div className="mb-8">
           <span className="text-xs font-medium uppercase tracking-wider text-accent">
             Member Spotlight
           </span>

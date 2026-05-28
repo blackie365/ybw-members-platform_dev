@@ -34,9 +34,9 @@ const testimonials = [
 export function TestimonialsSection() {
   return (
     <section className="bg-secondary/30 dark:bg-secondary/50">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Section Header */}
-        <div className="mb-16 max-w-2xl">
+        <div className="mb-10 max-w-2xl">
           <motion.h2 
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}

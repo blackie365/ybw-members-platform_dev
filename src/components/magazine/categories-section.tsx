@@ -5,10 +5,10 @@ export function CategoriesSection({ tags }: { tags?: any[] }) {
   if (!tags || tags.length === 0) return null
 
   return (
-    <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-28">
+    <section className="bg-background border-t border-border/50">
+      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
         {/* Section Header - Rocket.new style with multi-line heading */}
-        <div className="mb-16 max-w-2xl">
+        <div className="mb-10 max-w-2xl">
           <h2 className="font-serif text-3xl font-medium leading-tight text-foreground md:text-4xl lg:text-5xl">
             Topics by
             <br />
