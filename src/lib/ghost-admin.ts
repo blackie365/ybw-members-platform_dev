@@ -81,16 +81,17 @@ export async function addGhostMember(data: { email: string; name?: string; note?
   }
 
   try {
-    const member = await admin.members.add(data);
+    // Explicitly set newsletters to empty array to prevent Ghost from sending its default newsletter
+    const member = await admin.members.add({
+      ...data,
+      newsletters: []
+    });
     return member;
   } catch (err: any) {
-    // If the member already exists, we can safely ignore the error
-    if (err.context && err.context.includes('Validation error, cannot save member. Validation failed for email.')) {
-      console.log(`Ghost member ${data.email} already exists, skipping creation.`);
-      return null;
-    }
-    console.error("Error adding Ghost member via Admin API:", err);
-    throw err;
+    // Ghost sync is non-critical, so we swallow all errors here to prevent
+    // crashing the main subscription flow. We just log them for debugging.
+    console.warn("Ghost member sync skipped or failed:", err.message || err);
+    return null;
   }
 }
 

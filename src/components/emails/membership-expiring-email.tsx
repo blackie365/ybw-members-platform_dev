@@ -1,10 +1,11 @@
+import * as React from "react"
 import {
   EmailLayout,
   EmailHeading,
   EmailText,
   EmailButton,
-  EmailHighlightBox,
   EmailInfoCard,
+  EmailHighlightBox,
   EmailDivider,
 } from "./email-layout"
 

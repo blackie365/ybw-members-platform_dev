@@ -1,10 +1,12 @@
 import * as React from 'react';
-import { render } from '@react-email/components';
+import { render } from '@react-email/render';
 import { WelcomeEmail } from '@/components/emails/welcome-email';
 import { PasswordResetEmail } from '@/components/emails/password-reset-email';
 import { MembershipExpiringEmail } from '@/components/emails/membership-expiring-email';
 import { RenewalReminderEmail } from '@/components/emails/renewal-reminder-email';
 import { EventInvitationEmail } from '@/components/emails/event-invitation-email';
+import { PaymentReceiptEmail } from '@/components/emails/payment-receipt-email';
+import { AccountUpdateEmail } from '@/components/emails/account-update-email';
 import {
   EmailLayout,
   EmailHeading,
@@ -70,6 +72,31 @@ export const getRenewalReminderEmailTemplate = async (firstName: string, members
       renewalDate={renewalDate} 
       amount={amount} 
       daysRemaining={daysRemaining} 
+    />
+  );
+};
+
+export const getPaymentReceiptEmailTemplate = async (firstName: string, invoiceNumber: string, paymentDate: string, membershipTier: string, amount: string, billingPeriod: string, paymentMethod: string) => {
+  return await renderEmail(
+    <PaymentReceiptEmail 
+      firstName={firstName}
+      invoiceNumber={invoiceNumber}
+      paymentDate={paymentDate}
+      membershipTier={membershipTier}
+      amount={amount}
+      billingPeriod={billingPeriod}
+      paymentMethod={paymentMethod}
+    />
+  );
+};
+
+export const getAccountUpdateEmailTemplate = async (firstName: string, updateType: "email" | "password" | "payment" | "profile", updateDate: string, updateTime: string) => {
+  return await renderEmail(
+    <AccountUpdateEmail 
+      firstName={firstName}
+      updateType={updateType}
+      updateDate={updateDate}
+      updateTime={updateTime}
     />
   );
 };

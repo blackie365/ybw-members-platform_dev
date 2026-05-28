@@ -8,7 +8,9 @@ import {
   getEventTicketConfirmationEmailTemplate, 
   getPasswordResetEmailTemplate, 
   getMembershipExpiringEmailTemplate, 
-  getRenewalReminderEmailTemplate 
+  getRenewalReminderEmailTemplate,
+  getPaymentReceiptEmailTemplate,
+  getAccountUpdateEmailTemplate
 } from '../src/lib/email-templates';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -36,6 +38,8 @@ async function sendTestEmails() {
     const reset = await getPasswordResetEmailTemplate('Rob', 'https://yorkshirebusinesswoman.co.uk/reset?token=test');
     const expiring = await getMembershipExpiringEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00');
     const renewal = await getRenewalReminderEmailTemplate('Rob', 'Premium Member', 'Dec 31, 2026', '100.00', 7);
+    const receipt = await getPaymentReceiptEmailTemplate('Rob', 'INV-1234', 'May 28, 2026', 'Premium Member', '100.00', 'Annual', 'Visa ending in 4242');
+    const accountUpdate = await getAccountUpdateEmailTemplate('Rob', 'profile', 'May 28, 2026', '14:30');
 
     // Send emails sequentially with small delay to avoid rate limiting
     const emails = [
@@ -45,6 +49,8 @@ async function sendTestEmails() {
       { subject: '[NEW DESIGN] Password Reset Request', html: reset },
       { subject: '[NEW DESIGN] Membership Expiring', html: expiring },
       { subject: '[NEW DESIGN] Renewal Reminder', html: renewal },
+      { subject: '[NEW DESIGN] Payment Receipt', html: receipt },
+      { subject: '[NEW DESIGN] Account Updated', html: accountUpdate },
     ];
 
     for (let i = 0; i < emails.length; i++) {

@@ -7,6 +7,7 @@ import { ArrowRight, Check, Loader2 } from "lucide-react"
 export function NewsletterSection() {
   const [email, setEmail] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [lastAttemptTime, setLastAttemptTime] = useState<number | null>(null)
@@ -31,14 +32,20 @@ export function NewsletterSection() {
           body: JSON.stringify({ email })
         })
         
+        const data = await res.json()
+        
         if (!res.ok) {
-          throw new Error("Failed to subscribe")
+          console.error("Newsletter error response:", data);
+          const errorMsg = data.error || data.subscriptionError || data.message || (typeof data === 'string' ? data : JSON.stringify(data));
+          throw new Error(errorMsg || "Failed to subscribe");
         }
         
+        setSuccessMessage(data.message || "You're subscribed!");
         setIsSubmitted(true)
         setLastAttemptTime(now)
-      } catch (err) {
-        setError("Something went wrong. Please try again.")
+      } catch (err: any) {
+        console.error("Newsletter subscription error:", err);
+        setError(err.message || "Something went wrong. Please try again.")
       } finally {
         setIsLoading(false)
       }
@@ -59,12 +66,12 @@ export function NewsletterSection() {
 
           {/* Form */}
           {isSubmitted ? (
-            <div className="mt-10 flex items-center justify-center gap-3">
+            <div className="mt-10 flex items-center justify-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-foreground/20">
                 <Check className="h-6 w-6" />
               </div>
               <div className="text-left">
-                <p className="font-medium">You&apos;re subscribed!</p>
+                <p className="font-medium">{successMessage}</p>
                 <p className="text-sm text-accent-foreground/70">Check your inbox soon.</p>
               </div>
             </div>

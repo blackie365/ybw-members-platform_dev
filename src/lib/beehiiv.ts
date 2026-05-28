@@ -59,6 +59,15 @@ export async function addBeehiivSubscriber({
     const data = await response.json();
 
     if (!response.ok) {
+      // If subscriber already exists, Beehiiv returns 422
+      if (response.status === 422) {
+        const errorMessage = data.errors?.[0]?.message || '';
+        if (errorMessage.toLowerCase().includes('already') || errorMessage.toLowerCase().includes('duplicate')) {
+          console.log('Subscriber already exists in Beehiiv:', email);
+          return { success: true, alreadyExists: true };
+        }
+      }
+      
       console.error('Beehiiv API Error:', data);
       throw new Error(data.errors?.[0]?.message || 'Failed to add subscriber to Beehiiv');
     }

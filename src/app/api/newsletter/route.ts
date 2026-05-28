@@ -6,77 +6,142 @@ import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 
 export async function POST(request: Request) {
+  console.log('📬 [API/Newsletter] Request started');
+  
   try {
-    const { email, firstName, lastName, industry } = await request.json();
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
-
-    // 1. Add to Beehiiv (Primary Newsletter Engine)
-    const beehiivResult = await addBeehiivSubscriber({
-      email,
-      customFields: {
-        first_name: firstName || '',
-        last_name: lastName || '',
-        industry: industry || ''
-      }
-    });
-
-    // 2. Add to Ghost (for CMS access)
-    const ghostResult = await addGhostMember({
-      email,
-      name: `${firstName || ''} ${lastName || ''}`.trim() || undefined,
-      labels: ['newsletter-signup', 'v0-magazine', 'beehiiv-sync']
-    });
-
-    // 3. Add or update in Firebase (for platform statistics and dashboard)
-    if (adminDb) {
-      const membersRef = adminDb.collection('newMemberCollection');
-      const querySnapshot = await membersRef.where('email', '==', email).limit(1).get();
-      
-      const memberData = {
-        email,
-        firstName: firstName || '',
-        lastName: lastName || '',
-        displayName: `${firstName || ''} ${lastName || ''}`.trim(),
-        industrySector: industry || '',
-        status: 'active',
-        newsletterSubscribed: true,
-        isNewsletterRecipient: true,
-        membershipTier: 'free',
-        beehiivSync: beehiivResult.success,
-        updatedAt: new Date().toISOString()
-      };
-
-      if (querySnapshot.empty) {
-        await membersRef.add({
-          ...memberData,
-          createdAt: new Date().toISOString()
-        });
-      } else {
-        const doc = querySnapshot.docs[0];
-        await doc.ref.update(memberData);
-      }
-    }
-
-    // 4. Send Welcome Email
+    const rawBody = await request.text();
+    console.log('📦 [API/Newsletter] Raw body:', rawBody);
+    
+    let body;
     try {
-      const html = await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk');
+      body = JSON.parse(rawBody);
+    } catch (e) {
+      console.error('❌ [API/Newsletter] JSON parse failed');
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const email = body?.email;
+    const firstName = body?.firstName || '';
+    const lastName = body?.lastName || '';
+    const industry = body?.industry || '';
+
+    if (!email || typeof email !== 'string') {
+      console.warn('⚠️ [API/Newsletter] Invalid or missing email');
+      return new Response(JSON.stringify({ error: 'Valid email is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log(`📬 [API/Newsletter] Email: ${email}`);
+
+    // 2. Add to Beehiiv (Primary)
+    let beehiivResult = { success: false, alreadyExists: false };
+    try {
+      const res = await addBeehiivSubscriber({
+        email,
+        customFields: {
+          first_name: firstName || '',
+          last_name: lastName || '',
+          industry: industry || ''
+        }
+      });
+      beehiivResult = { success: !!res?.success, alreadyExists: !!res?.alreadyExists };
+      console.log('✅ [API/Newsletter] Beehiiv sync result:', beehiivResult);
+    } catch (beehiivError: any) {
+      console.error('❌ [API/Newsletter] Beehiiv failed:', beehiivError.message || beehiivError);
+    }
+
+    // 3. Add to Ghost (Non-critical)
+    let ghostResult = false;
+    try {
+      const ghostRes = await addGhostMember({
+        email,
+        name: `${firstName || ''} ${lastName || ''}`.trim() || undefined,
+        labels: ['newsletter-signup', 'beehiiv-sync']
+      });
+      ghostResult = !!ghostRes;
+      console.log('✅ [API/Newsletter] Ghost sync result:', ghostResult);
+    } catch (ghostError: any) {
+      console.warn('⚠️ [API/Newsletter] Ghost sync skipped:', ghostError.message || ghostError);
+    }
+
+    // 4. Add to Firebase (Non-critical)
+    try {
+      if (adminDb) {
+        const membersRef = adminDb.collection('newMemberCollection');
+        const querySnapshot = await membersRef.where('email', '==', email).limit(1).get();
+        
+        const memberData = {
+          email,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          displayName: `${firstName || ''} ${lastName || ''}`.trim(),
+          industrySector: industry || '',
+          status: 'active',
+          newsletterSubscribed: true,
+          isNewsletterRecipient: true,
+          membershipTier: 'free',
+          updatedAt: new Date().toISOString()
+        };
+
+        if (querySnapshot.empty) {
+          await membersRef.add({ ...memberData, createdAt: new Date().toISOString() });
+          console.log('✅ [API/Newsletter] Firebase record created');
+        } else {
+          await querySnapshot.docs[0].ref.update(memberData);
+          console.log('✅ [API/Newsletter] Firebase record updated');
+        }
+      }
+    } catch (firebaseError: any) {
+      console.warn('⚠️ [API/Newsletter] Firebase sync failed:', firebaseError.message || firebaseError);
+    }
+
+    // 5. Send Welcome Email (Non-critical)
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+      const html = await getFreeWelcomeEmailTemplate(firstName || 'there', siteUrl);
       await sendEmail({
         to: email,
         subject: 'Welcome to Yorkshire Businesswoman',
         html
       });
-      console.log('✅ Welcome email sent to:', email);
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Don't fail the whole request if only the welcome email fails
+      console.log('✅ [API/Newsletter] Welcome email sent');
+    } catch (emailError: any) {
+      console.warn('⚠️ [API/Newsletter] Welcome email failed:', emailError.message || emailError);
     }
 
-    return NextResponse.json({ success: true, beehiiv: beehiivResult, ghost: ghostResult });
-  } catch (error: any) {
-    console.error('Newsletter signup error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to subscribe' }, { status: 500 });
+    // Final Success Response
+    const responseData = { 
+      success: true, 
+      message: beehiivResult.alreadyExists 
+        ? "You're already subscribed to our newsletter! We've updated your preferences." 
+        : 'Successfully subscribed',
+      details: {
+        beehiiv: beehiivResult.success,
+        ghost: ghostResult
+      }
+    };
+
+    console.log('🏁 [API/Newsletter] Request completed successfully');
+    
+    return new Response(JSON.stringify(responseData), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (fatalError: any) {
+    console.error('❌ [API/Newsletter] FATAL ERROR:', fatalError.message || fatalError);
+    
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: fatalError.message || 'An internal error occurred. Please try again later.',
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
