@@ -71,27 +71,26 @@ async function getFeaturedMembers() {
 export const revalidate = 0;
 
 export default async function MagazinePage() {
-  let heroFeatured = null;
-  let recentPosts = [];
-  let latestEvents = [];
-  let fashionPosts = [];
-  let healthPosts = [];
-  let tags = [];
-  let featuredMember = null;
+  let featuredPosts: any[] = [];
+  let recentPosts: any[] = [];
+  let latestEvents: any[] = [];
+  let fashionPosts: any[] = [];
+  let healthPosts: any[] = [];
+  let tags: any[] = [];
+  let featuredMember: any = null;
   let errorOccurred = false;
 
   try {
-    // 1. Fetch the single most recent featured post
-    const featuredPosts = await getPosts({
-      limit: 1,
+    // 1. Fetch the latest featured posts for the carousel
+    featuredPosts = await getPosts({
+      limit: 5,
       filter: "featured:true",
       order: "published_at DESC"
     });
-    heroFeatured = featuredPosts.length > 0 ? featuredPosts[0] : null;
 
-    // 2. Fetch the latest posts chronologically (fetch extra in case we need to filter out the featured one)
+    // 2. Fetch the latest posts chronologically for the grid
     recentPosts = await getPosts({ 
-      limit: 13, 
+      limit: 12, 
       order: "published_at DESC" 
     });
 
@@ -135,30 +134,23 @@ export default async function MagazinePage() {
     );
   }
 
-  // Combine them: Hero featured post first, then chronological
-  let posts = [];
-  if (Array.isArray(recentPosts)) {
-    const validRecentPosts = recentPosts.filter((p: any) => p && typeof p === 'object' && p.id);
-    if (heroFeatured && heroFeatured.id) {
-      posts = [heroFeatured, ...validRecentPosts.filter((p: any) => p.id !== heroFeatured.id)].slice(0, 12);
-    } else {
-      posts = validRecentPosts.slice(0, 12);
-    }
-  }
+  // Filter out carousel posts from the main grid to avoid duplicates
+  const featuredIds = (featuredPosts || []).map((p: any) => p.id);
+  const gridPosts = (recentPosts || []).filter((p: any) => !featuredIds.includes(p.id));
 
   return (
     <div className="bg-background">
       <div className="flex-1">
-        <HeroSection posts={posts} />
-        <ArticleGrid posts={posts.slice(3)} />
+        <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
+        <ArticleGrid posts={gridPosts} />
         <LatestEvents events={latestEvents} />
         <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
         <FeaturedInterview member={featuredMember} />
-        <TestimonialsSection />
         <CategorySection title="Health & Wellbeing" posts={healthPosts} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
         <NewsletterSection />
+        <TestimonialsSection />
       </div>
     </div>
   );

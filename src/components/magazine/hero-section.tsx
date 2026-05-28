@@ -9,7 +9,7 @@ import { motion } from "framer-motion"
 import useEmblaCarousel from "embla-carousel-react"
 import Autoplay from "embla-carousel-autoplay"
 
-export function HeroSection({ posts }: { posts: any[] }) {
+export function HeroSection({ posts, recentPosts }: { posts: any[], recentPosts?: any[] }) {
   const [mounted, setMounted] = React.useState(false)
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, duration: 40 },
@@ -42,10 +42,10 @@ export function HeroSection({ posts }: { posts: any[] }) {
     return <div className="w-full h-[85vh] bg-zinc-900 animate-pulse" />
   }
 
-  // Use first 5 posts for carousel slides
+  // Use the provided featured posts for carousel slides
   const carouselPosts = posts.slice(0, 5)
-  // Use first 3 posts for the overlaid articles menu
-  const latestArticles = posts.slice(0, 3)
+  // Use the provided recent posts for the overlaid menu, fallback to carousel posts if not provided
+  const latestArticles = recentPosts || posts.slice(0, 3)
 
   return (
     <section className="relative w-full h-[85vh] min-h-[600px] max-h-[900px] overflow-hidden bg-primary">
