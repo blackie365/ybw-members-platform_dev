@@ -2,9 +2,11 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
+import { checkAdmin } from "@/lib/server/auth-utils";
 
 export async function getFirestoreOffersAction() {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     const snapshot = await adminDb.collection('offer_requests')
@@ -29,6 +31,7 @@ export async function getFirestoreOffersAction() {
 
 export async function updateOfferStatusAction(offerId: string, status: 'active' | 'pending' | 'expired') {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('offer_requests').doc(offerId).update({
@@ -57,6 +60,7 @@ export async function deactivateOfferAction(offerId: string) {
 
 export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly: boolean) {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('offer_requests').doc(offerId).update({
@@ -77,6 +81,7 @@ export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly
 
 export async function deleteOfferAction(offerId: string) {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('offer_requests').doc(offerId).delete();

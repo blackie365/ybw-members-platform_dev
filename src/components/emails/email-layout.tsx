@@ -83,7 +83,7 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                           lineHeight: 1.6,
                         }}
                       >
-                        Yorkshire Businesswoman Ltd<br />
+                        Ghost Publishing Ltd<br />
                         10 Shetland Drive, Congleton, England, CW12 4FN
                       </p>
                       <p

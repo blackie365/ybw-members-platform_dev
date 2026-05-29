@@ -53,8 +53,8 @@ export function Footer() {
             <div className="mt-8 space-y-3 text-sm text-primary-foreground/60">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-accent" />
-                <a href="mailto:hello@yorkshirebusinesswoman.co.uk" className="hover:text-accent transition-colors">
-                  hello@yorkshirebusinesswoman.co.uk
+                <a href="mailto:editor@yorkshirebusinesswoman.co.uk" className="hover:text-accent transition-colors">
+                  editor@yorkshirebusinesswoman.co.uk
                 </a>
               </div>
               <div className="flex items-start gap-3">

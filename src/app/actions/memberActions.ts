@@ -3,9 +3,11 @@
 import { adminDb } from "@/lib/firebase-admin";
 import { getGhostMembers } from "@/lib/ghost-admin";
 import { revalidatePath } from "next/cache";
+import { checkAdmin } from "@/lib/server/auth-utils";
 
 export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     const memberRef = adminDb.collection('newMemberCollection').doc(memberId);
@@ -39,6 +41,7 @@ export async function toggleFeaturedStatus(memberId: string, status: boolean) {
 
 export async function getAnalyticsData() {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     const snapshot = await adminDb.collection('newMemberCollection').get();

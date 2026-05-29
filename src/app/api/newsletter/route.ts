@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';

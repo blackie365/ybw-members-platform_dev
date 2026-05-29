@@ -1,6 +1,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase-admin';
+import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 
 export async function getProfile(uid: string) {
   try {
@@ -8,7 +9,11 @@ export async function getProfile(uid: string) {
       throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
     }
     if (!uid) throw new Error('User ID is required');
+
+    // Security Check: Only the user or an admin can fetch the detailed profile
+    await validateUserOrAdmin(uid);
     
+    if (!adminDb) throw new Error('Database not initialized');
     const docRef = adminDb.collection('newMemberCollection').doc(uid);
     const docSnap = await docRef.get();
     
@@ -39,7 +44,11 @@ export async function updateProfile(uid: string, email: string, profileData: any
       throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
     }
     if (!uid) throw new Error('User ID is required');
+
+    // Security Check: Ensure only the owner or an admin can update this profile
+    await validateUserOrAdmin(uid);
     
+    if (!adminDb) throw new Error('Database not initialized');
     const docRef = adminDb.collection('newMemberCollection').doc(uid);
     
     await docRef.set({

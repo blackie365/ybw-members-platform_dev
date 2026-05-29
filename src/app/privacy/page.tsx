@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
           <section className="mb-12">
             <h2>1. Who are we?</h2>
             <p>
-              Yorkshire Businesswoman is a professional network and magazine platform dedicated to empowering businesswomen across the region. Any personal information provided to or gathered by Yorkshire Businesswoman is controlled by Yorkshire Businesswoman Ltd.
+              Yorkshire BusinessWoman is a professional network and magazine platform dedicated to empowering businesswomen across the region. The brand is owned and operated by Ghost Publishing Ltd. Any personal information provided to or gathered by Yorkshire BusinessWoman is controlled by Ghost Publishing Ltd.
             </p>
           </section>
 

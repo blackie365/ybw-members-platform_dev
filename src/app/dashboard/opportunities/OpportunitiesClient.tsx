@@ -24,7 +24,7 @@ export default function OpportunitiesClient({ initialOpportunities }: { initialO
           </p>
         </div>
         <a 
-          href="mailto:hello@yorkshirebusinesswoman.co.uk?subject=Post%20an%20Opportunity"
+          href="mailto:editor@yorkshirebusinesswoman.co.uk?subject=Post%20an%20Opportunity"
           className="inline-flex items-center justify-center rounded-none bg-primary px-4 py-2 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
         >
           Post an Opportunity

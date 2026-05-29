@@ -22,24 +22,24 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
-  title: 'Yorkshire Businesswoman | Business Magazine for Women',
-  description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
+  title: 'Yorkshire BusinessWoman | Business Magazine for Women',
+  description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
   generator: 'v0.app',
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Yorkshire Businesswoman | Business Magazine for Women',
-    description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
+    title: 'Yorkshire BusinessWoman | Business Magazine for Women',
+    description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
     url: '/',
-    siteName: 'Yorkshire Businesswoman',
+    siteName: 'Yorkshire BusinessWoman',
     locale: 'en_GB',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Yorkshire Businesswoman | Business Magazine for Women',
-    description: 'The premier digital magazine for ambitious businesswomen. Leadership insights, industry analysis, and inspiring stories.',
+    title: 'Yorkshire BusinessWoman | Business Magazine for Women',
+    description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
   },
   icons: {
     icon: [

@@ -1,12 +1,14 @@
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+  
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard/', '/api/'], // Protect private routes
+      disallow: ['/dashboard/', '/api/', '/admin/'], // Protect private routes
     },
-    sitemap: 'https://yorkshirebusinesswoman.co.uk/sitemap.xml',
+    sitemap: `${siteUrl.replace(/\/$/, '')}/sitemap.xml`,
   };
 }

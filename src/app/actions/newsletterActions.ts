@@ -5,9 +5,11 @@ import { adminDb } from "@/lib/firebase-admin";
 import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
+import { checkAdmin } from "@/lib/server/auth-utils";
 
 export async function getGhostStatsAction() {
   try {
+    await checkAdmin();
     const members = await getGhostMembers({ limit: 'all' });
     
     if (!members || !Array.isArray(members)) {
@@ -29,6 +31,7 @@ export async function getGhostStatsAction() {
 
 export async function previewNewsletterAction(editorNote?: string) {
   try {
+    await checkAdmin();
     const posts = await getPosts({ 
       limit: 5, 
       filter: 'featured:true',
@@ -44,6 +47,7 @@ export async function previewNewsletterAction(editorNote?: string) {
 
 export async function sendBulkNewsletterAction(editorNote?: string, subject?: string) {
   try {
+    await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     const posts = await getPosts({ 
@@ -89,6 +93,7 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
 
 export async function sendTestNewsletterAction(email: string, editorNote?: string, subject?: string) {
   try {
+    await checkAdmin();
     if (!email || !email.includes('@')) {
       throw new Error("Invalid email address");
     }

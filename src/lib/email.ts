@@ -24,7 +24,7 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
 
   const resend = new Resend(RESEND_API_KEY);
 
-  const MAIL_FROM = from || process.env.EMAIL_FROM || 'Yorkshire Businesswoman <hello@yorkshirebusinesswoman.co.uk>';
+  const MAIL_FROM = from || process.env.EMAIL_FROM || 'Yorkshire Businesswoman <editor@yorkshirebusinesswoman.co.uk>';
 
   try {
     const { data, error } = await resend.emails.send({

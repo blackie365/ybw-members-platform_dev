@@ -103,8 +103,8 @@ export function WelcomeEmail({ firstName, membershipTier }: WelcomeEmailProps) {
       </EmailText>
 
       <EmailText>
-        Warm regards,<br />
-        <strong style={{ color: "#1c1917" }}>The Yorkshire Businesswoman Team</strong>
+        Best regards,<br />
+        <strong style={{ color: "#1c1917" }}>The Yorkshire BusinessWoman Team</strong>
       </EmailText>
     </EmailLayout>
   )
