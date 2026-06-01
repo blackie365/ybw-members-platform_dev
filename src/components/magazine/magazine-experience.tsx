@@ -11,7 +11,7 @@ export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
   const issue = latestIssue || {
     id: "issue-apr-may-2026",
     title: "The Winner of YBW Awards 2026: Lesley Beach",
-    coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
+    coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
     publishDate: "2026-04-01",
     premiumUrl: "/magazine/issue/issue-apr-may-2026"
   };

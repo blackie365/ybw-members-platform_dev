@@ -356,7 +356,7 @@ export const siteContent = {
       {
         id: "issue-apr-may-2026",
         title: "April / May 2026",
-        coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
+        coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
         publishDate: "2026-04-01",
         description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
@@ -460,7 +460,7 @@ export const siteContent = {
         subheadline: "Celebrating excellence, innovation, and leadership among businesswomen across Yorkshire.",
         date: "April / May 2026",
         issue: "No. 43",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media"
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg"
       }
     },
     // Page 2: Editor's Note
@@ -501,7 +501,7 @@ export const siteContent = {
       content: {
         title: "The Big Interview",
         name: "Dame Linda Pollard & Vicky Cheetham",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Flinda-vicky.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/linda-vicky.jpg",
         intro: "Leeds Heritage Theatres (LHT) is delighted to announce two new appointments, Dame Dr Linda Pollard DBE DL Hon LLD as its next chair of the board of trustees, and Vicky Cheetham as chief executive."
       }
     },
@@ -512,7 +512,7 @@ export const siteContent = {
       content: {
         quote: "I am absolutely delighted to be joining Leeds Heritage Theatres at such an exciting time in its journey.",
         text: "Dame Linda brings exceptional experience in leadership, governance, and public service. Vicky Cheetham, who is married with three daughters, brings a wealth of experience from the Barbican, Southbank Centre, and Tate.",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-14b.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-14b.jpg",
         stats: [
           { label: "Turnover", value: "£1.9B" },
           { label: "Staff", value: "22k" },
@@ -528,7 +528,7 @@ export const siteContent = {
         title: "It's not you, it's the clothes...",
         author: "Rebecca Rhoades",
         category: "Bespoke Fashion",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-08.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-08.jpg",
         text: "There’s something about wearing something that’s been made just for you that just hits differently. Not in a loud, over-the-top way, but in a quiet confidence way. You stand differently, you feel more like yourself.",
         tips: [
           "Invest in one piece that fits properly.",
@@ -543,7 +543,7 @@ export const siteContent = {
       type: 'lifestyle',
       content: {
         title: "Heritage Meets Modern Elegance",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fambers.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/ambers.jpg",
         text: "Set within the stately surroundings of the historic Cedar Court Hotel in Harrogate, Ambers Restaurant is a polished addition to Harrogate’s dining scene...",
         highlights: ["Locally sourced Yorkshire produce", "Heritage meets modern elegance", "Lady Amber Fitzwilliam inspiration"]
       }
@@ -555,7 +555,7 @@ export const siteContent = {
       content: {
         name: "Vicky Clapham",
         role: "Managing Director, Bevic Marketing",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fvicky-clapham.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/vicky-clapham.jpg",
         bio: "Vicky studied English Literature and Language at Newcastle University. Today, as the founder of Bevic Marketing and PR Services, she helps businesses find and share their stories.",
         message: "Never underestimate the power of your story. It can inspire and connect."
       }
@@ -567,7 +567,7 @@ export const siteContent = {
       content: {
         brand: "Rebecca Rhoades",
         headline: "Bespoke Fashion for the Modern Woman",
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-12b.jpg?alt=media",
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-12b.jpg",
         offer: "Exclusive Member Styling Session"
       }
     },
@@ -580,7 +580,7 @@ export const siteContent = {
         cta: "Join the Community",
         nextIssue: "June / July 2026",
         socials: ["Instagram", "LinkedIn", "X"],
-        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-15b.jpg?alt=media"
+        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-15b.jpg"
       }
     }
   ]

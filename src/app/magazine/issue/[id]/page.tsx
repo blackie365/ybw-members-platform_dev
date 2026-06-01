@@ -389,9 +389,6 @@ const PageEditorial = ({ data }: any) => (
         <blockquote className="border-l-4 border-accent/20 pl-8 py-4 italic text-zinc-500 font-serif text-2xl leading-relaxed">
           &quot;{data.quote}&quot;
         </blockquote>
-        <div className="pt-8">
-          <Image src="/signature.png" alt="Signature" width={150} height={60} className="opacity-80" />
-        </div>
       </div>
     </div>
   </div>
