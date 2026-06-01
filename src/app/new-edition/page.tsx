@@ -14,7 +14,7 @@ const archiveIssues = [
     publishDate: "2026-04-01",
     description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
-    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026",
+    premiumUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
     downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_april-may_2026.pdf",
     isLatest: true,
     tags: ["Awards 2026", "Leadership", "Bespoke Fashion"]
@@ -113,8 +113,8 @@ export default async function NewEditionPage() {
     coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
     publishDate: pub.publishDate || pub.createdAt,
     description: pub.description || "Digital Edition",
-    pdfUrl: pub.readerShareUrl || `https://issuu.com/${pub.ownerUsername}/docs/${pub.slug}`,
-    premiumUrl: `https://app.yorkshirebusinesswoman.co.uk/magazine/issue/${pub.slug}`,
+    pdfUrl: `https://e.issuu.com/embed.html?d=${pub.slug}&u=blackie365`,
+    premiumUrl: `https://e.issuu.com/embed.html?d=${pub.slug}&u=blackie365`,
     isLatest: false,
     tags: pub.tags || ["Digital Edition"]
   }));
@@ -199,14 +199,14 @@ export default async function NewEditionPage() {
                   
                   <div className="space-y-4">
                     <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
-                      <Link href="https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026">
-                        <Star className="mr-2 h-5 w-5 fill-current" />
-                        Launch Premium Reader
+                      <Link href="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365" target="_blank">
+                        <BookOpen className="mr-2 h-5 w-5" />
+                        Launch Digital Edition
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                       </Link>
                     </Button>
                     <p className="text-center text-xs text-muted-foreground">
-                      Exclusive for Members | Interactive 10-Page Experience
+                      Full Digital Archive | Issuu Interactive Reader
                     </p>
                   </div>
                 </div>

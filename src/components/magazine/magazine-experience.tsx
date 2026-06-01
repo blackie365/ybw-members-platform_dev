@@ -32,15 +32,15 @@ export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
                 New Digital Experience
               </Badge>
               <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium mb-8 leading-tight">
-                The <span className="italic text-accent">Premium</span> Digital Reader
+                The <span className="italic text-accent">Digital</span> Edition
               </h2>
               <p className="text-primary-foreground/70 text-lg mb-10 leading-relaxed max-w-xl">
-                Experience Yorkshire BusinessWoman like never before. Our new interactive digital reader brings the physical magazine experience to your screen with smooth page-turning and high-resolution spreads.
+                Experience Yorkshire BusinessWoman online. Our interactive digital reader brings the physical magazine experience to your screen with smooth page-turning and high-resolution spreads.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-14 px-8" asChild>
-                  <Link href={issue.premiumUrl}>
-                    Launch Premium Reader
+                  <Link href="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365" target="_blank">
+                    Launch Digital Edition
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
