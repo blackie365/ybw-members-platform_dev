@@ -1,6 +1,28 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
+
+const archiveIssues = [
+  {
+    id: "issue-apr-may-2026",
+    title: "April / May 2026",
+    coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/apr-may-2026.jpg",
+    publishDate: "2026-04-01",
+    description: "Featuring our Spring leadership summit highlights and exclusive interviews with Yorkshire's top female entrepreneurs.",
+    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
+    tags: ["Leadership", "Innovation", "Spring Edition"]
+  },
+  {
+    id: "issue-feb-mar-2026",
+    title: "February / March 2026",
+    coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/feb-mar-2026.jpg",
+    publishDate: "2026-02-01",
+    description: "The Wellness Issue: Balancing ambition with self-care, and the future of work-life integration.",
+    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb-mar_2026&u=blackie365",
+    tags: ["Wellness", "Future of Work"]
+  }
+];
 
 export const metadata: Metadata = {
   title: 'Latest Edition | Yorkshire Businesswoman',
@@ -106,18 +128,73 @@ export default function NewEditionPage() {
         </div>
       </section>
 
-      {/* Archive Teaser */}
-      <section className="py-16">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Coming Soon
-          </p>
-          <h3 className="mt-2 font-serif text-xl font-medium text-foreground">
-            Edition Archive
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Access past editions and revisit your favourite articles and interviews.
-          </p>
+      {/* Edition Archive Section */}
+      <section className="py-20 bg-zinc-50/50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <h2 className="font-serif text-3xl font-medium text-foreground sm:text-4xl">
+              Edition Archive
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Access past editions and revisit your favourite articles and interviews.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {archiveIssues.map((issue) => (
+              <div key={issue.id} className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1">
+                {/* Cover Image */}
+                <div className="relative aspect-[3/4] overflow-hidden">
+                  <Image
+                    src={issue.coverImage}
+                    alt={issue.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6 text-center">
+                    <Link 
+                      href={issue.pdfUrl}
+                      target="_blank"
+                      className="rounded-full bg-white px-6 py-2 text-sm font-medium text-black transition-transform duration-300 hover:bg-accent hover:text-white"
+                    >
+                      Read Edition
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 flex flex-col flex-1">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                    <Calendar className="h-3 w-3 text-accent" />
+                    <span>{new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
+                  </div>
+                  <h3 className="font-serif text-xl font-medium mb-3 group-hover:text-accent transition-colors">
+                    {issue.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+                    {issue.description}
+                  </p>
+                  <div className="mt-auto flex flex-wrap gap-2">
+                    {issue.tags.map(tag => (
+                      <span key={tag} className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-16 text-center">
+            <Link 
+              href="https://app.yorkshirebusinesswoman.co.uk/magazine" 
+              className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"
+            >
+              Browse Full Digital Library in the App
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
     </main>
