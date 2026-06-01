@@ -13,8 +13,8 @@ const archiveIssues = [
     coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/apr-may-2026.jpg",
     publishDate: "2026-04-01",
     description: "Featuring our Spring leadership summit highlights and exclusive interviews with Yorkshire's top female entrepreneurs.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
-    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026",
+    pdfUrl: "https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8",
+    premiumUrl: "https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8",
     isLatest: true,
     tags: ["Leadership", "Innovation", "Spring Edition"]
   },
@@ -116,7 +116,7 @@ export default async function NewEditionPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6">
                   <Badge className="mb-2 bg-accent text-white border-none">Latest Issue</Badge>
-                  <h3 className="text-xl font-serif text-white">The Art of Resilient Leadership</h3>
+                  <h3 className="text-xl font-serif text-white">{latestIssue.title}</h3>
                 </div>
               </div>
 
@@ -125,19 +125,19 @@ export default async function NewEditionPage() {
                 <div className="max-w-md">
                   <h2 className="text-3xl font-serif font-medium mb-4">Choose Your Experience</h2>
                   <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                    Access our latest edition through our high-end digital reader for the most immersive experience, or view the standard PDF version below.
+                    Access our latest edition through our high-end Adobe digital reader for the most immersive experience, or view the standard PDF version below.
                   </p>
                   
                   <div className="space-y-4">
                     <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
-                      <Link href="https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026">
+                      <Link href="https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8">
                         <Star className="mr-2 h-5 w-5 fill-current" />
                         Launch Premium Reader
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                       </Link>
                     </Button>
                     <p className="text-center text-xs text-muted-foreground">
-                      Exclusive for Members | Interactive 10-Page Experience
+                      Exclusive for Members | Interactive Digital Experience
                     </p>
                   </div>
                 </div>
@@ -145,25 +145,23 @@ export default async function NewEditionPage() {
             </div>
           </div>
 
-          {/* Standard Embed Section (Hidden or Collapsed by default) */}
+          {/* Standard Embed Section */}
           <div className="mt-20">
             <div className="flex items-center gap-4 mb-8">
               <div className="h-px flex-1 bg-border" />
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard PDF Edition</h3>
+              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard Edition</h3>
               <div className="h-px flex-1 bg-border" />
             </div>
             
-            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg opacity-70 hover:opacity-100 transition-opacity">
+            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
               <div 
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
                 <iframe 
                   title="Yorkshire Businesswoman April-May 2026" 
-                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                  sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
                   allowFullScreen={true} 
                   style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                  src="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"
+                  src="https://indd.adobe.com/embed/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8?startpage=1&allowFullscreen=true"
                 />
               </div>
             </div>
@@ -265,10 +263,10 @@ export default async function NewEditionPage() {
                     {issue.description}
                   </p>
                   <div className="mt-auto flex flex-wrap gap-2">
-                    {issue.tags.map(tag => (
-                      <span key={tag} className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {issue.tags.map((tag: string) => (
+                      <Badge key={tag} variant="secondary" className="text-[10px] font-normal uppercase tracking-wider">
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
