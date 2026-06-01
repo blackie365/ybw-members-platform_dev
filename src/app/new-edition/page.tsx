@@ -10,14 +10,14 @@ const archiveIssues = [
   {
     id: "issue-apr-may-2026",
     title: "April / May 2026",
-    coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/apr-may-2026.jpg",
+    coverImage: "/images/magazine/covers/apr-may-2026.jpg",
     publishDate: "2026-04-01",
-    description: "Featuring our Spring leadership summit highlights and exclusive interviews with Yorkshire's top female entrepreneurs.",
+    description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
     premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026",
     downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_april-may_2026.pdf",
     isLatest: true,
-    tags: ["Leadership", "Innovation", "Spring Edition"]
+    tags: ["Awards 2026", "Leadership", "Bespoke Fashion"]
   },
   {
     id: "ybw_feb_2026",
