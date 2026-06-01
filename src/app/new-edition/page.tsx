@@ -65,11 +65,11 @@ export default async function NewEditionPage() {
             <div className="flex flex-col lg:flex-row">
               {/* Cover Image */}
               <div className="lg:w-1/3 relative aspect-[3/4]">
-                <Image 
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
                   src={latestIssue.coverImage}
                   alt={`${latestIssue.title} Cover`}
-                  fill
-                  className="object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6">
@@ -183,11 +183,11 @@ export default async function NewEditionPage() {
                   href={issue.id === 'issue-apr-may-2026' ? `/magazine/issue/${issue.id}` : issue.pdfUrl}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={issue.coverImage}
                     alt={issue.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
                     <div className="rounded-full bg-white/10 backdrop-blur-md p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/20">
