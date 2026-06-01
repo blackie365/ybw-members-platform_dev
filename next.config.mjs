@@ -20,6 +20,7 @@ const nextConfig = {
       }
     ],
   },
+  transpilePackages: ['@issuu/issuu-api-sdk'],
 }
 
 export default nextConfig
