@@ -7,6 +7,7 @@ import { HomeEconomicInsights } from "@/components/magazine/home-economic-insigh
 import { LatestEvents } from "@/components/magazine/latest-events"
 import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
+import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
@@ -151,6 +152,7 @@ export default async function MagazinePage() {
         <CategorySection title="Health & Wellbeing" posts={healthPosts} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
+        <MagazineExperience />
         <NewsletterSection />
         <TestimonialsSection />
       </div>

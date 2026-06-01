@@ -13,6 +13,8 @@ const archiveIssues = [
     publishDate: "2026-04-01",
     description: "Featuring our Spring leadership summit highlights and exclusive interviews with Yorkshire's top female entrepreneurs.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
+    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026",
+    isLatest: true,
     tags: ["Leadership", "Innovation", "Spring Edition"]
   },
   {
@@ -202,15 +204,28 @@ export default function NewEditionPage() {
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-6 text-center">
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-6 text-center gap-3">
+                    {issue.premiumUrl && (
+                      <Link 
+                        href={issue.premiumUrl}
+                        className="w-full rounded-full bg-accent px-6 py-2 text-sm font-medium text-white transition-all hover:bg-accent/90"
+                      >
+                        Premium Reader
+                      </Link>
+                    )}
                     <Link 
                       href={issue.pdfUrl}
                       target="_blank"
-                      className="rounded-full bg-white px-6 py-2 text-sm font-medium text-black transition-transform duration-300 hover:bg-accent hover:text-white"
+                      className="w-full rounded-full bg-white px-6 py-2 text-sm font-medium text-black transition-all hover:bg-zinc-100"
                     >
-                      Read Edition
+                      Standard Edition
                     </Link>
                   </div>
+                  {issue.isLatest && (
+                    <div className="absolute top-4 right-4">
+                      <Badge className="bg-accent text-white border-none shadow-lg">LATEST</Badge>
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}
