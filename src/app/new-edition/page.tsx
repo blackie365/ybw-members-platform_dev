@@ -13,8 +13,9 @@ const archiveIssues = [
     coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/apr-may-2026.jpg",
     publishDate: "2026-04-01",
     description: "Featuring our Spring leadership summit highlights and exclusive interviews with Yorkshire's top female entrepreneurs.",
-    pdfUrl: "https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8",
-    premiumUrl: "https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8",
+    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
+    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026",
+    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_april-may_2026.pdf",
     isLatest: true,
     tags: ["Leadership", "Innovation", "Spring Edition"]
   },
@@ -25,6 +26,7 @@ const archiveIssues = [
     publishDate: "2026-02-01",
     description: "The Wellness Issue: Balancing ambition with self-care, and the future of work-life integration.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb-mar_2026&u=blackie365",
+    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb-mar_2026.pdf",
     tags: ["Wellness", "Future of Work"]
   }
 ];
@@ -125,19 +127,19 @@ export default async function NewEditionPage() {
                 <div className="max-w-md">
                   <h2 className="text-3xl font-serif font-medium mb-4">Choose Your Experience</h2>
                   <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                    Access our latest edition through our high-end Adobe digital reader for the most immersive experience, or view the standard PDF version below.
+                    Access our latest edition through our high-end digital reader for the most immersive experience, or view the standard PDF version below.
                   </p>
                   
                   <div className="space-y-4">
                     <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
-                      <Link href="https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8">
+                      <Link href="https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026">
                         <Star className="mr-2 h-5 w-5 fill-current" />
                         Launch Premium Reader
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                       </Link>
                     </Button>
                     <p className="text-center text-xs text-muted-foreground">
-                      Exclusive for Members | Interactive Digital Experience
+                      Exclusive for Members | Interactive 10-Page Experience
                     </p>
                   </div>
                 </div>
@@ -149,19 +151,21 @@ export default async function NewEditionPage() {
           <div className="mt-20">
             <div className="flex items-center gap-4 mb-8">
               <div className="h-px flex-1 bg-border" />
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard Edition</h3>
+              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard PDF Edition</h3>
               <div className="h-px flex-1 bg-border" />
             </div>
             
-            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg opacity-70 hover:opacity-100 transition-opacity">
               <div 
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
                 <iframe 
                   title="Yorkshire Businesswoman April-May 2026" 
+                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                  sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
                   allowFullScreen={true} 
                   style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                  src="https://indd.adobe.com/embed/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8?startpage=1&allowFullscreen=true"
+                  src="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"
                 />
               </div>
             </div>
@@ -242,6 +246,14 @@ export default async function NewEditionPage() {
                     >
                       Standard Edition
                     </Link>
+                    {issue.downloadUrl && (
+                      <Link 
+                        href={issue.downloadUrl}
+                        className="w-full rounded-full bg-zinc-800/80 px-6 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-zinc-800"
+                      >
+                        Download PDF
+                      </Link>
+                    )}
                   </div>
                   {issue.isLatest && (
                     <div className="absolute top-4 right-4">

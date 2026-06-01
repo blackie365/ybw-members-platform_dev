@@ -13,7 +13,7 @@ export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
     title: "The Art of Resilient Leadership",
     coverImage: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop",
     publishDate: "2026-04-01",
-    premiumUrl: "https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8"
+    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026"
   };
 
   const displayDate = new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });

@@ -128,7 +128,7 @@ export default async function MagazinePage() {
         title: pub.title,
         coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
         publishDate: pub.publishDate || pub.createdAt,
-        premiumUrl: `https://indd.adobe.com/view/dc3e2a47-2a2b-4bd8-b3ef-d76d51bb89c8`
+        premiumUrl: `https://app.yorkshirebusinesswoman.co.uk/magazine/issue/${pub.slug}`
       };
     }
   } catch (error) {
