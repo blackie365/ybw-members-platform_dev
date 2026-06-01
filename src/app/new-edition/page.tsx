@@ -4,98 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-
-const archiveIssues = [
-  {
-    id: "issue-apr-may-2026",
-    title: "April / May 2026",
-    coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
-    publishDate: "2026-04-01",
-    description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
-    premiumUrl: "/magazine/issue/issue-apr-may-2026",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_april-may_2026.pdf",
-    isLatest: true,
-    tags: ["Awards 2026", "Leadership", "Bespoke Fashion"]
-  },
-  {
-    id: "ybw_feb_2026",
-    title: "February / March 2026",
-    coverImage: "https://images.unsplash.com/photo-1554941068-a252680d25d9?q=80&w=2670&auto=format&fit=crop",
-    publishDate: "2026-02-01",
-    description: "The Wellness Issue: Balancing ambition with self-care, and the future of work-life integration.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2026&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb_2026.pdf",
-    isLatest: false,
-    tags: ["Wellness", "Future of Work"]
-  },
-  {
-    id: "ybw_dec_2025",
-    title: "December 2025 / January 2026",
-    coverImage: "https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=2670&auto=format&fit=crop",
-    publishDate: "2025-12-01",
-    description: "The Christmas Edition: Celebrating a year of excellence and looking forward to 2026.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_dec_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_dec_2025.pdf",
-    isLatest: false,
-    tags: ["Christmas", "Review"]
-  },
-  {
-    id: "ybw_oct_2025",
-    title: "October / November 2025",
-    coverImage: "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?q=80&w=2669&auto=format&fit=crop",
-    publishDate: "2025-10-01",
-    description: "The Innovation Issue: How Yorkshire businesswomen are leading the digital transformation.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_oct_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_oct_2025.pdf",
-    isLatest: false,
-    tags: ["Innovation", "Technology"]
-  },
-  {
-    id: "ybw_aug_2025",
-    title: "August / September 2025",
-    coverImage: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=2670&auto=format&fit=crop",
-    publishDate: "2025-08-01",
-    description: "The Summer Edition: Highlights from the Great Yorkshire Show and seasonal business trends.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_aug_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_aug_2025.pdf",
-    isLatest: false,
-    tags: ["Summer", "Great Yorkshire Show"]
-  },
-  {
-    id: "ybw_jun_2025",
-    title: "June / July 2025",
-    coverImage: "https://images.unsplash.com/photo-1556761175-b413da4baf72?q=80&w=2574&auto=format&fit=crop",
-    publishDate: "2025-06-01",
-    description: "The Growth Issue: Strategies for scaling your business in the second half of the year.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_jun_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_jun_2025.pdf",
-    isLatest: false,
-    tags: ["Growth", "Strategy"]
-  },
-  {
-    id: "ybw_apr_2025",
-    title: "April / May 2025",
-    coverImage: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop",
-    publishDate: "2025-04-01",
-    description: "Spring Awakening: New beginnings and fresh perspectives for Yorkshire's entrepreneurs.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_apr_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_apr_2025.pdf",
-    isLatest: false,
-    tags: ["Spring", "Entrepreneurship"]
-  },
-  {
-    id: "ybw_feb_2025",
-    title: "February / March 2025",
-    coverImage: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop",
-    publishDate: "2025-02-01",
-    description: "The Resilience Issue: Overcoming challenges and building robust business models.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2025&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb_2025.pdf",
-    isLatest: false,
-    tags: ["Resilience", "Leadership"]
-  }
-];
+import { siteContent } from '@/lib/site-content';
 
 export const metadata: Metadata = {
   title: 'Latest Edition | Yorkshire Businesswoman',
@@ -103,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
+  const archiveIssues = siteContent.magazine.issues;
   const mergedIssues = archiveIssues.slice(0, 8);
   const latestIssue = mergedIssues[0];
 
@@ -156,8 +66,8 @@ export default async function NewEditionPage() {
               {/* Cover Image */}
               <div className="lg:w-1/3 relative aspect-[3/4]">
                 <Image 
-                  src="https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media"
-                  alt="April / May 2026 Cover"
+                  src={latestIssue.coverImage}
+                  alt={`${latestIssue.title} Cover`}
                   fill
                   className="object-cover"
                 />
@@ -178,7 +88,7 @@ export default async function NewEditionPage() {
                   
                   <div className="space-y-4">
                     <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
-                      <Link href="/magazine/issue/issue-apr-may-2026">
+                      <Link href={`/magazine/issue/${latestIssue.id}`}>
                         <BookOpen className="mr-2 h-5 w-5" />
                         Launch Digital Edition
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -270,8 +180,8 @@ export default async function NewEditionPage() {
               <div key={issue.id} className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 {/* Cover Image - Entire image is now a link */}
                 <Link 
-                  href={issue.premiumUrl || issue.pdfUrl}
-                  className="relative w-full max-w-[200px] aspect-[3/4] overflow-hidden block mt-6"
+                  href={issue.id === 'issue-apr-may-2026' ? `/magazine/issue/${issue.id}` : issue.pdfUrl}
+                  className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
                   <Image
                     src={issue.coverImage}
@@ -315,7 +225,9 @@ export default async function NewEditionPage() {
                     
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link href={issue.pdfUrl} target="_blank">View</Link>
+                        <Link href={issue.id === 'issue-apr-may-2026' ? `/magazine/issue/${issue.id}` : issue.pdfUrl}>
+                          {issue.id === 'issue-apr-may-2026' ? 'Reader' : 'View'}
+                        </Link>
                       </Button>
                       {issue.downloadUrl && (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
@@ -330,13 +242,9 @@ export default async function NewEditionPage() {
           </div>
           
           <div className="mt-16 text-center">
-            <Link 
-              href="https://app.yorkshirebusinesswoman.co.uk/magazine" 
-              className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:underline"
-            >
-              Browse Full Digital Library in the App
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <p className="text-sm text-muted-foreground italic">
+              Our full digital library is available for members in the dashboard.
+            </p>
           </div>
         </div>
       </section>

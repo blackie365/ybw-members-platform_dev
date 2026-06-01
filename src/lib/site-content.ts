@@ -24,7 +24,7 @@ export const siteContent = {
       { name: 'Partnership', href: '/partnership' },
       { name: 'YBW Awards', href: '/awards' },
       { name: 'Benefits', href: '/benefits' },
-      { name: 'Magazine', href: '/magazine' },
+      { name: 'Magazine', href: '/new-edition' },
     ],
     auth: {
       signIn: "Sign In",
@@ -82,7 +82,7 @@ export const siteContent = {
           quote: "I still cannot say enough great things about this group and I’m so grateful that I am a part of such an outstanding community of incredible women!",
           author: "Zoe Hands",
           role: "Member, Yorkshire BusinessWoman",
-          avatar: "https://yorkshirebusinesswoman.co.uk/images/testimonials/zoe-hands.png",
+          avatar: "/images/testimonials/zoe-hands.png",
         },
         {
           quote: "I joined whilst we were in Lock Down and it was the community and support network that inspired me to join.",
@@ -356,11 +356,11 @@ export const siteContent = {
       {
         id: "issue-apr-may-2026",
         title: "April / May 2026",
-        coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
+        coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
         publishDate: "2026-04-01",
         description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_april-may_2026.pdf",
+        downloadUrl: "/downloads/ybw_april-may_2026.pdf",
         isLatest: true,
         tags: ["Awards 2026", "Leadership", "Bespoke Fashion"]
       },
@@ -371,7 +371,7 @@ export const siteContent = {
         publishDate: "2026-02-01",
         description: "The Wellness Issue: Balancing ambition with self-care, and the future of work-life integration.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2026&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb_2026.pdf",
+        downloadUrl: "/downloads/ybw_feb_2026.pdf",
         isLatest: false,
         tags: ["Wellness", "Future of Work"]
       },
@@ -382,7 +382,7 @@ export const siteContent = {
         publishDate: "2025-12-01",
         description: "The Christmas Edition: Celebrating a year of excellence and looking forward to 2026.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_dec_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_dec_2025.pdf",
+        downloadUrl: "/downloads/ybw_dec_2025.pdf",
         isLatest: false,
         tags: ["Christmas", "Review"]
       },
@@ -393,7 +393,7 @@ export const siteContent = {
         publishDate: "2025-10-01",
         description: "The Innovation Issue: How Yorkshire businesswomen are leading the digital transformation.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_oct_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_oct_2025.pdf",
+        downloadUrl: "/downloads/ybw_oct_2025.pdf",
         isLatest: false,
         tags: ["Innovation", "Technology"]
       },
@@ -404,7 +404,7 @@ export const siteContent = {
         publishDate: "2025-08-01",
         description: "The Summer Edition: Highlights from the Great Yorkshire Show and seasonal business trends.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_aug_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_aug_2025.pdf",
+        downloadUrl: "/downloads/ybw_aug_2025.pdf",
         isLatest: false,
         tags: ["Summer", "Great Yorkshire Show"]
       },
@@ -415,7 +415,7 @@ export const siteContent = {
         publishDate: "2025-06-01",
         description: "The Growth Issue: Strategies for scaling your business in the second half of the year.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_jun_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_jun_2025.pdf",
+        downloadUrl: "/downloads/ybw_jun_2025.pdf",
         isLatest: false,
         tags: ["Growth", "Strategy"]
       },
@@ -426,7 +426,7 @@ export const siteContent = {
         publishDate: "2025-04-01",
         description: "Spring Awakening: New beginnings and fresh perspectives for Yorkshire's entrepreneurs.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_apr_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_apr_2025.pdf",
+        downloadUrl: "/downloads/ybw_apr_2025.pdf",
         isLatest: false,
         tags: ["Spring", "Entrepreneurship"]
       },
@@ -437,7 +437,7 @@ export const siteContent = {
         publishDate: "2025-02-01",
         description: "The Resilience Issue: Overcoming challenges and building robust business models.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2025&u=blackie365",
-        downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb_2025.pdf",
+        downloadUrl: "/downloads/ybw_feb_2025.pdf",
         isLatest: false,
         tags: ["Resilience", "Leadership"]
       }
@@ -460,7 +460,7 @@ export const siteContent = {
         subheadline: "Celebrating excellence, innovation, and leadership among businesswomen across Yorkshire.",
         date: "April / May 2026",
         issue: "No. 43",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg"
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media"
       }
     },
     // Page 2: Editor's Note
@@ -501,7 +501,7 @@ export const siteContent = {
       content: {
         title: "The Big Interview",
         name: "Dame Linda Pollard & Vicky Cheetham",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/linda-vicky.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Flinda-vicky.jpg?alt=media",
         intro: "Leeds Heritage Theatres (LHT) is delighted to announce two new appointments, Dame Dr Linda Pollard DBE DL Hon LLD as its next chair of the board of trustees, and Vicky Cheetham as chief executive."
       }
     },
@@ -512,7 +512,7 @@ export const siteContent = {
       content: {
         quote: "I am absolutely delighted to be joining Leeds Heritage Theatres at such an exciting time in its journey.",
         text: "Dame Linda brings exceptional experience in leadership, governance, and public service. Vicky Cheetham, who is married with three daughters, brings a wealth of experience from the Barbican, Southbank Centre, and Tate.",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-14b.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-14b.jpg?alt=media",
         stats: [
           { label: "Turnover", value: "£1.9B" },
           { label: "Staff", value: "22k" },
@@ -528,7 +528,7 @@ export const siteContent = {
         title: "It's not you, it's the clothes...",
         author: "Rebecca Rhoades",
         category: "Bespoke Fashion",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-08.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-08.jpg?alt=media",
         text: "There’s something about wearing something that’s been made just for you that just hits differently. Not in a loud, over-the-top way, but in a quiet confidence way. You stand differently, you feel more like yourself.",
         tips: [
           "Invest in one piece that fits properly.",
@@ -543,7 +543,7 @@ export const siteContent = {
       type: 'lifestyle',
       content: {
         title: "Heritage Meets Modern Elegance",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/ambers.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fambers.jpg?alt=media",
         text: "Set within the stately surroundings of the historic Cedar Court Hotel in Harrogate, Ambers Restaurant is a polished addition to Harrogate’s dining scene...",
         highlights: ["Locally sourced Yorkshire produce", "Heritage meets modern elegance", "Lady Amber Fitzwilliam inspiration"]
       }
@@ -555,7 +555,7 @@ export const siteContent = {
       content: {
         name: "Vicky Clapham",
         role: "Managing Director, Bevic Marketing",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/vicky-clapham.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fvicky-clapham.jpg?alt=media",
         bio: "Vicky studied English Literature and Language at Newcastle University. Today, as the founder of Bevic Marketing and PR Services, she helps businesses find and share their stories.",
         message: "Never underestimate the power of your story. It can inspire and connect."
       }
@@ -567,7 +567,7 @@ export const siteContent = {
       content: {
         brand: "Rebecca Rhoades",
         headline: "Bespoke Fashion for the Modern Woman",
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-12b.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-12b.jpg?alt=media",
         offer: "Exclusive Member Styling Session"
       }
     },
@@ -580,7 +580,7 @@ export const siteContent = {
         cta: "Join the Community",
         nextIssue: "June / July 2026",
         socials: ["Instagram", "LinkedIn", "X"],
-        image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-15b.jpg"
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-15b.jpg?alt=media"
       }
     }
   ]

@@ -16,9 +16,9 @@ const footerLinks = {
   ],
   resources: [
     { name: "Events", href: "/news?tag=events" },
-    { name: "Member Offers", href: "https://app.yorkshirebusinesswoman.co.uk/offers" },
+    { name: "Member Offers", href: "/offers" },
     { name: "Join Us", href: "/membership" },
-    { name: "Login", href: "https://app.yorkshirebusinesswoman.co.uk/auth/login" },
+    { name: "Login", href: "/sign-in" },
   ],
   legal: [
     { name: "Privacy Policy", href: "/privacy" },

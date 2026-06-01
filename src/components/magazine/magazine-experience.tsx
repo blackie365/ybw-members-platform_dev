@@ -6,17 +6,11 @@ import { ArrowRight, Star, BookOpen } from "lucide-react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { siteContent } from "@/lib/site-content"
 
 export function MagazineExperience() {
-  const issue = {
-    id: "issue-apr-may-2026",
-    title: "The Winner of YBW Awards 2026: Lesley Beach",
-    coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
-    publishDate: "2026-04-01",
-    premiumUrl: "/magazine/issue/issue-apr-may-2026"
-  };
-
-  const displayDate = new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const latestIssue = siteContent.magazine.issues[0];
+  const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
     <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
@@ -39,7 +33,7 @@ export function MagazineExperience() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-14 px-8" asChild>
-                  <Link href="/magazine/issue/issue-apr-may-2026">
+                  <Link href={`/magazine/issue/${latestIssue.id}`}>
                     Launch Digital Edition
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -62,10 +56,11 @@ export function MagazineExperience() {
               transition={{ duration: 1, ease: "easeOut" }}
             >
               <Image 
-                src={issue.coverImage}
-                alt={issue.title}
+                src={latestIssue.coverImage}
+                alt={latestIssue.title}
                 fill
                 className="object-cover"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </motion.div>

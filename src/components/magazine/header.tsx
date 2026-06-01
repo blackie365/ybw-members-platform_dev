@@ -81,7 +81,7 @@ export function Header() {
                       ))}
                       <div className="my-4 h-px bg-border" />
                       <Link
-                        href="https://app.yorkshirebusinesswoman.co.uk/dashboard"
+                        href="/dashboard"
                         onClick={() => setIsOpen(false)}
                         className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                       >
@@ -89,7 +89,7 @@ export function Header() {
                       </Link>
                       {isAdmin && (
                         <Link
-                          href="https://app.yorkshirebusinesswoman.co.uk/admin"
+                          href="/admin"
                           onClick={() => setIsOpen(false)}
                           className="block py-3 font-serif text-lg text-accent font-semibold transition-colors hover:text-accent/80"
                         >
@@ -99,7 +99,7 @@ export function Header() {
                       {!user && (
                         <>
                           <Link
-                            href="https://app.yorkshirebusinesswoman.co.uk/auth/login"
+                            href="/sign-in"
                             onClick={() => setIsOpen(false)}
                             className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                           >
@@ -162,7 +162,7 @@ export function Header() {
             {user ? (
               <>
                 {isAdmin && (
-                  <Link href="https://app.yorkshirebusinesswoman.co.uk/admin" passHref title="Admin Panel">
+                  <Link href="/admin" passHref title="Admin Panel">
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -173,7 +173,7 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
-                <Link href="https://app.yorkshirebusinesswoman.co.uk/dashboard" passHref>
+                <Link href="/dashboard" passHref>
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -195,7 +195,7 @@ export function Header() {
               </>
             ) : (
                 <>
-                  <Link href="https://app.yorkshirebusinesswoman.co.uk/auth/login" passHref>
+                  <Link href="/sign-in" passHref>
                     <Button 
                       variant="ghost" 
                       size="sm" 
