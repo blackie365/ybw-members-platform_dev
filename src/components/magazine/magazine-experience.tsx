@@ -39,7 +39,7 @@ export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-14 px-8" asChild>
-                  <Link href="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365" target="_blank">
+                  <Link href="/magazine/issue/issue-apr-may-2026">
                     Launch Digital Edition
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>

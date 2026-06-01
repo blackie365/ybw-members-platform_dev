@@ -129,7 +129,7 @@ export default async function MagazinePage() {
         title: pub.title,
         coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
         publishDate: pub.publishDate || pub.createdAt,
-        premiumUrl: `https://e.issuu.com/embed.html?d=${pub.slug}&u=blackie365`
+        premiumUrl: `/magazine/issue/${pub.slug}`
       };
     }
   } catch (error) {
