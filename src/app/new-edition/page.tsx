@@ -20,13 +20,13 @@ const archiveIssues = [
     tags: ["Leadership", "Innovation", "Spring Edition"]
   },
   {
-    id: "issue-feb-mar-2026",
-    title: "February / March 2026",
+    id: "ybw_feb_2026",
+    title: "February 2026",
     coverImage: "https://yorkshirebusinesswoman.co.uk/images/magazine/covers/feb-mar-2026.jpg",
     publishDate: "2026-02-01",
     description: "The Wellness Issue: Balancing ambition with self-care, and the future of work-life integration.",
-    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb-mar_2026&u=blackie365",
-    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb-mar_2026.pdf",
+    pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2026&u=blackie365",
+    downloadUrl: "https://yorkshirebusinesswoman.co.uk/downloads/ybw_feb_2026.pdf",
     tags: ["Wellness", "Future of Work"]
   }
 ];
@@ -222,64 +222,61 @@ export default async function NewEditionPage() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {mergedIssues.map((issue: any) => (
               <div key={issue.id} className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1">
-                {/* Cover Image */}
-                <div className="relative aspect-[3/4] overflow-hidden">
+                {/* Cover Image - Entire image is now a link */}
+                <Link 
+                  href={issue.premiumUrl || issue.pdfUrl}
+                  className="relative aspect-[3/4] overflow-hidden block"
+                >
                   <Image
                     src={issue.coverImage}
                     alt={issue.title}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-6 text-center gap-3">
-                    {issue.premiumUrl && (
-                      <Link 
-                        href={issue.premiumUrl}
-                        className="w-full rounded-full bg-accent px-6 py-2 text-sm font-medium text-white transition-all hover:bg-accent/90"
-                      >
-                        Premium Reader
-                      </Link>
-                    )}
-                    <Link 
-                      href={issue.pdfUrl}
-                      target="_blank"
-                      className="w-full rounded-full bg-white px-6 py-2 text-sm font-medium text-black transition-all hover:bg-zinc-100"
-                    >
-                      Standard Edition
-                    </Link>
-                    {issue.downloadUrl && (
-                      <Link 
-                        href={issue.downloadUrl}
-                        className="w-full rounded-full bg-zinc-800/80 px-6 py-2 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-zinc-800"
-                      >
-                        Download PDF
-                      </Link>
-                    )}
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+                    <div className="rounded-full bg-white/10 backdrop-blur-md p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/20">
+                      <BookOpen className="h-8 w-8 text-white" />
+                    </div>
                   </div>
                   {issue.isLatest && (
                     <div className="absolute top-4 right-4">
                       <Badge className="bg-accent text-white border-none shadow-lg">LATEST</Badge>
                     </div>
                   )}
-                </div>
+                </Link>
 
-                {/* Content */}
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                    <Calendar className="h-3 w-3 text-accent" />
-                    <span>{new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
+                {/* Content below cover */}
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
                   </div>
-                  <h3 className="font-serif text-xl font-medium mb-3 group-hover:text-accent transition-colors">
+                  <h3 className="mb-3 font-serif text-xl font-medium text-foreground transition-colors group-hover:text-accent">
                     {issue.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+                  <p className="mb-6 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
                     {issue.description}
                   </p>
-                  <div className="mt-auto flex flex-wrap gap-2">
-                    {issue.tags.map((tag: string) => (
-                      <Badge key={tag} variant="secondary" className="text-[10px] font-normal uppercase tracking-wider">
-                        {tag}
-                      </Badge>
-                    ))}
+                  
+                  <div className="mt-auto flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {issue.tags.map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="text-[10px] font-normal uppercase tracking-wider">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" className="rounded-full text-xs" asChild>
+                        <Link href={issue.pdfUrl} target="_blank">Issuu Viewer</Link>
+                      </Button>
+                      {issue.downloadUrl && (
+                        <Button variant="secondary" size="sm" className="rounded-full text-xs" asChild>
+                          <Link href={issue.downloadUrl}>Download PDF</Link>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
