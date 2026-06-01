@@ -81,7 +81,7 @@ export function Header() {
                       ))}
                       <div className="my-4 h-px bg-border" />
                       <Link
-                        href="/dashboard"
+                        href="https://app.yorkshirebusinesswoman.co.uk/dashboard"
                         onClick={() => setIsOpen(false)}
                         className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                       >
@@ -89,7 +89,7 @@ export function Header() {
                       </Link>
                       {isAdmin && (
                         <Link
-                          href="/admin/members"
+                          href="https://app.yorkshirebusinesswoman.co.uk/admin"
                           onClick={() => setIsOpen(false)}
                           className="block py-3 font-serif text-lg text-accent font-semibold transition-colors hover:text-accent/80"
                         >
@@ -99,7 +99,7 @@ export function Header() {
                       {!user && (
                         <>
                           <Link
-                            href="/sign-in"
+                            href="https://app.yorkshirebusinesswoman.co.uk/auth/login"
                             onClick={() => setIsOpen(false)}
                             className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                           >
@@ -162,7 +162,7 @@ export function Header() {
             {user ? (
               <>
                 {isAdmin && (
-                  <Link href="/admin/members" passHref title="Admin Panel">
+                  <Link href="https://app.yorkshirebusinesswoman.co.uk/admin" passHref title="Admin Panel">
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -173,7 +173,7 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
-                <Link href="/dashboard" passHref>
+                <Link href="https://app.yorkshirebusinesswoman.co.uk/dashboard" passHref>
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -195,24 +195,25 @@ export function Header() {
               </>
             ) : (
                 <>
-                  <Link href="/sign-in" passHref>
+                  <Link href="https://app.yorkshirebusinesswoman.co.uk/auth/login" passHref>
                     <Button 
                       variant="ghost" 
-                      size="icon" 
-                      className="hidden lg:flex hover:bg-muted" 
-                      aria-label="Sign In"
+                      size="sm" 
+                      className="hidden lg:flex text-[10px] font-bold uppercase tracking-widest hover:text-accent"
                     >
-                      <User className="h-4 w-4" />
+                      Sign In
                     </Button>
                   </Link>
-                  <Link
-                    href="/membership"
-                    className="bg-accent text-white px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] shadow-lg transition-all hover:bg-accent/90 active:scale-95 ml-2"
-                  >
-                    Join Us
+                  <Link href="/membership" passHref>
+                    <Button 
+                      size="sm" 
+                      className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none px-6 text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      Join Now
+                    </Button>
                   </Link>
                 </>
-              )}
+            )}
           </div>
         </nav>
       </div>
