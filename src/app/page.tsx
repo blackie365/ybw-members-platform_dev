@@ -9,6 +9,7 @@ import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { getPosts, getTags } from "@/lib/ghost"
+import { issuuService } from "@/lib/issuu"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
 
@@ -121,7 +122,7 @@ export default async function MagazinePage() {
     
     // Fetch real publications for the MagazineExperience section
     const realPublications = await issuuService.listPublications();
-    if (realPublications.length > 0) {
+    if (realPublications.length > 0 && featuredMember) {
       const pub = realPublications[0];
       featuredMember.latestMagazine = {
         id: pub.slug,
