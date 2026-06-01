@@ -23,7 +23,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { use } from 'react';
-import { issuuService, IssuuPageAsset } from '@/lib/issuu';
 import { siteContent } from '@/lib/site-content';
 
 // --- MAGAZINE PAGES DATA ---
@@ -34,22 +33,6 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [direction, setDirection] = useState(0);
-  const [issuuPages, setIssuuPages] = useState<IssuuPageAsset[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch Issuu pages if we have a slug (id in this case)
-  useEffect(() => {
-    const fetchPages = async () => {
-      // In a real scenario, we'd map the issue ID to an Issuu slug
-      const slug = id === 'issue-apr-may-2026' ? 'ybw_april-may_2026' : id;
-      const pages = await issuuService.getPublicationPages(slug);
-      if (pages.length > 0) {
-        setIssuuPages(pages);
-      }
-      setIsLoading(false);
-    };
-    fetchPages();
-  }, [id]);
 
   const nextPage = () => {
     if (currentPage < MAGAZINE_PAGES.length - 1) {
@@ -115,18 +98,6 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
     })
   };
 
-  const renderPageWithIssuu = (page: any, index: number) => {
-    // If we have real Issuu pages, we can overlay them or use them directly
-    const issuuPage = issuuPages.find(p => p.pageNumber === index + 1);
-    
-    if (issuuPage) {
-      return <PageIssuu data={page.content} imageUrl={issuuPage.url} type={page.type} />;
-    }
-
-    // Fallback to our existing high-end designs if Issuu isn't connected
-    return renderPage(page);
-  };
-
   return (
     <div className="fixed inset-0 bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden select-none perspective-1000">
       
@@ -189,20 +160,20 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
         <div className="relative w-full h-full max-w-[1400px] mx-auto overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-white text-zinc-900">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
-              key={currentPage}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                x: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 }
-              }}
-              className="absolute inset-0 w-full h-full"
-            >
-              {renderPageWithIssuu(MAGAZINE_PAGES[currentPage], currentPage)}
-            </motion.div>
+                key={currentPage}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 }
+                }}
+                className="absolute inset-0 w-full h-full"
+              >
+                {renderPage(MAGAZINE_PAGES[currentPage])}
+              </motion.div>
           </AnimatePresence>
         </div>
       </main>
@@ -307,32 +278,6 @@ function renderPage(page: any) {
       return <div>Page coming soon...</div>;
   }
 }
-
-const PageIssuu = ({ data, imageUrl, type }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-black flex items-center justify-center">
-    <div className="relative w-full h-full max-w-[1000px] shadow-2xl">
-      <Image 
-        src={imageUrl} 
-        alt={`Page`} 
-        fill 
-        className="object-contain" 
-        priority 
-      />
-      
-      {/* Dynamic Overlay based on page type to keep our premium feel */}
-      <div className="absolute inset-0 pointer-events-none">
-        {type === 'cover' && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        )}
-        {type === 'editorial' && (
-          <div className="absolute top-12 left-12">
-            <Badge className="bg-accent text-white border-none tracking-widest uppercase px-4 py-1">Interactive Edition</Badge>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-);
 
 const PageCover = ({ data }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-zinc-900">

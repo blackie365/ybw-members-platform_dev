@@ -7,8 +7,8 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
-  const issue = latestIssue || {
+export function MagazineExperience() {
+  const issue = {
     id: "issue-apr-may-2026",
     title: "The Winner of YBW Awards 2026: Lesley Beach",
     coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",

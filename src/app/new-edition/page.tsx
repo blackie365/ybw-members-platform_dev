@@ -4,13 +4,12 @@ import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { issuuService } from '@/lib/issuu';
 
 const archiveIssues = [
   {
     id: "issue-apr-may-2026",
     title: "April / May 2026",
-    coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
+    coverImage: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/cover.jpg",
     publishDate: "2026-04-01",
     description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
@@ -104,27 +103,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
-  // Fetch real publications from Issuu
-  const realPublications = await issuuService.listPublications();
-  
-  const dynamicIssues = realPublications.map((pub: any) => ({
-    id: pub.slug,
-    title: pub.title,
-    coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
-    publishDate: pub.publishDate || pub.createdAt,
-    description: pub.description || "Digital Edition",
-    pdfUrl: `https://e.issuu.com/embed.html?d=${pub.slug}&u=blackie365`,
-    premiumUrl: `/magazine/issue/${pub.slug}`,
-    isLatest: false,
-    tags: pub.tags || ["Digital Edition"]
-  }));
-
-  const mergedIssues = (dynamicIssues.length > 0 ? dynamicIssues : archiveIssues).slice(0, 8);
-  
-  if (mergedIssues.length > 0) {
-    mergedIssues[0].isLatest = true;
-  }
-
+  const mergedIssues = archiveIssues.slice(0, 8);
   const latestIssue = mergedIssues[0];
 
   return (

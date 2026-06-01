@@ -9,7 +9,6 @@ import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { getPosts, getTags } from "@/lib/ghost"
-import { issuuService } from "@/lib/issuu"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
 
@@ -119,19 +118,6 @@ export default async function MagazinePage() {
     tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
     const featuredMembers = await getFeaturedMembers();
     featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
-    
-    // Fetch real publications for the MagazineExperience section
-    const realPublications = await issuuService.listPublications();
-    if (realPublications.length > 0 && featuredMember) {
-      const pub = realPublications[0];
-      featuredMember.latestMagazine = {
-        id: pub.slug,
-        title: pub.title,
-        coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
-        publishDate: pub.publishDate || pub.createdAt,
-        premiumUrl: `/magazine/issue/${pub.slug}`
-      };
-    }
   } catch (error) {
     console.error("Critical error fetching data for MagazinePage:", error);
     errorOccurred = true;
@@ -166,7 +152,7 @@ export default async function MagazinePage() {
         <CategorySection title="Health & Wellbeing" posts={healthPosts} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
-        <MagazineExperience latestIssue={featuredMember?.latestMagazine} />
+        <MagazineExperience />
         <NewsletterSection />
         <TestimonialsSection />
       </div>
