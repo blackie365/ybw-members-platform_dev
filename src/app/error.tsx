@@ -9,33 +9,13 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  // Check if this is a transient HMR/router error
-  const isTransientError = 
-    error.message?.includes("Cannot read properties of null") ||
-    error.message?.includes("fillLazyItemsTillLeafWithHead") ||
-    error.message?.includes("router-reducer")
-
   useEffect(() => {
-    // Log the error for debugging (skip transient errors)
-    if (!isTransientError) {
-      console.error("[v0] App error:", error)
-    }
-  }, [error, isTransientError])
+    // Log the error for debugging
+    console.error("[v0] App error:", error)
+  }, [error])
 
-  useEffect(() => {
-    // Auto-retry for transient HMR errors
-    if (isTransientError) {
-      const timer = setTimeout(() => {
-        reset()
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [isTransientError, reset])
-
-  // Don't show anything for transient errors
-  if (isTransientError) {
-    return null
-  }
+  // Removed auto-retry logic that was causing ERR_TOO_MANY_REDIRECTS loops
+  // for fundamental JS errors like "Cannot read properties of null".
 
   return (
     <div className="flex min-h-[400px] flex-col items-center justify-center px-4">
