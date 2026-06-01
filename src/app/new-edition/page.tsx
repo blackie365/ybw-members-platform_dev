@@ -10,7 +10,7 @@ const archiveIssues = [
   {
     id: "issue-apr-may-2026",
     title: "April / May 2026",
-    coverImage: "/images/magazine/covers/apr-may-2026.jpg",
+    coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
     publishDate: "2026-04-01",
     description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
     pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
@@ -177,7 +177,7 @@ export default async function NewEditionPage() {
               {/* Cover Image */}
               <div className="lg:w-1/3 relative aspect-[3/4]">
                 <Image 
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop"
+                  src="https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media"
                   alt="April / May 2026 Cover"
                   fill
                   className="object-cover"

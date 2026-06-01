@@ -356,7 +356,7 @@ export const siteContent = {
       {
         id: "issue-apr-may-2026",
         title: "April / May 2026",
-        coverImage: "/images/magazine/apr-may-2026/cover.jpg",
+        coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
         publishDate: "2026-04-01",
         description: "The Winner of YBW Awards 2026: Lesley Beach. Featuring the Big Interview with Dame Linda Pollard & Vicky Cheetham, and bespoke fashion with Rebecca Rhoades.",
         pdfUrl: "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365",
@@ -460,7 +460,7 @@ export const siteContent = {
         subheadline: "Celebrating excellence, innovation, and leadership among businesswomen across Yorkshire.",
         date: "April / May 2026",
         issue: "No. 43",
-        image: "/images/magazine/apr-may-2026/cover.jpg"
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media"
       }
     },
     // Page 2: Editor's Note
@@ -501,7 +501,7 @@ export const siteContent = {
       content: {
         title: "The Big Interview",
         name: "Dame Linda Pollard & Vicky Cheetham",
-        image: "/images/magazine/apr-may-2026/linda-vicky.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Flinda-vicky.jpg?alt=media",
         intro: "Leeds Heritage Theatres (LHT) is delighted to announce two new appointments, Dame Dr Linda Pollard DBE DL Hon LLD as its next chair of the board of trustees, and Vicky Cheetham as chief executive."
       }
     },
@@ -541,7 +541,7 @@ export const siteContent = {
       type: 'lifestyle',
       content: {
         title: "Heritage Meets Modern Elegance",
-        image: "/images/magazine/apr-may-2026/ambers.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fambers.jpg?alt=media",
         text: "Set within the stately surroundings of the historic Cedar Court Hotel in Harrogate, Ambers Restaurant is a polished addition to Harrogate’s dining scene...",
         highlights: ["Locally sourced Yorkshire produce", "Heritage meets modern elegance", "Lady Amber Fitzwilliam inspiration"]
       }
@@ -553,7 +553,7 @@ export const siteContent = {
       content: {
         name: "Vicky Clapham",
         role: "Managing Director, Bevic Marketing",
-        image: "/images/magazine/apr-may-2026/vicky-clapham.jpg",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fvicky-clapham.jpg?alt=media",
         bio: "Vicky studied English Literature and Language at Newcastle University. Today, as the founder of Bevic Marketing and PR Services, she helps businesses find and share their stories.",
         message: "Never underestimate the power of your story. It can inspire and connect."
       }

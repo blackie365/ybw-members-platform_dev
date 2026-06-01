@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge"
 export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
   const issue = latestIssue || {
     id: "issue-apr-may-2026",
-    title: "The Art of Resilient Leadership",
-    coverImage: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop",
+    title: "The Winner of YBW Awards 2026: Lesley Beach",
+    coverImage: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Fcover.jpg?alt=media",
     publishDate: "2026-04-01",
-    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026"
+    premiumUrl: "/magazine/issue/issue-apr-may-2026"
   };
 
   const displayDate = new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
