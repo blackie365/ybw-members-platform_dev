@@ -512,6 +512,7 @@ export const siteContent = {
       content: {
         quote: "I am absolutely delighted to be joining Leeds Heritage Theatres at such an exciting time in its journey.",
         text: "Dame Linda brings exceptional experience in leadership, governance, and public service. Vicky Cheetham, who is married with three daughters, brings a wealth of experience from the Barbican, Southbank Centre, and Tate.",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-14b.jpg?alt=media",
         stats: [
           { label: "Turnover", value: "£1.9B" },
           { label: "Staff", value: "22k" },
@@ -527,6 +528,7 @@ export const siteContent = {
         title: "It's not you, it's the clothes...",
         author: "Rebecca Rhoades",
         category: "Bespoke Fashion",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-08.jpg?alt=media",
         text: "There’s something about wearing something that’s been made just for you that just hits differently. Not in a loud, over-the-top way, but in a quiet confidence way. You stand differently, you feel more like yourself.",
         tips: [
           "Invest in one piece that fits properly.",
@@ -563,10 +565,10 @@ export const siteContent = {
       id: 9,
       type: 'partner',
       content: {
-        brand: "Yorkshire Businesswoman",
-        headline: "Why You Should Become a Member",
-        image: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1200&auto=format&fit=crop",
-        offer: "Access exclusive online member area and WhatsApp group."
+        brand: "Rebecca Rhoades",
+        headline: "Bespoke Fashion for the Modern Woman",
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-12b.jpg?alt=media",
+        offer: "Exclusive Member Styling Session"
       }
     },
     // Page 10: Back Cover
@@ -577,7 +579,8 @@ export const siteContent = {
         title: "Yorkshire BusinessWoman",
         cta: "Join the Community",
         nextIssue: "June / July 2026",
-        socials: ["Instagram", "LinkedIn", "X"]
+        socials: ["Instagram", "LinkedIn", "X"],
+        image: "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fapr-may-2026%2Frebecca-rhoades-15b.jpg?alt=media"
       }
     }
   ]

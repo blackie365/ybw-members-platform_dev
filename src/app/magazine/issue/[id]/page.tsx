@@ -454,8 +454,14 @@ const PageFeatureLeft = ({ data }: any) => (
 );
 
 const PageFeatureRight = ({ data }: any) => (
-  <div className="h-full w-full p-12 md:p-24 flex flex-col justify-center bg-white">
-    <div className="max-w-3xl mx-auto">
+  <div className="h-full w-full relative overflow-hidden p-12 md:p-24 flex flex-col justify-center bg-white">
+    {data.image && (
+      <div className="absolute inset-0">
+        <Image src={data.image} alt="Background" fill className="object-cover opacity-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+      </div>
+    )}
+    <div className="relative z-10 max-w-3xl mx-auto">
       <Quote className="h-16 w-16 text-accent/10 mb-8" />
       <h2 className="text-4xl md:text-5xl font-serif italic text-black leading-tight mb-16">
         &quot;{data.quote}&quot;
@@ -481,8 +487,14 @@ const PageFeatureRight = ({ data }: any) => (
 );
 
 const PageColumn = ({ data }: any) => (
-  <div className="h-full w-full p-12 md:p-24 bg-zinc-900 text-white flex flex-col justify-center">
-    <div className="max-w-4xl">
+  <div className="h-full w-full relative overflow-hidden bg-zinc-900 text-white flex flex-col justify-center">
+    {data.image && (
+      <div className="absolute inset-0">
+        <Image src={data.image} alt={data.title} fill className="object-cover opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
+      </div>
+    )}
+    <div className="relative z-10 p-12 md:p-24 max-w-4xl">
       <Badge className="bg-accent text-white rounded-none mb-8 tracking-widest uppercase px-6 py-2">{data.category}</Badge>
       <h2 className="text-6xl font-serif mb-12 tracking-tight">{data.title}</h2>
       <div className="flex flex-col md:flex-row gap-16 items-start">
@@ -581,8 +593,14 @@ const PagePartner = ({ data }: any) => (
 );
 
 const PageBackCover = ({ data }: any) => (
-  <div className="h-full w-full bg-primary flex flex-col items-center justify-center text-center p-12">
-    <div className="max-w-2xl">
+  <div className="h-full w-full relative overflow-hidden bg-primary flex flex-col items-center justify-center text-center p-12">
+    {data.image && (
+      <div className="absolute inset-0">
+        <Image src={data.image} alt="Back Cover" fill className="object-cover opacity-20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-transparent" />
+      </div>
+    )}
+    <div className="relative z-10 max-w-2xl">
       <h2 className="text-white font-serif text-6xl md:text-8xl mb-12 tracking-tighter">
         Yorkshire <br />
         <span className="italic text-accent">BusinessWoman</span>
