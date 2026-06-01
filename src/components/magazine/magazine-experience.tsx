@@ -7,7 +7,17 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-export function MagazineExperience() {
+export function MagazineExperience({ latestIssue }: { latestIssue?: any }) {
+  const issue = latestIssue || {
+    id: "issue-apr-may-2026",
+    title: "The Art of Resilient Leadership",
+    coverImage: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop",
+    publishDate: "2026-04-01",
+    premiumUrl: "https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026"
+  };
+
+  const displayDate = new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
   return (
     <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 lg:px-8">
@@ -29,7 +39,7 @@ export function MagazineExperience() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-14 px-8" asChild>
-                  <Link href="https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026">
+                  <Link href={issue.premiumUrl}>
                     Launch Premium Reader
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -52,8 +62,8 @@ export function MagazineExperience() {
               transition={{ duration: 1, ease: "easeOut" }}
             >
               <Image 
-                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop"
-                alt="Latest Issue Cover"
+                src={issue.coverImage}
+                alt={issue.title}
                 fill
                 className="object-cover"
               />
@@ -76,8 +86,8 @@ export function MagazineExperience() {
                   <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
                   <span className="text-[10px] uppercase tracking-widest text-accent font-bold">Interactive Edition</span>
                 </div>
-                <p className="text-sm font-medium">10+ Premium Spreads</p>
-                <p className="text-xs text-primary-foreground/50 mt-1">April / May 2026</p>
+                <p className="text-sm font-medium">Real Spreads Sync</p>
+                <p className="text-xs text-primary-foreground/50 mt-1">{displayDate}</p>
               </div>
             </motion.div>
           </div>

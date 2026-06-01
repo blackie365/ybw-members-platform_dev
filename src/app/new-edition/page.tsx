@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { issuuService } from '@/lib/issuu';
 
 const archiveIssues = [
   {
@@ -33,7 +34,30 @@ export const metadata: Metadata = {
   description: 'Read the latest edition of the Yorkshire Businesswoman magazine online.',
 };
 
-export default function NewEditionPage() {
+export default async function NewEditionPage() {
+  // Fetch real publications from Issuu
+  const realPublications = await issuuService.listPublications();
+  
+  const dynamicIssues = realPublications.map((pub: any) => ({
+    id: pub.slug,
+    title: pub.title,
+    coverImage: pub.coverUrl || pub.coverUrlLarge || `https://image.issuu.com/${pub.documentId}/jpg/page_1.jpg`,
+    publishDate: pub.publishDate || pub.createdAt,
+    description: pub.description || "Digital Edition",
+    pdfUrl: pub.readerShareUrl || `https://issuu.com/${pub.ownerUsername}/docs/${pub.slug}`,
+    premiumUrl: `https://app.yorkshirebusinesswoman.co.uk/magazine/issue/${pub.slug}`,
+    isLatest: false,
+    tags: pub.tags || ["Digital Edition"]
+  }));
+
+  const mergedIssues = dynamicIssues.length > 0 ? dynamicIssues : archiveIssues;
+  
+  if (mergedIssues.length > 0) {
+    mergedIssues[0].isLatest = true;
+  }
+
+  const latestIssue = mergedIssues[0];
+
   return (
     <main className="flex-1 bg-background">
       {/* Hero Section */}
@@ -43,7 +67,7 @@ export default function NewEditionPage() {
         
         <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70">
-            April / May 2026
+            {new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
           </p>
           <h1 className="mt-4 font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl">
             Latest Edition
@@ -62,7 +86,7 @@ export default function NewEditionPage() {
           <div className="mb-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-accent" />
-              <span>April - May 2026</span>
+              <span>{new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
             </div>
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-accent" />
@@ -194,7 +218,7 @@ export default function NewEditionPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {archiveIssues.map((issue) => (
+            {mergedIssues.map((issue: any) => (
               <div key={issue.id} className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1">
                 {/* Cover Image */}
                 <div className="relative aspect-[3/4] overflow-hidden">
