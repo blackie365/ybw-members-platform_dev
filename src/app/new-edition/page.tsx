@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 const archiveIssues = [
   {
@@ -70,25 +72,74 @@ export default function NewEditionPage() {
             </div>
           </div>
 
-          {/* Issuu Embed Container */}
-          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-shadow duration-300 hover:shadow-xl">
+          {/* Issuu Embed Container - Now with Premium Reader Link */}
+          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-500 hover:shadow-2xl">
             {/* Decorative corners */}
             <div className="absolute left-0 top-0 h-16 w-16 border-l-2 border-t-2 border-accent/30 rounded-tl-2xl pointer-events-none" />
             <div className="absolute right-0 top-0 h-16 w-16 border-r-2 border-t-2 border-accent/30 rounded-tr-2xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 h-16 w-16 border-b-2 border-l-2 border-accent/30 rounded-bl-2xl pointer-events-none" />
-            <div className="absolute bottom-0 right-0 h-16 w-16 border-b-2 border-r-2 border-accent/30 rounded-br-2xl pointer-events-none" />
             
-            <div 
-              style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
-            >
-              <iframe 
-                title="Yorkshire Businesswoman April-May 2026" 
-                allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
-                allowFullScreen={true} 
-                style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"
-              />
+            <div className="flex flex-col lg:flex-row">
+              {/* Cover Image */}
+              <div className="lg:w-1/3 relative aspect-[3/4]">
+                <Image 
+                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=2400&auto=format&fit=crop"
+                  alt="April / May 2026 Cover"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <Badge className="mb-2 bg-accent text-white border-none">Latest Issue</Badge>
+                  <h3 className="text-xl font-serif text-white">The Art of Resilient Leadership</h3>
+                </div>
+              </div>
+
+              {/* Reader Options */}
+              <div className="lg:w-2/3 p-8 lg:p-12 flex flex-col justify-center bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="max-w-md">
+                  <h2 className="text-3xl font-serif font-medium mb-4">Choose Your Experience</h2>
+                  <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                    Access our latest edition through our high-end digital reader for the most immersive experience, or view the standard PDF version below.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
+                      <Link href="https://app.yorkshirebusinesswoman.co.uk/magazine/issue/issue-apr-may-2026">
+                        <Star className="mr-2 h-5 w-5 fill-current" />
+                        Launch Premium Reader
+                        <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                      </Link>
+                    </Button>
+                    <p className="text-center text-xs text-muted-foreground">
+                      Exclusive for Members | Interactive 10-Page Experience
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Standard Embed Section (Hidden or Collapsed by default) */}
+          <div className="mt-20">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-px flex-1 bg-border" />
+              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard PDF Edition</h3>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            
+            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg opacity-70 hover:opacity-100 transition-opacity">
+              <div 
+                style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
+              >
+                <iframe 
+                  title="Yorkshire Businesswoman April-May 2026" 
+                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                  sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
+                  allowFullScreen={true} 
+                  style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
+                  src="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"
+                />
+              </div>
             </div>
           </div>
 
