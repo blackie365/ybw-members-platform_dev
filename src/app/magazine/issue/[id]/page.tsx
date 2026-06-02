@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { use } from 'react';
+import { Logo } from '@/components/Logo';
 import { getMagazineIssue, getMagazinePages, MagazinePage } from '@/lib/magazine-service';
 
 export default function DigitalMagazineIssue({ params }: { params: Promise<{ id: string }> }) {
@@ -148,10 +149,13 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
             <X className="h-6 w-6" />
           </Link>
           <div className="h-6 w-px bg-zinc-800 mx-2" />
-          <p className="text-sm font-medium tracking-wide uppercase">
-            Yorkshire BusinessWoman <span className="text-zinc-500 mx-2">|</span> 
-            <span className="text-accent">{(magazinePages[currentPage].content as any).date || issueData?.title || "Edition"}</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <Logo className="h-8 brightness-0 invert" />
+            <span className="text-zinc-500 hidden sm:block">|</span>
+            <p className="text-sm font-medium tracking-wide uppercase text-accent hidden sm:block">
+              {(magazinePages[currentPage].content as any).date || issueData?.title || "Edition"}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
