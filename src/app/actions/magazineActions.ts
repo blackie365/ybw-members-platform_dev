@@ -9,6 +9,7 @@ export async function getMagazineIssuesAction() {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
+    console.log('[magazineActions] Fetching issues...');
     const snapshot = await adminDb.collection('magazine_issues')
       .orderBy('publishDate', 'desc')
       .get();
@@ -18,6 +19,7 @@ export async function getMagazineIssuesAction() {
       ...doc.data()
     }));
 
+    console.log(`[magazineActions] Found ${issues.length} issues`);
     return { success: true, data: issues };
   } catch (error: any) {
     console.error("Error in getMagazineIssuesAction:", error);

@@ -124,9 +124,9 @@ export default function AdminMagazinePage() {
 
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" asChild title="Preview in Reader">
-                        <Link href={`/magazine/issue/${issue.id}`} target="_blank">
+                        <a href={`/magazine/issue/${issue.id}`} target="_blank" rel="noopener noreferrer">
                           <ExternalLink className="h-4 w-4" />
-                        </Link>
+                        </a>
                       </Button>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" asChild title="Build Edition">
                         <Link href={`/admin/magazine/builder/${issue.id}`}>
@@ -138,7 +138,10 @@ export default function AdminMagazinePage() {
                         size="icon" 
                         className="text-muted-foreground hover:text-destructive" 
                         title="Delete Issue"
-                        onClick={() => handleDelete(issue.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDelete(issue.id);
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

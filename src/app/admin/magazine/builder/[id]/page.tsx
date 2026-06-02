@@ -6,13 +6,13 @@ import {
   Save, 
   Plus, 
   Trash2, 
-  GripVertical, 
   Image as ImageIcon, 
   Layout, 
   Type, 
   ChevronRight,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,6 +66,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   });
   const [pages, setPages] = useState<any[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('metadata');
 
   useEffect(() => {
     if (!isNew) {
@@ -222,162 +223,194 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Metadata */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Issue Details</CardTitle>
-              <CardDescription>General information about this edition.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Issue Title</Label>
-                <Input 
-                  id="title" 
-                  value={issue.title} 
-                  onChange={(e) => setIssue({ ...issue, title: e.target.value })} 
-                  placeholder="e.g. April / May 2026"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date">Publish Date</Label>
-                <Input 
-                  id="date" 
-                  type="date"
-                  value={issue.publishDate} 
-                  onChange={(e) => setIssue({ ...issue, publishDate: e.target.value })} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="desc">Short Description</Label>
-                <Textarea 
-                  id="desc" 
-                  value={issue.description} 
-                  onChange={(e) => setIssue({ ...issue, description: e.target.value })} 
-                  placeholder="Brief summary of this issue..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover">Cover Image URL</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="cover" 
-                    value={issue.coverImage} 
-                    onChange={(e) => setIssue({ ...issue, coverImage: e.target.value })} 
-                    placeholder="https://..."
-                  />
-                  <Button variant="outline" size="icon">
-                    <ImageIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pdf">Issuu Embed URL (Flipping Book)</Label>
-                <Input 
-                  id="pdf" 
-                  value={issue.pdfUrl} 
-                  onChange={(e) => setIssue({ ...issue, pdfUrl: e.target.value })} 
-                  placeholder="https://e.issuu.com/embed.html?..."
-                />
-              </div>
-            </CardContent>
-          </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+        <TabsList className="bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="metadata" className="rounded-lg px-8">Issue Metadata</TabsTrigger>
+          <TabsTrigger value="builder" className="rounded-lg px-8" disabled={isNew}>Editorial Builder</TabsTrigger>
+        </TabsList>
 
-          <Card className="border-accent/20 bg-accent/5">
-            <CardHeader>
-              <CardTitle className="text-lg">Page Components</CardTitle>
-              <CardDescription>Click to add a new spread to your edition.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-2">
-                {PAGE_TYPES.map((type) => (
-                  <Button 
-                    key={type.id} 
-                    variant="outline" 
-                    className="justify-start gap-3 h-12 hover:bg-accent/10 hover:border-accent/30"
-                    onClick={() => handleAddPage(type.id)}
-                    disabled={isNew}
-                  >
-                    <type.icon className="h-4 w-4 text-accent" />
-                    {type.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column: Page Builder */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="min-h-[600px]">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Editorial Builder</CardTitle>
-                  <CardDescription>Manage the sequence and content of your digital spreads.</CardDescription>
-                </div>
-                <Badge variant="outline">{pages.length} Pages</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {pages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-40 text-center space-y-4">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                    <Layout className="h-8 w-8 text-muted-foreground opacity-20" />
-                  </div>
-                  <div className="max-w-xs">
-                    <p className="text-muted-foreground font-medium italic">No pages built yet.</p>
-                    <p className="text-sm text-muted-foreground/60 mt-1">Start by adding a Cover Page from the components menu on the left.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pages.map((page, index) => (
-                    <div 
-                      key={page.docId}
-                      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${selectedPageId === page.docId ? 'border-accent ring-1 ring-accent bg-accent/5' : 'border-border/50 bg-card hover:border-accent/30'}`}
-                    >
-                      <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => setSelectedPageId(page.docId)}>
-                        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center font-mono text-xs font-bold shrink-0">
-                          {String(index + 1).padStart(2, '0')}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                            {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}
-                            {page.type === 'cover' && <Badge className="bg-accent text-white text-[8px] h-4">START</Badge>}
-                          </h4>
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            {JSON.stringify(page.content).substring(0, 100)}...
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-accent" onClick={() => setSelectedPageId(page.docId)}>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeletePage(page.docId)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+        <TabsContent value="metadata" className="mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Issue Details</CardTitle>
+                  <CardDescription>General information about this edition.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Issue Title</Label>
+                      <Input 
+                        id="title" 
+                        value={issue.title} 
+                        onChange={(e) => setIssue({ ...issue, title: e.target.value })} 
+                        placeholder="e.g. April / May 2026"
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div className="space-y-2">
+                      <Label htmlFor="date">Publish Date</Label>
+                      <Input 
+                        id="date" 
+                        type="date"
+                        value={issue.publishDate} 
+                        onChange={(e) => setIssue({ ...issue, publishDate: e.target.value })} 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="desc">Short Description</Label>
+                    <Textarea 
+                      id="desc" 
+                      value={issue.description} 
+                      onChange={(e) => setIssue({ ...issue, description: e.target.value })} 
+                      placeholder="Brief summary of this issue..."
+                      rows={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pdf">Issuu Embed URL (Flipping Book)</Label>
+                    <Input 
+                      id="pdf" 
+                      value={issue.pdfUrl} 
+                      onChange={(e) => setIssue({ ...issue, pdfUrl: e.target.value })} 
+                      placeholder="https://e.issuu.com/embed.html?..."
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cover Asset</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="aspect-[3/4] rounded-lg border-2 border-dashed flex flex-col items-center justify-center bg-muted/30 overflow-hidden relative group">
+                    {issue.coverImage ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={issue.coverImage} alt="Cover Preview" className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <Button variant="secondary" size="sm" onClick={() => setIssue({ ...issue, coverImage: '' })}>Change Image</Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center p-6">
+                        <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
+                        <p className="text-xs text-muted-foreground">Enter URL below to preview cover</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cover">Cover Image URL</Label>
+                    <Input 
+                      id="cover" 
+                      value={issue.coverImage} 
+                      onChange={(e) => setIssue({ ...issue, coverImage: e.target.value })} 
+                      placeholder="https://..."
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
-          {/* Page Content Editor */}
-          {selectedPageId && (
-            <PageEditor 
-              page={pages.find(p => p.docId === selectedPageId)} 
-              onSave={(content) => handleSavePage(selectedPageId, content)}
-              isSaving={saving}
-            />
-          )}
-        </div>
-      </div>
+        <TabsContent value="builder" className="mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="space-y-6">
+              <Card className="border-accent/20 bg-accent/5">
+                <CardHeader>
+                  <CardTitle className="text-lg">Page Components</CardTitle>
+                  <CardDescription>Click to add a new spread.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-2">
+                    {PAGE_TYPES.map((type) => (
+                      <Button 
+                        key={type.id} 
+                        variant="outline" 
+                        className="justify-start gap-3 h-12 hover:bg-accent/10 hover:border-accent/30 bg-white"
+                        onClick={() => handleAddPage(type.id)}
+                      >
+                        <type.icon className="h-4 w-4 text-accent" />
+                        {type.label}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card className="min-h-[600px]">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Spreads</CardTitle>
+                      <CardDescription>{pages.length} pages in this edition</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {pages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-40 text-center space-y-4">
+                      <Layout className="h-8 w-8 text-muted-foreground opacity-20" />
+                      <p className="text-sm text-muted-foreground">No pages built yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {pages.map((page, index) => (
+                        <div 
+                          key={page.docId}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${selectedPageId === page.docId ? 'border-accent bg-accent/5' : 'border-border/50 bg-card hover:border-accent/30'}`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => setSelectedPageId(page.docId)}>
+                            <div className="h-7 w-7 rounded bg-muted flex items-center justify-center font-mono text-[10px] font-bold shrink-0">
+                              {String(index + 1).padStart(2, '0')}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-[11px] uppercase tracking-wider truncate">
+                                {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}
+                              </h4>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeletePage(page.docId)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${selectedPageId === page.docId ? 'rotate-90 text-accent' : ''}`} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              {selectedPageId ? (
+                <PageEditor 
+                  page={pages.find(p => p.docId === selectedPageId)} 
+                  onSave={(content) => handleSavePage(selectedPageId, content)}
+                  isSaving={saving}
+                />
+              ) : (
+                <Card className="h-full border-dashed flex items-center justify-center text-center p-12 bg-muted/10">
+                  <div className="max-w-xs">
+                    <Edit2 className="h-8 w-8 text-muted-foreground mx-auto mb-4 opacity-20" />
+                    <p className="text-sm text-muted-foreground">Select a page from the list to edit its content.</p>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
