@@ -25,7 +25,11 @@ export function MagazineExperience() {
   if (loading || !latestIssue) return null;
 
   const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const IMAGE_VERSION = Date.now();
+  const [imageVersion, setImageVersion] = useState('');
+
+  useEffect(() => {
+    setImageVersion(Date.now().toString());
+  }, []);
 
   return (
     <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
@@ -72,7 +76,7 @@ export function MagazineExperience() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
-                src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
+                src={`${latestIssue.coverImage}?v=${imageVersion}`}
                 alt={latestIssue.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />
