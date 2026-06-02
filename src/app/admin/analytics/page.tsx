@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin, Loader2 } from "lucide-react"
-import { getAnalyticsData } from "@/app/actions/adminActions"
+import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin, Loader2, Mail } from "lucide-react"
+import { getAnalyticsData, getBeehiivPostStatsAction } from "@/app/actions/adminActions"
 import { 
   BarChart, 
   Bar, 
@@ -29,6 +30,8 @@ interface AnalyticsData {
   eventAttendance: { name: string; attendees: number; capacity: number }[]
   totalMembers: number
   totalGhostMembers: number
+  totalBeehiivMembers?: number
+  activeBeehiivMembers?: number
   totalEvents: number
   totalMessages: number
 }
@@ -37,10 +40,13 @@ const COLORS = ['#b79c65', '#1c1917', '#57534e', '#e7e5e4', '#d4d4d8', '#71717a'
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
+  const [beehiivStats, setBeehiivStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingBeehiiv, setLoadingBeehiiv] = useState(false)
 
   useEffect(() => {
     fetchAnalytics()
+    fetchBeehiivStats()
   }, [])
 
   const fetchAnalytics = async () => {
@@ -53,6 +59,20 @@ export default function AdminAnalyticsPage() {
       console.error("Failed to fetch analytics:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchBeehiivStats = async () => {
+    setLoadingBeehiiv(true)
+    try {
+      const res = await getBeehiivPostStatsAction()
+      if (res.success && res.stats) {
+        setBeehiivStats(res.stats)
+      }
+    } catch (error) {
+      console.error("Failed to fetch Beehiiv stats:", error)
+    } finally {
+      setLoadingBeehiiv(false)
     }
   }
 
@@ -79,11 +99,11 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5">
         <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Platform Members
+              Platform
             </CardTitle>
             <Users className="h-4 w-4 text-accent" />
           </CardHeader>
@@ -95,39 +115,51 @@ export default function AdminAnalyticsPage() {
         <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Ghost Members
+              Ghost
             </CardTitle>
             <Users className="h-4 w-4 text-[#3eb0ef]" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-serif font-bold text-foreground">{data.totalGhostMembers}</div>
-            <p className="text-xs text-muted-foreground mt-1">Newsletter / CMS</p>
+            <p className="text-xs text-muted-foreground mt-1">CMS Members</p>
           </CardContent>
         </Card>
         <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Total Community
+              Beehiiv
+            </CardTitle>
+            <Mail className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-serif font-bold text-foreground">{data.totalBeehiivMembers || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Newsletter</p>
+          </CardContent>
+        </Card>
+        <Card className="border-accent/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Total Reach
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-serif font-bold text-foreground">
-              {data.totalMembers + data.totalGhostMembers}
+              {data.totalMembers + data.totalGhostMembers + (data.totalBeehiivMembers || 0)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Combined reach</p>
+            <p className="text-xs text-muted-foreground mt-1">Combined community</p>
           </CardContent>
         </Card>
         <Card className="border-accent/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Managed Events
+              Events
             </CardTitle>
             <Calendar className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-serif font-bold text-foreground">{data.totalEvents}</div>
-            <p className="text-xs text-muted-foreground mt-1">Stored in metadata</p>
+            <p className="text-xs text-muted-foreground mt-1">Managed sessions</p>
           </CardContent>
         </Card>
       </div>
@@ -347,7 +379,60 @@ export default function AdminAnalyticsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="engagement">
+        <TabsContent value="engagement" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif">Newsletter Performance</CardTitle>
+              <CardDescription>Recent campaigns sent via Beehiiv</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingBeehiiv ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              ) : beehiivStats.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No newsletter data available.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-muted/50 text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Campaign</th>
+                        <th className="px-4 py-3 font-medium">Sent</th>
+                        <th className="px-4 py-3 font-medium">Opens</th>
+                        <th className="px-4 py-3 font-medium">Clicks</th>
+                        <th className="px-4 py-3 font-medium">Open Rate</th>
+                        <th className="px-4 py-3 font-medium">CTR</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {beehiivStats.map((stat) => (
+                        <tr key={stat.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-3 font-medium max-w-[200px] truncate">{stat.title}</td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {new Date(stat.sent_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">{stat.opens.toLocaleString()}</td>
+                          <td className="px-4 py-3">{stat.clicks.toLocaleString()}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100">
+                              {Math.round(stat.open_rate)}%
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
+                              {Math.round(stat.click_rate)}%
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="font-serif">Event RSVPs</CardTitle>

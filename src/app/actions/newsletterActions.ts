@@ -7,6 +7,51 @@ import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
 import { checkAdmin } from "@/lib/server/auth-utils";
 
+export async function getBeehiivPostStatsAction() {
+  try {
+    await checkAdmin();
+    const publicationId = process.env.BEEHIIV_PUBLICATION_ID;
+    const apiKey = process.env.BEEHIIV_API_KEY;
+
+    if (!publicationId || !apiKey) {
+      throw new Error("Beehiiv configuration missing");
+    }
+
+    const response = await fetch(`https://api.beehiiv.com/v2/publications/${publicationId}/posts?limit=5&status=published`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch Beehiiv posts");
+    const data = await response.json();
+    const posts = data.data || [];
+
+    const stats = await Promise.all(posts.map(async (post: any) => {
+      const statsRes = await fetch(`https://api.beehiiv.com/v2/publications/${publicationId}/posts/${post.id}/stats`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+      const statsData = await statsRes.json();
+      return {
+        id: post.id,
+        title: post.title,
+        sent_at: post.published_at,
+        opens: statsData.data?.email?.opens || 0,
+        clicks: statsData.data?.email?.clicks || 0,
+        open_rate: statsData.data?.email?.open_rate || 0,
+        click_rate: statsData.data?.email?.click_rate || 0
+      };
+    }));
+
+    return { success: true, stats };
+  } catch (error: any) {
+    console.error("Error in getBeehiivPostStatsAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getGhostStatsAction() {
   try {
     await checkAdmin();
@@ -34,7 +79,6 @@ export async function previewNewsletterAction(editorNote?: string) {
     await checkAdmin();
     const posts = await getPosts({ 
       limit: 5, 
-      filter: 'featured:true',
       order: 'published_at DESC' 
     });
     const html = await getDailyNewsletterTemplate(posts, "Subscriber", editorNote);
@@ -52,7 +96,6 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
 
     const posts = await getPosts({ 
       limit: 5, 
-      filter: 'featured:true',
       order: 'published_at DESC' 
     });
     
@@ -100,7 +143,6 @@ export async function sendTestNewsletterAction(email: string, editorNote?: strin
 
     const posts = await getPosts({ 
       limit: 5, 
-      filter: 'featured:true',
       order: 'published_at DESC' 
     });
     const html = await getDailyNewsletterTemplate(posts, "Test Subscriber", editorNote);

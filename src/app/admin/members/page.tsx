@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/select"
 import { Search, Download, Loader2, UserCog, Calendar, Tag } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, getDocs, doc, updateDoc, query, orderBy, where } from "firebase/firestore"
+import { doc, updateDoc } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getPosts } from "@/lib/ghost"
 import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
 
 // Import domain-specific actions
 import { 
+  getMembersAction,
   toggleFeaturedStatus, 
   getFirestoreOffersAction, 
   approveOfferAction, 
@@ -63,15 +64,12 @@ function AdminMembersContent() {
   }, [])
 
   const fetchMembers = async () => {
+    setLoading(true)
     try {
-      const membersRef = collection(db, "newMemberCollection")
-      const q = query(membersRef, where("userInactive", "==", false), orderBy("createdAt", "desc"))
-      const snap = await getDocs(q)
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Member[]
-      setMembers(data)
+      const res = await getMembersAction()
+      if (res.success && res.data) {
+        setMembers(res.data as Member[])
+      }
     } catch (error) {
       console.error("Failed to fetch members:", error)
     } finally {

@@ -9,3 +9,5 @@
 export * from './memberActions';
 export * from './offerActions';
 export * from './newsletterActions';
+export * from './adminOverviewActions';
+export * from './magazineActions';

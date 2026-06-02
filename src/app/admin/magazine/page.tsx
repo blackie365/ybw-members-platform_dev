@@ -6,18 +6,21 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { getMagazineIssues, MagazineIssue } from "@/lib/magazine-service"
+import { getMagazineIssuesAction } from "@/app/actions/adminActions"
 import Link from "next/link"
 
 export default function AdminMagazinePage() {
-  const [issues, setIssues] = useState<MagazineIssue[]>([])
+  const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     async function loadIssues() {
-      const data = await getMagazineIssues()
-      setIssues(data)
+      setLoading(true)
+      const result = await getMagazineIssuesAction()
+      if (result.success && result.data) {
+        setIssues(result.data)
+      }
       setLoading(false)
     }
     loadIssues()
@@ -96,7 +99,7 @@ export default function AdminMagazinePage() {
                           <Plus className="h-3 w-3" /> Published: {new Date(issue.publishDate).toLocaleDateString()}
                         </span>
                         <div className="flex gap-2">
-                          {issue.tags.map(tag => (
+                          {issue.tags?.map((tag: string) => (
                             <Badge key={tag} variant="outline" className="text-[10px] px-1 py-0">{tag}</Badge>
                           ))}
                         </div>

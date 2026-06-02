@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowRight } from "lucide-react"
-import { db } from "@/lib/firebase"
-import { collection, query, getDocs, where, orderBy, limit, Timestamp } from "firebase/firestore"
-import { getGhostStatsAction } from "@/app/actions/adminActions"
+import { Users, Calendar, MessageSquare, TrendingUp, ArrowUpRight, ArrowRight, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { getAdminOverviewStats } from "@/app/actions/adminOverviewActions"
 
 interface Stats {
   totalMembers: number
@@ -14,8 +13,8 @@ interface Stats {
   totalEvents: number
   upcomingEvents: number
   totalMessages: number
-  activeThreads: number
   ghostMembers: number
+  beehiivMembers?: number
 }
 
 interface RecentMember {
@@ -35,108 +34,26 @@ export default function AdminOverviewPage() {
     totalEvents: 0,
     upcomingEvents: 0,
     totalMessages: 0,
-    activeThreads: 0,
     ghostMembers: 0,
   })
   const [recentMembers, setRecentMembers] = useState<RecentMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const fetchStats = async () => {
-    try {
-      if (!db) {
-        setLoading(false)
-        return
+    async function fetchStats() {
+      setLoading(true)
+      const result = await getAdminOverviewStats()
+      if (result.success && result.data) {
+        setStats(result.data)
+        setRecentMembers(result.data.recentMembers || [])
+      } else {
+        setError(result.error || "Failed to load dashboard data")
       }
-
-      const membersRef = collection(db, "newMemberCollection")
-      const q = query(membersRef, where("userInactive", "==", false))
-      const membersSnap = await getDocs(q)
-      const totalMembers = membersSnap.size
-
-      const startOfMonth = new Date()
-      startOfMonth.setDate(1)
-      startOfMonth.setHours(0, 0, 0, 0)
-      
-      let newMembersThisMonth = 0
-      const recent: RecentMember[] = []
-      
-      membersSnap.docs.forEach((doc) => {
-        const data = doc.data()
-        const createdAt = data.createdAt ? new Date(data.createdAt).getTime() : Date.now()
-        
-        if (createdAt >= startOfMonth.getTime()) {
-          newMembersThisMonth++
-        }
-        
-        recent.push({
-          id: doc.id,
-          firstName: data.firstName || '',
-          lastName: data.lastName || '',
-          email: data.email || '',
-          createdAt,
-          membershipTier: data.membershipTier || 'free',
-        })
-      })
-
-      recent.sort((a, b) => b.createdAt - a.createdAt)
-      setRecentMembers(recent.slice(0, 5))
-
-      let totalEvents = 0
-      let upcomingEvents = 0
-      let activeThreads = 0
-
-      try {
-        const eventsRef = collection(db, "events")
-        const eventsSnap = await getDocs(eventsRef)
-        totalEvents = eventsSnap.size
-
-        eventsSnap.docs.forEach((doc) => {
-          const data = doc.data()
-          if (data.startDate && new Date(data.startDate) >= new Date()) {
-            upcomingEvents++
-          }
-        })
-      } catch (e) {
-        console.warn("Events collection may not exist yet")
-      }
-
-      try {
-        const threadsRef = collection(db, "messageThreads")
-        const threadsSnap = await getDocs(threadsRef)
-        activeThreads = threadsSnap.size
-      } catch (e) {
-        console.warn("MessageThreads collection may not exist yet")
-      }
-
-      // Fetch Ghost Stats
-      let ghostMembers = 0
-      try {
-        const ghostStats = await getGhostStatsAction()
-        ghostMembers = ghostStats.total
-      } catch (e) {
-        console.error("Failed to fetch Ghost stats:", e)
-      }
-
-      setStats({
-        totalMembers,
-        newMembersThisMonth,
-        memberGrowth: totalMembers > 0 ? Math.round((newMembersThisMonth / totalMembers) * 100) : 0,
-        totalEvents,
-        upcomingEvents,
-        totalMessages: 0,
-        activeThreads,
-        ghostMembers,
-      })
-    } catch (error) {
-      console.error("Failed to fetch stats:", error)
-    } finally {
       setLoading(false)
     }
-  }
+    fetchStats()
+  }, [])
 
   const statCards = [
     {
@@ -153,15 +70,7 @@ export default function AdminOverviewPage() {
       change: `${stats.totalEvents} total`,
       trend: "neutral",
       icon: Calendar,
-      href: "/admin/members", // Point to the members page where the Events tab is located
-    },
-    {
-      title: "Active Conversations",
-      value: stats.activeThreads,
-      change: "Member connections",
-      trend: "neutral",
-      icon: MessageSquare,
-      href: "/admin/analytics",
+      href: "/admin/members",
     },
     {
       title: "Member Growth",
@@ -172,12 +81,12 @@ export default function AdminOverviewPage() {
       href: "/admin/analytics",
     },
     {
-      title: "Newsletter Subscribers",
-      value: stats.ghostMembers,
-      change: "From Ghost database",
+      title: "Newsletter Reach",
+      value: (stats.ghostMembers || 0) + (stats.beehiivMembers || 0),
+      change: `${stats.beehiivMembers || 0} on Beehiiv`,
       trend: "neutral",
       icon: Users,
-      href: "/admin/members",
+      href: "/admin/newsletter",
     },
   ]
 
@@ -187,6 +96,27 @@ export default function AdminOverviewPage() {
       month: "short",
       year: "numeric",
     })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <p className="text-muted-foreground">Gathering community insights...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-center">
+        <p className="text-destructive font-medium">Error loading dashboard</p>
+        <p className="text-muted-foreground text-sm max-w-md">{error}</p>
+        <Button onClick={() => window.location.reload()} variant="outline" size="sm" className="mt-4">
+          Try Again
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -210,7 +140,7 @@ export default function AdminOverviewPage() {
                 <stat.icon className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="font-serif text-3xl font-medium text-foreground">
-                {loading ? "..." : stat.value}
+                {stat.value}
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
                 {stat.trend === "up" && <ArrowUpRight className="h-3 w-3 text-accent" />}
@@ -237,9 +167,7 @@ export default function AdminOverviewPage() {
           </Link>
         </div>
         <div className="p-6">
-          {loading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : recentMembers.length === 0 ? (
+          {recentMembers.length === 0 ? (
             <p className="text-muted-foreground">No members yet</p>
           ) : (
             <div className="space-y-4">
