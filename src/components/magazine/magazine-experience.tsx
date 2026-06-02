@@ -6,10 +6,24 @@ import { ArrowRight, Star, BookOpen } from "lucide-react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { siteContent } from "@/lib/site-content"
+import { getLatestIssue, MagazineIssue } from "@/lib/magazine-service"
+import { useEffect, useState } from "react"
 
 export function MagazineExperience() {
-  const latestIssue = siteContent.magazine.issues[0];
+  const [latestIssue, setLatestIssue] = useState<MagazineIssue | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLatest() {
+      const issue = await getLatestIssue();
+      setLatestIssue(issue);
+      setLoading(false);
+    }
+    loadLatest();
+  }, []);
+
+  if (loading || !latestIssue) return null;
+
   const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const IMAGE_VERSION = Date.now();
 

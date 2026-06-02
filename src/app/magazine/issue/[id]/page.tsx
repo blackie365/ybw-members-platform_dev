@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import Link from 'next/link';
 import { 
   ChevronLeft, 
@@ -11,22 +10,16 @@ import {
   Menu, 
   Download, 
   Share2, 
-  BookOpen, 
   Quote, 
-  Clock, 
   Star,
   Award,
   Users,
-  Search,
   ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { use } from 'react';
-import { siteContent } from '@/lib/site-content';
-
-// --- MAGAZINE PAGES DATA ---
-const MAGAZINE_PAGES = siteContent.magazinePages;
+import { getMagazineIssue, getMagazinePages, MagazinePage } from '@/lib/magazine-service';
 
 const IMAGE_VERSION = Date.now();
 
@@ -35,9 +28,26 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [direction, setDirection] = useState(0);
+  const [magazinePages, setMagazinePages] = useState<MagazinePage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [issueData, setIssueData] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadMagazineData() {
+      setLoading(true);
+      const [pages, issue] = await Promise.all([
+        getMagazinePages(id),
+        getMagazineIssue(id)
+      ]);
+      setMagazinePages(pages);
+      setIssueData(issue);
+      setLoading(false);
+    }
+    loadMagazineData();
+  }, [id]);
 
   const nextPage = () => {
-    if (currentPage < MAGAZINE_PAGES.length - 1) {
+    if (currentPage < magazinePages.length - 1) {
       setDirection(1);
       setCurrentPage(prev => prev + 1);
     }
@@ -65,7 +75,32 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage]);
+  }, [currentPage, magazinePages.length]);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-[#050505] flex items-center justify-center text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="font-serif italic text-xl">Opening Yorkshire BusinessWoman...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (magazinePages.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-[#050505] flex items-center justify-center text-white p-8 text-center">
+        <div>
+          <h1 className="text-3xl font-serif mb-4">Edition Not Found</h1>
+          <p className="text-zinc-400 mb-8">This issue doesn&apos;t exist or hasn&apos;t been published yet.</p>
+          <Button asChild variant="outline" className="border-zinc-700 text-white">
+            <Link href="/new-edition">Return to Archive</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const variants: any = {
     enter: (direction: number) => ({
@@ -112,13 +147,13 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
           <div className="h-6 w-px bg-zinc-800 mx-2" />
           <p className="text-sm font-medium tracking-wide uppercase">
             Yorkshire BusinessWoman <span className="text-zinc-500 mx-2">|</span> 
-            <span className="text-accent">{(MAGAZINE_PAGES[currentPage].content as any).date || "Edition"}</span>
+            <span className="text-accent">{(magazinePages[currentPage].content as any).date || issueData?.title || "Edition"}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-zinc-700 text-zinc-400 font-mono">
-            {currentPage + 1} / {MAGAZINE_PAGES.length}
+            {currentPage + 1} / {magazinePages.length}
           </Badge>
           <div className="h-6 w-px bg-zinc-800 mx-2" />
           <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white">
@@ -152,7 +187,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
 
         <button 
           onClick={nextPage}
-          disabled={currentPage === MAGAZINE_PAGES.length - 1}
+          disabled={currentPage === magazinePages.length - 1}
           className="absolute right-6 z-40 h-12 w-12 rounded-full bg-zinc-900/80 border border-zinc-800 flex items-center justify-center hover:bg-zinc-800 hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-2xl"
         >
           <ChevronRight className="h-6 w-6" />
@@ -174,7 +209,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
                 }}
                 className="absolute inset-0 w-full h-full"
               >
-                {renderPage(MAGAZINE_PAGES[currentPage])}
+                {renderPage(magazinePages[currentPage])}
               </motion.div>
           </AnimatePresence>
         </div>
@@ -185,10 +220,10 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
         <div className="flex-1 h-1 bg-zinc-800 rounded-full relative group cursor-pointer">
           <div 
             className="absolute h-full bg-accent rounded-full transition-all duration-300" 
-            style={{ width: `${((currentPage + 1) / MAGAZINE_PAGES.length) * 100}%` }}
+            style={{ width: `${((currentPage + 1) / magazinePages.length) * 100}%` }}
           />
           <div className="flex justify-between absolute -top-8 w-full">
-            {MAGAZINE_PAGES.map((_, i) => (
+            {magazinePages.map((_, i) => (
               <button 
                 key={i} 
                 onClick={() => goToPage(i)}
@@ -203,7 +238,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
           <Button onClick={prevPage} disabled={currentPage === 0} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400">
             PREV
           </Button>
-          <Button onClick={nextPage} disabled={currentPage === MAGAZINE_PAGES.length - 1} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400">
+          <Button onClick={nextPage} disabled={currentPage === magazinePages.length - 1} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400">
             NEXT
           </Button>
         </div>
@@ -226,7 +261,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
               </Button>
             </div>
             <nav className="space-y-6">
-              {MAGAZINE_PAGES.map((page, i) => (
+              {magazinePages.map((page, i) => (
                 <button
                   key={page.id}
                   onClick={() => goToPage(i)}
@@ -240,7 +275,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
             </nav>
             <div className="mt-20 p-6 bg-zinc-800/50 rounded-xl">
               <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2 font-bold">Latest Edition</p>
-              <h4 className="text-lg font-serif mb-4">April / May 2026</h4>
+              <h4 className="text-lg font-serif mb-4">{issueData?.title || "Current Issue"}</h4>
               <Button className="w-full bg-accent hover:bg-accent/90" asChild>
                 <Link href="/membership">Become a Member</Link>
               </Button>

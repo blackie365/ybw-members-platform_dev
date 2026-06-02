@@ -1,10 +1,9 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { siteContent } from '@/lib/site-content';
+import { getMagazineIssues } from '@/lib/magazine-service';
 
 export const metadata: Metadata = {
   title: 'Latest Edition | Yorkshire Businesswoman',
@@ -12,9 +11,18 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
-  const archiveIssues = siteContent.magazine.issues;
-  const mergedIssues = archiveIssues.slice(0, 8);
+  const allIssues = await getMagazineIssues();
+  const mergedIssues = allIssues.slice(0, 8);
   const latestIssue = mergedIssues[0];
+  
+  if (!latestIssue) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>No magazine issues found.</p>
+      </div>
+    );
+  }
+
   const IMAGE_VERSION = Date.now();
 
   return (
