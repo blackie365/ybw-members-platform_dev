@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { 
@@ -49,19 +49,19 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
     loadMagazineData();
   }, [id]);
 
-  const nextPage = () => {
+  const nextPage = useCallback(() => {
     if (currentPage < magazinePages.length - 1) {
       setDirection(1);
       setCurrentPage(prev => prev + 1);
     }
-  };
+  }, [currentPage, magazinePages.length]);
 
-  const prevPage = () => {
+  const prevPage = useCallback(() => {
     if (currentPage > 0) {
       setDirection(-1);
       setCurrentPage(prev => prev - 1);
     }
-  };
+  }, [currentPage]);
 
   const goToPage = (index: number) => {
     setDirection(index > currentPage ? 1 : -1);
@@ -78,7 +78,7 @@ export default function DigitalMagazineIssue({ params }: { params: Promise<{ id:
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, magazinePages.length]);
+  }, [nextPage, prevPage]);
 
   if (loading) {
     return (

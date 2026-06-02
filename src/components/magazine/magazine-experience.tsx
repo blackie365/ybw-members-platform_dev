@@ -12,6 +12,7 @@ import { useEffect, useState } from "react"
 export function MagazineExperience() {
   const [latestIssue, setLatestIssue] = useState<MagazineIssue | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageVersion, setImageVersion] = useState('');
 
   useEffect(() => {
     async function loadLatest() {
@@ -22,14 +23,13 @@ export function MagazineExperience() {
     loadLatest();
   }, []);
 
-  if (loading || !latestIssue) return null;
-
-  const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const [imageVersion, setImageVersion] = useState('');
-
   useEffect(() => {
     setImageVersion(Date.now().toString());
   }, []);
+
+  if (loading || !latestIssue) return null;
+
+  const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   return (
     <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
