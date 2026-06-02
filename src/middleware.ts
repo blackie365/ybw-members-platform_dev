@@ -1,10 +1,16 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+
 export default clerkMiddleware(async (auth, req) => {
-  // We're making everything public on the frontend for now to prevent 
+  // Protect /admin routes - only authorized users can access
+  if (isAdminRoute(req)) {
+    await auth.protect();
+  }
+  
+  // We're making other routes public on the frontend for now to prevent 
   // ERR_TOO_MANY_REDIRECTS loops on Vercel preview domains.
-  // The frontend is primarily a public-facing magazine.
   return;
 });
 

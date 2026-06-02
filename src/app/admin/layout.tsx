@@ -13,13 +13,15 @@ import {
   ChevronLeft,
   Loader2,
   Shield,
-  Mail
+  Mail,
+  BookOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/magazine", label: "Magazine", icon: BookOpen },
   { href: "/admin/members", label: "Members", icon: Users },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
