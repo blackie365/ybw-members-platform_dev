@@ -1,5 +1,6 @@
 import { db } from './firebase';
 import { collection, getDocs, getDoc, doc, query, orderBy, limit } from 'firebase/firestore';
+import { siteContent } from './site-content';
 
 export interface MagazineIssue {
   id: string;
@@ -58,6 +59,7 @@ export async function getMagazineIssue(id: string): Promise<MagazineIssue | null
 
 /**
  * Fetches all pages for a specific magazine issue
+ * Falls back to siteContent example pages if Firestore is empty or fetch fails
  */
 export async function getMagazinePages(issueId: string): Promise<MagazinePage[]> {
   try {
@@ -65,12 +67,17 @@ export async function getMagazinePages(issueId: string): Promise<MagazinePage[]>
     const q = query(pagesRef, orderBy('id', 'asc'));
     const snapshot = await getDocs(q);
     
+    if (snapshot.empty) {
+      console.log(`No pages found in Firestore for issue ${issueId}, falling back to example data`);
+      return siteContent.magazinePages as unknown as MagazinePage[];
+    }
+    
     return snapshot.docs.map(doc => ({
       ...doc.data()
     } as MagazinePage));
   } catch (error) {
     console.error(`Error fetching pages for issue ${issueId}:`, error);
-    return [];
+    return siteContent.magazinePages as unknown as MagazinePage[];
   }
 }
 

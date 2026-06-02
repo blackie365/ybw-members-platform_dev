@@ -57,20 +57,29 @@ export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
 
 /**
  * Server-side version of magazine pages fetcher
+ * Falls back to siteContent example pages if Firestore is empty or fetch fails
  */
 export async function getMagazinePagesServer(issueId: string): Promise<MagazinePage[]> {
   try {
-    if (!adminDb) return [];
+    if (!adminDb) {
+      console.warn('adminDb not initialized, falling back to static content');
+      return siteContent.magazinePages as unknown as MagazinePage[];
+    }
     
     const snapshot = await adminDb.collection('magazine_issues').doc(issueId).collection('pages')
       .orderBy('id', 'asc')
       .get();
+    
+    if (snapshot.empty) {
+      console.log(`No pages found in Firestore for issue ${issueId} (server), falling back to example data`);
+      return siteContent.magazinePages as unknown as MagazinePage[];
+    }
     
     return snapshot.docs.map(doc => ({
       ...doc.data()
     } as MagazinePage));
   } catch (error) {
     console.error(`Error fetching pages for issue ${issueId} (server):`, error);
-    return [];
+    return siteContent.magazinePages as unknown as MagazinePage[];
   }
 }
