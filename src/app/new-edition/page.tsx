@@ -15,6 +15,7 @@ export default async function NewEditionPage() {
   const archiveIssues = siteContent.magazine.issues;
   const mergedIssues = archiveIssues.slice(0, 8);
   const latestIssue = mergedIssues[0];
+  const IMAGE_VERSION = Date.now();
 
   return (
     <main className="flex-1 bg-background">
@@ -67,7 +68,7 @@ export default async function NewEditionPage() {
               <div className="lg:w-1/3 relative aspect-[3/4]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
-                  src={latestIssue.coverImage}
+                  src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
                   alt={`${latestIssue.title} Cover`}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -185,7 +186,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={issue.coverImage}
+                    src={`${issue.coverImage}?v=${IMAGE_VERSION}`}
                     alt={issue.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />

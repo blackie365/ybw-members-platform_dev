@@ -11,6 +11,7 @@ import { siteContent } from "@/lib/site-content"
 export function MagazineExperience() {
   const latestIssue = siteContent.magazine.issues[0];
   const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const IMAGE_VERSION = Date.now();
 
   return (
     <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
@@ -57,7 +58,7 @@ export function MagazineExperience() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
-                src={latestIssue.coverImage}
+                src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
                 alt={latestIssue.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />

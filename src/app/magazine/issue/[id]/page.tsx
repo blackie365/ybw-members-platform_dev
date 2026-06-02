@@ -28,6 +28,8 @@ import { siteContent } from '@/lib/site-content';
 // --- MAGAZINE PAGES DATA ---
 const MAGAZINE_PAGES = siteContent.magazinePages;
 
+const IMAGE_VERSION = Date.now();
+
 export default function DigitalMagazineIssue({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [currentPage, setCurrentPage] = useState(0);
@@ -282,7 +284,7 @@ function renderPage(page: any) {
 const PageCover = ({ data }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-zinc-900">
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={data.image} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+    <img src={`${data.image}?v=${IMAGE_VERSION}`} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-80" />
     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
     
     {/* Brand Overlay */}
@@ -319,7 +321,7 @@ const PageEditorial = ({ data }: any) => (
     <div className="lg:w-1/3">
       <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={data.image} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
+        <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
       <div className="mt-8">
         <p className="font-serif text-3xl italic">{data.author}</p>
@@ -384,7 +386,7 @@ const PageFeatureLeft = ({ data }: any) => (
   <div className="h-full w-full relative grid lg:grid-cols-2 bg-[#FAF9F6]">
     <div className="relative h-full overflow-hidden group">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={data.image} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+      <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
       <div className="absolute inset-0 bg-accent/10 mix-blend-overlay" />
     </div>
     <div className="p-12 md:p-24 flex flex-col justify-center">
@@ -403,7 +405,7 @@ const PageFeatureRight = ({ data }: any) => (
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={data.image} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10" />
+        <img src={`${data.image}?v=${IMAGE_VERSION}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
       </div>
     )}
@@ -437,7 +439,7 @@ const PageColumn = ({ data }: any) => (
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={data.image} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
       </div>
     )}
@@ -470,7 +472,7 @@ const PageLifestyle = ({ data }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-[#FAF9F6]">
     <div className="absolute top-0 right-0 w-1/2 h-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={data.image} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
+      <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-r from-[#FAF9F6] to-transparent" />
     </div>
     <div className="relative h-full w-full p-12 md:p-24 flex flex-col justify-center z-10">
@@ -500,7 +502,7 @@ const PageSpotlight = ({ data }: any) => (
         <div className="absolute -inset-4 border-2 border-accent/20 rounded-2xl -rotate-3" />
         <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl rotate-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.image} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+          <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
         </div>
       </div>
       <div>
@@ -522,7 +524,7 @@ const PageSpotlight = ({ data }: any) => (
 const PagePartner = ({ data }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-black">
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={data.image} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+    <img src={`${data.image}?v=${IMAGE_VERSION}`} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-50" />
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
     
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12">
@@ -547,7 +549,7 @@ const PageBackCover = ({ data }: any) => (
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={data.image} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+        <img src={`${data.image}?v=${IMAGE_VERSION}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-20" />
         <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-transparent" />
       </div>
     )}
