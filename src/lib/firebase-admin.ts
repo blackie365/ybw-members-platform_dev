@@ -12,12 +12,21 @@ if (!admin.apps.length) {
     // Local development fallback using serviceAccountKey.json
     if (!privateKey || !clientEmail) {
       try {
-        const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-        if (fs.existsSync(serviceAccountPath)) {
-          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-          privateKey = serviceAccount.private_key;
-          clientEmail = serviceAccount.client_email;
-          console.log('Loaded Firebase Admin credentials from local serviceAccountKey.json');
+        const searchPaths = [
+          path.join(process.cwd(), 'serviceAccountKey.json'),
+          path.join(process.cwd(), '..', 'serviceAccountKey.json'),
+          path.join(__dirname, '..', '..', 'serviceAccountKey.json'),
+          '/Users/robertblackwell/ybw-members-platform/ybw-frontend/serviceAccountKey.json'
+        ];
+        
+        for (const serviceAccountPath of searchPaths) {
+          if (fs.existsSync(serviceAccountPath)) {
+            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+            privateKey = serviceAccount.private_key;
+            clientEmail = serviceAccount.client_email;
+            console.log(`Loaded Firebase Admin credentials from ${serviceAccountPath}`);
+            break;
+          }
         }
       } catch (e) {
         console.warn('Could not load local serviceAccountKey.json', e);

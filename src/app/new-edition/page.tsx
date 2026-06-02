@@ -1,9 +1,13 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Calendar, Star } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, BookOpen, Calendar, Star, Sparkles, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getMagazineIssues } from '@/lib/magazine-service';
+import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
+import { getPosts } from '@/lib/ghost';
+
+export const revalidate = 0; // Disable cache for debugging
 
 export const metadata: Metadata = {
   title: 'Latest Edition | Yorkshire Businesswoman',
@@ -11,14 +15,28 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
-  const allIssues = await getMagazineIssues();
+  // Use server-side fetcher for reliability in server component
+  const [allIssues, ghostPosts] = await Promise.all([
+    getMagazineIssuesServer(),
+    getPosts({ limit: 1, filter: "featured:true" })
+  ]);
+  
   const mergedIssues = allIssues.slice(0, 8);
   const latestIssue = mergedIssues[0];
+  const featuredPost = ghostPosts[0];
+  
+  console.log('[NewEditionPage] allIssues count:', allIssues.length);
+  console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!latestIssue) {
+    console.warn('[NewEditionPage] No latest issue found');
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>No magazine issues found.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <h2 className="font-serif text-2xl mb-4">Latest Edition</h2>
+        <p className="text-muted-foreground">No magazine issues found in our database.</p>
+        <div className="mt-8">
+           <Link href="/" className="text-accent hover:underline">Return Home</Link>
+        </div>
       </div>
     );
   }
@@ -27,113 +45,82 @@ export default async function NewEditionPage() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Hero Section */}
-      <section className="relative bg-primary py-20 sm:py-28">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.05),transparent_50%)]" />
-        
-        <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/70">
-            {new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-          </p>
-          <h1 className="mt-4 font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl">
-            Latest Edition
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-primary-foreground/80">
-            Explore the newest issue of Yorkshire Businesswoman magazine, featuring inspiring stories, 
-            expert insights, and the latest from our thriving community.
-          </p>
-        </div>
-      </section>
+      {/* Ghost Post Hero Section (The "Ghost Post" part) */}
+      {featuredPost && (
+        <section className="relative bg-primary pt-32 pb-20">
+          <div className="absolute inset-0 bg-black/40 z-10" />
+          {featuredPost.feature_image && (
+            <Image 
+              src={featuredPost.feature_image} 
+              alt={featuredPost.title} 
+              fill 
+              className="object-cover"
+              priority
+            />
+          )}
+          <div className="relative z-20 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+            <Badge variant="outline" className="text-white border-white/20 mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] bg-white/5">
+              Featured Story
+            </Badge>
+            <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight text-white mb-6">
+              {featuredPost.title}
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-white/80 leading-relaxed font-light mb-10">
+              {featuredPost.custom_excerpt || featuredPost.excerpt}
+            </p>
+            <Button size="lg" className="bg-white text-primary hover:bg-white/90 rounded-full px-8" asChild>
+              <Link href={`/news/${featuredPost.slug}`}>
+                Read Featured Story
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
-      {/* Magazine Embed Section */}
-      <section className="py-16 sm:py-20">
+      {/* Issuu Flipping Book Section (The "Issuu Flipping Book" part) */}
+      <section className="py-20 bg-zinc-50 dark:bg-zinc-950">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          {/* Edition Info Bar */}
-          <div className="mb-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-accent" />
-              <span>{new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-accent" />
-              <span>Digital Edition</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-accent" />
-              <span>Free to Read</span>
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl sm:text-5xl font-medium text-foreground mb-4">
+              {latestIssue.title}
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Enjoy the classic flipping book experience of our latest digital edition.
+            </p>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl transition-all duration-500">
+            <div 
+              style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
+            >
+              <iframe 
+                title={latestIssue.title}
+                allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
+                allowFullScreen={true} 
+                style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
+                src={latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"}
+              />
             </div>
           </div>
 
-          {/* Issuu Embed Container - Now with Premium Reader Link */}
-          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-500 hover:shadow-2xl">
-            {/* Decorative corners */}
-            <div className="absolute left-0 top-0 h-16 w-16 border-l-2 border-t-2 border-accent/30 rounded-tl-2xl pointer-events-none" />
-            <div className="absolute right-0 top-0 h-16 w-16 border-r-2 border-t-2 border-accent/30 rounded-tr-2xl pointer-events-none" />
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
+            <Button size="lg" className="w-full sm:w-auto bg-accent text-white hover:bg-accent/90 h-16 px-10 text-lg font-medium group rounded-full shadow-lg" asChild>
+              <Link href={`/magazine/issue/${latestIssue.id}`}>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Try Premium Reader
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
             
-            <div className="flex flex-col lg:flex-row">
-              {/* Cover Image */}
-              <div className="lg:w-1/3 relative aspect-[3/4]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
-                  alt={`${latestIssue.title} Cover`}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-6 left-6 right-6">
-                  <Badge className="mb-2 bg-accent text-white border-none">Latest Issue</Badge>
-                  <h3 className="text-xl font-serif text-white">{latestIssue.title}</h3>
-                </div>
-              </div>
-
-              {/* Reader Options */}
-              <div className="lg:w-2/3 p-8 lg:p-12 flex flex-col justify-center bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="max-w-md">
-                  <h2 className="text-3xl font-serif font-medium mb-4">Choose Your Experience</h2>
-                  <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                    Access our latest edition through our high-end digital reader for the most immersive experience, or view the standard PDF version below.
-                  </p>
-                  
-                  <div className="space-y-4">
-                    <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-16 text-lg group" asChild>
-                      <Link href={`/magazine/issue/${latestIssue.id}`}>
-                        <BookOpen className="mr-2 h-5 w-5" />
-                        Launch Digital Edition
-                        <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                      </Link>
-                    </Button>
-                    <p className="text-center text-xs text-muted-foreground">
-                      Full Digital Archive | Issuu Interactive Reader
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Standard Embed Section */}
-          <div className="mt-20">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-px flex-1 bg-border" />
-              <h3 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Standard PDF Edition</h3>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            
-            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg opacity-70 hover:opacity-100 transition-opacity">
-              <div 
-                style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
-              >
-                <iframe 
-                  title="Yorkshire Businesswoman April-May 2026" 
-                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                  sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
-                  allowFullScreen={true} 
-                  style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                  src="https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"
-                />
-              </div>
-            </div>
+            {latestIssue.downloadUrl && (
+              <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-lg font-medium rounded-full" asChild>
+                <a href={latestIssue.downloadUrl} download>
+                  <Download className="mr-2 h-5 w-5" />
+                  Download PDF
+                </a>
+              </Button>
+            )}
           </div>
 
           {/* Reading Tips */}
