@@ -4,7 +4,7 @@
 import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, BookOpen } from "lucide-react"
 import { motion } from "framer-motion"
 import useEmblaCarousel from "embla-carousel-react"
 import Autoplay from "embla-carousel-autoplay"
@@ -122,15 +122,22 @@ export function HeroSection({ posts, recentPosts }: { posts: any[], recentPosts?
                   {carouselPosts[currentIndex]?.custom_excerpt || carouselPosts[currentIndex]?.excerpt || ""}
                 </p>
 
-                <Link
-                  href={`/news/${carouselPosts[currentIndex]?.slug}`}
-                  className="group mt-4 inline-flex items-center gap-3 border-b border-white/40 pb-1 text-white transition-colors hover:border-accent hover:text-accent"
-                >
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.15em]">
+                <div className="flex flex-wrap gap-4 pt-4">
+                  <Link
+                    href={`/news/${carouselPosts[currentIndex]?.slug}`}
+                    className="group inline-flex items-center gap-3 bg-white text-black px-6 py-3 text-[11px] font-bold uppercase tracking-[0.15em] transition-all hover:bg-zinc-200"
+                  >
                     Read Article
-                  </span>
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                  <Link
+                    href="/new-edition"
+                    className="group inline-flex items-center gap-3 border border-white/40 px-6 py-3 text-white text-[11px] font-bold uppercase tracking-[0.15em] transition-all hover:border-accent hover:text-accent hover:bg-white/5"
+                  >
+                    Digital Edition
+                    <BookOpen className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
             </div>
 

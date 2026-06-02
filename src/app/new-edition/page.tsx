@@ -45,51 +45,113 @@ export default async function NewEditionPage() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Ghost Post Hero Section (The "Ghost Post" part) */}
-      {featuredPost && (
-        <section className="relative bg-primary pt-32 pb-20">
-          <div className="absolute inset-0 bg-black/40 z-10" />
-          {featuredPost.feature_image && (
-            <Image 
-              src={featuredPost.feature_image} 
-              alt={featuredPost.title} 
-              fill 
-              className="object-cover"
-              priority
-            />
-          )}
-          <div className="relative z-20 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-            <Badge variant="outline" className="text-white border-white/20 mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] bg-white/5">
-              Featured Story
-            </Badge>
-            <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight text-white mb-6">
-              {featuredPost.title}
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-white/80 leading-relaxed font-light mb-10">
-              {featuredPost.custom_excerpt || featuredPost.excerpt}
-            </p>
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 rounded-full px-8" asChild>
-              <Link href={`/news/${featuredPost.slug}`}>
-                Read Featured Story
+      {/* Premium Reader Hero Section - The "Best Part of the Site" */}
+      <section className="relative bg-[#050505] text-white py-24 sm:py-32 overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#accent_1px,transparent_1px)] bg-[length:32px_32px]" />
+        </div>
+        
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="flex flex-col items-start text-left">
+              <Badge className="bg-accent text-white border-none mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] animate-pulse">
+                Interactive Experience
+              </Badge>
+              <h1 className="font-serif text-5xl sm:text-7xl font-medium tracking-tight mb-8 leading-tight">
+                The <span className="italic text-accent">Premium</span> <br />Digital Reader
+              </h1>
+              <p className="text-xl text-zinc-400 leading-relaxed font-light mb-12 max-w-xl">
+                Experience our cinematic, smooth-turning digital edition. Optimized for every screen with high-resolution spreads and interactive content.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
+                <Button size="lg" className="bg-white text-black hover:bg-zinc-200 h-20 px-12 text-xl font-serif rounded-none shadow-[0_0_40px_rgba(255,255,255,0.1)] group" asChild>
+                  <Link href={`/magazine/issue/${latestIssue.id}`}>
+                    Launch Digital Edition
+                    <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-2" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="mt-12 flex items-center gap-4 text-sm text-zinc-500">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800" />
+                  ))}
+                </div>
+                <p>Join <span className="text-white font-medium">2,000+</span> digital readers</p>
+              </div>
+            </div>
+
+            <div className="relative group cursor-pointer" onClick={() => {}}>
+              <Link href={`/magazine/issue/${latestIssue.id}`}>
+                <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
+                    alt={`${latestIssue.title} Cover`}
+                    className="absolute inset-0 w-full h-full object-cover border border-white/10"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-white/10" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white/10 backdrop-blur-xl p-6 rounded-full border border-white/20">
+                      <BookOpen className="h-10 w-10 text-white" />
+                    </div>
+                  </div>
+                </div>
               </Link>
-            </Button>
+              {/* Decorative light flare */}
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent/20 blur-[120px] rounded-full pointer-events-none" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Ghost Post Featured Story Section */}
+      {featuredPost && (
+        <section className="py-24 bg-white dark:bg-zinc-900">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row gap-16 items-center">
+              <div className="flex-1">
+                <Badge variant="outline" className="text-accent border-accent/30 mb-6 uppercase tracking-widest text-[10px]">
+                  Featured Editorial
+                </Badge>
+                <h2 className="font-serif text-4xl sm:text-5xl font-medium mb-6">
+                  {featuredPost.title}
+                </h2>
+                <p className="text-lg text-muted-foreground leading-relaxed mb-8">
+                  {featuredPost.custom_excerpt || featuredPost.excerpt}
+                </p>
+                <Button size="lg" variant="link" className="text-accent p-0 h-auto text-lg group" asChild>
+                  <Link href={`/news/${featuredPost.slug}`}>
+                    Read full story
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="flex-1 relative aspect-video w-full overflow-hidden">
+                {featuredPost.feature_image && (
+                  <Image 
+                    src={featuredPost.feature_image} 
+                    alt={featuredPost.title} 
+                    fill 
+                    className="object-cover"
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}
 
-      {/* Issuu Flipping Book Section (The "Issuu Flipping Book" part) */}
-      <section className="py-20 bg-zinc-50 dark:bg-zinc-950">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl sm:text-5xl font-medium text-foreground mb-4">
-              {latestIssue.title}
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Enjoy the classic flipping book experience of our latest digital edition.
-            </p>
-          </div>
+      {/* Issuu Flipping Book Section */}
+      <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8 text-center">
+          <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-12">
+            Classic Flipping Book
+          </h2>
 
-          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl transition-all duration-500">
+          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             <div 
               style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
             >
@@ -102,32 +164,6 @@ export default async function NewEditionPage() {
                 src={latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"}
               />
             </div>
-          </div>
-
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Button size="lg" className="w-full sm:w-auto bg-accent text-white hover:bg-accent/90 h-16 px-10 text-lg font-medium group rounded-full shadow-lg" asChild>
-              <Link href={`/magazine/issue/${latestIssue.id}`}>
-                <Sparkles className="mr-2 h-5 w-5" />
-                Try Premium Reader
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </Button>
-            
-            {latestIssue.downloadUrl && (
-              <Button variant="outline" size="lg" className="w-full sm:w-auto h-16 px-10 text-lg font-medium rounded-full" asChild>
-                <a href={latestIssue.downloadUrl} download>
-                  <Download className="mr-2 h-5 w-5" />
-                  Download PDF
-                </a>
-              </Button>
-            )}
-          </div>
-
-          {/* Reading Tips */}
-          <div className="mt-8 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-            <span className="rounded-full bg-muted px-3 py-1">Click to turn pages</span>
-            <span className="rounded-full bg-muted px-3 py-1">Double-click to zoom</span>
-            <span className="rounded-full bg-muted px-3 py-1">Fullscreen available</span>
           </div>
         </div>
       </section>
