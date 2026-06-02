@@ -3,6 +3,7 @@
 import { ThemeProvider, useTheme } from 'next-themes'
 import { useEffect } from 'react'
 import { AuthProvider } from '@/lib/AuthContext'
+import { Toaster } from 'sonner'
 
 function ThemeWatcher() {
   let { resolvedTheme, setTheme } = useTheme()
@@ -34,6 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <ThemeWatcher />
         {children}
+        <Toaster position="top-right" richColors />
       </AuthProvider>
     </ThemeProvider>
   )

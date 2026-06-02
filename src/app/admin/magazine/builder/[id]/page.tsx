@@ -57,13 +57,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [issue, setIssue] = useState<any>({
     title: '',
     description: '',
-    publishDate: new Date().toISOString().split('T')[0],
+    publishDate: '',
     coverImage: '',
     pdfUrl: '',
     downloadUrl: '',
     isLatest: false,
     tags: []
   });
+
+  useEffect(() => {
+    if (isNew) {
+      setIssue((prev: any) => ({
+        ...prev,
+        publishDate: new Date().toISOString().split('T')[0]
+      }));
+    }
+  }, [isNew]);
+
   const [pages, setPages] = useState<any[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('metadata');
@@ -78,13 +88,31 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setLoading(true);
     try {
       const issuesRes = await getMagazineIssuesAction();
-      const currentIssue = issuesRes.data?.find((i: any) => i.id === id);
-      if (currentIssue) {
-        setIssue(currentIssue);
+      if (issuesRes?.success && issuesRes.data) {
+        const currentIssue = issuesRes.data.find((i: any) => i.id === id);
+        if (currentIssue) {
+          // Ensure publishDate is in YYYY-MM-DD format for the date input
+          let formattedDate = (currentIssue as any).publishDate || '';
+          if (formattedDate && typeof formattedDate !== 'string') {
+            // Handle Firestore Timestamp if it exists
+            try {
+              formattedDate = new Date((formattedDate as any).seconds * 1000).toISOString().split('T')[0];
+            } catch (e) {
+              formattedDate = new Date().toISOString().split('T')[0];
+            }
+          } else if (typeof formattedDate === 'string' && formattedDate.includes('T')) {
+            formattedDate = formattedDate.split('T')[0];
+          }
+          
+          setIssue({
+            ...currentIssue,
+            publishDate: formattedDate
+          });
+        }
       }
 
       const pagesRes = await getMagazinePagesAction(id);
-      if (pagesRes.success && pagesRes.data) {
+      if (pagesRes?.success && pagesRes.data) {
         setPages(pagesRes.data);
       }
     } catch (error) {
@@ -416,11 +444,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 }
 
 function PageEditor({ page, onSave, isSaving }: { page: any, onSave: (content: any) => void, isSaving: boolean }) {
-  const [content, setContent] = useState(page.content);
+  const [content, setContent] = useState(page?.content || {});
 
   useEffect(() => {
-    setContent(page.content);
-  }, [page.docId]);
+    if (page?.content) {
+      setContent(page.content);
+    }
+  }, [page?.docId, page?.content]);
+
+  if (!page) return null;
 
   const updateContent = (field: string, value: any) => {
     setContent({ ...content, [field]: value });
