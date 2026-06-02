@@ -48,7 +48,7 @@ export default async function NewEditionPage() {
       {/* Premium Reader Hero Section - The "Best Part of the Site" */}
       <section className="relative bg-[#050505] text-white py-24 sm:py-32 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,#accent_1px,transparent_1px)] bg-[length:32px_32px]" />
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:32px_32px]" />
         </div>
         
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
@@ -83,7 +83,7 @@ export default async function NewEditionPage() {
               </div>
             </div>
 
-            <div className="relative group cursor-pointer" onClick={() => {}}>
+            <div className="relative group cursor-pointer">
               <Link href={`/magazine/issue/${latestIssue.id}`}>
                 <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
