@@ -134,7 +134,7 @@ export function HeroSection({ posts, recentPosts }: { posts: any[], recentPosts?
                     href="/new-edition"
                     className="group inline-flex items-center gap-3 border border-white/40 px-6 py-3 text-white text-[11px] font-bold uppercase tracking-[0.15em] transition-all hover:border-accent hover:text-accent hover:bg-white/5"
                   >
-                    Digital Edition
+                    New Edition
                     <BookOpen className="h-4 w-4" />
                   </Link>
                 </div>

@@ -17,7 +17,7 @@ import { Shield } from "lucide-react"
 
 const navigation = [
   { name: 'Home', href: '/' },
-  { name: 'Digital Reader', href: '/new-edition' },
+  { name: 'New Edition', href: '/new-edition' },
   { name: 'News', href: '/news' },
   { name: 'Offers', href: '/offers' },
   { name: 'Events', href: '/news?tag=events' },

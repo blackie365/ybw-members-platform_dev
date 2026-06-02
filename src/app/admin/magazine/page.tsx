@@ -6,25 +6,39 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { getMagazineIssuesAction } from "@/app/actions/adminActions"
+import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/actions/adminActions"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
-  useEffect(() => {
-    async function loadIssues() {
-      setLoading(true)
-      const result = await getMagazineIssuesAction()
-      if (result.success && result.data) {
-        setIssues(result.data)
-      }
-      setLoading(false)
+  const loadIssues = async () => {
+    setLoading(true)
+    const result = await getMagazineIssuesAction()
+    if (result.success && result.data) {
+      setIssues(result.data)
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     loadIssues()
   }, [])
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this issue? This cannot be undone.")) {
+      const res = await deleteMagazineIssueAction(id)
+      if (res.success) {
+        toast.success("Issue deleted successfully")
+        loadIssues()
+      } else {
+        toast.error("Failed to delete issue")
+      }
+    }
+  }
 
   const filteredIssues = issues.filter(issue => 
     issue.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -37,9 +51,11 @@ export default function AdminMagazinePage() {
           <h1 className="text-3xl font-serif font-bold">Magazine Management</h1>
           <p className="text-muted-foreground mt-1">Create, edit, and publish digital editions.</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90 text-white gap-2">
-          <Plus className="h-4 w-4" />
-          Create New Issue
+        <Button className="bg-accent hover:bg-accent/90 text-white gap-2" asChild>
+          <Link href="/admin/magazine/builder/new">
+            <Plus className="h-4 w-4" />
+            Create New Issue
+          </Link>
         </Button>
       </div>
 
@@ -112,10 +128,18 @@ export default function AdminMagazinePage() {
                           <ExternalLink className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" title="Edit Content">
-                        <Edit2 className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" asChild title="Build Edition">
+                        <Link href={`/admin/magazine/builder/${issue.id}`}>
+                          <Edit2 className="h-4 w-4" />
+                        </Link>
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" title="Delete Issue">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-muted-foreground hover:text-destructive" 
+                        title="Delete Issue"
+                        onClick={() => handleDelete(issue.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
