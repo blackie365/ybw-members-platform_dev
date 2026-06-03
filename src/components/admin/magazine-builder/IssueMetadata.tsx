@@ -1,6 +1,6 @@
 'use client';
 
-import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout, RefreshCw, Wand2 } from 'lucide-react';
+import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout, RefreshCw, Wand2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { MagazineIssue, MagazinePage } from './types';
 import { toast } from 'sonner';
 import { fetchIssuuMetadataAction } from '@/app/actions/magazineActions';
@@ -24,7 +25,10 @@ interface IssueMetadataProps {
 
 export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages = [] }: IssueMetadataProps) {
   const [isFetchingIssuu, setIsFetchingIssuu] = useState(false);
-  const coverFromPages = pages.find(p => p.type === 'cover')?.content?.image;
+  
+  // Logic to find cover image from pages
+  const coverPage = pages.find(p => p.type === 'cover');
+  const coverFromPages = coverPage?.content?.image;
   const canSync = coverFromPages && coverFromPages !== issue.coverImage;
 
   const handleSyncCover = () => {
@@ -44,11 +48,17 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
     try {
       const res = await fetchIssuuMetadataAction(issue.pdfUrl);
       if (res.success && res.data) {
-        onUpdate({ 
-          coverImage: res.data.thumbnailUrl,
+        // If auto-sync is on, update the cover image too
+        const updateData: Partial<MagazineIssue> = {
           title: issue.title || res.data.title,
           description: issue.description || res.data.description
-        });
+        };
+        
+        if (issue.autoSyncCover !== false) {
+          updateData.coverImage = res.data.thumbnailUrl;
+        }
+
+        onUpdate(updateData);
         toast.success('Metadata fetched from Issuu!');
       } else {
         toast.error(res.error || 'Failed to fetch Issuu metadata');
@@ -204,7 +214,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>Cover Asset</CardTitle>
+              <CardTitle>Archive Thumbnail</CardTitle>
               {canSync && (
                 <Button 
                   variant="ghost" 
@@ -213,7 +223,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                   onClick={handleSyncCover}
                 >
                   <RefreshCw className="h-3 w-3 animate-pulse" />
-                  Sync from Page
+                  Sync from Spread
                 </Button>
               )}
             </CardHeader>
@@ -230,12 +240,12 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                 ) : (
                   <div className="text-center p-6">
                     <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-                    <p className="text-xs text-muted-foreground italic">Enter a URL below to see a preview</p>
+                    <p className="text-xs text-muted-foreground italic">What people see in the archive</p>
                   </div>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cover">Cover Image URL</Label>
+                <Label htmlFor="cover">Thumbnail URL</Label>
                 <Input 
                   id="cover" 
                   value={issue.coverImage} 
@@ -243,8 +253,49 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                   placeholder="https://..."
                 />
               </div>
+
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm">Smart Sync</Label>
+                    <p className="text-[10px] text-muted-foreground">Keep archive & builder covers identical.</p>
+                  </div>
+                  <Switch 
+                    checked={issue.autoSyncCover !== false}
+                    onCheckedChange={(checked) => onUpdate({ autoSyncCover: checked })}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {issue.readerType === 'custom' && coverPage && (
+            <Card className="border-accent/20">
+              <CardHeader>
+                <CardTitle className="text-sm">Digital Reader Cover</CardTitle>
+                <CardDescription className="text-[10px]">The "clean" image used inside the builder.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="aspect-[3/4] rounded bg-muted/50 overflow-hidden relative">
+                  {coverFromPages ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={coverFromPages} alt="Builder Cover" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground italic text-[10px]">No image set in builder</div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <div className="bg-white/90 p-3 rounded shadow-sm text-center border border-accent/20">
+                      <p className="text-[10px] font-bold text-accent uppercase tracking-tighter">Builder Overlays</p>
+                      <p className="text-[8px] text-zinc-500 leading-tight mt-1">{coverPage.content.headline || 'Headline'}</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  To change this, edit the <strong>Main Cover</strong> spread in the builder.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
