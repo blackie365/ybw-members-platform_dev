@@ -576,7 +576,7 @@ const PagePartner = ({ data, imageVersion }: any) => (
 );
 
 const PageBackCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#050505] flex flex-col items-center justify-center text-center p-[8%]">
+  <div className="h-full w-full relative overflow-hidden bg-[#050505] flex flex-col items-center justify-start text-center p-[8%] pt-[15vh]">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -584,21 +584,23 @@ const PageBackCover = ({ data, imageVersion }: any) => (
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/60" />
       </div>
     )}
-    <div className="relative z-10 max-w-[min(90%,800px)] w-full">
+    <div className="relative z-10 max-w-[min(90%,800px)] w-full flex flex-col items-center">
       <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[6%] tracking-tighter leading-[0.85] drop-shadow-2xl">
         Yorkshire <br />
         <span className="italic text-accent">BusinessWoman</span>
       </h2>
-      <div className="h-0.5 w-[clamp(3rem,8vw,10rem)] bg-white/20 mx-auto mb-[10%]" />
+      <div className="h-0.5 w-[clamp(3rem,8vw,10rem)] bg-white/20 mx-auto mb-[12%]" />
       
-      <p className="text-white/60 text-[clamp(9px,1vh,12px)] tracking-[0.4em] uppercase mb-[4%] font-bold">Next Edition</p>
-      <h3 className="text-white text-[clamp(1.3rem,3.5vh,3rem)] font-serif mb-[10%] leading-tight drop-shadow-lg">{data.nextIssue}</h3>
+      <div className="space-y-[2vh] mb-[10%]">
+        <p className="text-white/60 text-[clamp(9px,1vh,12px)] tracking-[0.4em] uppercase font-bold">Next Edition</p>
+        <h3 className="text-white text-[clamp(1.3rem,3.5vh,3rem)] font-serif leading-tight drop-shadow-lg">{data.nextIssue}</h3>
+      </div>
       
-      <Button className="rounded-full px-[8%] py-[3%] h-auto text-[clamp(0.9rem,2vh,1.3rem)] bg-accent hover:bg-white hover:text-accent transition-all duration-500 mb-[8%] shadow-2xl border-none" asChild>
+      <Button className="rounded-full px-[8%] py-[3%] h-auto text-[clamp(0.9rem,2vh,1.3rem)] bg-accent hover:bg-white hover:text-accent transition-all duration-500 mb-[10%] shadow-2xl border-none" asChild>
         <Link href="/membership">{data.cta}</Link>
       </Button>
 
-      <div className="flex justify-center gap-[8%] pt-[8%] border-t border-white/10">
+      <div className="flex justify-center gap-[8%] pt-[10%] border-t border-white/10 w-full">
         {data.socials?.map((s: any, i: number) => (
           <span key={i} className="text-white/40 text-[clamp(8px,0.9vh,10px)] tracking-widest uppercase hover:text-white transition-colors cursor-pointer">{s}</span>
         ))}
