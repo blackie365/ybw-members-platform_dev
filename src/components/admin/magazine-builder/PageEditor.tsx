@@ -305,13 +305,13 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
           Save Page
         </Button>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 max-h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar">
         {renderEditorFields()}
         
         <div className="mt-8 pt-6 border-t">
           <Label className="text-xs text-muted-foreground uppercase tracking-widest">Raw Content JSON</Label>
           <Textarea 
-            className="font-mono text-[10px] mt-2 bg-muted/30" 
+            className="font-mono text-[10px] mt-2 bg-muted/30 focus:bg-white transition-colors" 
             rows={5}
             value={JSON.stringify(content || {}, null, 2)}
             onChange={(e) => {
