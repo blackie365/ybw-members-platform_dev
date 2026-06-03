@@ -290,6 +290,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const res = await addMagazinePageAction(id, newPage);
       if (res.success) {
         toast.success(`Smart Imported "${post.title}" as ${type}`);
+        
+        // PROACTIVE LOGIC: If we just imported a cover, sync it to the issue thumbnail
+        if (type === 'cover' && content.image) {
+          await updateMagazineIssueAction(id, { coverImage: content.image });
+          setIssue(prev => ({ ...prev, coverImage: content.image }));
+          toast.info('Issue thumbnail updated from imported cover');
+        }
+
         await loadData(true);
         setSelectedPageId(res.id as string);
         setActiveTab('builder');
@@ -309,6 +317,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     
     setSaving(true);
     try {
+      // PROACTIVE LOGIC: If this is a cover page, automatically sync its image to the issue metadata
+      const page = pages.find(p => p.docId === pageDocId);
+      if (page?.type === 'cover' && content.image && content.image !== issue.coverImage) {
+        console.log('Auto-syncing cover image from page to issue metadata...');
+        await updateMagazineIssueAction(id, { coverImage: content.image });
+        setIssue(prev => ({ ...prev, coverImage: content.image }));
+        toast.info('Issue thumbnail synced from cover page');
+      }
+
       const res = await updateMagazinePageAction(id, pageDocId, { content });
       if (res.success) {
         toast.success('Spread content saved');
@@ -521,6 +538,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             isSaving={saving} 
             onUpdate={(data) => setIssue(prev => ({ ...prev, ...data }))}
             onSave={handleSaveIssue}
+            pages={pages}
           />
         </TabsContent>
 

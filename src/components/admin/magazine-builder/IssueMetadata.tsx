@@ -1,6 +1,6 @@
 'use client';
 
-import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout } from 'lucide-react';
+import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { MagazineIssue } from './types';
+import { MagazineIssue, MagazinePage } from './types';
+import { toast } from 'sonner';
 
 interface IssueMetadataProps {
   issue: MagazineIssue;
@@ -16,9 +17,20 @@ interface IssueMetadataProps {
   isSaving: boolean;
   onUpdate: (data: Partial<MagazineIssue>) => void;
   onSave: () => void;
+  pages?: MagazinePage[];
 }
 
-export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave }: IssueMetadataProps) {
+export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages = [] }: IssueMetadataProps) {
+  const coverFromPages = pages.find(p => p.type === 'cover')?.content?.image;
+  const canSync = coverFromPages && coverFromPages !== issue.coverImage;
+
+  const handleSyncCover = () => {
+    if (coverFromPages) {
+      onUpdate({ coverImage: coverFromPages });
+      toast.success('Thumbnail synced from Cover Spread');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-accent/20 bg-accent/5">
@@ -150,8 +162,19 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave }: Issu
         
         <div className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Cover Asset</CardTitle>
+              {canSync && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 text-[10px] text-accent font-bold uppercase gap-2 hover:bg-accent/10"
+                  onClick={handleSyncCover}
+                >
+                  <RefreshCw className="h-3 w-3 animate-pulse" />
+                  Sync from Page
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="aspect-[3/4] rounded-lg border-2 border-dashed flex flex-col items-center justify-center bg-muted/30 overflow-hidden relative group">
