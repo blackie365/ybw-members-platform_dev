@@ -96,39 +96,39 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
   };
 
   return (
-    <div className="fixed inset-0 h-[100dvh] bg-[#FFFEF8] text-[#1A1A1A] flex flex-col z-[100] overflow-hidden select-none">
+    <div className="fixed inset-0 h-[100dvh] bg-background text-foreground flex flex-col z-[100] overflow-hidden select-none">
       
-      {/* Top Control Bar - Refined */}
-      <header className="h-14 sm:h-16 border-b border-[#E8E4DC] flex items-center justify-between px-4 sm:px-6 bg-[#FFFEF8]/95 backdrop-blur-sm z-50 shrink-0">
+      {/* Top Control Bar */}
+      <header className="h-14 sm:h-16 border-b border-border/60 flex items-center justify-between px-4 sm:px-6 bg-background/95 backdrop-blur-md z-50 shrink-0">
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link href="/new-edition" className="text-[#6B6B6B] hover:text-[#1A1A1A] transition-colors">
+          <Link href="/new-edition" className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </Link>
-          <div className="h-6 w-px bg-[#E8E4DC] mx-1 sm:mx-2" />
+          <div className="h-6 w-px bg-border mx-1 sm:mx-2" />
           <div className="flex items-center gap-2 sm:gap-3">
-            <Logo className="h-6 sm:h-8" />
-            <span className="text-[#C9A962] hidden sm:block">|</span>
-            <p className="text-[10px] sm:text-sm font-medium tracking-wide uppercase text-[#C9A962] truncate max-w-[100px] sm:max-w-none">
+            <Logo className="h-5 sm:h-6" />
+            <span className="text-accent hidden sm:block">|</span>
+            <p className="text-[10px] sm:text-xs font-semibold tracking-[0.15em] uppercase text-accent truncate max-w-[100px] sm:max-w-none">
               {(pages[currentPage]?.content as any)?.date || issue?.title || "Edition"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <Badge variant="outline" className="border-[#E8E4DC] text-[#6B6B6B] font-mono text-[9px] sm:text-xs px-1.5 py-0 bg-transparent">
+          <Badge variant="outline" className="border-border text-muted-foreground font-mono text-[9px] sm:text-xs px-2 py-0.5 bg-transparent rounded-none">
             {currentPage + 1} / {pages.length}
           </Badge>
-          <div className="h-6 w-px bg-[#E8E4DC] mx-1 sm:mx-2" />
-          <Button variant="ghost" size="icon" className="text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F5F0E8] h-8 w-8 sm:h-10 sm:w-10">
+          <div className="h-6 w-px bg-border mx-1 sm:mx-2" />
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 sm:h-10 sm:w-10">
             <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F5F0E8] h-8 w-8 sm:h-10 sm:w-10">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 sm:h-10 sm:w-10">
             <Download className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-[#6B6B6B] hover:text-[#1A1A1A] hover:bg-[#F5F0E8] lg:hidden h-8 w-8"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted lg:hidden h-8 w-8"
             onClick={() => setIsNavOpen(!isNavOpen)}
           >
             <Menu className="h-5 w-5" />
@@ -137,27 +137,27 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
       </header>
 
       {/* Main Reader Stage */}
-      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-none bg-[#F5F0E8]">
+      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-none bg-muted/50">
         
-        {/* Navigation Arrows (Desktop) - Refined */}
+        {/* Navigation Arrows (Desktop) */}
         <button 
           onClick={prevPage}
           disabled={currentPage === 0}
-          className="absolute left-6 z-40 h-12 w-12 rounded-full bg-white border border-[#E8E4DC] flex items-center justify-center hover:bg-[#F5F0E8] hover:border-[#C9A962] transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm"
+          className="absolute left-4 lg:left-8 z-40 h-12 w-12 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted hover:border-accent transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm"
         >
-          <ChevronLeft className="h-5 w-5 text-[#6B6B6B]" />
+          <ChevronLeft className="h-5 w-5 text-muted-foreground" />
         </button>
 
         <button 
           onClick={nextPage}
           disabled={currentPage === pages.length - 1}
-          className="absolute right-6 z-40 h-12 w-12 rounded-full bg-white border border-[#E8E4DC] flex items-center justify-center hover:bg-[#F5F0E8] hover:border-[#C9A962] transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm"
+          className="absolute right-4 lg:right-8 z-40 h-12 w-12 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted hover:border-accent transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm"
         >
-          <ChevronRight className="h-5 w-5 text-[#6B6B6B]" />
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </button>
 
         {/* Page Viewport */}
-        <div className="relative w-full h-full max-w-[1400px] mx-auto overflow-hidden shadow-lg bg-[#FFFEF8]">
+        <div className="relative w-full h-full max-w-6xl mx-auto overflow-hidden shadow-xl bg-background">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
                 key={currentPage}
@@ -181,36 +181,42 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
         </div>
       </main>
 
-      {/* Footer - Refined Progress Bar */}
-      <footer className="h-16 sm:h-20 bg-[#FFFEF8] border-t border-[#E8E4DC] px-4 sm:px-6 flex items-center gap-4 sm:gap-6 z-50 shrink-0">
-        <div className="flex-1 h-1 bg-[#E8E4DC] rounded-full relative group cursor-pointer">
-          <div 
-            className="absolute h-full bg-[#C9A962] rounded-full transition-all duration-300" 
-            style={{ width: `${((currentPage + 1) / pages.length) * 100}%` }}
-          />
-          <div className="flex justify-between absolute -top-8 w-full">
-            {pages.map((_, i) => (
-              <button 
-                key={i} 
-                onClick={() => goToPage(i)}
-                className={`text-[9px] sm:text-[10px] font-mono transition-colors ${currentPage === i ? 'text-[#C9A962]' : 'text-[#6B6B6B]/40 hover:text-[#6B6B6B]'}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+      {/* Footer Progress Bar */}
+      <footer className="h-14 sm:h-16 bg-background border-t border-border/60 px-4 sm:px-6 flex items-center gap-4 sm:gap-6 z-50 shrink-0">
+        {/* Progress track */}
+        <div className="flex-1 flex items-center gap-1">
+          {pages.map((_, i) => (
+            <button 
+              key={i} 
+              onClick={() => goToPage(i)}
+              className={`h-1 flex-1 transition-all duration-300 ${
+                i <= currentPage ? 'bg-accent' : 'bg-border hover:bg-muted-foreground/30'
+              }`}
+            />
+          ))}
         </div>
         <div className="flex gap-2">
-          <Button onClick={prevPage} disabled={currentPage === 0} variant="outline" size="sm" className="bg-transparent border-[#E8E4DC] text-[#6B6B6B] hover:border-[#C9A962] hover:text-[#C9A962] h-8 text-[10px] sm:text-xs">
-            PREV
+          <Button 
+            onClick={prevPage} 
+            disabled={currentPage === 0} 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
+          >
+            Prev
           </Button>
-          <Button onClick={nextPage} disabled={currentPage === pages.length - 1} variant="outline" size="sm" className="bg-transparent border-[#E8E4DC] text-[#6B6B6B] hover:border-[#C9A962] hover:text-[#C9A962] h-8 text-[10px] sm:text-xs">
-            NEXT
+          <Button 
+            onClick={nextPage} 
+            disabled={currentPage === pages.length - 1} 
+            size="sm" 
+            className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-8 text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
+          >
+            Next
           </Button>
         </div>
       </footer>
 
-      {/* Sidebar Navigation - Refined */}
+      {/* Sidebar Navigation */}
       <AnimatePresence>
         {isNavOpen && (
           <motion.aside
@@ -218,33 +224,39 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-80 bg-[#FFFEF8] z-[60] border-l border-[#E8E4DC] shadow-xl p-8"
+            className="fixed right-0 top-0 bottom-0 w-full sm:w-80 bg-background z-[60] border-l border-border shadow-2xl"
           >
-            <div className="flex items-center justify-between mb-12">
-              <h3 className="text-xl font-serif text-[#1A1A1A]">Quick Access</h3>
-              <Button variant="ghost" size="icon" onClick={() => setIsNavOpen(false)} className="hover:bg-[#F5F0E8]">
-                <X className="h-6 w-6 text-[#6B6B6B]" />
-              </Button>
-            </div>
-            <nav className="space-y-6">
-              {pages.map((page, i) => (
-                <button
-                  key={page.id}
-                  onClick={() => goToPage(i)}
-                  className={`w-full text-left flex items-center gap-4 group ${currentPage === i ? 'text-[#C9A962]' : 'text-[#6B6B6B]'}`}
-                >
-                  <span className="text-xs font-mono opacity-40 group-hover:opacity-100 transition-opacity">0{page.id}</span>
-                  <span className="font-medium text-sm uppercase tracking-widest">{page.type.replace('-', ' ')}</span>
-                  {currentPage === i && <motion.div layoutId="activeDot" className="h-1.5 w-1.5 rounded-full bg-[#C9A962] ml-auto" />}
-                </button>
-              ))}
-            </nav>
-            <div className="mt-20 p-6 bg-[#F5F0E8] rounded-xl">
-              <p className="text-xs text-[#6B6B6B] uppercase tracking-widest mb-2 font-bold">Latest Edition</p>
-              <h4 className="text-lg font-serif mb-4 text-[#1A1A1A]">{issue?.title || "Current Issue"}</h4>
-              <Button className="w-full bg-[#C9A962] hover:bg-[#B8984F] text-white" asChild>
-                <Link href="/membership">Become a Member</Link>
-              </Button>
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-foreground">Contents</h3>
+                <Button variant="ghost" size="icon" onClick={() => setIsNavOpen(false)} className="hover:bg-muted">
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </div>
+              <nav className="flex-1 overflow-y-auto p-6 space-y-1">
+                {pages.map((page, i) => (
+                  <button
+                    key={page.id}
+                    onClick={() => goToPage(i)}
+                    className={`w-full text-left flex items-center gap-4 p-3 rounded-sm transition-all ${
+                      currentPage === i 
+                        ? 'bg-accent/10 text-accent' 
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono w-5">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider flex-1">{page.type.replace('-', ' ')}</span>
+                    {currentPage === i && <div className="h-1.5 w-1.5 rounded-full bg-accent" />}
+                  </button>
+                ))}
+              </nav>
+              <div className="p-6 border-t border-border bg-muted/30">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold mb-2">This Edition</p>
+                <h4 className="text-base font-serif mb-4 text-foreground">{issue?.title || "Current Issue"}</h4>
+                <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90 rounded-none text-[10px] font-bold uppercase tracking-widest" asChild>
+                  <Link href="/membership">Become a Member</Link>
+                </Button>
+              </div>
             </div>
           </motion.aside>
         )}
@@ -253,7 +265,7 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
   );
 }
 
-// --- PAGE RENDERER HELPERS ---
+// --- PAGE RENDERER ---
 
 function renderPage(page: any, imageVersion: string) {
   switch (page.type) {
@@ -262,7 +274,7 @@ function renderPage(page: any, imageVersion: string) {
     case 'editorial':
       return <PageEditorial data={page.content} imageVersion={imageVersion} />;
     case 'contents':
-      return <PageContents data={page.content} imageVersion={imageVersion} />;
+      return <PageContents data={page.content} />;
     case 'feature-left':
       return <PageFeatureLeft data={page.content} imageVersion={imageVersion} />;
     case 'feature-right':
@@ -278,46 +290,51 @@ function renderPage(page: any, imageVersion: string) {
     case 'back-cover':
       return <PageBackCover data={page.content} imageVersion={imageVersion} />;
     default:
-      return <div className="h-full w-full flex items-center justify-center bg-[#FFFEF8] text-[#6B6B6B]">Page coming soon...</div>;
+      return <div className="h-full w-full flex items-center justify-center bg-background text-muted-foreground">Page coming soon...</div>;
   }
 }
 
-// COVER PAGE - Modern Editorial Style
+// ============================================
+// COVER PAGE - Cinematic, full-bleed hero
+// ============================================
 const PageCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8]">
+  <div className="h-full w-full relative overflow-hidden bg-primary">
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src={`${data.image}?v=${imageVersion}`} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
+    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
     
-    {/* Brand Overlay - Refined */}
-    <div className="absolute top-12 sm:top-16 left-1/2 -translate-x-1/2 text-center w-full px-8">
-      <p className="text-white/80 text-[10px] sm:text-xs tracking-[0.4em] sm:tracking-[0.5em] uppercase mb-3 sm:mb-4 font-medium">{data.date} · {data.issue}</p>
-      <h2 className="text-white font-serif text-4xl sm:text-6xl lg:text-7xl font-normal tracking-tight leading-none mb-4">
-        Yorkshire <br />
+    {/* Masthead */}
+    <div className="absolute top-8 sm:top-12 left-0 right-0 text-center">
+      <p className="text-white/60 text-[10px] sm:text-xs tracking-[0.3em] uppercase mb-2 font-medium">{data.date}</p>
+      <h2 className="text-white font-serif text-3xl sm:text-5xl lg:text-6xl font-medium tracking-tight">
+        Yorkshire<br />
         <span className="italic">BusinessWoman</span>
       </h2>
-      <div className="h-0.5 w-16 sm:w-24 bg-[#C9A962] mx-auto mt-4 sm:mt-6" />
+      <div className="h-px w-16 sm:w-20 bg-accent mx-auto mt-4" />
     </div>
 
     {/* Issue Badge */}
-    <div className="absolute top-12 sm:top-16 right-8 sm:right-16">
-      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-2 border-[#C9A962] flex items-center justify-center bg-white/10 backdrop-blur-sm">
-        <span className="text-white font-serif text-lg sm:text-xl">{data.issue?.replace(/[^0-9]/g, '') || '01'}</span>
+    <div className="absolute top-8 sm:top-12 right-6 sm:right-12">
+      <div className="h-14 w-14 sm:h-16 sm:w-16 bg-accent flex items-center justify-center">
+        <span className="text-accent-foreground font-serif text-lg sm:text-xl font-medium">{data.issue?.replace(/[^0-9]/g, '') || '01'}</span>
       </div>
     </div>
 
-    {/* Main Headline - Refined */}
-    <div className="absolute bottom-16 sm:bottom-24 left-8 sm:left-16 right-8 sm:right-16 max-w-4xl">
+    {/* Main Content */}
+    <div className="absolute bottom-8 sm:bottom-16 left-6 sm:left-12 right-6 sm:right-12 max-w-3xl">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.8 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
       >
-        <Badge className="bg-[#C9A962] text-white border-none rounded-sm mb-4 sm:mb-6 px-4 sm:px-5 py-1.5 tracking-widest uppercase text-[10px] sm:text-xs">Special Report</Badge>
-        <h1 className="text-white text-2xl sm:text-5xl lg:text-6xl font-serif font-normal leading-tight mb-4 sm:mb-6">
+        <span className="inline-block bg-accent px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-accent-foreground mb-4 sm:mb-6">
+          {data.badge || 'Featured'}
+        </span>
+        <h1 className="text-white text-2xl sm:text-4xl lg:text-5xl font-serif font-medium leading-[1.1] mb-4">
           {data.headline}
         </h1>
-        <p className="text-white/80 text-sm sm:text-lg font-light max-w-xl border-l-2 border-[#C9A962] pl-4 sm:pl-6 line-clamp-3 sm:line-clamp-none leading-relaxed">
+        <p className="text-white/70 text-sm sm:text-base max-w-xl leading-relaxed line-clamp-2 sm:line-clamp-3">
           {data.subheadline}
         </p>
       </motion.div>
@@ -325,152 +342,177 @@ const PageCover = ({ data, imageVersion }: any) => (
   </div>
 );
 
-// EDITORIAL PAGE - Clean, Sophisticated
+// ============================================
+// EDITORIAL PAGE - Editor's note with portrait
+// ============================================
 const PageEditorial = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-6 sm:p-12 lg:p-16 flex flex-col lg:flex-row gap-8 lg:gap-16 bg-[#FFFEF8] overflow-hidden">
-    <div className="lg:w-2/5 shrink-0 flex flex-col justify-center">
-      <div className="relative aspect-[3/4] overflow-hidden max-w-[200px] lg:max-w-[280px] mx-auto lg:mx-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
-      </div>
-      <div className="mt-4 lg:mt-6 text-center lg:text-left">
-        <p className="font-serif text-xl lg:text-2xl text-[#1A1A1A]">{data.author}</p>
-        <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-[#C9A962] font-medium mt-1">{data.role}</p>
-        <div className="mt-4 flex justify-center lg:justify-start">
-          <svg className="h-8 w-24 text-[#C9A962]" viewBox="0 0 100 30">
-            <path d="M0,15 Q25,5 50,15 T100,15" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-          </svg>
-        </div>
+  <div className="h-full w-full flex flex-col lg:flex-row bg-background overflow-hidden">
+    {/* Portrait side */}
+    <div className="lg:w-2/5 h-48 sm:h-64 lg:h-full relative bg-muted shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-black/10" />
+      
+      {/* Author info overlay on mobile */}
+      <div className="absolute bottom-4 left-4 lg:hidden">
+        <p className="text-white font-serif text-lg">{data.author}</p>
+        <p className="text-white/70 text-xs uppercase tracking-wider">{data.role}</p>
       </div>
     </div>
-    <div className="lg:w-3/5 flex flex-col justify-center py-2 overflow-hidden">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Editor&apos;s Note</p>
-      <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-8 tracking-tight text-[#1A1A1A] leading-tight">{data.title}</h2>
-      <div className="space-y-4 lg:space-y-6 text-sm lg:text-base text-[#4A4A4A] leading-relaxed overflow-hidden">
-        <p className="first-letter:text-4xl lg:first-letter:text-5xl first-letter:font-serif first-letter:text-[#C9A962] first-letter:float-left first-letter:mr-2 first-letter:leading-[0.8] first-letter:mt-1 line-clamp-6 lg:line-clamp-none">
+    
+    {/* Content side */}
+    <div className="lg:w-3/5 p-6 sm:p-10 lg:p-12 flex flex-col justify-center overflow-hidden">
+      <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-3">Editor&apos;s Note</p>
+      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif mb-6 tracking-tight text-foreground leading-tight">{data.title}</h2>
+      
+      <div className="space-y-4 text-sm sm:text-base text-muted-foreground leading-relaxed">
+        <p className="first-letter:text-4xl first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-2 first-letter:leading-[0.85] line-clamp-4 lg:line-clamp-none">
           {data.text}
         </p>
         {data.quote && (
-          <blockquote className="border-l-2 border-[#C9A962] pl-4 lg:pl-6 py-2 italic text-[#6B6B6B] font-serif text-base lg:text-lg leading-relaxed line-clamp-3 lg:line-clamp-none">
+          <blockquote className="border-l-2 border-accent pl-5 py-1 italic text-foreground font-serif text-base sm:text-lg line-clamp-2 lg:line-clamp-none">
             &quot;{data.quote}&quot;
           </blockquote>
         )}
       </div>
-    </div>
-  </div>
-);
-
-// CONTENTS PAGE - Timeline Style
-const PageContents = ({ data }: any) => (
-  <div className="h-full w-full p-6 sm:p-12 lg:p-16 grid lg:grid-cols-2 gap-8 lg:gap-16 bg-[#FFFEF8] overflow-hidden">
-    <div className="flex flex-col justify-center overflow-hidden">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3">Contents</p>
-      <h2 className="text-3xl lg:text-5xl font-serif mb-6 lg:mb-10 tracking-tight text-[#1A1A1A]">In This <span className="italic">Issue</span></h2>
       
-      {/* Timeline Layout */}
-      <div className="relative pl-6 border-l border-[#E8E4DC] overflow-hidden">
-        {data.items?.slice(0, 5).map((item: any, i: number) => (
-          <div key={i} className="relative group cursor-pointer mb-4 lg:mb-6 last:mb-0">
-            {/* Timeline dot */}
-            <div className="absolute -left-[25px] top-2 h-2 w-2 rounded-full bg-[#E8E4DC] group-hover:bg-[#C9A962] transition-colors duration-300" />
-            <div className="flex items-baseline gap-3">
-              <span className="text-[#C9A962] font-mono text-xs opacity-60 group-hover:opacity-100 transition-opacity">{item.page}</span>
-              <div>
-                <p className="text-[9px] lg:text-[10px] uppercase tracking-[0.2em] text-[#6B6B6B] mb-0.5">{item.category}</p>
-                <p className="text-base lg:text-xl font-serif group-hover:text-[#C9A962] transition-colors text-[#1A1A1A]">{item.title}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-    
-    <div className="bg-[#F5F0E8] p-6 lg:p-10 rounded-2xl flex flex-col justify-center overflow-hidden">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 lg:mb-6">Regional News</p>
-      <div className="space-y-3 lg:space-y-5 overflow-hidden">
-        {data.news?.slice(0, 3).map((n: any, i: number) => (
-          <div key={i} className="flex gap-3 lg:gap-4 items-start group">
-            <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-2 shrink-0" />
-            <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed line-clamp-2">{n}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-6 lg:mt-10 pt-6 lg:pt-8 border-t border-[#E8E4DC]">
-        <p className="text-xs uppercase tracking-[0.3em] font-medium text-[#6B6B6B] mb-4">Stay Connected</p>
-        <div className="flex gap-4 lg:gap-6">
-          <Star className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
-          <Award className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
-          <Users className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
+      {/* Author info on desktop */}
+      <div className="hidden lg:flex items-center gap-4 mt-8 pt-6 border-t border-border">
+        <div className="h-12 w-12 rounded-full overflow-hidden bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="h-full w-full object-cover" />
+        </div>
+        <div>
+          <p className="font-medium text-foreground">{data.author}</p>
+          <p className="text-sm text-muted-foreground">{data.role}</p>
         </div>
       </div>
     </div>
   </div>
 );
 
-// FEATURE LEFT - Asymmetric Layout with Floating Card
-const PageFeatureLeft = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative flex flex-col lg:grid lg:grid-cols-5 bg-[#FFFEF8] overflow-hidden">
-    {/* Image - 60% */}
-    <div className="relative h-48 sm:h-64 lg:h-full lg:col-span-3 overflow-hidden shrink-0">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
-      {/* Caption overlay */}
-      <div className="absolute bottom-6 left-6 right-6 lg:right-auto lg:max-w-xs bg-white/95 backdrop-blur-sm p-4 sm:p-5 rounded-lg shadow-lg">
-        <p className="text-xs text-[#6B6B6B] uppercase tracking-wider">{data.title}</p>
+// ============================================
+// CONTENTS PAGE - Clean index layout
+// ============================================
+const PageContents = ({ data }: any) => (
+  <div className="h-full w-full p-6 sm:p-10 lg:p-16 flex flex-col lg:flex-row gap-8 lg:gap-16 bg-background overflow-hidden">
+    {/* Main contents */}
+    <div className="lg:w-3/5 flex flex-col justify-center">
+      <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-2">Contents</p>
+      <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif mb-8 lg:mb-12 tracking-tight text-foreground">In This Issue</h2>
+      
+      <div className="space-y-0 border-t border-border">
+        {data.items?.slice(0, 6).map((item: any, i: number) => (
+          <div key={i} className="flex items-center gap-4 py-3 sm:py-4 border-b border-border group cursor-pointer hover:bg-muted/50 -mx-4 px-4 transition-colors">
+            <span className="text-accent font-mono text-sm sm:text-base w-8">{item.page}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-0.5">{item.category}</p>
+              <p className="text-sm sm:text-base font-medium text-foreground group-hover:text-accent transition-colors truncate">{item.title}</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all shrink-0" />
+          </div>
+        ))}
       </div>
     </div>
     
-    {/* Content - 40% */}
-    <div className="p-6 sm:p-8 lg:p-12 flex flex-col justify-center lg:col-span-2 bg-[#FFFEF8] overflow-hidden">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Cover Feature</p>
-      <h3 className="text-2xl lg:text-4xl font-serif font-normal mb-4 lg:mb-6 leading-tight tracking-tight text-[#1A1A1A]">{data.name}</h3>
+    {/* Sidebar */}
+    <div className="lg:w-2/5 flex flex-col justify-center">
+      <div className="bg-muted p-6 sm:p-8 rounded-lg">
+        <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-4">Regional Highlights</p>
+        <div className="space-y-3">
+          {data.news?.slice(0, 4).map((n: any, i: number) => (
+            <div key={i} className="flex gap-3 items-start">
+              <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{n}</p>
+            </div>
+          ))}
+        </div>
+        
+        <div className="mt-6 pt-6 border-t border-border">
+          <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground mb-3">Connect With Us</p>
+          <div className="flex gap-3">
+            <Star className="h-5 w-5 text-accent hover:scale-110 transition-transform cursor-pointer" />
+            <Award className="h-5 w-5 text-accent hover:scale-110 transition-transform cursor-pointer" />
+            <Users className="h-5 w-5 text-accent hover:scale-110 transition-transform cursor-pointer" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ============================================
+// FEATURE LEFT - Image dominant with text overlay
+// ============================================
+const PageFeatureLeft = ({ data, imageVersion }: any) => (
+  <div className="h-full w-full flex flex-col lg:flex-row bg-background overflow-hidden">
+    {/* Image - 60% on desktop */}
+    <div className="lg:w-3/5 h-48 sm:h-64 lg:h-full relative shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-transparent lg:to-black/20" />
       
-      {/* Quote with thin gold bar */}
-      <div className="relative pl-4 lg:pl-6 border-l-2 border-[#C9A962]">
-        <p className="text-base lg:text-lg text-[#4A4A4A] leading-relaxed italic font-serif line-clamp-4 lg:line-clamp-none">
+      {/* Floating caption */}
+      <div className="absolute bottom-4 left-4 right-4 lg:bottom-8 lg:left-8 lg:right-auto lg:max-w-xs">
+        <div className="bg-background/95 backdrop-blur-sm p-4 shadow-lg">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold">{data.title}</p>
+        </div>
+      </div>
+    </div>
+    
+    {/* Content - 40% on desktop */}
+    <div className="lg:w-2/5 p-6 sm:p-8 lg:p-10 flex flex-col justify-center overflow-hidden">
+      <span className="inline-block border border-accent text-accent text-[10px] uppercase tracking-[0.15em] font-bold px-3 py-1 mb-4 w-fit">
+        Cover Feature
+      </span>
+      <h3 className="text-2xl sm:text-3xl lg:text-4xl font-serif mb-4 text-foreground leading-tight">{data.name}</h3>
+      
+      <div className="border-l-2 border-accent pl-4 mb-6">
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed italic font-serif line-clamp-4">
           {data.intro}
         </p>
       </div>
       
-      {/* Author byline */}
-      <div className="mt-4 lg:mt-6 flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-[#F5F0E8] flex items-center justify-center">
-          <span className="text-[#C9A962] font-serif text-xs">YB</span>
+      <div className="flex items-center gap-3 mt-auto">
+        <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center">
+          <span className="text-accent-foreground font-serif text-sm">YB</span>
         </div>
         <div>
-          <p className="text-xs font-medium text-[#1A1A1A]">Yorkshire BusinessWoman</p>
-          <p className="text-[10px] text-[#6B6B6B]">Exclusive Interview</p>
+          <p className="text-xs font-medium text-foreground">Yorkshire BusinessWoman</p>
+          <p className="text-[10px] text-muted-foreground">Exclusive Interview</p>
         </div>
       </div>
     </div>
   </div>
 );
 
-// FEATURE RIGHT - Quote Focus with Stats
+// ============================================
+// FEATURE RIGHT - Quote focus with stats
+// ============================================
 const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden p-6 sm:p-10 lg:p-16 flex flex-col justify-center bg-[#FFFEF8]">
+  <div className="h-full w-full relative overflow-hidden p-6 sm:p-10 lg:p-16 flex flex-col justify-center bg-background">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-5" />
       </div>
     )}
-    <div className="relative z-10 max-w-3xl mx-auto overflow-hidden">
-      <Quote className="h-6 w-6 lg:h-8 lg:w-8 text-[#C9A962]/30 mb-3 lg:mb-4" />
-      <h2 className="text-xl lg:text-3xl font-serif italic text-[#1A1A1A] leading-tight mb-6 lg:mb-8 line-clamp-3 lg:line-clamp-none">
+    <div className="relative z-10 max-w-4xl mx-auto">
+      <Quote className="h-8 w-8 lg:h-10 lg:w-10 text-accent/30 mb-4" />
+      <h2 className="text-xl sm:text-2xl lg:text-3xl font-serif italic text-foreground leading-tight mb-6 lg:mb-8 line-clamp-3">
         &quot;{data.quote}&quot;
       </h2>
-      <div className="grid md:grid-cols-2 gap-6 lg:gap-10 items-start">
-        <div className="space-y-3 lg:space-y-4 text-sm lg:text-base text-[#4A4A4A] leading-relaxed">
-          <p className="line-clamp-6 lg:line-clamp-none">{data.text}</p>
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 items-start">
+        <div className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+          <p className="line-clamp-6">{data.text}</p>
         </div>
-        <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl">
-          <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] font-medium text-[#C9A962] mb-4">Snapshot</p>
-          <div className="space-y-3 lg:space-y-4">
+        <div className="bg-muted p-5 lg:p-6 rounded-lg">
+          <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-accent mb-4">Key Numbers</p>
+          <div className="space-y-4">
             {data.stats?.slice(0, 3).map((stat: any, i: number) => (
-              <div key={i} className="flex justify-between items-end border-b border-[#E8E4DC] pb-2">
-                <span className="text-[#6B6B6B] uppercase tracking-wider text-[9px] lg:text-[10px]">{stat.label}</span>
-                <span className="text-xl lg:text-2xl font-serif text-[#C9A962]">{stat.value}</span>
+              <div key={i} className="flex justify-between items-end border-b border-border pb-2">
+                <span className="text-muted-foreground uppercase tracking-wider text-[10px]">{stat.label}</span>
+                <span className="text-xl lg:text-2xl font-serif text-accent">{stat.value}</span>
               </div>
             ))}
           </div>
@@ -480,62 +522,73 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
   </div>
 );
 
-// COLUMN PAGE - Light Background
+// ============================================
+// COLUMN PAGE - Expert opinion piece
+// ============================================
 const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col justify-center">
+  <div className="h-full w-full relative overflow-hidden bg-primary">
     {data.image && (
-      <div className="absolute inset-0 shrink-0">
+      <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-10" />
+        <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/70 to-primary/50" />
       </div>
     )}
-    <div className="relative z-10 p-6 sm:p-10 lg:p-16 max-w-4xl overflow-hidden">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">{data.category}</p>
-      <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-6 tracking-tight text-[#1A1A1A]">{data.title}</h2>
-      <div className="flex flex-col md:flex-row gap-6 lg:gap-10 items-start">
-        <div className="md:w-2/3 space-y-3 lg:space-y-4 text-sm lg:text-base text-[#4A4A4A] leading-relaxed">
+    <div className="relative z-10 h-full p-6 sm:p-10 lg:p-16 flex flex-col lg:flex-row gap-6 lg:gap-12">
+      <div className="lg:w-2/3 flex flex-col justify-center">
+        <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-3">{data.category}</p>
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif mb-6 tracking-tight text-primary-foreground leading-tight">{data.title}</h2>
+        <div className="text-sm sm:text-base text-primary-foreground/80 leading-relaxed space-y-4">
           <p className="line-clamp-6 lg:line-clamp-none">{data.text}</p>
-          <div className="h-0.5 w-12 bg-[#C9A962] mt-4 lg:mt-6" />
-          <p className="font-serif italic text-lg lg:text-xl text-[#1A1A1A]">By {data.author}</p>
         </div>
-        {data.tips && data.tips.length > 0 && (
-          <div className="md:w-1/3 bg-[#F5F0E8] p-4 lg:p-6 rounded-xl w-full">
-            <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-[#C9A962] mb-3 lg:mb-4 font-medium">Key Takeaways</p>
-            <ul className="space-y-2 lg:space-y-3">
-              {data.tips?.slice(0, 3).map((tip: any, i: number) => (
+        <div className="mt-6 pt-6 border-t border-primary-foreground/20">
+          <p className="font-serif italic text-lg text-primary-foreground">By {data.author}</p>
+        </div>
+      </div>
+      
+      {data.tips && data.tips.length > 0 && (
+        <div className="lg:w-1/3 flex items-center">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm p-5 lg:p-6 rounded-lg w-full">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-accent font-bold mb-4">Key Takeaways</p>
+            <ul className="space-y-3">
+              {data.tips?.slice(0, 4).map((tip: any, i: number) => (
                 <li key={i} className="flex gap-2 items-start">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-1.5 shrink-0" />
-                  <p className="text-xs lg:text-sm text-[#4A4A4A] line-clamp-2">{tip}</p>
+                  <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
+                  <p className="text-sm text-primary-foreground/80 line-clamp-2">{tip}</p>
                 </li>
               ))}
             </ul>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   </div>
 );
 
-// LIFESTYLE PAGE
+// ============================================
+// LIFESTYLE PAGE - Visual storytelling
+// ============================================
 const PageLifestyle = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col lg:block">
-    <div className="relative lg:absolute top-0 right-0 w-full lg:w-1/2 h-40 sm:h-56 lg:h-full shrink-0">
+  <div className="h-full w-full relative overflow-hidden bg-background">
+    <div className="absolute top-0 right-0 w-full lg:w-1/2 h-1/3 lg:h-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FFFEF8] via-[#FFFEF8]/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-background via-background/60 to-transparent" />
     </div>
-    <div className="relative h-full w-full p-6 sm:p-10 lg:p-16 flex flex-col justify-center z-10 overflow-hidden">
+    <div className="relative h-full p-6 sm:p-10 lg:p-16 flex flex-col justify-center z-10">
       <div className="max-w-lg">
-        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3">Lifestyle</p>
-        <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-6 tracking-tight text-[#1A1A1A]">The <span className="italic text-[#C9A962]">Art</span> of <br />Balance</h2>
-        <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed mb-6 lg:mb-8 line-clamp-4 lg:line-clamp-none">
+        <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-3">Lifestyle</p>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif mb-6 tracking-tight text-foreground leading-tight">
+          The Art of<br /><span className="italic text-accent">Balance</span>
+        </h2>
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-8 line-clamp-4 lg:line-clamp-none">
           {data.text}
         </p>
-        <div className="space-y-2 lg:space-y-3">
+        <div className="space-y-2">
           {data.highlights?.slice(0, 4).map((h: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 group cursor-pointer">
-              <div className="h-px w-6 bg-[#E8E4DC] group-hover:w-10 group-hover:bg-[#C9A962] transition-all duration-300" />
-              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-[#6B6B6B] group-hover:text-[#C9A962] transition-colors">{h}</p>
+            <div key={i} className="flex items-center gap-4 group cursor-pointer">
+              <div className="h-px w-6 bg-border group-hover:w-10 group-hover:bg-accent transition-all duration-300" />
+              <p className="text-[10px] sm:text-xs uppercase tracking-[0.15em] text-muted-foreground group-hover:text-accent transition-colors">{h}</p>
             </div>
           ))}
         </div>
@@ -544,109 +597,116 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
   </div>
 );
 
-// SPOTLIGHT PAGE - Clean Frame, Social Links
+// ============================================
+// SPOTLIGHT PAGE - Member profile
+// ============================================
 const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-6 sm:p-10 lg:p-16 bg-[#FFFEF8] flex flex-col justify-center overflow-hidden">
-    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-      {/* Clean rectangular frame */}
-      <div className="relative h-48 sm:h-64 lg:h-[380px] w-full max-w-[280px] lg:max-w-[320px] shrink-0">
-        <div className="absolute inset-0 border border-[#C9A962]/30 rounded-lg" />
-        <div className="absolute inset-2 overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
-        </div>
+  <div className="h-full w-full p-6 sm:p-10 lg:p-16 bg-background flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12 overflow-hidden">
+    {/* Portrait */}
+    <div className="relative w-full max-w-[240px] lg:max-w-[320px] shrink-0">
+      <div className="aspect-[3/4] relative overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+      </div>
+      {/* Decorative accent */}
+      <div className="absolute -bottom-2 -right-2 h-full w-full border-2 border-accent -z-10" />
+    </div>
+    
+    {/* Content */}
+    <div className="text-center lg:text-left flex-1 max-w-md">
+      <p className="text-accent text-[10px] tracking-[0.2em] uppercase font-bold mb-3">Member Spotlight</p>
+      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif mb-1 text-foreground">{data.name}</h2>
+      <p className="text-sm text-accent mb-4">{data.role}</p>
+      
+      {/* Social Links */}
+      <div className="flex justify-center lg:justify-start gap-2 mb-6">
+        <a href="#" className="h-9 w-9 border border-border flex items-center justify-center hover:border-accent hover:text-accent transition-colors text-muted-foreground">
+          <Linkedin className="h-4 w-4" />
+        </a>
+        <a href="#" className="h-9 w-9 border border-border flex items-center justify-center hover:border-accent hover:text-accent transition-colors text-muted-foreground">
+          <Twitter className="h-4 w-4" />
+        </a>
       </div>
       
-      <div className="text-center lg:text-left flex-1 overflow-hidden">
-        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Member Spotlight</p>
-        <h2 className="text-2xl lg:text-4xl font-serif mb-1 tracking-tight text-[#1A1A1A]">{data.name}</h2>
-        <p className="text-sm lg:text-base text-[#C9A962] mb-4 lg:mb-6">{data.role}</p>
-        
-        {/* Social Links */}
-        <div className="flex justify-center lg:justify-start gap-3 mb-4 lg:mb-6">
-          <a href="#" className="h-8 w-8 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
-            <Linkedin className="h-3.5 w-3.5" />
-          </a>
-          <a href="#" className="h-8 w-8 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
-            <Twitter className="h-3.5 w-3.5" />
-          </a>
-        </div>
-        
-        {/* Testimonial Card */}
-        <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl mb-4 lg:mb-6">
-          <Quote className="h-5 w-5 text-[#C9A962]/40 mb-2" />
-          <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed italic line-clamp-3">
-            &quot;{data.message}&quot;
-          </p>
-        </div>
-        
-        <p className="text-xs lg:text-sm text-[#6B6B6B] leading-relaxed max-w-lg mx-auto lg:mx-0 line-clamp-2 lg:line-clamp-3">
-          {data.bio}
+      {/* Quote */}
+      <div className="bg-muted p-4 lg:p-5 rounded-sm mb-4">
+        <Quote className="h-4 w-4 text-accent/40 mb-2" />
+        <p className="text-sm text-muted-foreground leading-relaxed italic line-clamp-3">
+          &quot;{data.message}&quot;
         </p>
-        
-        <Button className="mt-4 lg:mt-6 px-6 py-4 h-auto bg-[#1A1A1A] text-white hover:bg-[#333] tracking-wider uppercase text-[10px] lg:text-xs rounded-sm">
-          Read Full Profile
-        </Button>
       </div>
+      
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-4">
+        {data.bio}
+      </p>
+      
+      <Button className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none px-6 text-[10px] font-bold uppercase tracking-widest">
+        Read Full Profile
+      </Button>
     </div>
   </div>
 );
 
-// PARTNER PAGE
+// ============================================
+// PARTNER PAGE - Sponsor feature
+// ============================================
 const PagePartner = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#1A1A1A]">
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={`${data.image}?v=${imageVersion}`} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-40" />
-    <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-[#1A1A1A]/40 to-transparent" />
-    
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 sm:p-12">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-      >
-        <p className="text-[#C9A962] text-[10px] sm:text-xs tracking-[0.4em] uppercase mb-6 sm:mb-8 font-medium">Partner Feature</p>
-        <h2 className="text-white font-serif text-3xl sm:text-6xl mb-4 sm:mb-6 tracking-tight">{data.brand}</h2>
-        <p className="text-white/60 text-base sm:text-xl font-light mb-8 sm:mb-10 max-w-lg mx-auto">{data.headline}</p>
-        <div className="bg-[#C9A962] text-white px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg font-serif italic inline-block rounded-sm">
-          {data.offer}
+  <div className="h-full w-full flex flex-col lg:flex-row bg-background overflow-hidden">
+    <div className="lg:w-1/2 h-48 sm:h-64 lg:h-full relative shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+    </div>
+    <div className="lg:w-1/2 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
+      <span className="inline-block bg-muted text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-bold px-3 py-1 mb-4 w-fit">
+        Partner Feature
+      </span>
+      <h3 className="text-2xl sm:text-3xl lg:text-4xl font-serif mb-4 text-foreground">{data.name}</h3>
+      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed mb-6 line-clamp-4 lg:line-clamp-none">
+        {data.description}
+      </p>
+      {data.offer && (
+        <div className="bg-accent/10 border border-accent/20 p-4 rounded-sm">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-accent font-bold mb-1">Exclusive Offer</p>
+          <p className="text-sm text-foreground">{data.offer}</p>
         </div>
-      </motion.div>
+      )}
     </div>
   </div>
 );
 
-// BACK COVER - Subtle, Newsletter Signup
+// ============================================
+// BACK COVER - Closing CTA
+// ============================================
 const PageBackCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col items-center justify-center text-center p-6 sm:p-10">
+  <div className="h-full w-full relative overflow-hidden bg-primary flex flex-col items-center justify-center text-center p-6 sm:p-10">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-5" />
+        <img src={`${data.image}?v=${imageVersion}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-20" />
       </div>
     )}
-    <div className="relative z-10 max-w-lg">
-      <h2 className="text-[#1A1A1A] font-serif text-2xl lg:text-5xl mb-4 lg:mb-6 tracking-tight">
-        Yorkshire <br />
-        <span className="italic text-[#C9A962]">BusinessWoman</span>
+    <div className="relative z-10 max-w-md">
+      <h2 className="text-primary-foreground font-serif text-3xl sm:text-4xl lg:text-5xl mb-4 tracking-tight">
+        Yorkshire<br />
+        <span className="italic text-accent">BusinessWoman</span>
       </h2>
-      <div className="h-px w-12 bg-[#E8E4DC] mx-auto mb-6 lg:mb-10" />
+      <div className="h-px w-16 bg-accent mx-auto mb-8" />
       
-      <p className="text-[#6B6B6B] text-xs tracking-[0.3em] uppercase mb-3 font-medium">Next Edition</p>
-      <h3 className="text-[#1A1A1A] text-base lg:text-xl font-serif mb-6 lg:mb-10">{data.nextIssue}</h3>
+      <p className="text-primary-foreground/60 text-[10px] tracking-[0.2em] uppercase font-bold mb-2">Next Edition</p>
+      <h3 className="text-primary-foreground text-lg sm:text-xl font-serif mb-8">{data.nextIssue}</h3>
       
-      {/* Newsletter Signup */}
-      <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl mb-6 lg:mb-8">
-        <p className="text-xs lg:text-sm text-[#4A4A4A] mb-3">Stay updated with our latest editions</p>
-        <Button className="w-full sm:w-auto px-6 py-4 h-auto bg-[#C9A962] hover:bg-[#B8984F] text-white rounded-sm text-xs" asChild>
-          <Link href="/membership">{data.cta}</Link>
+      {/* CTA */}
+      <div className="bg-primary-foreground/10 backdrop-blur-sm p-5 rounded-sm mb-6">
+        <p className="text-sm text-primary-foreground/70 mb-4">Join our community of inspiring businesswomen</p>
+        <Button className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none px-8 text-[10px] font-bold uppercase tracking-widest" asChild>
+          <Link href="/membership">{data.cta || 'Become a Member'}</Link>
         </Button>
       </div>
 
-      {/* Social Grid */}
-      <div className="flex justify-center gap-4 lg:gap-6 flex-wrap">
+      {/* Social */}
+      <div className="flex justify-center gap-6 flex-wrap">
         {data.socials?.map((s: any, i: number) => (
-          <span key={i} className="text-[#6B6B6B] text-[9px] lg:text-[10px] tracking-widest uppercase hover:text-[#C9A962] transition-colors cursor-pointer">{s}</span>
+          <span key={i} className="text-primary-foreground/50 text-[10px] tracking-widest uppercase hover:text-accent transition-colors cursor-pointer">{s}</span>
         ))}
       </div>
     </div>
