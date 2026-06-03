@@ -273,7 +273,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
             <Card className="border-accent/20">
               <CardHeader>
                 <CardTitle className="text-sm">Digital Reader Cover</CardTitle>
-                <CardDescription className="text-[10px]">The "clean" image used inside the builder.</CardDescription>
+                <CardDescription className="text-[10px]">The &quot;clean&quot; image used inside the builder.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="aspect-[3/4] rounded bg-muted/50 overflow-hidden relative">
@@ -286,7 +286,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                   <div className="absolute inset-0 flex items-center justify-center p-4">
                     <div className="bg-white/90 p-3 rounded shadow-sm text-center border border-accent/20">
                       <p className="text-[10px] font-bold text-accent uppercase tracking-tighter">Builder Overlays</p>
-                      <p className="text-[8px] text-zinc-500 leading-tight mt-1">{coverPage.content.headline || 'Headline'}</p>
+                      <p className="text-[8px] text-zinc-500 leading-tight mt-1">{coverPage.content?.headline || 'Headline'}</p>
                     </div>
                   </div>
                 </div>

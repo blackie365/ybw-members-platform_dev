@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/actions/adminActions"
 import Link from "next/link"
 import { toast } from "sonner"
+import Image from "next/image"
 
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])
@@ -69,7 +70,12 @@ export default function AdminMagazinePage() {
           <Card className="border-accent/30 bg-accent/5 overflow-hidden group">
             <div className="flex flex-col md:flex-row items-center gap-8 p-6 md:p-8">
               <div className="relative h-48 w-36 aspect-[3/4] rounded-lg overflow-hidden border shadow-xl shrink-0">
-                <img src={liveIssue.coverImage} alt="" className="h-full w-full object-cover" />
+                <Image 
+                  src={liveIssue.coverImage} 
+                  alt={liveIssue.title} 
+                  fill 
+                  className="object-cover" 
+                />
               </div>
               <div className="flex-1 space-y-4">
                 <div>
@@ -127,8 +133,13 @@ export default function AdminMagazinePage() {
             {archiveIssues.map((issue) => (
               <Card key={issue.id} className="hover:border-accent/30 transition-all group overflow-hidden">
                 <div className="flex gap-4 p-4">
-                  <div className="h-24 w-18 aspect-[3/4] rounded bg-muted overflow-hidden border shrink-0">
-                    <img src={issue.coverImage} alt="" className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                  <div className="relative h-24 w-18 aspect-[3/4] rounded bg-muted overflow-hidden border shrink-0">
+                    <Image 
+                      src={issue.coverImage} 
+                      alt={issue.title} 
+                      fill 
+                      className="object-cover grayscale group-hover:grayscale-0 transition-all" 
+                    />
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
