@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useCallback } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -81,13 +81,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('metadata');
 
-  useEffect(() => {
-    if (!isNew) {
-      loadData();
-    }
-  }, [id]);
-
-  const loadData = async (silent = false) => {
+  const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       console.log(`[MagazineBuilder] Loading data for issue: ${id}`);
@@ -134,7 +128,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (!isNew) {
+      loadData();
+    }
+  }, [isNew, loadData]);
 
   const handleSaveIssue = async () => {
     setSaving(true);
@@ -788,7 +788,7 @@ function PageEditor({ page, onSave, isSaving }: { page: any, onSave: (content: a
         return (
           <div className="p-4 rounded-lg bg-muted/30 border border-dashed text-center">
             <p className="text-sm text-muted-foreground italic">
-              Editor for "{PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}" is coming soon. 
+              Editor for &quot;{PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}&quot; is coming soon. 
               You can still edit the raw JSON data below.
             </p>
           </div>
