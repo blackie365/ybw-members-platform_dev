@@ -1,20 +1,25 @@
 import { 
   ImageIcon, 
   Type, 
-  Layout
+  Layout,
+  Star,
+  User,
+  Heart,
+  Share2,
+  List
 } from 'lucide-react';
 
 export const PAGE_TYPES = [
-  { id: 'cover', label: 'Cover Page', icon: ImageIcon },
+  { id: 'cover', label: 'Main Cover', icon: ImageIcon },
   { id: 'editorial', label: 'Editor\'s Note', icon: Type },
-  { id: 'contents', label: 'Contents & News', icon: Layout },
-  { id: 'feature-left', label: 'Feature (Left Image)', icon: Layout },
-  { id: 'feature-right', label: 'Feature (Right Image)', icon: Layout },
+  { id: 'contents', label: 'Table of Contents', icon: List },
+  { id: 'feature-left', label: 'Hero Spread (Left)', icon: Layout },
+  { id: 'feature-right', label: 'Hero Quote (Right)', icon: Layout },
   { id: 'column', label: 'Expert Column', icon: Type },
-  { id: 'lifestyle', label: 'Lifestyle Spread', icon: ImageIcon },
-  { id: 'spotlight', label: 'Business Spotlight', icon: Layout },
-  { id: 'partner', label: 'Partner Showcase', icon: Layout },
-  { id: 'back-cover', label: 'Back Cover', icon: ImageIcon },
+  { id: 'lifestyle', label: 'Lifestyle Spread', icon: Heart },
+  { id: 'spotlight', label: 'Member Spotlight', icon: User },
+  { id: 'partner', label: 'Partner Feature', icon: Star },
+  { id: 'back-cover', label: 'Back Cover', icon: Share2 },
 ];
 
 export interface MagazinePage {

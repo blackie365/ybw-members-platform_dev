@@ -15,6 +15,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getGhostPostsAction } from '@/app/actions/magazineActions';
 import { toast } from 'sonner';
 
+import { mapGhostToTemplate, MAGAZINE_TEMPLATES } from '@/lib/magazine-theme';
+
 interface GhostImporterProps {
   onImport: (post: any, type: string) => Promise<void>;
   isImporting: boolean;
@@ -48,6 +50,11 @@ export function GhostImporter({ onImport, isImporting }: GhostImporterProps) {
   const filteredPosts = ghostPosts.filter(post => 
     post.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleSmartImport = (post: any) => {
+    const recommendedType = mapGhostToTemplate(post);
+    onImport(post, recommendedType);
+  };
 
   return (
     <Card>
@@ -86,66 +93,76 @@ export function GhostImporter({ onImport, isImporting }: GhostImporterProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredPosts.map((post) => (
-              <Card key={post.id} className="overflow-hidden group hover:border-accent/50 transition-all">
-                <div className="flex gap-4 p-4">
-                  <div className="h-20 w-20 rounded bg-muted overflow-hidden shrink-0 border">
-                    {post.feature_image ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={post.feature_image} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Ghost className="h-full w-full p-6 text-muted-foreground opacity-20" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <h4 className="font-bold text-sm truncate pr-2">{post.title}</h4>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground shrink-0 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-[200px]">
-                            <p className="text-[10px]">Published: {new Date(post.published_at).toLocaleDateString()}</p>
-                            <p className="text-[10px] mt-1 line-clamp-2">{post.excerpt || 'No excerpt available'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+            {filteredPosts.map((post) => {
+              const recommendedType = mapGhostToTemplate(post);
+              const template = MAGAZINE_TEMPLATES.find(t => t.id === recommendedType);
+
+              return (
+                <Card key={post.id} className="overflow-hidden group hover:border-accent/50 transition-all">
+                  <div className="flex gap-4 p-4">
+                    <div className="h-24 w-24 rounded bg-muted overflow-hidden shrink-0 border relative">
+                      {post.feature_image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={post.feature_image} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Ghost className="h-full w-full p-6 text-muted-foreground opacity-20" />
+                      )}
+                      <div className="absolute top-1 right-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="bg-accent text-white p-1 rounded-full shadow-lg">
+                                <Info className="h-3 w-3" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              <p className="text-[10px] font-bold">AI Recommendation:</p>
+                              <p className="text-[10px]">{template?.name || recommendedType}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-1.5 mt-3">
-                      <Button 
-                        size="sm" 
-                        variant="secondary" 
-                        className="h-6 text-[9px] uppercase font-bold tracking-wider px-2"
-                        onClick={() => onImport(post, 'editorial')}
-                        disabled={isImporting}
-                      >
-                        Editorial
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="secondary" 
-                        className="h-6 text-[9px] uppercase font-bold tracking-wider px-2"
-                        onClick={() => onImport(post, 'feature-left')}
-                        disabled={isImporting}
-                      >
-                        Feature
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="secondary" 
-                        className="h-6 text-[9px] uppercase font-bold tracking-wider px-2"
-                        onClick={() => onImport(post, 'column')}
-                        disabled={isImporting}
-                      >
-                        Column
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <h4 className="font-bold text-sm truncate pr-2">{post.title}</h4>
+                      </div>
+                      
+                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                        {post.primary_tag?.name || 'Uncategorized'} · {post.reading_time || 1} min read
+                      </p>
+
+                      <div className="flex flex-col gap-2 mt-3">
+                        <Button 
+                          size="sm" 
+                          className="h-7 text-[10px] uppercase font-bold tracking-widest bg-accent hover:bg-accent/90"
+                          onClick={() => handleSmartImport(post)}
+                          disabled={isImporting}
+                        >
+                          {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
+                          Smart Import ({template?.name.split(' ')[0]})
+                        </Button>
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {MAGAZINE_TEMPLATES.filter(t => t.category === 'content' || t.category === 'feature').slice(0, 3).map(t => (
+                            <Button 
+                              key={t.id}
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-5 text-[8px] uppercase font-bold tracking-tighter px-1.5 opacity-60 hover:opacity-100"
+                              onClick={() => onImport(post, t.id)}
+                              disabled={isImporting}
+                            >
+                              {t.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </CardContent>

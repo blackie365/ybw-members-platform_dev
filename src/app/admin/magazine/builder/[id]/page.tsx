@@ -177,19 +177,78 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setSaving(true);
     try {
       const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
-      const content = {
-        title: post.title,
-        author: post.primary_author?.name || 'YBW Team',
-        image: post.feature_image,
-        text: post.excerpt || post.custom_excerpt || '',
-        name: post.title,
-        intro: post.custom_excerpt || '',
-        category: post.primary_tag?.name || 'Editorial',
-        quote: '',
-        stats: [],
-        tips: [],
-        highlights: []
-      };
+      
+      // Clean HTML to text for body
+      const cleanText = post.html?.replace(/<[^>]*>?/gm, '') || '';
+      const excerpt = post.custom_excerpt || post.excerpt || cleanText.substring(0, 300) + '...';
+
+      // Map content based on template requirements
+      let content: any = {};
+      
+      switch (type) {
+        case 'editorial':
+          content = {
+            title: post.title,
+            author: post.primary_author?.name || 'Gill Laidler',
+            role: 'Editor-in-Chief',
+            image: post.feature_image || '',
+            text: cleanText.substring(0, 1500),
+            quote: post.custom_excerpt || ''
+          };
+          break;
+        case 'column':
+          content = {
+            title: post.title,
+            author: post.primary_author?.name || 'Expert Contributor',
+            category: post.primary_tag?.name || 'Expert Column',
+            image: post.feature_image || '',
+            text: cleanText.substring(0, 2000),
+            tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 4) || []
+          };
+          break;
+        case 'feature-left':
+          content = {
+            name: post.primary_author?.name || 'Feature Subject',
+            title: post.title,
+            image: post.feature_image || '',
+            intro: excerpt
+          };
+          break;
+        case 'lifestyle':
+          content = {
+            text: cleanText.substring(0, 800),
+            image: post.feature_image || '',
+            highlights: post.tags?.slice(0, 3).map((t: any) => t.name) || []
+          };
+          break;
+        case 'spotlight':
+          content = {
+            name: post.primary_author?.name || 'Member Name',
+            role: post.primary_tag?.name || 'Entrepreneur',
+            image: post.feature_image || '',
+            message: post.title,
+            bio: excerpt
+          };
+          break;
+        case 'partner':
+          content = {
+            brand: post.primary_author?.name || 'Partner Brand',
+            headline: post.title,
+            offer: 'Exclusive Member Benefit',
+            image: post.feature_image || ''
+          };
+          break;
+        default:
+          content = {
+            title: post.title,
+            author: post.primary_author?.name || 'YBW Team',
+            image: post.feature_image,
+            text: excerpt,
+            name: post.title,
+            intro: excerpt,
+            category: post.primary_tag?.name || 'Editorial'
+          };
+      }
 
       const newPage = {
         id: maxId + 1,
@@ -200,7 +259,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       const res = await addMagazinePageAction(id, newPage);
       if (res.success) {
-        toast.success(`Imported "${post.title}" successfully`);
+        toast.success(`Smart Imported "${post.title}" as ${type}`);
         await loadData(true);
         setSelectedPageId(res.id as string);
         setActiveTab('builder');
@@ -270,16 +329,83 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const getInitialContent = (type: string) => {
     switch (type) {
-      case 'cover': return { title: 'Yorkshire BusinessWoman', headline: 'Main Headline', subheadline: 'Secondary text', date: issue.publishDate, issue: 'No. XX', image: '' };
-      case 'editorial': return { title: 'Welcome', author: 'Gill Laidler', role: 'Editor-in-Chief', image: '', text: '', quote: '' };
-      case 'contents': return { items: [], news: [] };
+      case 'cover': 
+        return { 
+          title: 'Yorkshire BusinessWoman', 
+          headline: 'Edition Headline', 
+          subheadline: 'Celebrating excellence and innovation across Yorkshire.', 
+          date: issue.publishDate || new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), 
+          issue: 'No. XX', 
+          image: '' 
+        };
+      case 'editorial': 
+        return { 
+          title: 'Editor\'s Welcome', 
+          author: 'Gill Laidler', 
+          role: 'Editor-in-Chief', 
+          image: '', 
+          text: 'Welcome to this edition...', 
+          quote: 'Empowering women in business across the region.' 
+        };
+      case 'contents': 
+        return { 
+          items: [
+            { page: 2, category: 'EDITORIAL', title: 'Editor\'s Note' },
+            { page: 4, category: 'FEATURE', title: 'Main Interview' }
+          ], 
+          news: ['Upcoming YBW Networking Event', 'New Member Benefits Launched'] 
+        };
       case 'feature-left':
-      case 'feature-right': return { name: 'Person Name', title: 'Featured Interview', image: '', intro: '', quote: '', stats: [] };
-      case 'column': return { title: 'Column Title', category: 'Expert Column', author: 'Author Name', image: '', text: '', tips: [] };
-      case 'lifestyle': return { title: 'Lifestyle Spread', text: '', image: '', highlights: [] };
-      case 'spotlight': return { name: 'Member Name', role: 'Company & Role', image: '', message: '', bio: '' };
-      case 'partner': return { brand: 'Partner Name', headline: 'Featured Partner', image: '', offer: '', socials: [] };
-      case 'back-cover': return { nextIssue: 'Coming Next Month...', cta: 'Join Us', socials: ['Instagram', 'LinkedIn', 'Twitter'], image: '' };
+        return { 
+          name: 'Person Name', 
+          title: 'Featured Interview', 
+          image: '', 
+          intro: 'An inspiring story of leadership...' 
+        };
+      case 'feature-right': 
+        return { 
+          quote: 'Success is not final, failure is not fatal...', 
+          text: 'The journey of building a brand in Yorkshire...', 
+          stats: [{ label: 'YEARS', value: '10+' }], 
+          image: '' 
+        };
+      case 'column': 
+        return { 
+          title: 'Expert Insights', 
+          category: 'Finance & Growth', 
+          author: 'Expert Name', 
+          image: '', 
+          text: 'In today\'s climate...', 
+          tips: ['Plan ahead', 'Network often'] 
+        };
+      case 'lifestyle': 
+        return { 
+          text: 'Discover the balance between work and wellness...', 
+          image: '', 
+          highlights: ['Summer Style', 'Local Retreats'] 
+        };
+      case 'spotlight': 
+        return { 
+          name: 'Member Name', 
+          role: 'CEO, Company Ltd', 
+          image: '', 
+          message: 'Consistency is key to growth.', 
+          bio: 'A brief history of their professional journey...' 
+        };
+      case 'partner': 
+        return { 
+          brand: 'Partner Name', 
+          headline: 'Premium Services for Members', 
+          image: '', 
+          offer: '20% Off for YBW Members' 
+        };
+      case 'back-cover': 
+        return { 
+          nextIssue: 'Coming Summer 2026', 
+          cta: 'Become a Member Today', 
+          socials: ['Instagram', 'LinkedIn', 'X'], 
+          image: '' 
+        };
       default: return {};
     }
   };

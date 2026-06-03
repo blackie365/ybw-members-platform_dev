@@ -35,7 +35,7 @@ const colors = {
   card: "#FFFFFF",
   primary: "#1c1917",
   secondary: "#57534e",
-  accent: "#b79c65",
+  accent: "#a3413a",
   border: "#e7e5e4",
   muted: "#f5f5f4",
 }

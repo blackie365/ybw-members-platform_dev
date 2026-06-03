@@ -36,7 +36,7 @@ interface AnalyticsData {
   totalMessages: number
 }
 
-const COLORS = ['#b79c65', '#1c1917', '#57534e', '#e7e5e4', '#d4d4d8', '#71717a', '#3f3f46', '#18181b'];
+const COLORS = ['#a3413a', '#1c1917', '#57534e', '#e7e5e4', '#d4d4d8', '#71717a', '#3f3f46', '#18181b'];
 
 export default function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
