@@ -178,9 +178,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     try {
       const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
       
-      // Clean HTML to text for body
-      const cleanText = post.html?.replace(/<[^>]*>?/gm, '') || '';
-      const excerpt = post.custom_excerpt || post.excerpt || cleanText.substring(0, 300) + '...';
+      // Better extraction logic
+      const cleanHTML = post.html || '';
+      const cleanText = cleanHTML.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      
+      // Extract Subtitle/Standfirst from excerpt or first sentence
+      const subtitle = post.custom_excerpt || post.excerpt || cleanText.split('. ')[0] + '.';
+      
+      // Extract Pullout Quote (Look for <blockquote> tags)
+      const quoteMatch = cleanHTML.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
+      const pulloutQuote = quoteMatch 
+        ? quoteMatch[1].replace(/<[^>]*>?/gm, '').trim() 
+        : (post.custom_excerpt || cleanText.substring(0, 150) + '...');
 
       // Map content based on template requirements
       let content: any = {};
@@ -192,8 +201,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             author: post.primary_author?.name || 'Gill Laidler',
             role: 'Editor-in-Chief',
             image: post.feature_image || '',
-            text: cleanText.substring(0, 1500),
-            quote: post.custom_excerpt || ''
+            text: cleanText.substring(0, 1800),
+            quote: pulloutQuote
           };
           break;
         case 'column':
@@ -202,8 +211,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             author: post.primary_author?.name || 'Expert Contributor',
             category: post.primary_tag?.name || 'Expert Column',
             image: post.feature_image || '',
-            text: cleanText.substring(0, 2000),
-            tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 4) || []
+            text: cleanText.substring(0, 2500),
+            tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 5) || []
           };
           break;
         case 'feature-left':
@@ -211,14 +220,25 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             name: post.primary_author?.name || 'Feature Subject',
             title: post.title,
             image: post.feature_image || '',
-            intro: excerpt
+            intro: subtitle
+          };
+          break;
+        case 'feature-right':
+          content = {
+            quote: pulloutQuote,
+            text: cleanText.substring(0, 1000),
+            image: post.feature_image || '',
+            stats: [
+              { label: 'READ TIME', value: `${post.reading_time || 5} MIN` },
+              { label: 'TOPIC', value: post.primary_tag?.name?.toUpperCase() || 'NEWS' }
+            ]
           };
           break;
         case 'lifestyle':
           content = {
-            text: cleanText.substring(0, 800),
+            text: cleanText.substring(0, 1000),
             image: post.feature_image || '',
-            highlights: post.tags?.slice(0, 3).map((t: any) => t.name) || []
+            highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
           };
           break;
         case 'spotlight':
@@ -226,8 +246,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             name: post.primary_author?.name || 'Member Name',
             role: post.primary_tag?.name || 'Entrepreneur',
             image: post.feature_image || '',
-            message: post.title,
-            bio: excerpt
+            message: pulloutQuote,
+            bio: cleanText.substring(0, 1200)
           };
           break;
         case 'partner':
@@ -238,14 +258,24 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             image: post.feature_image || ''
           };
           break;
+        case 'cover':
+          content = {
+            title: 'Yorkshire BusinessWoman',
+            headline: post.title,
+            subheadline: subtitle,
+            date: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+            issue: 'LATEST',
+            image: post.feature_image || ''
+          };
+          break;
         default:
           content = {
             title: post.title,
             author: post.primary_author?.name || 'YBW Team',
             image: post.feature_image,
-            text: excerpt,
+            text: cleanText.substring(0, 2000),
             name: post.title,
-            intro: excerpt,
+            intro: subtitle,
             category: post.primary_tag?.name || 'Editorial'
           };
       }
