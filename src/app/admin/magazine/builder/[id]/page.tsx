@@ -31,8 +31,16 @@ import {
   createMagazineIssueAction,
   addMagazinePageAction,
   updateMagazinePageAction,
-  deleteMagazinePageAction
+  deleteMagazinePageAction,
+  getGhostPostsAction
 } from '@/app/actions/magazineActions';
+import { 
+  Search, 
+  Ghost, 
+  DownloadCloud,
+  Layers,
+  ArrowUpDown
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -80,6 +88,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [pages, setPages] = useState<any[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('metadata');
+  
+  // Ghost Import State
+  const [ghostPosts, setGhostPosts] = useState<any[]>([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -120,7 +133,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const pagesRes = await getMagazinePagesAction(id);
       if (pagesRes?.success && pagesRes.data) {
         console.log(`[MagazineBuilder] Loaded ${pagesRes.data.length} pages`);
-        setPages(pagesRes.data);
+        // Ensure pages have a numeric ID for sorting
+        const sortedPages = [...pagesRes.data].sort((a: any, b: any) => (a.id || 0) - (b.id || 0));
+        setPages(sortedPages);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -129,6 +144,64 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (!silent) setLoading(false);
     }
   }, [id]);
+
+  const loadGhostPosts = async () => {
+    setImportLoading(true);
+    try {
+      const res = await getGhostPostsAction({ limit: 20 });
+      if (res.success) {
+        setGhostPosts(res.data || []);
+      }
+    } catch (err) {
+      toast.error('Failed to load Ghost articles');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'import' && ghostPosts.length === 0) {
+      loadGhostPosts();
+    }
+  }, [activeTab]);
+
+  const handleImportAsPage = async (post: any, type: string) => {
+    try {
+      setSaving(true);
+      const content = {
+        title: post.title,
+        author: post.primary_author?.name || 'YBW Team',
+        image: post.feature_image,
+        text: post.excerpt || post.custom_excerpt || '',
+        name: post.title, // For features
+        intro: post.custom_excerpt || '', // For features
+        category: post.primary_tag?.name || 'General',
+        quote: '',
+        stats: [],
+        tips: [],
+        highlights: []
+      };
+
+      const newPage = {
+        id: pages.length + 1,
+        type,
+        content,
+        createdAt: new Date().toISOString()
+      };
+
+      const res = await addMagazinePageAction(id, newPage);
+      if (res.success) {
+        toast.success(`Imported "${post.title}" as ${type} page`);
+        await loadData(true);
+        setActiveTab('builder');
+        setSelectedPageId(res.id as string);
+      }
+    } catch (err) {
+      toast.error('Import failed');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!isNew) {
@@ -170,26 +243,61 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
 
     try {
+      setSaving(true);
+      // Use the highest current ID + 1 to ensure correct ordering
+      const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
+      
       const newPage = {
-        id: pages.length + 1,
+        id: maxId + 1,
         type,
         content: getInitialContent(type),
         createdAt: new Date().toISOString()
       };
 
-      console.log(`[MagazineBuilder] Adding page of type: ${type}`);
+      console.log(`[MagazineBuilder] Attempting to add page:`, newPage);
       const res = await addMagazinePageAction(id, newPage);
+      
       if (res.success) {
-        toast.success('Page added');
-        await loadData(true); // Silent refresh
+        console.log(`[MagazineBuilder] Page created successfully with docId: ${res.id}`);
+        toast.success('Page added successfully');
+        await loadData(true);
         setSelectedPageId(res.id as string);
-        setActiveTab('builder'); // Ensure we stay on builder tab
+        setActiveTab('builder');
       } else {
-        toast.error(res.error || 'Failed to add page');
+        console.error(`[MagazineBuilder] Server failed to create page:`, res.error);
+        toast.error(`Creation failed: ${res.error}`);
       }
     } catch (error) {
-      console.error('Error adding page:', error);
-      toast.error('An unexpected error occurred while adding the page');
+      console.error('[MagazineBuilder] Unexpected error in handleAddPage:', error);
+      toast.error('An unexpected error occurred. Check console for details.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
+    const currentIndex = pages.findIndex(p => p.docId === pageDocId);
+    if (currentIndex === -1) return;
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === pages.length - 1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const currentPage = pages[currentIndex];
+    const targetPage = pages[targetIndex];
+
+    try {
+      setSaving(true);
+      // Swap their IDs in Firestore
+      await Promise.all([
+        updateMagazinePageAction(id, currentPage.docId, { id: targetPage.id }),
+        updateMagazinePageAction(id, targetPage.docId, { id: currentPage.id })
+      ]);
+      toast.success('Page order updated');
+      await loadData(true);
+    } catch (err) {
+      toast.error('Failed to move page');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -302,6 +410,26 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               {isNew && (
                 <TooltipContent side="top">
                   <p>Save issue details first to enable the builder</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <TabsTrigger 
+                    value="import" 
+                    className="rounded-lg px-8" 
+                    disabled={isNew}
+                  >
+                    Import Content
+                  </TabsTrigger>
+                </div>
+              </TooltipTrigger>
+              {isNew && (
+                <TooltipContent side="top">
+                  <p>Save issue details first to enable imports</p>
                 </TooltipContent>
               )}
             </Tooltip>
@@ -489,7 +617,27 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                             </div>
                           </div>
                           
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-1">
+                            <div className="flex flex-col">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-muted-foreground hover:text-accent" 
+                                disabled={index === 0 || saving}
+                                onClick={() => handleMovePage(page.docId, 'up')}
+                              >
+                                <ChevronRight className="h-3 w-3 -rotate-90" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-muted-foreground hover:text-accent" 
+                                disabled={index === pages.length - 1 || saving}
+                                onClick={() => handleMovePage(page.docId, 'down')}
+                              >
+                                <ChevronRight className="h-3 w-3 rotate-90" />
+                              </Button>
+                            </div>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleDeletePage(page.docId)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -520,6 +668,115 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="import" className="mt-0">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Import from Ghost</CardTitle>
+                  <CardDescription>Select an article from your CMS to convert into a magazine spread.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={loadGhostPosts} disabled={importLoading}>
+                  {importLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DownloadCloud className="h-4 w-4 mr-2" />}
+                  Refresh Articles
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative mb-6">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search articles by title..." 
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              {importLoading ? (
+                <div className="py-20 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-accent mb-4" />
+                  <p className="text-muted-foreground italic font-serif">Connecting to Ghost CMS...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {ghostPosts
+                    .filter(post => post.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((post) => (
+                    <Card key={post.id} className="overflow-hidden group hover:border-accent/50 transition-all">
+                      <div className="flex gap-4 p-4">
+                        <div className="h-20 w-20 rounded bg-muted overflow-hidden shrink-0 border">
+                          {post.feature_image ? (
+                            <img src={post.feature_image} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <Ghost className="h-full w-full p-6 text-muted-foreground opacity-20" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-sm truncate">{post.title}</h4>
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{post.excerpt || post.custom_excerpt || 'No excerpt available.'}</p>
+                          <div className="flex items-center gap-2 mt-3">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="secondary" 
+                                    className="h-7 text-[10px] uppercase font-bold tracking-wider"
+                                    onClick={() => handleImportAsPage(post, 'editorial')}
+                                    disabled={saving}
+                                  >
+                                    Import as Editorial
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Convert to Editor&apos;s Note layout</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="secondary" 
+                                    className="h-7 text-[10px] uppercase font-bold tracking-wider"
+                                    onClick={() => handleImportAsPage(post, 'feature-left')}
+                                    disabled={saving}
+                                  >
+                                    Import as Feature
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Convert to Featured Interview layout</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="secondary" 
+                                    className="h-7 text-[10px] uppercase font-bold tracking-wider"
+                                    onClick={() => handleImportAsPage(post, 'column')}
+                                    disabled={saving}
+                                  >
+                                    Import as Column
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Convert to Expert Column layout</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

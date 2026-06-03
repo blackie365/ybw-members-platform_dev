@@ -3,6 +3,18 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
+import { getPosts } from '@/lib/ghost';
+
+export async function getGhostPostsAction(options?: any) {
+  try {
+    await checkAdmin();
+    const posts = await getPosts(options);
+    return { success: true, data: posts };
+  } catch (error: any) {
+    console.error("Error in getGhostPostsAction:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 export async function getMagazineIssuesAction() {
   try {
