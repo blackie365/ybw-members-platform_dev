@@ -327,14 +327,14 @@ const PageCover = ({ data, imageVersion }: any) => (
 
 // EDITORIAL PAGE - Clean, Sophisticated
 const PageEditorial = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-8 sm:p-16 md:p-24 flex flex-col lg:flex-row gap-12 sm:gap-20 bg-[#FFFEF8] overflow-y-auto lg:overflow-hidden">
-    <div className="lg:w-2/5 shrink-0">
-      <div className="relative aspect-[3/4] overflow-hidden max-w-[320px] lg:max-w-none mx-auto lg:mx-0">
+  <div className="h-full w-full p-6 sm:p-12 lg:p-16 flex flex-col lg:flex-row gap-8 lg:gap-16 bg-[#FFFEF8] overflow-hidden">
+    <div className="lg:w-2/5 shrink-0 flex flex-col justify-center">
+      <div className="relative aspect-[3/4] overflow-hidden max-w-[200px] lg:max-w-[280px] mx-auto lg:mx-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
-      <div className="mt-6 sm:mt-8 text-center lg:text-left">
-        <p className="font-serif text-2xl sm:text-3xl text-[#1A1A1A]">{data.author}</p>
+      <div className="mt-4 lg:mt-6 text-center lg:text-left">
+        <p className="font-serif text-xl lg:text-2xl text-[#1A1A1A]">{data.author}</p>
         <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-[#C9A962] font-medium mt-1">{data.role}</p>
         <div className="mt-4 flex justify-center lg:justify-start">
           <svg className="h-8 w-24 text-[#C9A962]" viewBox="0 0 100 30">
@@ -343,15 +343,15 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         </div>
       </div>
     </div>
-    <div className="lg:w-3/5 flex flex-col justify-center py-4">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 sm:mb-6">Editor&apos;s Note</p>
-      <h2 className="text-3xl sm:text-5xl font-serif mb-8 sm:mb-12 tracking-tight text-[#1A1A1A] leading-tight">{data.title}</h2>
-      <div className="space-y-6 sm:space-y-8 text-base sm:text-lg text-[#4A4A4A] leading-relaxed">
-        <p className="first-letter:text-5xl sm:first-letter:text-6xl first-letter:font-serif first-letter:text-[#C9A962] first-letter:float-left first-letter:mr-3 first-letter:leading-[0.8] first-letter:mt-1">
+    <div className="lg:w-3/5 flex flex-col justify-center py-2 overflow-hidden">
+      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Editor&apos;s Note</p>
+      <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-8 tracking-tight text-[#1A1A1A] leading-tight">{data.title}</h2>
+      <div className="space-y-4 lg:space-y-6 text-sm lg:text-base text-[#4A4A4A] leading-relaxed overflow-hidden">
+        <p className="first-letter:text-4xl lg:first-letter:text-5xl first-letter:font-serif first-letter:text-[#C9A962] first-letter:float-left first-letter:mr-2 first-letter:leading-[0.8] first-letter:mt-1 line-clamp-6 lg:line-clamp-none">
           {data.text}
         </p>
         {data.quote && (
-          <blockquote className="border-l-2 border-[#C9A962] pl-6 sm:pl-8 py-2 italic text-[#6B6B6B] font-serif text-lg sm:text-xl leading-relaxed">
+          <blockquote className="border-l-2 border-[#C9A962] pl-4 lg:pl-6 py-2 italic text-[#6B6B6B] font-serif text-base lg:text-lg leading-relaxed line-clamp-3 lg:line-clamp-none">
             &quot;{data.quote}&quot;
           </blockquote>
         )}
@@ -362,22 +362,22 @@ const PageEditorial = ({ data, imageVersion }: any) => (
 
 // CONTENTS PAGE - Timeline Style
 const PageContents = ({ data }: any) => (
-  <div className="h-full w-full p-8 sm:p-16 md:p-24 grid lg:grid-cols-2 gap-12 sm:gap-20 bg-[#FFFEF8] overflow-y-auto lg:overflow-hidden">
-    <div className="flex flex-col justify-center">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4">Contents</p>
-      <h2 className="text-4xl sm:text-6xl font-serif mb-12 sm:mb-16 tracking-tight text-[#1A1A1A]">In This <span className="italic">Issue</span></h2>
+  <div className="h-full w-full p-6 sm:p-12 lg:p-16 grid lg:grid-cols-2 gap-8 lg:gap-16 bg-[#FFFEF8] overflow-hidden">
+    <div className="flex flex-col justify-center overflow-hidden">
+      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3">Contents</p>
+      <h2 className="text-3xl lg:text-5xl font-serif mb-6 lg:mb-10 tracking-tight text-[#1A1A1A]">In This <span className="italic">Issue</span></h2>
       
       {/* Timeline Layout */}
-      <div className="relative pl-8 border-l border-[#E8E4DC]">
-        {data.items?.map((item: any, i: number) => (
-          <div key={i} className="relative group cursor-pointer mb-8 sm:mb-10 last:mb-0">
+      <div className="relative pl-6 border-l border-[#E8E4DC] overflow-hidden">
+        {data.items?.slice(0, 5).map((item: any, i: number) => (
+          <div key={i} className="relative group cursor-pointer mb-4 lg:mb-6 last:mb-0">
             {/* Timeline dot */}
-            <div className="absolute -left-[33px] top-2 h-2 w-2 rounded-full bg-[#E8E4DC] group-hover:bg-[#C9A962] transition-colors duration-300" />
-            <div className="flex items-baseline gap-4">
-              <span className="text-[#C9A962] font-mono text-sm opacity-60 group-hover:opacity-100 transition-opacity">{item.page}</span>
+            <div className="absolute -left-[25px] top-2 h-2 w-2 rounded-full bg-[#E8E4DC] group-hover:bg-[#C9A962] transition-colors duration-300" />
+            <div className="flex items-baseline gap-3">
+              <span className="text-[#C9A962] font-mono text-xs opacity-60 group-hover:opacity-100 transition-opacity">{item.page}</span>
               <div>
-                <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[#6B6B6B] mb-1">{item.category}</p>
-                <p className="text-lg sm:text-2xl font-serif group-hover:text-[#C9A962] transition-colors text-[#1A1A1A]">{item.title}</p>
+                <p className="text-[9px] lg:text-[10px] uppercase tracking-[0.2em] text-[#6B6B6B] mb-0.5">{item.category}</p>
+                <p className="text-base lg:text-xl font-serif group-hover:text-[#C9A962] transition-colors text-[#1A1A1A]">{item.title}</p>
               </div>
             </div>
           </div>
@@ -385,22 +385,22 @@ const PageContents = ({ data }: any) => (
       </div>
     </div>
     
-    <div className="bg-[#F5F0E8] p-8 sm:p-12 rounded-2xl flex flex-col justify-center">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-6 sm:mb-8">Regional News</p>
-      <div className="space-y-6 sm:space-y-8">
-        {data.news?.map((n: any, i: number) => (
-          <div key={i} className="flex gap-4 sm:gap-6 items-start group">
-            <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-2.5 shrink-0" />
-            <p className="text-base sm:text-lg text-[#4A4A4A] leading-relaxed">{n}</p>
+    <div className="bg-[#F5F0E8] p-6 lg:p-10 rounded-2xl flex flex-col justify-center overflow-hidden">
+      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 lg:mb-6">Regional News</p>
+      <div className="space-y-3 lg:space-y-5 overflow-hidden">
+        {data.news?.slice(0, 3).map((n: any, i: number) => (
+          <div key={i} className="flex gap-3 lg:gap-4 items-start group">
+            <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-2 shrink-0" />
+            <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed line-clamp-2">{n}</p>
           </div>
         ))}
       </div>
-      <div className="mt-12 sm:mt-16 pt-8 sm:pt-10 border-t border-[#E8E4DC]">
-        <p className="text-xs uppercase tracking-[0.3em] font-medium text-[#6B6B6B] mb-6">Stay Connected</p>
-        <div className="flex gap-6 sm:gap-8">
-          <Star className="h-6 w-6 sm:h-7 sm:w-7 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
-          <Award className="h-6 w-6 sm:h-7 sm:w-7 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
-          <Users className="h-6 w-6 sm:h-7 sm:w-7 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
+      <div className="mt-6 lg:mt-10 pt-6 lg:pt-8 border-t border-[#E8E4DC]">
+        <p className="text-xs uppercase tracking-[0.3em] font-medium text-[#6B6B6B] mb-4">Stay Connected</p>
+        <div className="flex gap-4 lg:gap-6">
+          <Star className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
+          <Award className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
+          <Users className="h-5 w-5 lg:h-6 lg:w-6 text-[#C9A962] hover:scale-110 transition-transform cursor-pointer" />
         </div>
       </div>
     </div>
@@ -409,9 +409,9 @@ const PageContents = ({ data }: any) => (
 
 // FEATURE LEFT - Asymmetric Layout with Floating Card
 const PageFeatureLeft = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative flex flex-col lg:grid lg:grid-cols-5 bg-[#FFFEF8] overflow-y-auto lg:overflow-hidden">
+  <div className="h-full w-full relative flex flex-col lg:grid lg:grid-cols-5 bg-[#FFFEF8] overflow-hidden">
     {/* Image - 60% */}
-    <div className="relative h-72 sm:h-[50vh] lg:h-full lg:col-span-3 overflow-hidden shrink-0">
+    <div className="relative h-48 sm:h-64 lg:h-full lg:col-span-3 overflow-hidden shrink-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
       {/* Caption overlay */}
@@ -421,25 +421,25 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
     </div>
     
     {/* Content - 40% */}
-    <div className="p-8 sm:p-12 lg:p-16 flex flex-col justify-center lg:col-span-2 bg-[#FFFEF8]">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 sm:mb-6">Cover Feature</p>
-      <h3 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-normal mb-8 sm:mb-10 leading-none tracking-tight text-[#1A1A1A]">{data.name}</h3>
+    <div className="p-6 sm:p-8 lg:p-12 flex flex-col justify-center lg:col-span-2 bg-[#FFFEF8] overflow-hidden">
+      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Cover Feature</p>
+      <h3 className="text-2xl lg:text-4xl font-serif font-normal mb-4 lg:mb-6 leading-tight tracking-tight text-[#1A1A1A]">{data.name}</h3>
       
       {/* Quote with thin gold bar */}
-      <div className="relative pl-6 border-l-2 border-[#C9A962]">
-        <p className="text-lg sm:text-xl text-[#4A4A4A] leading-relaxed italic font-serif">
+      <div className="relative pl-4 lg:pl-6 border-l-2 border-[#C9A962]">
+        <p className="text-base lg:text-lg text-[#4A4A4A] leading-relaxed italic font-serif line-clamp-4 lg:line-clamp-none">
           {data.intro}
         </p>
       </div>
       
       {/* Author byline */}
-      <div className="mt-8 sm:mt-10 flex items-center gap-4">
-        <div className="h-10 w-10 rounded-full bg-[#F5F0E8] flex items-center justify-center">
-          <span className="text-[#C9A962] font-serif text-sm">YB</span>
+      <div className="mt-4 lg:mt-6 flex items-center gap-3">
+        <div className="h-8 w-8 rounded-full bg-[#F5F0E8] flex items-center justify-center">
+          <span className="text-[#C9A962] font-serif text-xs">YB</span>
         </div>
         <div>
-          <p className="text-sm font-medium text-[#1A1A1A]">Yorkshire BusinessWoman</p>
-          <p className="text-xs text-[#6B6B6B]">Exclusive Interview</p>
+          <p className="text-xs font-medium text-[#1A1A1A]">Yorkshire BusinessWoman</p>
+          <p className="text-[10px] text-[#6B6B6B]">Exclusive Interview</p>
         </div>
       </div>
     </div>
@@ -448,29 +448,29 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
 
 // FEATURE RIGHT - Quote Focus with Stats
 const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden p-8 sm:p-12 md:p-20 flex flex-col justify-center bg-[#FFFEF8] overflow-y-auto">
+  <div className="h-full w-full relative overflow-hidden p-6 sm:p-10 lg:p-16 flex flex-col justify-center bg-[#FFFEF8]">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-5" />
       </div>
     )}
-    <div className="relative z-10 max-w-3xl mx-auto">
-      <Quote className="h-8 w-8 sm:h-12 sm:w-12 text-[#C9A962]/30 mb-4 sm:mb-6" />
-      <h2 className="text-2xl sm:text-4xl font-serif italic text-[#1A1A1A] leading-tight mb-8 sm:mb-12">
+    <div className="relative z-10 max-w-3xl mx-auto overflow-hidden">
+      <Quote className="h-6 w-6 lg:h-8 lg:w-8 text-[#C9A962]/30 mb-3 lg:mb-4" />
+      <h2 className="text-xl lg:text-3xl font-serif italic text-[#1A1A1A] leading-tight mb-6 lg:mb-8 line-clamp-3 lg:line-clamp-none">
         &quot;{data.quote}&quot;
       </h2>
-      <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-start">
-        <div className="space-y-4 sm:space-y-5 text-base sm:text-lg text-[#4A4A4A] leading-relaxed">
-          <p>{data.text}</p>
+      <div className="grid md:grid-cols-2 gap-6 lg:gap-10 items-start">
+        <div className="space-y-3 lg:space-y-4 text-sm lg:text-base text-[#4A4A4A] leading-relaxed">
+          <p className="line-clamp-6 lg:line-clamp-none">{data.text}</p>
         </div>
-        <div className="bg-[#F5F0E8] p-6 sm:p-8 rounded-xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-medium text-[#C9A962] mb-6">Snapshot</p>
-          <div className="space-y-5 sm:space-y-6">
-            {data.stats?.map((stat: any, i: number) => (
-              <div key={i} className="flex justify-between items-end border-b border-[#E8E4DC] pb-3">
-                <span className="text-[#6B6B6B] uppercase tracking-wider text-[10px] sm:text-xs">{stat.label}</span>
-                <span className="text-2xl sm:text-3xl font-serif text-[#C9A962]">{stat.value}</span>
+        <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl">
+          <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] font-medium text-[#C9A962] mb-4">Snapshot</p>
+          <div className="space-y-3 lg:space-y-4">
+            {data.stats?.slice(0, 3).map((stat: any, i: number) => (
+              <div key={i} className="flex justify-between items-end border-b border-[#E8E4DC] pb-2">
+                <span className="text-[#6B6B6B] uppercase tracking-wider text-[9px] lg:text-[10px]">{stat.label}</span>
+                <span className="text-xl lg:text-2xl font-serif text-[#C9A962]">{stat.value}</span>
               </div>
             ))}
           </div>
@@ -482,30 +482,30 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
 
 // COLUMN PAGE - Light Background
 const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col justify-center overflow-y-auto">
+  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col justify-center">
     {data.image && (
       <div className="absolute inset-0 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-10" />
       </div>
     )}
-    <div className="relative z-10 p-8 sm:p-12 md:p-20 max-w-4xl">
-      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 sm:mb-6">{data.category}</p>
-      <h2 className="text-3xl sm:text-5xl font-serif mb-8 sm:mb-10 tracking-tight text-[#1A1A1A]">{data.title}</h2>
-      <div className="flex flex-col md:flex-row gap-8 sm:gap-12 items-start">
-        <div className="md:w-2/3 space-y-5 sm:space-y-6 text-base sm:text-lg text-[#4A4A4A] leading-relaxed">
-          <p>{data.text}</p>
-          <div className="h-0.5 w-16 bg-[#C9A962] mt-6 sm:mt-8" />
-          <p className="font-serif italic text-xl sm:text-2xl text-[#1A1A1A]">By {data.author}</p>
+    <div className="relative z-10 p-6 sm:p-10 lg:p-16 max-w-4xl overflow-hidden">
+      <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">{data.category}</p>
+      <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-6 tracking-tight text-[#1A1A1A]">{data.title}</h2>
+      <div className="flex flex-col md:flex-row gap-6 lg:gap-10 items-start">
+        <div className="md:w-2/3 space-y-3 lg:space-y-4 text-sm lg:text-base text-[#4A4A4A] leading-relaxed">
+          <p className="line-clamp-6 lg:line-clamp-none">{data.text}</p>
+          <div className="h-0.5 w-12 bg-[#C9A962] mt-4 lg:mt-6" />
+          <p className="font-serif italic text-lg lg:text-xl text-[#1A1A1A]">By {data.author}</p>
         </div>
         {data.tips && data.tips.length > 0 && (
-          <div className="md:w-1/3 bg-[#F5F0E8] p-6 sm:p-8 rounded-xl w-full">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#C9A962] mb-4 sm:mb-5 font-medium">Key Takeaways</p>
-            <ul className="space-y-4 sm:space-y-5">
-              {data.tips?.map((tip: any, i: number) => (
-                <li key={i} className="flex gap-3 items-start">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-2 shrink-0" />
-                  <p className="text-sm text-[#4A4A4A]">{tip}</p>
+          <div className="md:w-1/3 bg-[#F5F0E8] p-4 lg:p-6 rounded-xl w-full">
+            <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-[#C9A962] mb-3 lg:mb-4 font-medium">Key Takeaways</p>
+            <ul className="space-y-2 lg:space-y-3">
+              {data.tips?.slice(0, 3).map((tip: any, i: number) => (
+                <li key={i} className="flex gap-2 items-start">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#C9A962] mt-1.5 shrink-0" />
+                  <p className="text-xs lg:text-sm text-[#4A4A4A] line-clamp-2">{tip}</p>
                 </li>
               ))}
             </ul>
@@ -518,24 +518,24 @@ const PageColumn = ({ data, imageVersion }: any) => (
 
 // LIFESTYLE PAGE
 const PageLifestyle = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col lg:block overflow-y-auto lg:overflow-hidden">
-    <div className="relative lg:absolute top-0 right-0 w-full lg:w-1/2 h-64 sm:h-80 lg:h-full shrink-0">
+  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col lg:block">
+    <div className="relative lg:absolute top-0 right-0 w-full lg:w-1/2 h-40 sm:h-56 lg:h-full shrink-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FFFEF8] via-[#FFFEF8]/60 to-transparent" />
     </div>
-    <div className="relative h-full w-full p-8 sm:p-12 md:p-20 flex flex-col justify-center z-10">
+    <div className="relative h-full w-full p-6 sm:p-10 lg:p-16 flex flex-col justify-center z-10 overflow-hidden">
       <div className="max-w-lg">
-        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4">Lifestyle</p>
-        <h2 className="text-3xl sm:text-5xl font-serif mb-6 sm:mb-8 tracking-tight text-[#1A1A1A]">The <span className="italic text-[#C9A962]">Art</span> of <br />Balance</h2>
-        <p className="text-base sm:text-lg text-[#4A4A4A] leading-relaxed mb-8 sm:mb-10">
+        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3">Lifestyle</p>
+        <h2 className="text-2xl lg:text-4xl font-serif mb-4 lg:mb-6 tracking-tight text-[#1A1A1A]">The <span className="italic text-[#C9A962]">Art</span> of <br />Balance</h2>
+        <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed mb-6 lg:mb-8 line-clamp-4 lg:line-clamp-none">
           {data.text}
         </p>
-        <div className="space-y-4">
-          {data.highlights?.map((h: any, i: number) => (
-            <div key={i} className="flex items-center gap-4 group cursor-pointer">
-              <div className="h-px w-8 bg-[#E8E4DC] group-hover:w-12 group-hover:bg-[#C9A962] transition-all duration-300" />
-              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-[#6B6B6B] group-hover:text-[#C9A962] transition-colors">{h}</p>
+        <div className="space-y-2 lg:space-y-3">
+          {data.highlights?.slice(0, 4).map((h: any, i: number) => (
+            <div key={i} className="flex items-center gap-3 group cursor-pointer">
+              <div className="h-px w-6 bg-[#E8E4DC] group-hover:w-10 group-hover:bg-[#C9A962] transition-all duration-300" />
+              <p className="text-[10px] lg:text-xs uppercase tracking-[0.2em] text-[#6B6B6B] group-hover:text-[#C9A962] transition-colors">{h}</p>
             </div>
           ))}
         </div>
@@ -546,45 +546,45 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
 
 // SPOTLIGHT PAGE - Clean Frame, Social Links
 const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-6 sm:p-12 md:p-20 bg-[#FFFEF8] flex flex-col justify-center overflow-y-auto">
-    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-12 sm:gap-16">
+  <div className="h-full w-full p-6 sm:p-10 lg:p-16 bg-[#FFFEF8] flex flex-col justify-center overflow-hidden">
+    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
       {/* Clean rectangular frame */}
-      <div className="relative h-64 sm:h-[450px] w-full lg:w-[380px] shrink-0">
+      <div className="relative h-48 sm:h-64 lg:h-[380px] w-full max-w-[280px] lg:max-w-[320px] shrink-0">
         <div className="absolute inset-0 border border-[#C9A962]/30 rounded-lg" />
-        <div className="absolute inset-3 overflow-hidden rounded-lg">
+        <div className="absolute inset-2 overflow-hidden rounded-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
         </div>
       </div>
       
-      <div className="text-center lg:text-left flex-1">
-        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-4 sm:mb-6">Member Spotlight</p>
-        <h2 className="text-3xl sm:text-5xl font-serif mb-2 tracking-tight text-[#1A1A1A]">{data.name}</h2>
-        <p className="text-base sm:text-lg text-[#C9A962] mb-6 sm:mb-8">{data.role}</p>
+      <div className="text-center lg:text-left flex-1 overflow-hidden">
+        <p className="text-[#C9A962] text-xs tracking-[0.3em] uppercase font-medium mb-3 lg:mb-4">Member Spotlight</p>
+        <h2 className="text-2xl lg:text-4xl font-serif mb-1 tracking-tight text-[#1A1A1A]">{data.name}</h2>
+        <p className="text-sm lg:text-base text-[#C9A962] mb-4 lg:mb-6">{data.role}</p>
         
         {/* Social Links */}
-        <div className="flex justify-center lg:justify-start gap-4 mb-8">
-          <a href="#" className="h-10 w-10 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
-            <Linkedin className="h-4 w-4" />
+        <div className="flex justify-center lg:justify-start gap-3 mb-4 lg:mb-6">
+          <a href="#" className="h-8 w-8 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
+            <Linkedin className="h-3.5 w-3.5" />
           </a>
-          <a href="#" className="h-10 w-10 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
-            <Twitter className="h-4 w-4" />
+          <a href="#" className="h-8 w-8 rounded-full border border-[#E8E4DC] flex items-center justify-center hover:border-[#C9A962] hover:text-[#C9A962] transition-colors text-[#6B6B6B]">
+            <Twitter className="h-3.5 w-3.5" />
           </a>
         </div>
         
         {/* Testimonial Card */}
-        <div className="bg-[#F5F0E8] p-6 sm:p-8 rounded-xl mb-6 sm:mb-8">
-          <Quote className="h-6 w-6 text-[#C9A962]/40 mb-3" />
-          <p className="text-base sm:text-lg text-[#4A4A4A] leading-relaxed italic">
+        <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl mb-4 lg:mb-6">
+          <Quote className="h-5 w-5 text-[#C9A962]/40 mb-2" />
+          <p className="text-sm lg:text-base text-[#4A4A4A] leading-relaxed italic line-clamp-3">
             &quot;{data.message}&quot;
           </p>
         </div>
         
-        <p className="text-sm sm:text-base text-[#6B6B6B] leading-relaxed max-w-lg mx-auto lg:mx-0">
+        <p className="text-xs lg:text-sm text-[#6B6B6B] leading-relaxed max-w-lg mx-auto lg:mx-0 line-clamp-2 lg:line-clamp-3">
           {data.bio}
         </p>
         
-        <Button className="mt-6 sm:mt-8 px-8 py-5 h-auto bg-[#1A1A1A] text-white hover:bg-[#333] tracking-wider uppercase text-xs rounded-sm">
+        <Button className="mt-4 lg:mt-6 px-6 py-4 h-auto bg-[#1A1A1A] text-white hover:bg-[#333] tracking-wider uppercase text-[10px] lg:text-xs rounded-sm">
           Read Full Profile
         </Button>
       </div>
@@ -618,7 +618,7 @@ const PagePartner = ({ data, imageVersion }: any) => (
 
 // BACK COVER - Subtle, Newsletter Signup
 const PageBackCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col items-center justify-center text-center p-8 sm:p-12">
+  <div className="h-full w-full relative overflow-hidden bg-[#FFFEF8] flex flex-col items-center justify-center text-center p-6 sm:p-10">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -626,27 +626,27 @@ const PageBackCover = ({ data, imageVersion }: any) => (
       </div>
     )}
     <div className="relative z-10 max-w-lg">
-      <h2 className="text-[#1A1A1A] font-serif text-3xl sm:text-6xl mb-6 sm:mb-8 tracking-tight">
+      <h2 className="text-[#1A1A1A] font-serif text-2xl lg:text-5xl mb-4 lg:mb-6 tracking-tight">
         Yorkshire <br />
         <span className="italic text-[#C9A962]">BusinessWoman</span>
       </h2>
-      <div className="h-px w-16 bg-[#E8E4DC] mx-auto mb-10 sm:mb-12" />
+      <div className="h-px w-12 bg-[#E8E4DC] mx-auto mb-6 lg:mb-10" />
       
-      <p className="text-[#6B6B6B] text-xs tracking-[0.3em] uppercase mb-4 font-medium">Next Edition</p>
-      <h3 className="text-[#1A1A1A] text-lg sm:text-2xl font-serif mb-10 sm:mb-12">{data.nextIssue}</h3>
+      <p className="text-[#6B6B6B] text-xs tracking-[0.3em] uppercase mb-3 font-medium">Next Edition</p>
+      <h3 className="text-[#1A1A1A] text-base lg:text-xl font-serif mb-6 lg:mb-10">{data.nextIssue}</h3>
       
       {/* Newsletter Signup */}
-      <div className="bg-[#F5F0E8] p-6 sm:p-8 rounded-xl mb-8 sm:mb-10">
-        <p className="text-sm text-[#4A4A4A] mb-4">Stay updated with our latest editions</p>
-        <Button className="w-full sm:w-auto px-8 py-5 h-auto bg-[#C9A962] hover:bg-[#B8984F] text-white rounded-sm" asChild>
+      <div className="bg-[#F5F0E8] p-4 lg:p-6 rounded-xl mb-6 lg:mb-8">
+        <p className="text-xs lg:text-sm text-[#4A4A4A] mb-3">Stay updated with our latest editions</p>
+        <Button className="w-full sm:w-auto px-6 py-4 h-auto bg-[#C9A962] hover:bg-[#B8984F] text-white rounded-sm text-xs" asChild>
           <Link href="/membership">{data.cta}</Link>
         </Button>
       </div>
 
       {/* Social Grid */}
-      <div className="flex justify-center gap-6 sm:gap-8">
+      <div className="flex justify-center gap-4 lg:gap-6 flex-wrap">
         {data.socials?.map((s: any, i: number) => (
-          <span key={i} className="text-[#6B6B6B] text-[10px] sm:text-xs tracking-widest uppercase hover:text-[#C9A962] transition-colors cursor-pointer">{s}</span>
+          <span key={i} className="text-[#6B6B6B] text-[9px] lg:text-[10px] tracking-widest uppercase hover:text-[#C9A962] transition-colors cursor-pointer">{s}</span>
         ))}
       </div>
     </div>
