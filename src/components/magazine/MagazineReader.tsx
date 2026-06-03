@@ -102,48 +102,48 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
   };
 
   return (
-    <div className="fixed inset-0 bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden select-none perspective-1000">
+    <div className="fixed inset-0 h-[100dvh] bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden select-none perspective-1000">
       
       {/* Top Control Bar */}
-      <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/50 backdrop-blur-md z-50">
-        <div className="flex items-center gap-4">
+      <header className="h-14 sm:h-16 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-6 bg-zinc-900/50 backdrop-blur-md z-50 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Link href="/new-edition" className="text-zinc-400 hover:text-white transition-colors">
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </Link>
-          <div className="h-6 w-px bg-zinc-800 mx-2" />
-          <div className="flex items-center gap-3">
-            <Logo className="h-8 brightness-0 invert" />
+          <div className="h-6 w-px bg-zinc-800 mx-1 sm:mx-2" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Logo className="h-6 sm:h-8 brightness-0 invert" />
             <span className="text-zinc-500 hidden sm:block">|</span>
-            <p className="text-sm font-medium tracking-wide uppercase text-accent hidden sm:block">
+            <p className="text-[10px] sm:text-sm font-medium tracking-wide uppercase text-accent truncate max-w-[100px] sm:max-w-none">
               {(pages[currentPage]?.content as any)?.date || issue?.title || "Edition"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="border-zinc-700 text-zinc-400 font-mono">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Badge variant="outline" className="border-zinc-700 text-zinc-400 font-mono text-[9px] sm:text-xs px-1.5 py-0">
             {currentPage + 1} / {pages.length}
           </Badge>
-          <div className="h-6 w-px bg-zinc-800 mx-2" />
-          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white">
-            <Share2 className="h-5 w-5" />
+          <div className="h-6 w-px bg-zinc-800 mx-1 sm:mx-2" />
+          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white h-8 w-8 sm:h-10 sm:w-10">
+            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white">
-            <Download className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-white h-8 w-8 sm:h-10 sm:w-10">
+            <Download className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-zinc-400 hover:text-white lg:hidden"
+            className="text-zinc-400 hover:text-white lg:hidden h-8 w-8"
             onClick={() => setIsNavOpen(!isNavOpen)}
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5" />
           </Button>
         </div>
       </header>
 
       {/* Main Reader Stage */}
-      <main className="flex-1 relative flex items-center justify-center overflow-hidden">
+      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-none">
         
         {/* Navigation Arrows (Desktop) */}
         <button 
@@ -172,11 +172,18 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
                 initial="enter"
                 animate="center"
                 exit="exit"
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x > 100) prevPage();
+                  else if (info.offset.x < -100) nextPage();
+                }}
                 transition={{
                   x: { type: "spring", stiffness: 300, damping: 30 },
                   opacity: { duration: 0.2 }
                 }}
-                className="absolute inset-0 w-full h-full"
+                className="absolute inset-0 w-full h-full will-change-transform"
               >
                 {renderPage(pages[currentPage], imageVersion)}
               </motion.div>
@@ -185,7 +192,7 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
       </main>
 
       {/* Mobile Page Scrubber */}
-      <footer className="h-20 bg-zinc-900 border-t border-zinc-800 px-6 flex items-center gap-6 z-50">
+      <footer className="h-16 sm:h-20 bg-zinc-900 border-t border-zinc-800 px-4 sm:px-6 flex items-center gap-4 sm:gap-6 z-50 shrink-0">
         <div className="flex-1 h-1 bg-zinc-800 rounded-full relative group cursor-pointer">
           <div 
             className="absolute h-full bg-accent rounded-full transition-all duration-300" 
@@ -196,7 +203,7 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
               <button 
                 key={i} 
                 onClick={() => goToPage(i)}
-                className={`text-[10px] font-mono transition-colors ${currentPage === i ? 'text-accent' : 'text-zinc-600 hover:text-zinc-400'}`}
+                className={`text-[9px] sm:text-[10px] font-mono transition-colors ${currentPage === i ? 'text-accent' : 'text-zinc-600 hover:text-zinc-400'}`}
               >
                 {i + 1}
               </button>
@@ -204,10 +211,10 @@ export default function MagazineReader({ issue, pages, id }: MagazineReaderProps
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={prevPage} disabled={currentPage === 0} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400">
+          <Button onClick={prevPage} disabled={currentPage === 0} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400 h-8 text-[10px] sm:text-xs">
             PREV
           </Button>
-          <Button onClick={nextPage} disabled={currentPage === pages.length - 1} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400">
+          <Button onClick={nextPage} disabled={currentPage === pages.length - 1} variant="outline" size="sm" className="bg-transparent border-zinc-700 text-zinc-400 h-8 text-[10px] sm:text-xs">
             NEXT
           </Button>
         </div>
@@ -292,27 +299,27 @@ const PageCover = ({ data, imageVersion }: any) => (
     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
     
     {/* Brand Overlay */}
-    <div className="absolute top-12 left-1/2 -translate-x-1/2 text-center w-full px-6">
-      <p className="text-white/60 text-xs tracking-[0.4em] uppercase mb-4 font-medium">{data.date} · {data.issue}</p>
-      <h2 className="text-white font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tighter leading-none mb-4 drop-shadow-2xl">
+    <div className="absolute top-8 sm:top-12 left-1/2 -translate-x-1/2 text-center w-full px-6">
+      <p className="text-white/60 text-[10px] sm:text-xs tracking-[0.3em] sm:tracking-[0.4em] uppercase mb-2 sm:mb-4 font-medium">{data.date} · {data.issue}</p>
+      <h2 className="text-white font-serif text-4xl sm:text-7xl lg:text-8xl font-medium tracking-tighter leading-none mb-2 sm:mb-4 drop-shadow-2xl">
         Yorkshire <br />
         <span className="italic">BusinessWoman</span>
       </h2>
-      <div className="h-px w-24 bg-accent mx-auto mt-8" />
+      <div className="h-px w-16 sm:w-24 bg-accent mx-auto mt-4 sm:mt-8" />
     </div>
 
     {/* Main Headline */}
-    <div className="absolute bottom-20 left-12 right-12 max-w-4xl">
+    <div className="absolute bottom-12 sm:bottom-20 left-6 sm:left-12 right-6 sm:right-12 max-w-4xl">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 1 }}
       >
-        <Badge className="bg-accent text-white border-none rounded-none mb-6 px-4 py-1 tracking-widest uppercase">Special Report</Badge>
-        <h1 className="text-white text-4xl md:text-6xl font-serif font-medium leading-tight mb-6">
+        <Badge className="bg-accent text-white border-none rounded-none mb-4 sm:mb-6 px-3 sm:px-4 py-1 tracking-widest uppercase text-[9px] sm:text-xs">Special Report</Badge>
+        <h1 className="text-white text-2xl sm:text-6xl font-serif font-medium leading-tight mb-4 sm:mb-6">
           {data.headline}
         </h1>
-        <p className="text-white/80 text-xl font-light max-w-xl border-l-2 border-accent pl-6">
+        <p className="text-white/80 text-sm sm:text-xl font-light max-w-xl border-l-2 border-accent pl-4 sm:pl-6 line-clamp-3 sm:line-clamp-none">
           {data.subheadline}
         </p>
       </motion.div>
@@ -321,65 +328,67 @@ const PageCover = ({ data, imageVersion }: any) => (
 );
 
 const PageEditorial = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-12 md:p-24 flex flex-col lg:flex-row gap-16 bg-[#FAF9F6]">
-    <div className="lg:w-1/3">
-      <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000">
+  <div className="h-full w-full p-6 sm:p-12 md:p-24 flex flex-col lg:flex-row gap-8 sm:gap-16 bg-[#FAF9F6] overflow-y-auto lg:overflow-hidden">
+    <div className="lg:w-1/3 shrink-0">
+      <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000 max-w-[250px] lg:max-w-none mx-auto lg:mx-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
-      <div className="mt-8">
-        <p className="font-serif text-3xl italic">{data.author}</p>
-        <p className="text-xs uppercase tracking-widest text-accent font-bold mt-1">{data.role}</p>
+      <div className="mt-4 sm:mt-8 text-center lg:text-left">
+        <p className="font-serif text-2xl sm:text-3xl italic">{data.author}</p>
+        <p className="text-[10px] sm:text-xs uppercase tracking-widest text-accent font-bold mt-1">{data.role}</p>
       </div>
     </div>
     <div className="lg:w-2/3 flex flex-col justify-center">
-      <Badge variant="outline" className="mb-6 w-fit border-accent text-accent tracking-widest uppercase">Editor&apos;s Note</Badge>
-      <h2 className="text-5xl md:text-6xl font-serif mb-12 tracking-tight">{data.title}</h2>
-      <div className="space-y-8 text-xl text-zinc-700 leading-relaxed font-light">
-        <p className="first-letter:text-7xl first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-4 first-letter:leading-[0.8]">
+      <Badge variant="outline" className="mb-4 sm:mb-6 w-fit border-accent text-accent tracking-widest uppercase text-[9px] sm:text-xs">Editor&apos;s Note</Badge>
+      <h2 className="text-3xl sm:text-6xl font-serif mb-6 sm:mb-12 tracking-tight">{data.title}</h2>
+      <div className="space-y-4 sm:space-y-8 text-base sm:text-xl text-zinc-700 leading-relaxed font-light">
+        <p className="first-letter:text-5xl sm:first-letter:text-7xl first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-3 sm:first-letter:mr-4 first-letter:leading-[0.8]">
           {data.text}
         </p>
-        <blockquote className="border-l-4 border-accent/20 pl-8 py-4 italic text-zinc-500 font-serif text-2xl leading-relaxed">
-          &quot;{data.quote}&quot;
-        </blockquote>
+        {data.quote && (
+          <blockquote className="border-l-4 border-accent/20 pl-4 sm:pl-8 py-2 sm:py-4 italic text-zinc-500 font-serif text-lg sm:text-2xl leading-relaxed">
+            &quot;{data.quote}&quot;
+          </blockquote>
+        )}
       </div>
     </div>
   </div>
 );
 
 const PageContents = ({ data }: any) => (
-  <div className="h-full w-full p-12 md:p-24 grid lg:grid-cols-2 gap-20 bg-white">
+  <div className="h-full w-full p-6 sm:p-12 md:p-24 grid lg:grid-cols-2 gap-8 sm:gap-20 bg-white overflow-y-auto lg:overflow-hidden">
     <div className="flex flex-col justify-center">
-      <h2 className="text-6xl font-serif mb-16 tracking-tighter">In This <span className="italic">Issue</span></h2>
-      <div className="space-y-10">
+      <h2 className="text-4xl sm:text-6xl font-serif mb-8 sm:mb-16 tracking-tighter">In This <span className="italic">Issue</span></h2>
+      <div className="space-y-6 sm:space-y-10">
         {data.items?.map((item: any, i: number) => (
-          <div key={i} className="group cursor-pointer flex items-end gap-6 border-b border-zinc-100 pb-6 hover:border-accent/40 transition-colors">
-            <span className="text-accent font-mono text-xl opacity-40 group-hover:opacity-100 transition-opacity">{item.page}</span>
+          <div key={i} className="group cursor-pointer flex items-end gap-4 sm:gap-6 border-b border-zinc-100 pb-4 sm:pb-6 hover:border-accent/40 transition-colors">
+            <span className="text-accent font-mono text-base sm:text-xl opacity-40 group-hover:opacity-100 transition-opacity">{item.page}</span>
             <div className="flex-1">
-              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1">{item.category}</p>
-              <p className="text-2xl font-serif group-hover:text-accent transition-colors">{item.title}</p>
+              <p className="text-[8px] sm:text-[10px] uppercase tracking-widest text-zinc-400 mb-1">{item.category}</p>
+              <p className="text-lg sm:text-2xl font-serif group-hover:text-accent transition-colors truncate">{item.title}</p>
             </div>
-            <ArrowRight className="h-6 w-6 text-zinc-200 group-hover:text-accent group-hover:translate-x-2 transition-all" />
+            <ArrowRight className="h-4 w-4 sm:h-6 sm:w-6 text-zinc-200 group-hover:text-accent group-hover:translate-x-2 transition-all" />
           </div>
         ))}
       </div>
     </div>
-    <div className="bg-zinc-50 p-12 rounded-2xl flex flex-col justify-center">
-      <Badge className="bg-black text-white mb-8 w-fit tracking-widest uppercase">Regional News</Badge>
-      <div className="space-y-12">
+    <div className="bg-zinc-50 p-6 sm:p-12 rounded-2xl flex flex-col justify-center">
+      <Badge className="bg-black text-white mb-6 sm:mb-8 w-fit tracking-widest uppercase text-[9px] sm:text-xs">Regional News</Badge>
+      <div className="space-y-6 sm:space-y-12">
         {data.news?.map((n: any, i: number) => (
-          <div key={i} className="flex gap-6">
-            <div className="h-2 w-2 rounded-full bg-accent mt-3 shrink-0" />
-            <p className="text-xl font-light text-zinc-700 leading-snug">{n}</p>
+          <div key={i} className="flex gap-4 sm:gap-6">
+            <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-accent mt-2 sm:mt-3 shrink-0" />
+            <p className="text-base sm:text-xl font-light text-zinc-700 leading-snug">{n}</p>
           </div>
         ))}
       </div>
-      <div className="mt-16 pt-12 border-t border-zinc-200">
-        <p className="text-xs uppercase tracking-[0.3em] font-bold text-zinc-400 mb-6">Stay Connected</p>
-        <div className="flex gap-8">
-          <Star className="h-6 w-6 text-accent fill-current" />
-          <Award className="h-6 w-6 text-accent" />
-          <Users className="h-6 w-6 text-accent" />
+      <div className="mt-8 sm:mt-16 pt-8 sm:pt-12 border-t border-zinc-200">
+        <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-bold text-zinc-400 mb-4 sm:mb-6">Stay Connected</p>
+        <div className="flex gap-6 sm:gap-8">
+          <Star className="h-5 w-5 sm:h-6 sm:w-6 text-accent fill-current" />
+          <Award className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
+          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
         </div>
       </div>
     </div>
@@ -387,17 +396,17 @@ const PageContents = ({ data }: any) => (
 );
 
 const PageFeatureLeft = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative grid lg:grid-cols-2 bg-[#FAF9F6]">
-    <div className="relative h-full overflow-hidden group">
+  <div className="h-full w-full relative flex flex-col lg:grid lg:grid-cols-2 bg-[#FAF9F6] overflow-y-auto lg:overflow-hidden">
+    <div className="relative h-64 sm:h-80 lg:h-full overflow-hidden group shrink-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
       <div className="absolute inset-0 bg-accent/10 mix-blend-overlay" />
     </div>
-    <div className="p-12 md:p-24 flex flex-col justify-center">
-      <Badge variant="outline" className="mb-6 w-fit border-accent text-accent tracking-widest uppercase">Cover Feature</Badge>
-      <h2 className="text-2xl uppercase tracking-[0.5em] text-zinc-400 mb-4">{data.title}</h2>
-      <h3 className="text-7xl md:text-8xl font-serif font-medium mb-8 leading-none tracking-tighter">{data.name}</h3>
-      <p className="text-2xl text-zinc-700 font-light leading-relaxed border-l-4 border-accent pl-10 italic">
+    <div className="p-8 sm:p-12 md:p-24 flex flex-col justify-center">
+      <Badge variant="outline" className="mb-4 sm:mb-6 w-fit border-accent text-accent tracking-widest uppercase text-[9px] sm:text-xs">Cover Feature</Badge>
+      <h2 className="text-lg sm:text-2xl uppercase tracking-[0.3em] sm:tracking-[0.5em] text-zinc-400 mb-2 sm:mb-4">{data.title}</h2>
+      <h3 className="text-4xl sm:text-8xl font-serif font-medium mb-6 sm:mb-8 leading-none tracking-tighter">{data.name}</h3>
+      <p className="text-lg sm:text-2xl text-zinc-700 font-light leading-relaxed border-l-4 border-accent pl-6 sm:pl-10 italic">
         {data.intro}
       </p>
     </div>
@@ -405,30 +414,30 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
 );
 
 const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden p-12 md:p-24 flex flex-col justify-center bg-white">
+  <div className="h-full w-full relative overflow-hidden p-8 sm:p-12 md:p-24 flex flex-col justify-center bg-white overflow-y-auto">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10" />
+        <img src={`${data.image}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-5 sm:opacity-10" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
       </div>
     )}
     <div className="relative z-10 max-w-3xl mx-auto">
-      <Quote className="h-16 w-16 text-accent/10 mb-8" />
-      <h2 className="text-4xl md:text-5xl font-serif italic text-black leading-tight mb-16">
+      <Quote className="h-8 w-8 sm:h-16 sm:w-16 text-accent/10 mb-4 sm:mb-8" />
+      <h2 className="text-2xl sm:text-5xl font-serif italic text-black leading-tight mb-8 sm:mb-16">
         &quot;{data.quote}&quot;
       </h2>
-      <div className="grid md:grid-cols-2 gap-16 items-start">
-        <div className="space-y-6 text-lg text-zinc-600 leading-relaxed font-light">
+      <div className="grid md:grid-cols-2 gap-8 sm:gap-16 items-start">
+        <div className="space-y-4 sm:space-y-6 text-base sm:text-lg text-zinc-600 leading-relaxed font-light">
           <p>{data.text}</p>
         </div>
-        <div className="bg-zinc-50 p-10 rounded-2xl">
-          <p className="text-xs uppercase tracking-[0.3em] font-bold text-accent mb-8">Snapshot</p>
-          <div className="space-y-8">
+        <div className="bg-zinc-50 p-6 sm:p-10 rounded-2xl">
+          <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] font-bold text-accent mb-6 sm:mb-8">Snapshot</p>
+          <div className="space-y-6 sm:space-y-8">
             {data.stats?.map((stat: any, i: number) => (
-              <div key={i} className="flex justify-between items-end border-b border-zinc-200 pb-4">
-                <span className="text-zinc-400 uppercase tracking-widest text-xs font-medium">{stat.label}</span>
-                <span className="text-4xl font-serif text-accent">{stat.value}</span>
+              <div key={i} className="flex justify-between items-end border-b border-zinc-200 pb-3 sm:pb-4">
+                <span className="text-zinc-400 uppercase tracking-widest text-[10px] sm:text-xs font-medium">{stat.label}</span>
+                <span className="text-2xl sm:text-4xl font-serif text-accent">{stat.value}</span>
               </div>
             ))}
           </div>
@@ -439,58 +448,60 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
 );
 
 const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-zinc-900 text-white flex flex-col justify-center">
+  <div className="h-full w-full relative overflow-hidden bg-zinc-900 text-white flex flex-col justify-center overflow-y-auto">
     {data.image && (
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-20 sm:opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
       </div>
     )}
-    <div className="relative z-10 p-12 md:p-24 max-w-4xl">
-      <Badge className="bg-accent text-white rounded-none mb-8 tracking-widest uppercase px-6 py-2">{data.category}</Badge>
-      <h2 className="text-6xl font-serif mb-12 tracking-tight">{data.title}</h2>
-      <div className="flex flex-col md:flex-row gap-16 items-start">
-        <div className="md:w-2/3 space-y-8 text-xl text-zinc-300 leading-relaxed font-light">
+    <div className="relative z-10 p-8 sm:p-12 md:p-24 max-w-4xl">
+      <Badge className="bg-accent text-white rounded-none mb-6 sm:mb-8 tracking-widest uppercase px-4 sm:px-6 py-1.5 sm:py-2 text-[9px] sm:text-xs">{data.category}</Badge>
+      <h2 className="text-3xl sm:text-6xl font-serif mb-8 sm:mb-12 tracking-tight">{data.title}</h2>
+      <div className="flex flex-col md:flex-row gap-8 sm:gap-16 items-start">
+        <div className="md:w-2/3 space-y-6 sm:space-y-8 text-base sm:text-xl text-zinc-300 leading-relaxed font-light">
           <p>{data.text}</p>
-          <div className="h-1 w-24 bg-accent mt-12" />
-          <p className="font-serif italic text-3xl text-white">By {data.author}</p>
+          <div className="h-0.5 sm:h-1 w-16 sm:w-24 bg-accent mt-8 sm:mt-12" />
+          <p className="font-serif italic text-2xl sm:text-3xl text-white">By {data.author}</p>
         </div>
-        <div className="md:w-1/3 bg-white/5 p-8 rounded-xl backdrop-blur-sm border border-white/10">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent mb-6 font-bold">Key Takeaways</p>
-          <ul className="space-y-6">
-            {data.tips?.map((tip: any, i: number) => (
-              <li key={i} className="flex gap-4 items-start">
-                <div className="h-1.5 w-1.5 rounded-full bg-accent mt-2 shrink-0" />
-                <p className="text-sm font-light text-zinc-400">{tip}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {data.tips && data.tips.length > 0 && (
+          <div className="md:w-1/3 bg-white/5 p-6 sm:p-8 rounded-xl backdrop-blur-sm border border-white/10 w-full">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.3em] text-accent mb-4 sm:mb-6 font-bold">Key Takeaways</p>
+            <ul className="space-y-4 sm:space-y-6">
+              {data.tips?.map((tip: any, i: number) => (
+                <li key={i} className="flex gap-3 sm:gap-4 items-start">
+                  <div className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-accent mt-2 shrink-0" />
+                  <p className="text-xs sm:text-sm font-light text-zinc-400">{tip}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   </div>
 );
 
 const PageLifestyle = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-[#FAF9F6]">
-    <div className="absolute top-0 right-0 w-1/2 h-full">
+  <div className="h-full w-full relative overflow-hidden bg-[#FAF9F6] flex flex-col lg:block overflow-y-auto lg:overflow-hidden">
+    <div className="relative lg:absolute top-0 right-0 w-full lg:w-1/2 h-64 sm:h-80 lg:h-full shrink-0">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#FAF9F6] to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent" />
     </div>
-    <div className="relative h-full w-full p-12 md:p-24 flex flex-col justify-center z-10">
+    <div className="relative h-full w-full p-8 sm:p-12 md:p-24 flex flex-col justify-center z-10">
       <div className="max-w-xl">
-        <Badge variant="outline" className="mb-6 border-zinc-300 text-zinc-500 tracking-widest uppercase">Lifestyle</Badge>
-        <h2 className="text-7xl font-serif mb-8 tracking-tighter">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
-        <p className="text-xl text-zinc-600 leading-relaxed font-light mb-12">
+        <Badge variant="outline" className="mb-4 sm:mb-6 border-zinc-300 text-zinc-500 tracking-widest uppercase text-[9px] sm:text-xs">Lifestyle</Badge>
+        <h2 className="text-4xl sm:text-7xl font-serif mb-6 sm:mb-8 tracking-tighter">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
+        <p className="text-lg sm:text-xl text-zinc-600 leading-relaxed font-light mb-8 sm:mb-12">
           {data.text}
         </p>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {data.highlights?.map((h: any, i: number) => (
-            <div key={i} className="flex items-center gap-6 group cursor-pointer">
-              <div className="h-px w-12 bg-zinc-300 group-hover:w-20 group-hover:bg-accent transition-all duration-500" />
-              <p className="text-sm uppercase tracking-[0.4em] font-medium group-hover:text-accent transition-colors">{h}</p>
+            <div key={i} className="flex items-center gap-4 sm:gap-6 group cursor-pointer">
+              <div className="h-px w-8 sm:w-12 bg-zinc-300 group-hover:w-20 group-hover:bg-accent transition-all duration-500" />
+              <p className="text-[10px] sm:text-sm uppercase tracking-[0.3em] sm:tracking-[0.4em] font-medium group-hover:text-accent transition-colors">{h}</p>
             </div>
           ))}
         </div>
@@ -500,26 +511,26 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
 );
 
 const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full p-12 md:p-24 bg-white flex flex-col justify-center">
-    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-20">
-      <div className="relative h-[500px] w-full lg:w-[400px] shrink-0">
-        <div className="absolute -inset-4 border-2 border-accent/20 rounded-2xl -rotate-3" />
+  <div className="h-full w-full p-6 sm:p-12 md:p-24 bg-white flex flex-col justify-center overflow-y-auto">
+    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-12 sm:gap-20">
+      <div className="relative h-64 sm:h-[500px] w-full lg:w-[400px] shrink-0">
+        <div className="absolute -inset-2 sm:-inset-4 border-2 border-accent/20 rounded-2xl -rotate-3" />
         <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl rotate-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
         </div>
       </div>
-      <div>
-        <Badge className="bg-accent text-white mb-8 tracking-widest uppercase">Member Spotlight</Badge>
-        <h2 className="text-6xl font-serif mb-4 tracking-tight">{data.name}</h2>
-        <p className="text-xl text-accent font-medium mb-12 tracking-wide">{data.role}</p>
-        <p className="text-2xl text-zinc-600 leading-relaxed font-light italic mb-12">
+      <div className="text-center lg:text-left">
+        <Badge className="bg-accent text-white mb-6 sm:mb-8 tracking-widest uppercase text-[9px] sm:text-xs">Member Spotlight</Badge>
+        <h2 className="text-3xl sm:text-6xl font-serif mb-2 sm:mb-4 tracking-tight">{data.name}</h2>
+        <p className="text-lg sm:text-xl text-accent font-medium mb-8 sm:mb-12 tracking-wide">{data.role}</p>
+        <p className="text-lg sm:text-2xl text-zinc-600 leading-relaxed font-light italic mb-8 sm:mb-12">
           &quot;{data.message}&quot;
         </p>
-        <p className="text-lg text-zinc-500 leading-relaxed max-w-xl">
+        <p className="text-base sm:text-lg text-zinc-500 leading-relaxed max-w-xl">
           {data.bio}
         </p>
-        <Button className="mt-12 rounded-none px-12 py-7 h-auto bg-black text-white hover:bg-zinc-800 tracking-widest uppercase">Read Full Profile</Button>
+        <Button className="mt-8 sm:mt-12 rounded-none px-8 sm:px-12 py-5 sm:py-7 h-auto bg-black text-white hover:bg-zinc-800 tracking-widest uppercase text-[10px] sm:text-xs">Read Full Profile</Button>
       </div>
     </div>
   </div>
@@ -531,16 +542,16 @@ const PagePartner = ({ data, imageVersion }: any) => (
     <img src={`${data.image}?v=${imageVersion}`} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-50" />
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
     
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-12">
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 sm:p-12">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         whileInView={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1 }}
       >
-        <p className="text-accent text-xs tracking-[0.6em] uppercase mb-8 font-bold">Partner Feature</p>
-        <h2 className="text-white font-serif text-5xl md:text-7xl mb-6 tracking-tight">{data.brand}</h2>
-        <p className="text-white/60 text-2xl font-light mb-12 tracking-wide">{data.headline}</p>
-        <div className="bg-accent text-white px-12 py-6 text-2xl font-serif italic shadow-2xl inline-block">
+        <p className="text-accent text-[10px] sm:text-xs tracking-[0.4em] sm:tracking-[0.6em] uppercase mb-6 sm:mb-8 font-bold">Partner Feature</p>
+        <h2 className="text-white font-serif text-3xl sm:text-7xl mb-4 sm:mb-6 tracking-tight">{data.brand}</h2>
+        <p className="text-white/60 text-lg sm:text-2xl font-light mb-8 sm:mb-12 tracking-wide">{data.headline}</p>
+        <div className="bg-accent text-white px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-2xl font-serif italic shadow-2xl inline-block">
           {data.offer}
         </div>
       </motion.div>
@@ -549,31 +560,31 @@ const PagePartner = ({ data, imageVersion }: any) => (
 );
 
 const PageBackCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-primary flex flex-col items-center justify-center text-center p-12">
+  <div className="h-full w-full relative overflow-hidden bg-[#050505] flex flex-col items-center justify-center text-center p-8 sm:p-12">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`${data.image}?v=${imageVersion}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
       </div>
     )}
     <div className="relative z-10 max-w-2xl">
-      <h2 className="text-white font-serif text-6xl md:text-8xl mb-12 tracking-tighter">
+      <h2 className="text-white font-serif text-4xl sm:text-8xl mb-8 sm:mb-12 tracking-tighter">
         Yorkshire <br />
         <span className="italic text-accent">BusinessWoman</span>
       </h2>
-      <div className="h-px w-24 bg-white/20 mx-auto mb-16" />
+      <div className="h-px w-16 sm:w-24 bg-white/20 mx-auto mb-12 sm:mb-16" />
       
-      <p className="text-white/60 text-xs tracking-[0.4em] uppercase mb-8 font-bold">Next Edition</p>
-      <h3 className="text-white text-3xl font-serif mb-16">{data.nextIssue}</h3>
+      <p className="text-white/60 text-[10px] sm:text-xs tracking-[0.3em] sm:tracking-[0.4em] uppercase mb-6 sm:mb-8 font-bold">Next Edition</p>
+      <h3 className="text-white text-xl sm:text-3xl font-serif mb-12 sm:mb-16">{data.nextIssue}</h3>
       
-      <Button className="rounded-full px-12 py-8 h-auto text-xl bg-accent hover:bg-accent/90 mb-12" asChild>
+      <Button className="rounded-full px-8 sm:px-12 py-5 sm:py-8 h-auto text-base sm:text-xl bg-accent hover:bg-accent/90 mb-8 sm:mb-12" asChild>
         <Link href="/membership">{data.cta}</Link>
       </Button>
 
-      <div className="flex justify-center gap-12 pt-12 border-t border-white/10">
+      <div className="flex justify-center gap-8 sm:gap-12 pt-8 sm:pt-12 border-t border-white/10">
         {data.socials?.map((s: any, i: number) => (
-          <span key={i} className="text-white/40 text-xs tracking-widest uppercase hover:text-white transition-colors cursor-pointer">{s}</span>
+          <span key={i} className="text-white/40 text-[9px] sm:text-xs tracking-widest uppercase hover:text-white transition-colors cursor-pointer">{s}</span>
         ))}
       </div>
     </div>
