@@ -206,14 +206,25 @@ export async function fetchIssuuMetadataAction(url: string) {
     
     const data = await response.json();
     
-    // Extract document ID from the standard thumbnail URL to construct a high-quality one
-    // Standard: https://image.issuu.com/260226180122-ab320018103546db33a4e51567eb0227/jpg/page_1_thumb_large.jpg
-    // High Quality: https://image.isu.pub/260226180122-ab320018103546db33a4e51567eb0227/jpg/page_1.jpg
+    // Intelligent Thumbnail Parsing:
+    // Issuu oEmbed often returns low-res 'small' or 'medium' thumbnails.
+    // We want the high-res version from the isu.pub CDN.
     let highResThumbnail = data.thumbnail_url;
+    
     if (data.thumbnail_url) {
-      const match = data.thumbnail_url.match(/image\.issuu\.com\/([^\/]+)\//);
-      if (match && match[1]) {
-        highResThumbnail = `https://image.isu.pub/${match[1]}/jpg/page_1.jpg`;
+      // 1. Try to extract the document ID to build the absolute highest quality URL
+      // Pattern: .../image.issuu.com/{ID}/jpg/page_1_thumb_large.jpg
+      const idMatch = data.thumbnail_url.match(/(?:image\.issuu\.com|image\.isu\.pub)\/([^\/]+)\//);
+      
+      if (idMatch && idMatch[1]) {
+        // This is the gold standard for Issuu cover images
+        highResThumbnail = `https://image.isu.pub/${idMatch[1]}/jpg/page_1.jpg`;
+      } else {
+        // 2. Fallback: If pattern is different, manually swap quality keywords
+        highResThumbnail = data.thumbnail_url
+          .replace(/_thumb_(?:small|medium)\.jpg/i, '.jpg')
+          .replace(/_thumb_large\.jpg/i, '.jpg')
+          .replace(/issuu\.com/i, 'isu.pub');
       }
     }
     
