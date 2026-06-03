@@ -206,11 +206,22 @@ export async function fetchIssuuMetadataAction(url: string) {
     
     const data = await response.json();
     
+    // Extract document ID from the standard thumbnail URL to construct a high-quality one
+    // Standard: https://image.issuu.com/260226180122-ab320018103546db33a4e51567eb0227/jpg/page_1_thumb_large.jpg
+    // High Quality: https://image.isu.pub/260226180122-ab320018103546db33a4e51567eb0227/jpg/page_1.jpg
+    let highResThumbnail = data.thumbnail_url;
+    if (data.thumbnail_url) {
+      const match = data.thumbnail_url.match(/image\.issuu\.com\/([^\/]+)\//);
+      if (match && match[1]) {
+        highResThumbnail = `https://image.isu.pub/${match[1]}/jpg/page_1.jpg`;
+      }
+    }
+    
     return { 
       success: true, 
       data: {
         title: data.title,
-        thumbnailUrl: data.thumbnail_url,
+        thumbnailUrl: highResThumbnail,
         authorName: data.author_name,
         description: data.description
       } 

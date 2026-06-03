@@ -25,6 +25,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'static.ghost.org',
+      },
+      {
+        protocol: 'https',
+        hostname: 'image.isu.pub',
+      },
+      {
+        protocol: 'https',
+        hostname: 'image.issuu.com',
       }
     ],
   },
