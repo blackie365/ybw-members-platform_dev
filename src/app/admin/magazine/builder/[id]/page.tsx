@@ -65,7 +65,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     pdfUrl: '',
     downloadUrl: '',
     isLatest: false,
-    tags: []
+    tags: [],
+    autoSyncCover: true
   });
 
   const [pages, setPages] = useState<MagazinePage[]>([]);
@@ -104,7 +105,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             pdfUrl: castIssue.pdfUrl || '',
             downloadUrl: castIssue.downloadUrl || '',
             isLatest: castIssue.isLatest || false,
-            tags: castIssue.tags || []
+            tags: castIssue.tags || [],
+            autoSyncCover: castIssue.autoSyncCover !== undefined ? castIssue.autoSyncCover : true
           });
         }
       }
@@ -307,8 +309,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (res.success) {
         toast.success(`Smart Imported "${post.title}" as ${type}`);
         
-        // PROACTIVE LOGIC: If we just imported a cover, sync it to the issue thumbnail
-        if (type === 'cover' && content.image) {
+        // PROACTIVE LOGIC: If we just imported a cover, sync it to the issue thumbnail (if enabled)
+        if (issue.autoSyncCover !== false && type === 'cover' && content.image) {
           await updateMagazineIssueAction(id, { coverImage: content.image });
           setIssue(prev => ({ ...prev, coverImage: content.image }));
           toast.info('Issue thumbnail updated from imported cover');
@@ -335,7 +337,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     try {
       // PROACTIVE LOGIC: If this is a cover page, automatically sync its image to the issue metadata
       const page = pages.find(p => p.docId === pageDocId);
-      if (page?.type === 'cover' && content.image && content.image !== issue.coverImage) {
+      if (issue.autoSyncCover !== false && page?.type === 'cover' && content.image && content.image !== issue.coverImage) {
         console.log('Auto-syncing cover image from page to issue metadata...');
         await updateMagazineIssueAction(id, { coverImage: content.image });
         setIssue(prev => ({ ...prev, coverImage: content.image }));
