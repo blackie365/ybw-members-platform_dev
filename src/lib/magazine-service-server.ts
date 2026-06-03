@@ -3,6 +3,45 @@ import { MagazineIssue, MagazinePage } from './magazine-service';
 import { siteContent } from './site-content';
 
 /**
+ * Helper to serialize Firestore data for Next.js Server Components.
+ * Converts Timestamps to ISO strings.
+ */
+function serializeData(data: any) {
+  if (!data) return data;
+  
+  const serialized = { ...data };
+  
+  Object.keys(serialized).forEach(key => {
+    const value = serialized[key];
+    
+    // Handle Firestore Timestamps (Admin SDK)
+    if (value && typeof value === 'object' && '_seconds' in value) {
+      serialized[key] = new Date(value._seconds * 1000).toISOString();
+    } 
+    // Handle Firestore Timestamps (Client SDK / Some Admin versions)
+    else if (value && typeof value === 'object' && 'seconds' in value) {
+      serialized[key] = new Date(value.seconds * 1000).toISOString();
+    }
+    // Handle Dates
+    else if (value instanceof Date) {
+      serialized[key] = value.toISOString();
+    }
+    // Recursive for nested objects
+    else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      serialized[key] = serializeData(value);
+    }
+    // Handle Arrays
+    else if (Array.isArray(value)) {
+      serialized[key] = value.map(item => 
+        (item && typeof item === 'object') ? serializeData(item) : item
+      );
+    }
+  });
+  
+  return serialized;
+}
+
+/**
  * Server-side version of magazine issues fetcher using Firebase Admin SDK
  * Falls back to static siteContent if database fetch fails or is empty.
  */
@@ -22,10 +61,10 @@ export async function getMagazineIssuesServer(): Promise<MagazineIssue[]> {
       return siteContent.magazine.issues as unknown as MagazineIssue[];
     }
     
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map(doc => serializeData({
       id: doc.id,
       ...doc.data()
-    } as MagazineIssue));
+    }) as MagazineIssue);
   } catch (error) {
     console.error('Error fetching magazine issues (server):', error);
     return siteContent.magazine.issues as unknown as MagazineIssue[];
@@ -46,7 +85,7 @@ export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
     
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
-      return { id: doc.id, ...doc.data() } as MagazineIssue;
+      return serializeData({ id: doc.id, ...doc.data() }) as MagazineIssue;
     }
     return null;
   } catch (error) {
@@ -65,7 +104,7 @@ export async function getMagazineIssueServer(issueId: string): Promise<MagazineI
     const doc = await adminDb.collection('magazine_issues').doc(issueId).get();
     
     if (doc.exists) {
-      return { id: doc.id, ...doc.data() } as MagazineIssue;
+      return serializeData({ id: doc.id, ...doc.data() }) as MagazineIssue;
     }
     return null;
   } catch (error) {
@@ -94,9 +133,9 @@ export async function getMagazinePagesServer(issueId: string): Promise<MagazineP
       return siteContent.magazinePages as unknown as MagazinePage[];
     }
     
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map(doc => serializeData({
       ...doc.data()
-    } as MagazinePage));
+    }) as MagazinePage);
   } catch (error) {
     console.error(`Error fetching pages for issue ${issueId} (server):`, error);
     return siteContent.magazinePages as unknown as MagazinePage[];
