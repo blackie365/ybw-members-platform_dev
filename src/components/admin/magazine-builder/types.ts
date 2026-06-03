@@ -41,4 +41,5 @@ export interface MagazineIssue {
   downloadUrl?: string;
   isLatest?: boolean;
   tags?: string[];
+  readerType?: 'custom' | 'issuu';
 }

@@ -1,12 +1,13 @@
 'use client';
 
-import { Save, Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { MagazineIssue } from './types';
 
 interface IssueMetadataProps {
@@ -51,7 +52,44 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave }: Issu
       )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Reader Technology</CardTitle>
+              <CardDescription>Choose how members will read this edition.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup 
+                value={issue.readerType || 'custom'} 
+                onValueChange={(val) => onUpdate({ readerType: val as 'custom' | 'issuu' })}
+                className="grid grid-cols-2 gap-4"
+              >
+                <div>
+                  <RadioGroupItem value="custom" id="custom" className="peer sr-only" />
+                  <Label
+                    htmlFor="custom"
+                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent/5 hover:text-accent-foreground peer-data-[state=checked]:border-accent [&:has([data-state=checked])]:border-accent cursor-pointer transition-all"
+                  >
+                    <Sparkles className="mb-3 h-6 w-6 text-accent" />
+                    <span className="font-bold">Digital Builder</span>
+                    <span className="text-[10px] text-muted-foreground text-center mt-1">Our high-end, interactive custom reader.</span>
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value="issuu" id="issuu" className="peer sr-only" />
+                  <Label
+                    htmlFor="issuu"
+                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent/5 hover:text-accent-foreground peer-data-[state=checked]:border-accent [&:has([data-state=checked])]:border-accent cursor-pointer transition-all"
+                  >
+                    <LinkIcon className="mb-3 h-6 w-6 text-zinc-400" />
+                    <span className="font-bold">Issuu External</span>
+                    <span className="text-[10px] text-muted-foreground text-center mt-1">Embed an existing Issuu publication.</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Core Details</CardTitle>
@@ -88,15 +126,24 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave }: Issu
                   rows={4}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="pdf">Issuu Embed URL (Digital Reader)</Label>
-                <Input 
-                  id="pdf" 
-                  value={issue.pdfUrl} 
-                  onChange={(e) => onUpdate({ pdfUrl: e.target.value })} 
-                  placeholder="https://e.issuu.com/embed.html?..."
-                />
-              </div>
+              
+              {issue.readerType === 'issuu' && (
+                <div className="space-y-2 pt-4 border-t">
+                  <Label htmlFor="issuuUrl" className="text-accent flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" />
+                    Issuu Publication Link
+                  </Label>
+                  <Input 
+                    id="issuuUrl" 
+                    value={issue.pdfUrl} 
+                    onChange={(e) => onUpdate({ pdfUrl: e.target.value })} 
+                    placeholder="https://issuu.com/blackie365/docs/..."
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Paste the direct link to your Issuu publication. We will handle the embedding for you.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
