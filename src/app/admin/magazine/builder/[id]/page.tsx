@@ -302,15 +302,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleSavePageContent = async (pageDocId: string, content: any) => {
+    // Optimistically update local state to reflect changes immediately
+    setPages(prev => prev.map(p => 
+      p.docId === pageDocId ? { ...p, content } : p
+    ));
+    
     setSaving(true);
     try {
       const res = await updateMagazinePageAction(id, pageDocId, { content });
       if (res.success) {
         toast.success('Spread content saved');
-        await loadData(true);
+        // Re-load data to ensure server sync, but local state is already updated
+        await loadData(false); 
       }
     } catch (error) {
       toast.error('Failed to save content');
+      // Rollback on error if necessary
+      await loadData(true);
     } finally {
       setSaving(false);
     }
