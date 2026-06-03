@@ -26,10 +26,23 @@ export async function getMagazineIssuesAction() {
       .orderBy('publishDate', 'desc')
       .get();
 
-    const issues = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const issues = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // Convert any Firestore Timestamps to ISO strings for serialization
+      const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value && typeof value === 'object' && 'seconds' in value) {
+          acc[key] = new Date((value as any).seconds * 1000).toISOString();
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as any);
+
+      return {
+        id: doc.id,
+        ...serializedData
+      };
+    });
 
     console.log(`[magazineActions] Found ${issues.length} issues`);
     return { success: true, data: issues };
@@ -102,10 +115,23 @@ export async function getMagazinePagesAction(issueId: string) {
       .orderBy('id', 'asc')
       .get();
 
-    const pages = snapshot.docs.map(doc => ({
-      docId: doc.id,
-      ...doc.data()
-    }));
+    const pages = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // Convert any Firestore Timestamps to ISO strings for serialization
+      const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value && typeof value === 'object' && 'seconds' in value) {
+          acc[key] = new Date((value as any).seconds * 1000).toISOString();
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as any);
+
+      return {
+        docId: doc.id,
+        ...serializedData
+      };
+    });
 
     return { success: true, data: pages };
   } catch (error: any) {
