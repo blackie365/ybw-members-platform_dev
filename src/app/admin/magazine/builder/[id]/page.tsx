@@ -22,14 +22,30 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
 
-// Modular Components
+// Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
-import { IssueMetadata } from '@/components/admin/magazine-builder/IssueMetadata';
-import { PageList } from '@/components/admin/magazine-builder/PageList';
-import { PageEditor } from '@/components/admin/magazine-builder/PageEditor';
-import { PageTypeSelector } from '@/components/admin/magazine-builder/PageTypeSelector';
-import { GhostImporter } from '@/components/admin/magazine-builder/GhostImporter';
+
+// Lazy Load Heavy Admin Components
+// This prevents regular users from downloading builder code and speeds up initial admin load
+const IssueMetadata = dynamic(() => import('@/components/admin/magazine-builder/IssueMetadata').then(m => m.IssueMetadata), {
+  loading: () => <div className="h-40 flex items-center justify-center border-2 border-dashed rounded-xl"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /></div>
+});
+
+const PageList = dynamic(() => import('@/components/admin/magazine-builder/PageList').then(m => m.PageList), {
+  loading: () => <div className="h-60 bg-muted/20 animate-pulse rounded-lg" />
+});
+
+const PageEditor = dynamic(() => import('@/components/admin/magazine-builder/PageEditor').then(m => m.PageEditor), {
+  loading: () => <div className="h-full flex items-center justify-center bg-muted/5 animate-pulse rounded-xl" />
+});
+
+const PageTypeSelector = dynamic(() => import('@/components/admin/magazine-builder/PageTypeSelector').then(m => m.PageTypeSelector));
+
+const GhostImporter = dynamic(() => import('@/components/admin/magazine-builder/GhostImporter').then(m => m.GhostImporter), {
+  loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Ghost Importer...</p></div>
+});
 
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
