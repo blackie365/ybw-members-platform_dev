@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, BookOpen, ExternalLink, Trash2, Edit2, Loader2, Image as ImageIcon } from "lucide-react"
+import { Plus, Search, BookOpen, ExternalLink, Trash2, Edit2, Loader2, Image as ImageIcon, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,160 +40,119 @@ export default function AdminMagazinePage() {
     }
   }
 
-  const filteredIssues = issues.filter(issue => 
-    issue.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const liveIssue = issues.find(i => i.isLatest);
+  const archiveIssues = issues.filter(i => !i.isLatest && i.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-12">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-serif font-bold">Magazine Management</h1>
-          <p className="text-muted-foreground mt-1">Create, edit, and publish digital editions.</p>
+          <h1 className="text-3xl font-serif font-bold">Editorial Studio</h1>
+          <p className="text-muted-foreground mt-1">Manage your digital publication pipeline.</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90 text-white gap-2" asChild>
+        <Button className="bg-accent hover:bg-accent/90 text-white gap-2 h-12 px-6" asChild>
           <Link href="/admin/magazine/builder/new">
-            <Plus className="h-4 w-4" />
-            Create New Issue
+            <Plus className="h-5 w-5" />
+            Create New Edition
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Issues Archive</CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search issues..." 
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+      {/* 1. Live Issue Highlight */}
+      {liveIssue && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-accent">Current Live Edition</h2>
+          </div>
+          <Card className="border-accent/30 bg-accent/5 overflow-hidden group">
+            <div className="flex flex-col md:flex-row items-center gap-8 p-6 md:p-8">
+              <div className="relative h-48 w-36 aspect-[3/4] rounded-lg overflow-hidden border shadow-xl shrink-0">
+                <img src={liveIssue.coverImage} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h3 className="text-3xl font-serif font-bold">{liveIssue.title}</h3>
+                  <p className="text-muted-foreground mt-2 max-w-2xl">{liveIssue.description}</p>
+                </div>
+                <div className="flex items-center gap-6 text-sm">
+                   <div className="flex items-center gap-2 text-zinc-500 font-mono">
+                     <Calendar className="h-4 w-4" />
+                     Published: {new Date(liveIssue.publishDate).toLocaleDateString()}
+                   </div>
+                   <Badge variant="secondary" className="bg-white/50">{liveIssue.tags?.length || 0} Spreads Built</Badge>
+                </div>
+                <div className="flex items-center gap-3 pt-2">
+                  <Button className="bg-black text-white hover:bg-zinc-800" asChild>
+                    <Link href={`/admin/magazine/builder/${liveIssue.id}`}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit Content
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href={`/magazine/issue/${liveIssue.id}`} target="_blank">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Preview Reader
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-muted-foreground">Loading issues...</p>
-              </div>
-            ) : filteredIssues.length === 0 ? (
-              <div className="text-center py-20">
-                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                <p className="text-muted-foreground italic text-lg">No issues found.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredIssues.map((issue) => (
-                  <div 
-                    key={issue.id}
-                    className="flex items-center gap-6 p-4 rounded-xl border border-border/50 bg-card/50 hover:bg-accent/5 transition-colors group"
-                  >
-                    <div className="relative h-24 w-18 aspect-[3/4] rounded-lg overflow-hidden border bg-muted shrink-0 shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={issue.coverImage} 
-                        alt={issue.title} 
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-serif font-bold text-xl truncate">{issue.title}</h3>
-                        {issue.isLatest && (
-                          <Badge className="bg-accent text-white border-none text-[10px] py-0">LIVE</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{issue.description}</p>
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
-                          <Plus className="h-3 w-3" /> Published: {new Date(issue.publishDate).toLocaleDateString()}
-                        </span>
-                        <div className="flex gap-2">
-                          {issue.tags?.map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-[10px] px-1 py-0">{tag}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+          </Card>
+        </section>
+      )}
 
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" asChild title="Preview in Reader">
-                        <a href={`/magazine/issue/${issue.id}`} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
+      {/* 2. Archive Section */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between border-b pb-4">
+          <h2 className="text-xl font-serif font-bold">Edition Archive</h2>
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search historical issues..." 
+              className="pl-9 h-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-accent" /></div>
+        ) : archiveIssues.length === 0 ? (
+          <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-xl">No historical editions found.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {archiveIssues.map((issue) => (
+              <Card key={issue.id} className="hover:border-accent/30 transition-all group overflow-hidden">
+                <div className="flex gap-4 p-4">
+                  <div className="h-24 w-18 aspect-[3/4] rounded bg-muted overflow-hidden border shrink-0">
+                    <img src={issue.coverImage} alt="" className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold truncate text-sm">{issue.title}</h4>
+                      <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">{new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-accent" asChild>
+                        <Link href={`/admin/magazine/builder/${issue.id}`}><Edit2 className="h-3.5 w-3.5" /></Link>
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-accent" asChild title="Build Edition">
-                        <Link href={`/admin/magazine/builder/${issue.id}`}>
-                          <Edit2 className="h-4 w-4" />
-                        </Link>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-accent" asChild>
+                        <a href={`/magazine/issue/${issue.id}`} target="_blank"><ExternalLink className="h-3.5 w-3.5" /></a>
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-muted-foreground hover:text-destructive" 
-                        title="Delete Issue"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleDelete(issue.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive ml-auto" onClick={() => handleDelete(issue.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="border-accent/20 bg-accent/5">
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Guide</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-4 text-muted-foreground leading-relaxed">
-              <p>
-                <strong>1. Upload Files:</strong> Drag and drop your Photoshop (.psd) or JPEG files. The system automatically converts PSDs for the web.
-              </p>
-              <p>
-                <strong>2. Build Pages:</strong> Use the editorial builder to define page layouts, headlines, and interviews.
-              </p>
-              <p>
-                <strong>3. Monetize:</strong> Tag specific products or corporate sponsors directly in the digital spreads.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Storage Usage</CardTitle>
-              <CardDescription>Google Cloud Storage Status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm">
-                  <span>Magazine Assets</span>
-                  <span className="font-mono">1.2 GB</span>
                 </div>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-accent w-1/3" />
-                </div>
-                <Button variant="outline" className="w-full gap-2 text-xs h-9">
-                  <ImageIcon className="h-3 w-3" />
-                  View Media Library
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }
