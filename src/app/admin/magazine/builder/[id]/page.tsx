@@ -28,6 +28,7 @@ import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder
 import { IssueMetadata } from '@/components/admin/magazine-builder/IssueMetadata';
 import { PageList } from '@/components/admin/magazine-builder/PageList';
 import { PageEditor } from '@/components/admin/magazine-builder/PageEditor';
+import { PageTypeSelector } from '@/components/admin/magazine-builder/PageTypeSelector';
 import { GhostImporter } from '@/components/admin/magazine-builder/GhostImporter';
 
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,8 +63,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (issuesRes?.success && issuesRes.data) {
         const currentIssue = issuesRes.data.find((i: any) => i.id === id);
         if (currentIssue) {
+          const castIssue = currentIssue as any;
           // Format date for <input type="date">
-          let formattedDate = currentIssue.publishDate || '';
+          let formattedDate = castIssue.publishDate || '';
           if (formattedDate && typeof formattedDate !== 'string') {
             try {
               if (formattedDate.seconds) {
@@ -78,14 +80,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             formattedDate = formattedDate.split('T')[0];
           }
           
-          setIssue({ ...currentIssue, publishDate: formattedDate });
+          setIssue({ 
+            title: castIssue.title || '',
+            description: castIssue.description || '',
+            publishDate: formattedDate,
+            coverImage: castIssue.coverImage || '',
+            pdfUrl: castIssue.pdfUrl || '',
+            downloadUrl: castIssue.downloadUrl || '',
+            isLatest: castIssue.isLatest || false,
+            tags: castIssue.tags || []
+          });
         }
       }
 
       // Load Pages
       const pagesRes = await getMagazinePagesAction(id);
       if (pagesRes?.success && pagesRes.data) {
-        const sortedPages = [...pagesRes.data].sort((a, b) => (a.id || 0) - (b.id || 0));
+        const sortedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
         setPages(sortedPages);
       }
     } catch (error) {
@@ -350,22 +361,31 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="builder" className="mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            <div className="lg:col-span-1">
+              <PageTypeSelector 
+                onAddPage={handleAddPage}
+                isSaving={saving}
+              />
+            </div>
+            <div className="lg:col-span-1">
               <PageList 
                 pages={pages}
                 selectedPageId={selectedPageId}
                 onSelectPage={setSelectedPageId}
-                onAddPage={handleAddPage}
                 onDeletePage={handleDeletePage}
                 onMovePage={handleMovePage}
                 isSaving={saving}
               />
             </div>
-            <div className="h-full">
+            <div className="lg:col-span-2">
               <PageEditor 
                 page={pages.find(p => p.docId === selectedPageId)}
-                onSave={(content) => handleSavePageContent(selectedPageId!, content)}
+                onSave={(content) => {
+                  if (selectedPageId) {
+                    handleSavePageContent(selectedPageId, content);
+                  }
+                }}
                 isSaving={saving}
               />
             </div>
