@@ -212,7 +212,7 @@ export default async function NewEditionPage() {
               <div key={issue.id} className="group flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 {/* Cover Image - Entire image is now a link */}
                 <Link 
-                  href={issue.id === 'issue-apr-may-2026' ? `/magazine/issue/${issue.id}` : issue.pdfUrl}
+                  href={`/magazine/issue/${issue.id}`}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -248,7 +248,7 @@ export default async function NewEditionPage() {
                   
                   <div className="mt-auto flex flex-col gap-2 w-full">
                     <div className="flex flex-wrap gap-1.5 mb-4 justify-center">
-                      {issue.tags.slice(0, 2).map((tag: string) => (
+                      {issue.tags?.slice(0, 2).map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="text-[9px] font-normal uppercase tracking-wider px-1.5 py-0">
                           {tag}
                         </Badge>
@@ -257,13 +257,17 @@ export default async function NewEditionPage() {
                     
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link href={issue.id === 'issue-apr-may-2026' ? `/magazine/issue/${issue.id}` : issue.pdfUrl}>
-                          {issue.id === 'issue-apr-may-2026' ? 'Reader' : 'View'}
+                        <Link href={`/magazine/issue/${issue.id}`}>
+                          Reader
                         </Link>
                       </Button>
-                      {issue.downloadUrl && (
+                      {issue.downloadUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
                           <Link href={issue.downloadUrl}>PDF</Link>
+                        </Button>
+                      ) : (
+                        <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
+                          <Link href={issue.pdfUrl || '#'}>Issuu</Link>
                         </Button>
                       )}
                     </div>
