@@ -1,6 +1,6 @@
 'use client';
 
-import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout, RefreshCw } from 'lucide-react';
+import { Save, Loader2, AlertCircle, Image as ImageIcon, Link as LinkIcon, Sparkles, Layout, RefreshCw, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { MagazineIssue, MagazinePage } from './types';
 import { toast } from 'sonner';
+import { fetchIssuuMetadataAction } from '@/app/actions/magazineActions';
+import { useState } from 'react';
 
 interface IssueMetadataProps {
   issue: MagazineIssue;
@@ -21,6 +23,7 @@ interface IssueMetadataProps {
 }
 
 export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages = [] }: IssueMetadataProps) {
+  const [isFetchingIssuu, setIsFetchingIssuu] = useState(false);
   const coverFromPages = pages.find(p => p.type === 'cover')?.content?.image;
   const canSync = coverFromPages && coverFromPages !== issue.coverImage;
 
@@ -28,6 +31,32 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
     if (coverFromPages) {
       onUpdate({ coverImage: coverFromPages });
       toast.success('Thumbnail synced from Cover Spread');
+    }
+  };
+
+  const handleFetchIssuuMetadata = async () => {
+    if (!issue.pdfUrl) {
+      toast.error('Please enter an Issuu URL first');
+      return;
+    }
+
+    setIsFetchingIssuu(true);
+    try {
+      const res = await fetchIssuuMetadataAction(issue.pdfUrl);
+      if (res.success && res.data) {
+        onUpdate({ 
+          coverImage: res.data.thumbnailUrl,
+          title: issue.title || res.data.title,
+          description: issue.description || res.data.description
+        });
+        toast.success('Metadata fetched from Issuu!');
+      } else {
+        toast.error(res.error || 'Failed to fetch Issuu metadata');
+      }
+    } catch (err) {
+      toast.error('An error occurred while fetching Issuu metadata');
+    } finally {
+      setIsFetchingIssuu(false);
     }
   };
 
@@ -141,10 +170,22 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
               
               {issue.readerType === 'issuu' && (
                 <div className="space-y-2 pt-4 border-t">
-                  <Label htmlFor="issuuUrl" className="text-accent flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4" />
-                    Issuu Publication Link
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="issuuUrl" className="text-accent flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4" />
+                      Issuu Publication Link
+                    </Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 text-[10px] text-accent font-bold uppercase gap-2 hover:bg-accent/10"
+                      onClick={handleFetchIssuuMetadata}
+                      disabled={isFetchingIssuu}
+                    >
+                      {isFetchingIssuu ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                      Fetch Cover & Info
+                    </Button>
+                  </div>
                   <Input 
                     id="issuuUrl" 
                     value={issue.pdfUrl} 
@@ -152,7 +193,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                     placeholder="https://issuu.com/blackie365/docs/..."
                   />
                   <p className="text-[10px] text-muted-foreground italic">
-                    Paste the direct link to your Issuu publication. We will handle the embedding for you.
+                    Paste the direct link to your Issuu publication. We will handle the embedding and cover extraction for you.
                   </p>
                 </div>
               )}

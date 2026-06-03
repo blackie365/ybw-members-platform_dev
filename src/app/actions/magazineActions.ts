@@ -191,3 +191,32 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     return { success: false, error: error.message };
   }
 }
+
+export async function fetchIssuuMetadataAction(url: string) {
+  try {
+    await checkAdmin();
+    
+    // Issuu oEmbed API endpoint
+    const oembedUrl = `https://issuu.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    
+    const response = await fetch(oembedUrl);
+    if (!response.ok) {
+      throw new Error('Failed to fetch metadata from Issuu');
+    }
+    
+    const data = await response.json();
+    
+    return { 
+      success: true, 
+      data: {
+        title: data.title,
+        thumbnailUrl: data.thumbnail_url,
+        authorName: data.author_name,
+        description: data.description
+      } 
+    };
+  } catch (error: any) {
+    console.error("Error in fetchIssuuMetadataAction:", error);
+    return { success: false, error: error.message };
+  }
+}
