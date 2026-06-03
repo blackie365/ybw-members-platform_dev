@@ -13,7 +13,10 @@ export async function checkAdmin() {
   }
 
   // 1. Check Clerk session claims or metadata first (Fastest)
-  const isAdminInMetadata = (sessionClaims?.metadata as any)?.isAdmin === true || 
+  const metadata = sessionClaims?.metadata as any;
+  const isAdminInMetadata = metadata?.isAdmin === true || 
+                            metadata?.role === 'admin' || 
+                            metadata?.role === 'super_admin' ||
                             (sessionClaims as any)?.isAdmin === true;
   
   if (isAdminInMetadata) {
@@ -22,31 +25,27 @@ export async function checkAdmin() {
 
   // 2. Fallback: Check Clerk user metadata directly
   const clerkUser = await currentUser();
-  if (clerkUser?.publicMetadata?.isAdmin === true) {
+  const publicMetadata = clerkUser?.publicMetadata as any;
+  if (publicMetadata?.isAdmin === true || publicMetadata?.role === 'admin' || publicMetadata?.role === 'super_admin') {
     return userId;
   }
 
-  // 3. Fallback: Check Firestore document
-  if (!adminDb) {
-    console.error('[AuthUtils] adminDb not initialized');
-    throw new Error('Internal Server Error: Database connection failed');
+  // 3. Fallback: Check Firestore profile directly (Most reliable but slowest)
+  try {
+    if (adminDb) {
+      const doc = await adminDb.collection('newMemberCollection').doc(userId).get();
+      if (doc.exists) {
+        const profile = doc.data();
+        if (profile?.isAdmin === true || profile?.role === 'admin' || profile?.role === 'super_admin') {
+          return userId;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error checking Firestore for admin status:', err);
   }
 
-  // Try Clerk ID first
-  let userDoc = await adminDb.collection('newMemberCollection').doc(userId).get();
-  
-  // If not found by Clerk ID, check if there's a firestoreId in metadata
-  if (!userDoc.exists && clerkUser?.publicMetadata?.firestoreId) {
-    const firestoreId = clerkUser.publicMetadata.firestoreId as string;
-    userDoc = await adminDb.collection('newMemberCollection').doc(firestoreId).get();
-  }
-  
-  if (!userDoc.exists || userDoc.data()?.isAdmin !== true) {
-    console.warn(`[AuthUtils] Access denied for non-admin user: ${userId}`);
-    throw new Error('Forbidden: Admin access required');
-  }
-
-  return userId;
+  throw new Error('Forbidden: Admin access required');
 }
 
 /**

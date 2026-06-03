@@ -235,7 +235,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     profile?.role === 'admin' || 
     profile?.role === 'super_admin' || 
     profile?.isAdmin === true ||
-    clerkUser?.publicMetadata?.isAdmin === true
+    clerkUser?.publicMetadata?.isAdmin === true ||
+    clerkUser?.publicMetadata?.role === 'admin' ||
+    clerkUser?.publicMetadata?.role === 'super_admin'
   );
   const isPremium = !!user && (
     profile?.membershipTier === 'premium' || 
