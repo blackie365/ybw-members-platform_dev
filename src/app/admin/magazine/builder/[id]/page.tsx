@@ -361,14 +361,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="builder" className="mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-            <div className="lg:col-span-1">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-2 min-w-[200px]">
               <PageTypeSelector 
                 onAddPage={handleAddPage}
                 isSaving={saving}
               />
             </div>
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-4 min-w-[300px]">
               <PageList 
                 pages={pages}
                 selectedPageId={selectedPageId}
@@ -378,7 +378,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 isSaving={saving}
               />
             </div>
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-6">
               <PageEditor 
                 page={pages.find(p => p.docId === selectedPageId)}
                 onSave={(content) => {

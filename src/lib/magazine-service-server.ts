@@ -56,6 +56,25 @@ export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
 }
 
 /**
+ * Server-side version of single issue fetcher
+ */
+export async function getMagazineIssueServer(issueId: string): Promise<MagazineIssue | null> {
+  try {
+    if (!adminDb) return null;
+    
+    const doc = await adminDb.collection('magazine_issues').doc(issueId).get();
+    
+    if (doc.exists) {
+      return { id: doc.id, ...doc.data() } as MagazineIssue;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error fetching issue ${issueId} (server):`, error);
+    return null;
+  }
+}
+
+/**
  * Server-side version of magazine pages fetcher
  * Falls back to siteContent example pages if Firestore is empty or fetch fails
  */
