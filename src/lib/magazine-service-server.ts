@@ -129,8 +129,8 @@ export async function getMagazinePagesServer(issueId: string): Promise<MagazineP
       .get();
     
     if (snapshot.empty) {
-      console.log(`No pages found in Firestore for issue ${issueId} (server), falling back to example data`);
-      return siteContent.magazinePages as unknown as MagazinePage[];
+      console.log(`No pages found in Firestore for issue ${issueId} (server). Returning empty array.`);
+      return [];
     }
     
     return snapshot.docs.map(doc => serializeData({
