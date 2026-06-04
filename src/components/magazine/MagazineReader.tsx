@@ -29,7 +29,7 @@ interface MagazineReaderProps {
   id: string;
 }
 
-export default function MagazineReader({ issue, pages, id }: MagazineReaderProps) {
+export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [direction, setDirection] = useState(0);

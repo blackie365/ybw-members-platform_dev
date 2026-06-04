@@ -193,35 +193,52 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleImportContent = async (post: any, type: string) => {
+  const handleImportContent = async (post: any, type: string, targetPageId?: string) => {
     setSaving(true);
     try {
-      const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
+      // Better extraction logic - preserve basic formatting
+      const rawHTML = post.html || '';
       
-      // Better extraction logic
-      const cleanHTML = post.html || '';
-      const cleanText = cleanHTML.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      // Function to clean HTML but preserve specific tags
+      const cleanForMagazine = (html: string) => {
+        return html
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n\n')
+          .replace(/<p[^>]*>/gi, '')
+          .replace(/<[^>]*>?/gm, (tag) => {
+            const allowed = ['strong', 'em', 'u', 'b', 'i'];
+            const tagName = tag.match(/<\/?([a-z0-9]+)/i)?.[1]?.toLowerCase();
+            return allowed.includes(tagName || '') ? tag : '';
+          })
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\n\s*\n\s*\n/g, '\n\n') // Collapse triple newlines
+          .trim();
+      };
+
+      const cleanText = cleanForMagazine(rawHTML);
       
-      // Extract Subtitle/Standfirst from excerpt or first sentence
-      const subtitle = post.custom_excerpt || post.excerpt || cleanText.split('. ')[0] + '.';
+      // Extract Subtitle/Standfirst from excerpt or first sentence (clean text version)
+      const plainText = rawHTML.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      const subtitle = post.custom_excerpt || post.excerpt || plainText.split('. ')[0] + '.';
       
       // Extract Pullout Quote (Look for <blockquote> tags)
-      const quoteMatch = cleanHTML.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
+      const quoteMatch = rawHTML.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
       const pulloutQuote = quoteMatch 
         ? quoteMatch[1].replace(/<[^>]*>?/gm, '').trim() 
-        : (post.custom_excerpt || cleanText.substring(0, 150) + '...');
+        : (post.custom_excerpt || plainText.substring(0, 150) + '...');
 
       // Map content based on template requirements
       let content: any = {};
+      const templateType = targetPageId ? (pages.find(p => p.docId === targetPageId)?.type || type) : type;
       
-      switch (type) {
+      switch (templateType) {
         case 'editorial':
           content = {
             title: post.title,
             author: post.primary_author?.name || 'Gill Laidler',
             role: 'Editor-in-Chief',
             image: post.feature_image || '',
-            text: cleanText.substring(0, 1800),
+            text: cleanText.substring(0, 3000),
             quote: pulloutQuote
           };
           break;
@@ -231,7 +248,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             author: post.primary_author?.name || 'Expert Contributor',
             category: post.primary_tag?.name || 'Expert Column',
             image: post.feature_image || '',
-            text: cleanText.substring(0, 2500),
+            text: cleanText.substring(0, 4000),
             tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 5) || []
           };
           break;
@@ -246,7 +263,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         case 'feature-right':
           content = {
             quote: pulloutQuote,
-            text: cleanText.substring(0, 1000),
+            text: cleanText.substring(0, 2000),
             image: post.feature_image || '',
             stats: [
               { label: 'READ TIME', value: `${post.reading_time || 5} MIN` },
@@ -256,7 +273,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           break;
         case 'lifestyle':
           content = {
-            text: cleanText.substring(0, 1000),
+            text: cleanText.substring(0, 2000),
             image: post.feature_image || '',
             highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
           };
@@ -267,7 +284,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             role: post.primary_tag?.name || 'Entrepreneur',
             image: post.feature_image || '',
             message: pulloutQuote,
-            bio: cleanText.substring(0, 1200)
+            bio: cleanText.substring(0, 2000)
           };
           break;
         case 'partner':
@@ -293,34 +310,45 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             title: post.title,
             author: post.primary_author?.name || 'YBW Team',
             image: post.feature_image,
-            text: cleanText.substring(0, 2000),
+            text: cleanText.substring(0, 3000),
             name: post.title,
             intro: subtitle,
             category: post.primary_tag?.name || 'Editorial'
           };
       }
 
-      const newPage = {
-        id: maxId + 1,
-        type,
-        content,
-        createdAt: new Date().toISOString()
-      };
-
-      const res = await addMagazinePageAction(id, newPage);
-      if (res.success) {
-        toast.success(`Smart Imported "${post.title}" as ${type}`);
-        
-        // PROACTIVE LOGIC: If we just imported a cover, sync it to the issue thumbnail (if enabled)
-        if (issue.autoSyncCover !== false && type === 'cover' && content.image) {
-          await updateMagazineIssueAction(id, { coverImage: content.image });
-          setIssue(prev => ({ ...prev, coverImage: content.image }));
-          toast.info('Issue thumbnail updated from imported cover');
+      if (targetPageId) {
+        // Update existing page
+        const res = await updateMagazinePageAction(id, targetPageId, { content });
+        if (res.success) {
+          toast.success(`Updated spread with content from "${post.title}"`);
+          await loadData(true);
+          setActiveTab('builder');
         }
+      } else {
+        // Create new page
+        const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
+        const newPage = {
+          id: maxId + 1,
+          type,
+          content,
+          createdAt: new Date().toISOString()
+        };
 
-        await loadData(true);
-        setSelectedPageId(res.id as string);
-        setActiveTab('builder');
+        const res = await addMagazinePageAction(id, newPage);
+        if (res.success) {
+          toast.success(`Smart Imported "${post.title}" as ${type}`);
+          
+          if (issue.autoSyncCover !== false && type === 'cover' && content.image) {
+            await updateMagazineIssueAction(id, { coverImage: content.image });
+            setIssue(prev => ({ ...prev, coverImage: content.image }));
+            toast.info('Issue thumbnail updated from imported cover');
+          }
+
+          await loadData(true);
+          setSelectedPageId(res.id as string);
+          setActiveTab('builder');
+        }
       }
     } catch (err) {
       toast.error('Failed to import content');
@@ -598,6 +626,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           <GhostImporter 
             onImport={handleImportContent}
             isImporting={saving}
+            selectedPageId={selectedPageId || undefined}
+            selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
           />
         </TabsContent>
       </Tabs>
