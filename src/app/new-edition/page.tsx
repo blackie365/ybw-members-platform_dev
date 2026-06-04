@@ -65,11 +65,16 @@ export default async function NewEditionPage() {
                 Experience our cinematic, smooth-turning digital edition. Optimized for every screen with high-resolution spreads and interactive content.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
-                <Button size="lg" className="bg-white text-black hover:bg-zinc-200 h-20 px-12 text-xl font-serif rounded-none shadow-[0_0_40px_rgba(255,255,255,0.1)] group" asChild>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button asChild size="lg" className="bg-[#A3413A] hover:bg-white hover:text-[#A3413A] text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300 shadow-xl border-none">
                   <Link href={`/magazine/issue/${latestIssue.id}`}>
-                    Launch Digital Edition
-                    <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-2" />
+                    <BookOpen className="mr-2 h-5 w-5" />
+                    Launch Digital Reader
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="border-zinc-700 text-white hover:bg-zinc-800 px-8 py-6 h-auto text-lg rounded-none">
+                  <Link href="/events">
+                    Pick Up Print Copy
                   </Link>
                 </Button>
               </div>
