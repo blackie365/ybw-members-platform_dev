@@ -161,7 +161,7 @@ export default async function NewEditionPage() {
                 sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
                 allowFullScreen={true} 
                 style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src={latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"}
+                src={(latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365").replace('issuu.com', 'e.issuu.com').replace('?fr=', '&fr=')}
               />
             </div>
           </div>
