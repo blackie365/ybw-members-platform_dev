@@ -380,7 +380,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         </div>
       </div>
     </div>
-    <div className="lg:w-[65%] xl:w-[70%] flex flex-col justify-start lg:justify-center py-[2%]">
+    <div className="lg:w-[65%] xl:w-[70%] flex flex-col justify-start py-[5%] lg:py-[2%]">
       <div className="max-w-[800px]">
         <Badge variant="outline" className="mb-[4%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">Editor&apos;s Note</Badge>
         <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[5%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
@@ -400,7 +400,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
 );
 
 const PageContents = ({ data }: any) => (
-  <div className="min-h-full w-full p-[5%] pb-[15vh] grid lg:grid-cols-2 gap-[8%] bg-white">
+  <div className="min-h-full w-full p-[5%] pb-[15vh] grid lg:grid-cols-2 gap-[8%] bg-white pt-[10%] lg:pt-[5%]">
     <div className="flex flex-col justify-center max-w-[500px] mx-auto lg:mx-0 w-full">
       <h2 className="text-[clamp(2.2rem,7vh,5rem)] font-serif mb-[8%] tracking-tighter text-zinc-900 leading-none">In This <span className="italic text-accent">Issue</span></h2>
       <div className="space-y-[4%]">
@@ -464,7 +464,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
 );
 
 const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative p-[5%] pb-[15vh] flex flex-col justify-center bg-white">
+  <div className="min-h-full w-full relative p-[5%] pb-[15vh] flex flex-col justify-start bg-white pt-[10%] lg:pt-[5%]">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -501,7 +501,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
 );
 
 const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-zinc-900 text-white flex flex-col justify-center pb-[15vh]">
+  <div className="min-h-full w-full relative bg-zinc-900 text-white flex flex-col justify-start pb-[15vh] pt-[10%] lg:pt-[8%]">
     {data.image && (
       <div className="absolute inset-0 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -549,7 +549,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
       <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
     </div>
-    <div className="relative h-full w-full p-[8%] flex flex-col justify-center z-10 min-h-0">
+    <div className="relative h-full w-full p-[8%] flex flex-col justify-start lg:justify-center z-10 min-h-0 pt-[12%] lg:pt-[8%]">
       <div className="max-w-[min(100%,500px)] lg:max-w-[42%] pr-[4%]">
         <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">Lifestyle</Badge>
         <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-tighter leading-[0.85]">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
@@ -568,7 +568,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
 );
 
 const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full p-[5%] pb-[15vh] bg-white flex flex-col justify-center">
+  <div className="min-h-full w-full p-[5%] pb-[15vh] bg-white flex flex-col justify-start pt-[10%] lg:pt-[5%]">
     <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row items-center gap-[8%] lg:gap-[10%] w-full min-h-0">
       <div className="relative h-[30vh] lg:h-[60vh] aspect-[3/4] shrink-0">
         <div className="absolute -inset-[3%] border-2 border-accent/20 rounded-2xl -rotate-3" />
