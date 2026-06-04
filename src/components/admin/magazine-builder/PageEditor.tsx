@@ -68,6 +68,11 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Label>Cover Background Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
+            <div className="space-y-2 col-span-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+              <p className="text-[10px] text-muted-foreground italic">If provided, this video will replace the static background image.</p>
+            </div>
           </div>
         );
       case 'editorial':
@@ -130,6 +135,10 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+            </div>
+            <div className="space-y-2">
               <Label>Introduction Text</Label>
               <Textarea value={safeContent.intro || ''} onChange={(e) => updateContent('intro', e.target.value)} />
             </div>
@@ -168,6 +177,14 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             <div className="space-y-2">
               <Label>Background Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
               <Label>Column Text</Label>
@@ -249,6 +266,10 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+            </div>
+            <div className="space-y-2">
               <Label>Exclusive Offer Text</Label>
               <Input value={safeContent.offer || ''} onChange={(e) => updateContent('offer', e.target.value)} />
             </div>
@@ -268,6 +289,10 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             <div className="space-y-2">
               <Label>Background Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
               <Label>Social Platforms (JSON Array of Strings)</Label>

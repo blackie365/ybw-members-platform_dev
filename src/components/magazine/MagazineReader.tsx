@@ -324,8 +324,19 @@ function renderPage(page: any, imageVersion: string) {
 
 const PageCover = ({ data, imageVersion }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-zinc-900">
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]" />
+    {data.videoUrl ? (
+      <video 
+        src={data.videoUrl} 
+        autoPlay 
+        muted 
+        loop 
+        playsInline 
+        className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]"
+      />
+    ) : (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]" />
+    )}
     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30" />
     
     {/* Brand Overlay */}
@@ -441,8 +452,19 @@ const PageContents = ({ data }: any) => (
 const PageFeatureLeft = ({ data, imageVersion }: any) => (
   <div className="min-h-full w-full relative flex flex-col lg:grid lg:grid-cols-2 bg-[#FAF9F6] pb-[15vh]">
     <div className="relative h-[40vh] lg:h-full overflow-hidden group shrink-0 shadow-2xl">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110 brightness-100" />
+      {data.videoUrl ? (
+        <video 
+          src={data.videoUrl} 
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] brightness-100"
+        />
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110 brightness-100" />
+      )}
       <div className="absolute inset-0 bg-accent/5 mix-blend-overlay" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent" />
     </div>
@@ -596,8 +618,19 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
 
 const PagePartner = ({ data, imageVersion }: any) => (
   <div className="min-h-full w-full relative bg-black pb-[15vh]">
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]" />
+    {data.videoUrl ? (
+      <video 
+        src={data.videoUrl} 
+        autoPlay 
+        muted 
+        loop 
+        playsInline 
+        className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]"
+      />
+    ) : (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]" />
+    )}
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
     
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-[8%]">

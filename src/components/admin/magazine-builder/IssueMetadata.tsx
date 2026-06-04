@@ -143,6 +143,33 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
 
           <Card>
             <CardHeader>
+              <CardTitle>Ghost CMS Integration</CardTitle>
+              <CardDescription>Automatically pull articles into this edition.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ghostTag">Ghost Sync Tag</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="ghostTag" 
+                    value={issue.ghostSyncTag || ''} 
+                    onChange={(e) => onUpdate({ ghostSyncTag: e.target.value })} 
+                    placeholder="e.g. Issue-April-2026"
+                    className="font-mono text-xs"
+                  />
+                  <div className="h-10 w-10 shrink-0 bg-accent/10 rounded-md flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Any Ghost article with this exact tag can be bulk-extracted into your spreads.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Core Details</CardTitle>
               <CardDescription>Public information about this magazine edition.</CardDescription>
             </CardHeader>

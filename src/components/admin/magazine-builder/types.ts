@@ -32,15 +32,16 @@ export interface MagazinePage {
 }
 
 export interface MagazineIssue {
-  id?: string;
+  id: string;
   title: string;
-  description: string;
-  publishDate: string;
   coverImage: string;
+  publishDate: string;
+  description: string;
   pdfUrl: string;
   downloadUrl?: string;
-  isLatest?: boolean;
-  tags?: string[];
+  isLatest: boolean;
+  tags: string[];
+  ghostSyncTag?: string; // New: Tag to sync articles from Ghost
   readerType?: 'custom' | 'issuu';
   autoSyncCover?: boolean;
 }

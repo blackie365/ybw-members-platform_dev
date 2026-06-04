@@ -5,7 +5,8 @@ import {
   ArrowLeft, 
   Save, 
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +18,8 @@ import {
   createMagazineIssueAction,
   addMagazinePageAction,
   updateMagazinePageAction,
-  deleteMagazinePageAction
+  deleteMagazinePageAction,
+  getGhostPostsAction
 } from '@/app/actions/magazineActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -47,6 +49,10 @@ const GhostImporter = dynamic(() => import('@/components/admin/magazine-builder/
   loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Ghost Importer...</p></div>
 });
 
+const ManualImporter = dynamic(() => import('@/components/admin/magazine-builder/ManualImporter').then(m => m.ManualImporter), {
+  loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Manual Importer...</p></div>
+});
+
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const isNew = id === 'new';
@@ -58,6 +64,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
 
   const [issue, setIssue] = useState<MagazineIssue>({
+    id: id === 'new' ? '' : id,
     title: '',
     description: '',
     publishDate: '',
@@ -71,6 +78,53 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   });
 
   const [pages, setPages] = useState<MagazinePage[]>([]);
+
+  const [isBatchSyncing, setIsBatchSyncing] = useState(false);
+
+  const handleBatchSync = async () => {
+    if (!issue.ghostSyncTag) {
+      toast.error('Please set a Ghost Sync Tag in Issue Settings first');
+      setActiveTab('metadata');
+      return;
+    }
+
+    if (!confirm(`This will find all Ghost articles tagged "${issue.ghostSyncTag}" and add them as new spreads. Continue?`)) {
+      return;
+    }
+
+    setIsBatchSyncing(true);
+    try {
+      // 1. Fetch articles by tag
+      const res = await getGhostPostsAction({ filter: `tag:${issue.ghostSyncTag}` });
+      
+      if (!res.success || !res.data || res.data.length === 0) {
+        toast.error(`No articles found with tag "${issue.ghostSyncTag}"`);
+        return;
+      }
+
+      toast.info(`Found ${res.data.length} articles. Starting extraction...`);
+
+      // 2. Loop and Import
+      let count = 0;
+      for (const post of res.data) {
+        // Smart map to template
+        const { mapGhostToTemplate } = await import('@/lib/magazine-theme');
+        const type = mapGhostToTemplate(post);
+        
+        // Use our existing import logic
+        await handleImportContent(post, type);
+        count++;
+      }
+
+      toast.success(`Successfully extracted ${count} articles into spreads!`);
+      await loadData(true);
+      setActiveTab('builder');
+    } catch (err) {
+      toast.error('Batch extraction failed');
+    } finally {
+      setIsBatchSyncing(false);
+    }
+  };
 
   // Load Initial Data
   const loadData = useCallback(async (silent = false) => {
@@ -99,6 +153,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           }
           
           setIssue({ 
+            id: castIssue.id || id,
             title: castIssue.title || '',
             description: castIssue.description || '',
             publishDate: formattedDate,
@@ -108,7 +163,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             isLatest: castIssue.isLatest || false,
             tags: castIssue.tags || [],
             autoSyncCover: castIssue.autoSyncCover !== undefined ? castIssue.autoSyncCover : true,
-            readerType: castIssue.readerType || 'custom'
+            readerType: castIssue.readerType || 'custom',
+            ghostSyncTag: castIssue.ghostSyncTag || ''
           });
         }
       }
@@ -196,125 +252,130 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const handleImportContent = async (post: any, type: string, targetPageId?: string) => {
     setSaving(true);
     try {
-      // Better extraction logic - preserve basic formatting
-      const rawHTML = post.html || '';
-      
-      // Function to clean HTML but preserve specific tags
-      const cleanForMagazine = (html: string) => {
-        return html
-          .replace(/<p[^>]*>/gi, '<p>') // Standardize paragraphs
-          .replace(/<br\s*\/?>/gi, '<br />') // Standardize breaks
-          .replace(/<[^>]*>?/gm, (tag) => {
-            const allowed = ['p', 'br', 'strong', 'em', 'u', 'b', 'i'];
-            const tagName = tag.match(/<\/?([a-z0-9]+)/i)?.[1]?.toLowerCase();
-            return allowed.includes(tagName || '') ? tag : '';
-          })
-          .replace(/&nbsp;/g, ' ')
-          .trim();
-      };
-
-      const cleanText = cleanForMagazine(rawHTML);
-      
-      // Extract Subtitle/Standfirst from excerpt or first sentence (clean text version)
-      const plainText = rawHTML.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
-      const subtitle = post.custom_excerpt || post.excerpt || plainText.split('. ')[0] + '.';
-      
-      // Extract Pullout Quote (Look for <blockquote> tags)
-      const quoteMatch = rawHTML.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
-      const pulloutQuote = quoteMatch 
-        ? quoteMatch[1].replace(/<[^>]*>?/gm, '').trim() 
-        : (post.custom_excerpt || plainText.substring(0, 150) + '...');
-
-      // Map content based on template requirements
       let content: any = {};
       const templateType = targetPageId ? (pages.find(p => p.docId === targetPageId)?.type || type) : type;
-      
-      switch (templateType) {
-        case 'editorial':
-          content = {
-            title: post.title,
-            author: post.primary_author?.name || 'Gill Laidler',
-            role: 'Editor-in-Chief',
-            image: post.feature_image || '',
-            text: cleanText.substring(0, 4000),
-            quote: pulloutQuote,
-            intro: subtitle
-          };
-          break;
-        case 'column':
-          content = {
-            title: post.title,
-            author: post.primary_author?.name || 'Expert Contributor',
-            category: post.primary_tag?.name || 'Expert Column',
-            image: post.feature_image || '',
-            text: cleanText.substring(0, 4000),
-            tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 5) || []
-          };
-          break;
-        case 'feature-left':
-          content = {
-            name: post.primary_author?.name || 'Featured Guest',
-            title: post.title || 'Feature Story',
-            image: post.feature_image || '',
-            intro: subtitle
-          };
-          break;
-        case 'feature-right':
-          content = {
-            name: post.primary_author?.name || '',
-            quote: pulloutQuote,
-            text: cleanText.substring(0, 2000),
-            image: post.feature_image || '',
-            stats: [
-              { label: 'READ TIME', value: `${post.reading_time || 5} MIN` },
-              { label: 'TOPIC', value: post.primary_tag?.name?.toUpperCase() || 'NEWS' }
-            ]
-          };
-          break;
-        case 'lifestyle':
-          content = {
-            text: cleanText.substring(0, 2000),
-            image: post.feature_image || '',
-            highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
-          };
-          break;
-        case 'spotlight':
-          content = {
-            name: post.primary_author?.name || 'Member Name',
-            role: post.primary_tag?.name || 'Entrepreneur',
-            image: post.feature_image || '',
-            message: pulloutQuote,
-            bio: cleanText.substring(0, 2000)
-          };
-          break;
-        case 'partner':
-          content = {
-            brand: post.primary_author?.name || 'Partner Brand',
-            headline: post.title,
-            offer: 'Exclusive Member Benefit',
-            image: post.feature_image || ''
-          };
-          break;
-        case 'cover':
-          content = {
-            title: 'Yorkshire BusinessWoman',
-            headline: post.title,
-            subheadline: subtitle,
-            date: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-            issue: 'LATEST',
-            image: post.feature_image || ''
-          };
-          break;
-        default:
-          content = {
-            title: post.title,
-            author: post.primary_author?.name || 'YBW Team',
-            image: post.feature_image,
-            text: cleanText.substring(0, 3000),
-            name: post.title,
-            intro: subtitle,
-            category: post.primary_tag?.name || 'Editorial'
-          };
+
+      if (post._isManual) {
+        // Handle manual raw import
+        content = post.manualContent;
+      } else {
+        // Handle Ghost CMS import
+        // Better extraction logic - preserve basic formatting
+        const rawHTML = post.html || '';
+        
+        // Function to clean HTML but preserve specific tags
+        const cleanForMagazine = (html: string) => {
+          return html
+            .replace(/<p[^>]*>/gi, '<p>') // Standardize paragraphs
+            .replace(/<br\s*\/?>/gi, '<br />') // Standardize breaks
+            .replace(/<[^>]*>?/gm, (tag) => {
+              const allowed = ['p', 'br', 'strong', 'em', 'u', 'b', 'i'];
+              const tagName = tag.match(/<\/?([a-z0-9]+)/i)?.[1]?.toLowerCase();
+              return allowed.includes(tagName || '') ? tag : '';
+            })
+            .replace(/&nbsp;/g, ' ')
+            .trim();
+        };
+
+        const cleanText = cleanForMagazine(rawHTML);
+        
+        // Extract Subtitle/Standfirst from excerpt or first sentence (clean text version)
+        const plainText = rawHTML.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+        const subtitle = post.custom_excerpt || post.excerpt || plainText.split('. ')[0] + '.';
+        
+        // Extract Pullout Quote (Look for <blockquote> tags)
+        const quoteMatch = rawHTML.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
+        const pulloutQuote = quoteMatch 
+          ? quoteMatch[1].replace(/<[^>]*>?/gm, '').trim() 
+          : (post.custom_excerpt || plainText.substring(0, 150) + '...');
+
+        switch (templateType) {
+          case 'editorial':
+            content = {
+              title: post.title,
+              author: post.primary_author?.name || 'Gill Laidler',
+              role: 'Editor-in-Chief',
+              image: post.feature_image || '',
+              text: cleanText, // Removed truncation limit
+              quote: pulloutQuote,
+              intro: subtitle
+            };
+            break;
+          case 'column':
+            content = {
+              title: post.title,
+              author: post.primary_author?.name || 'Expert Contributor',
+              category: post.primary_tag?.name || 'Expert Column',
+              image: post.feature_image || '',
+              text: cleanText, // Removed truncation limit
+              tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 5) || []
+            };
+            break;
+          case 'feature-left':
+            content = {
+              name: post.primary_author?.name || 'Featured Guest',
+              title: post.title || 'Feature Story',
+              image: post.feature_image || '',
+              intro: subtitle
+            };
+            break;
+          case 'feature-right':
+            content = {
+              name: post.primary_author?.name || '',
+              quote: pulloutQuote,
+              text: cleanText, // Removed truncation limit
+              image: post.feature_image || '',
+              stats: [
+                { label: 'READ TIME', value: `${post.reading_time || 5} MIN` },
+                { label: 'TOPIC', value: post.primary_tag?.name?.toUpperCase() || 'NEWS' }
+              ]
+            };
+            break;
+          case 'lifestyle':
+            content = {
+              text: cleanText, // Removed truncation limit
+              image: post.feature_image || '',
+              highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
+            };
+            break;
+          case 'spotlight':
+            content = {
+              name: post.primary_author?.name || 'Member Name',
+              role: post.primary_tag?.name || 'Entrepreneur',
+              image: post.feature_image || '',
+              message: pulloutQuote,
+              bio: cleanText // Removed truncation limit
+            };
+            break;
+          case 'partner':
+            content = {
+              brand: post.primary_author?.name || 'Partner Brand',
+              headline: post.title,
+              offer: 'Exclusive Member Benefit',
+              image: post.feature_image || ''
+            };
+            break;
+          case 'cover':
+            content = {
+              title: 'Yorkshire BusinessWoman',
+              headline: post.title,
+              subheadline: subtitle,
+              date: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+              issue: 'LATEST',
+              image: post.feature_image || ''
+            };
+            break;
+          default:
+            content = {
+              title: post.title,
+              author: post.primary_author?.name || 'YBW Team',
+              image: post.feature_image,
+              text: cleanText, // Removed truncation limit
+              name: post.title,
+              intro: subtitle,
+              category: post.primary_tag?.name || 'Editorial'
+            };
+        }
       }
 
       if (targetPageId) {
@@ -539,15 +600,26 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             <p className="text-sm text-muted-foreground">Digital Reader Builder & Content Manager</p>
           </div>
         </div>
-        <div className="flex gap-4">
-          {!isNew && (
-            <Button variant="outline" asChild>
-              <Link href={`/magazine/issue/${id}`} target="_blank">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Reader
-              </Link>
-            </Button>
-          )}
+          <div className="flex gap-4">
+            {!isNew && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={handleBatchSync} 
+                  disabled={isBatchSyncing || saving}
+                  className="border-accent text-accent hover:bg-accent hover:text-white transition-all"
+                >
+                  {isBatchSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  Smart Batch Fill
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href={`/magazine/issue/${id}`} target="_blank">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Reader
+                  </Link>
+                </Button>
+              </>
+            )}
           <Button onClick={handleSaveIssue} disabled={saving} className="bg-accent hover:bg-accent/90 text-white min-w-[120px]">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             {isNew ? 'Create Edition' : 'Save Changes'}
@@ -624,12 +696,34 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="import" className="mt-0">
-          <GhostImporter 
-            onImport={handleImportContent}
-            isImporting={saving}
-            selectedPageId={selectedPageId || undefined}
-            selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-          />
+          <div className="space-y-6">
+            <div className="p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-4">
+              <div className="bg-accent p-2 rounded-full text-white shadow-lg">
+                <Save className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-accent">Import & Integration</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Choose to import from Ghost CMS for existing articles, or use <strong>Manual Import</strong> to paste raw text and images directly into your template.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <GhostImporter 
+                onImport={handleImportContent} 
+                isImporting={saving}
+                selectedPageId={selectedPageId || undefined}
+                selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+              />
+              <ManualImporter 
+                onImport={handleImportContent}
+                isImporting={saving}
+                selectedPageId={selectedPageId || undefined}
+                selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+              />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
