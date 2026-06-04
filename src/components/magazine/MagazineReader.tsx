@@ -266,6 +266,26 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
 
 // --- PAGE RENDERER HELPERS ---
 
+function SafeText({ html, className }: { html: string; className?: string }) {
+  if (!html) return null;
+  
+  // If it's plain text (no tags), convert newlines to <br />
+  // If it has tags but no <p> or <br>, it might still need newline conversion
+  let content = html;
+  if (!html.includes('<')) {
+    content = html.replace(/\n/g, '<br />');
+  } else if (!html.includes('<p') && !html.includes('<br')) {
+    content = html.replace(/\n/g, '<br />');
+  }
+  
+  return (
+    <div 
+      className={className}
+      dangerouslySetInnerHTML={{ __html: content }} 
+    />
+  );
+}
+
 function renderPage(page: any, imageVersion: string) {
   switch (page.type) {
     case 'cover':
@@ -346,7 +366,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[5%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
         <div className="space-y-[4%] text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-relaxed font-light">
           <div className="first-letter:text-[clamp(3rem,10vh,6rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.7] first-letter:mt-[2%]">
-            {data.text}
+            <SafeText html={data.text} />
           </div>
           {data.quote && (
             <blockquote className="border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-relaxed bg-accent/5 pr-[5%] shadow-sm">
@@ -437,9 +457,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
         &quot;{data.quote}&quot;
       </h2>
       <div className="grid lg:grid-cols-2 gap-[8%] items-start">
-        <div className="space-y-[4%] text-[clamp(0.9rem,2vh,1.2rem)] text-zinc-600 leading-relaxed font-light">
-          <p>{data.text}</p>
-        </div>
+        <SafeText html={data.text} className="space-y-[4%] text-[clamp(0.9rem,2vh,1.2rem)] text-zinc-600 leading-relaxed font-light" />
         <div className="bg-zinc-50 p-[8%] rounded-[2rem] shadow-sm border border-zinc-100">
           <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.3em] font-bold text-accent mb-[8%]">Snapshot</p>
           <div className="space-y-[6%]">
@@ -474,7 +492,7 @@ const PageColumn = ({ data, imageVersion }: any) => (
       </h2>
       <div className="flex flex-col lg:flex-row gap-[8%] items-start">
         <div className="lg:w-[65%] space-y-[4%] text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-300 leading-relaxed font-light">
-          <p>{data.text}</p>
+          <SafeText html={data.text} />
           <div className="h-[2px] w-[clamp(3rem,6vw,8rem)] bg-accent mt-[8%]" />
           <p className="font-serif italic text-[clamp(1.2rem,3.5vh,2rem)] text-white mt-[2%]">By {data.author}</p>
         </div>
@@ -507,9 +525,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
       <div className="max-w-[min(100%,500px)] lg:max-w-[42%]">
         <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">Lifestyle</Badge>
         <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-tighter leading-[0.85]">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
-        <p className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-relaxed font-light mb-[8%] max-w-lg">
-          {data.text}
-        </p>
+        <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-relaxed font-light mb-[8%] max-w-lg" />
         <div className="space-y-[3%]">
           {data.highlights?.map((h: any, i: number) => (
             <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
@@ -543,9 +559,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
             &quot;{data.message}&quot;
           </p>
         </div>
-        <p className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-relaxed max-w-xl mx-auto lg:mx-0">
-          {data.bio}
-        </p>
+        <SafeText html={data.bio} className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-relaxed max-w-xl mx-auto lg:mx-0" />
         <Button className="mt-[8%] rounded-none px-[8%] py-[3%] h-auto bg-black text-white hover:bg-accent transition-all duration-300 tracking-widest uppercase text-[clamp(9px,1vh,11px)] shadow-xl border-none">Read Full Profile</Button>
       </div>
     </div>

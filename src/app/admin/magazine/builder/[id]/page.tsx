@@ -202,16 +202,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // Function to clean HTML but preserve specific tags
       const cleanForMagazine = (html: string) => {
         return html
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n\n')
-          .replace(/<p[^>]*>/gi, '')
+          .replace(/<p[^>]*>/gi, '<p>') // Standardize paragraphs
+          .replace(/<br\s*\/?>/gi, '<br />') // Standardize breaks
           .replace(/<[^>]*>?/gm, (tag) => {
-            const allowed = ['strong', 'em', 'u', 'b', 'i'];
+            const allowed = ['p', 'br', 'strong', 'em', 'u', 'b', 'i'];
             const tagName = tag.match(/<\/?([a-z0-9]+)/i)?.[1]?.toLowerCase();
             return allowed.includes(tagName || '') ? tag : '';
           })
           .replace(/&nbsp;/g, ' ')
-          .replace(/\n\s*\n\s*\n/g, '\n\n') // Collapse triple newlines
           .trim();
       };
 

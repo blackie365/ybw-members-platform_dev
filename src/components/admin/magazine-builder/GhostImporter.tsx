@@ -136,15 +136,21 @@ export function GhostImporter({ onImport, isImporting, selectedPageId, selectedP
 
                       <div className="flex flex-col gap-2 mt-3">
                         {selectedPageId && selectedPageType ? (
-                          <Button 
-                            size="sm" 
-                            className="h-8 text-[10px] uppercase font-bold tracking-widest bg-black hover:bg-zinc-800 text-white shadow-lg"
-                            onClick={() => onImport(post, selectedPageType, selectedPageId)}
-                            disabled={isImporting}
-                          >
-                            {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
-                            Import into {selectedPageType.toUpperCase()}
-                          </Button>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 px-2 py-1 bg-accent/10 border border-accent/20 rounded text-[9px] text-accent font-bold uppercase tracking-tighter">
+                              <Info className="h-3 w-3" />
+                              Target: {selectedPageType.toUpperCase()} Spread
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="w-full h-8 text-[10px] uppercase font-bold tracking-widest bg-black hover:bg-zinc-800 text-white shadow-lg"
+                              onClick={() => onImport(post, selectedPageType, selectedPageId)}
+                              disabled={isImporting}
+                            >
+                              {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
+                              Import Content
+                            </Button>
+                          </div>
                         ) : (
                           <Button 
                             size="sm" 
