@@ -45,50 +45,63 @@ export default async function NewEditionPage() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Hero Section */}
-      <section className="relative py-20 bg-[#050505] text-white overflow-hidden">
-        {/* Abstract Background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/10 blur-[120px]" />
+      {/* Premium Reader Hero Section - The "Best Part of the Site" */}
+      <section className="relative bg-[#050505] text-white py-24 sm:py-32 overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:32px_32px]" />
         </div>
-
-        <div className="relative z-10 max-w-6xl mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold tracking-widest uppercase mb-8">
-                <Star className="h-3 w-3 fill-current" />
-                Latest Release
-              </div>
-              <h1 className="text-5xl md:text-7xl font-serif font-medium tracking-tight mb-6 leading-none">
-                {latestIssue.title}
+        
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="flex flex-col items-start text-left">
+              <Badge className="bg-accent text-white border-none mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] animate-pulse">
+                Interactive Experience
+              </Badge>
+              <h1 className="font-serif text-5xl sm:text-7xl font-medium tracking-tight mb-8 leading-tight">
+                The <span className="italic text-accent">Premium</span> <br />Digital Reader
               </h1>
-              <p className="text-xl text-zinc-400 mb-10 leading-relaxed max-w-xl font-light">
-                {latestIssue.description || "Our latest digital edition is now live. Explore exclusive interviews, business insights, and lifestyle features from across Yorkshire."}
+              <p className="text-xl text-zinc-400 leading-relaxed font-light mb-12 max-w-xl">
+                Experience our cinematic, smooth-turning digital edition. Optimized for every screen with high-resolution spreads and interactive content.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <Button asChild size="lg" className="w-full sm:w-auto bg-accent hover:bg-white hover:text-accent text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300 shadow-xl border-none">
+              <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
+                <Button size="lg" className="bg-white text-black hover:bg-zinc-200 h-20 px-12 text-xl font-serif rounded-none shadow-[0_0_40px_rgba(255,255,255,0.1)] group" asChild>
                   <Link href={`/magazine/issue/${latestIssue.id}`}>
-                    <BookOpen className="mr-2 h-5 w-5" />
-                    Launch Digital Reader
+                    Launch Digital Edition
+                    <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-2" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto border-zinc-700 text-white hover:bg-zinc-800 px-8 py-6 h-auto text-lg rounded-none">
-                  <Link href="#flipping-book">
-                    View Flipbook
-                  </Link>
-                </Button>
+              </div>
+
+              <div className="mt-12 flex items-center gap-4 text-sm text-zinc-500">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800" />
+                  ))}
+                </div>
+                <p>Join <span className="text-white font-medium">2,000+</span> digital readers</p>
               </div>
             </div>
 
-            <div className="relative aspect-[3/4] max-w-[400px] mx-auto lg:ml-auto shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] group">
-              <img 
-                src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
-                alt={latestIssue.title}
-                className="w-full h-full object-cover rounded-sm grayscale group-hover:grayscale-0 transition-all duration-1000"
-              />
-              <div className="absolute inset-0 border border-white/10 pointer-events-none" />
+            <div className="relative group cursor-pointer">
+              <Link href={`/magazine/issue/${latestIssue.id}`}>
+                <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={`${latestIssue.coverImage}?v=${IMAGE_VERSION}`}
+                    alt={`${latestIssue.title} Cover`}
+                    className="absolute inset-0 w-full h-full object-cover border border-white/10"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-white/10" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white/10 backdrop-blur-xl p-6 rounded-full border border-white/20">
+                      <BookOpen className="h-10 w-10 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+              {/* Decorative light flare */}
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent/20 blur-[120px] rounded-full pointer-events-none" />
             </div>
           </div>
         </div>
@@ -131,23 +144,14 @@ export default async function NewEditionPage() {
         </section>
       )}
 
-      {/* Issuu Flipping Book Section - Now Prominent */}
-      <section id="flipping-book" className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
+      {/* Issuu Flipping Book Section */}
+      <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
         <div className="mx-auto max-w-6xl px-6 lg:px-8 text-center">
-          <div className="mb-16">
-            <h2 className="font-serif text-4xl sm:text-5xl font-medium mb-4">
-              Classic Flipping Book
-            </h2>
-            <p className="text-zinc-500 text-lg max-w-2xl mx-auto">
-              Prefer the traditional magazine experience? Read the complete {latestIssue.title} edition using our interactive flipbook viewer below.
-            </p>
-          </div>
+          <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-12">
+            Classic Flipping Book
+          </h2>
 
-          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)]">
-            {/* Corner Accents */}
-            <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-accent/20 rounded-tl-2xl pointer-events-none z-10" />
-            <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-accent/20 rounded-br-2xl pointer-events-none z-10" />
-
+          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
             <div 
               style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
             >
@@ -159,53 +163,6 @@ export default async function NewEditionPage() {
                 style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
                 src={latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365"}
               />
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground uppercase tracking-widest font-bold">
-            <span className="bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-border shadow-sm">Click to turn pages</span>
-            <span className="bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-border shadow-sm">Double-click to zoom</span>
-            <span className="bg-white dark:bg-zinc-900 px-4 py-2 rounded-full border border-border shadow-sm">Fullscreen available</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Feature Section (Optional) */}
-      <section className="py-24 bg-white">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <Badge variant="outline" className="mb-6 border-accent text-accent tracking-[0.3em] uppercase px-4 py-1">New Experience</Badge>
-              <h2 className="text-4xl md:text-5xl font-serif font-medium mb-8 tracking-tight">
-                Experience the <span className="italic text-accent">Digital</span> Reader
-              </h2>
-              <p className="text-lg text-zinc-600 mb-8 leading-relaxed font-light">
-                Our bespoke digital reader offers a fluid, responsive experience optimized for all devices. No zooming required - just beautiful, readable content.
-              </p>
-              <ul className="space-y-4 mb-10">
-                {[
-                  "Optimized for mobile & tablet reading",
-                  "High-resolution business photography",
-                  "Direct links to featured member profiles",
-                  "Clean, distraction-free interface"
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-zinc-700">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Button asChild size="lg" className="bg-black hover:bg-accent text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300">
-                <Link href={`/magazine/issue/${latestIssue.id}`}>
-                  Try the Digital Reader
-                </Link>
-              </Button>
-            </div>
-            <div className="bg-zinc-100 aspect-video rounded-2xl flex items-center justify-center p-12 border border-zinc-200 shadow-inner">
-               <div className="text-center">
-                  <BookOpen className="h-16 w-16 text-accent mx-auto mb-6 opacity-20" />
-                  <p className="text-zinc-400 font-serif italic text-xl">Preview the new interactive experience</p>
-               </div>
             </div>
           </div>
         </div>
