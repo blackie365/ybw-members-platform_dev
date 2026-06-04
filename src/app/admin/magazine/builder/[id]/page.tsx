@@ -252,14 +252,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           break;
         case 'feature-left':
           content = {
-            name: post.primary_author?.name || 'Feature Subject',
-            title: post.title,
+            name: post.primary_author?.name || 'Featured Guest',
+            title: post.title || 'Feature Story',
             image: post.feature_image || '',
             intro: subtitle
           };
           break;
         case 'feature-right':
           content = {
+            name: post.primary_author?.name || '',
             quote: pulloutQuote,
             text: cleanText.substring(0, 2000),
             image: post.feature_image || '',
@@ -458,16 +459,17 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         };
       case 'feature-left':
         return { 
-          name: 'Person Name', 
-          title: 'Featured Interview', 
+          name: 'Featured Guest', 
+          title: 'Article Headline', 
           image: '', 
-          intro: 'An inspiring story of leadership...' 
+          intro: 'An inspiring story of leadership and innovation...' 
         };
       case 'feature-right': 
         return { 
+          name: 'Featured Guest',
           quote: 'Success is not final, failure is not fatal...', 
           text: 'The journey of building a brand in Yorkshire...', 
-          stats: [{ label: 'YEARS', value: '10+' }], 
+          stats: [{ label: 'READ TIME', value: '5 MIN' }], 
           image: '' 
         };
       case 'column': 

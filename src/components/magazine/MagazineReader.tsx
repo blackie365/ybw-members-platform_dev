@@ -428,14 +428,15 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
     </div>
     <div className="p-[8%] flex flex-col justify-center bg-[#FAF9F6]">
       <div className="max-w-[min(100%,700px)]">
-        <Badge variant="outline" className="mb-[5%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Cover Feature</Badge>
-        <h2 className="text-[clamp(0.9rem,2.2vh,1.8rem)] uppercase tracking-[0.4em] text-zinc-400 mb-[2%] font-medium leading-none">{data.title}</h2>
-        <h3 className="text-[clamp(2.2rem,8vh,5rem)] font-serif font-medium mb-[6%] leading-[0.9] tracking-tighter text-zinc-900">{data.name}</h3>
+        <Badge variant="outline" className="mb-[5%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Feature</Badge>
+        <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[2%] leading-[0.9] tracking-tighter text-zinc-900">{data.title}</h2>
+        <div className="flex items-center gap-[4%] mb-[6%]">
+          <div className="h-px w-[clamp(2rem,5vw,4rem)] bg-accent" />
+          <h3 className="text-[clamp(0.8rem,1.8vh,1.3rem)] uppercase tracking-[0.3em] text-zinc-500 font-bold leading-none">Featuring {data.name}</h3>
+        </div>
         <div className="relative">
           <Quote className="absolute -left-[8%] -top-[15%] h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] text-accent/5 hidden sm:block" />
-          <p className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-800 font-light leading-relaxed border-l-[6px] border-accent pl-[8%] italic relative z-10 bg-white/40 py-[5%] pr-[5%] shadow-sm">
-            {data.intro}
-          </p>
+          <SafeText html={data.intro} className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-800 font-light leading-relaxed border-l-[6px] border-accent pl-[8%] italic relative z-10 bg-white/40 py-[5%] pr-[5%] shadow-sm" />
         </div>
       </div>
     </div>
@@ -452,7 +453,10 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
       </div>
     )}
     <div className="relative z-10 max-w-[min(94%,1000px)] mx-auto w-full">
-      <Quote className="h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/10 mb-[4%]" />
+      <div className="flex items-center gap-[2%] mb-[4%]">
+        <Quote className="h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/10" />
+        {data.name && <p className="text-[clamp(9px,1vh,12px)] uppercase tracking-[0.4em] text-accent/60 font-bold">Continued: {data.name}</p>}
+      </div>
       <h2 className="text-[clamp(1.3rem,4vh,3rem)] font-serif italic text-black leading-tight mb-[6%] max-w-[800px]">
         &quot;{data.quote}&quot;
       </h2>
