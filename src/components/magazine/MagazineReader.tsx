@@ -103,7 +103,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   };
 
   return (
-    <div className="fixed inset-0 h-[100dvh] bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000">
+    <div className="fixed inset-0 h-[100dvh] bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
       
       {/* Top Control Bar */}
       <header className="h-14 sm:h-16 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-6 bg-zinc-900/50 backdrop-blur-md z-50 shrink-0">
@@ -179,9 +179,15 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                 dragElastic={0.5}
                 onDragEnd={(_, info) => {
                   const swipe = info.offset.x;
+                  const swipeY = info.offset.y;
                   const velocity = info.velocity.x;
-                  if (swipe > 50 || velocity > 500) prevPage();
-                  else if (swipe < -50 || velocity < -500) nextPage();
+                  
+                  // If vertical movement is significant compared to horizontal, ignore the swipe
+                  // This prevents accidental page turns while the user is trying to scroll up/down
+                  if (Math.abs(swipeY) > Math.abs(swipe) * 1.5) return;
+
+                  if (swipe > 100 || velocity > 500) prevPage();
+                  else if (swipe < -100 || velocity < -500) nextPage();
                 }}
                 transition={{
                   x: { type: "spring", stiffness: 300, damping: 30 },
