@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { getPosts } from '@/lib/ghost';
-import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -159,10 +159,9 @@ export default async function NewEditionPage() {
               <iframe 
                 title={latestIssue.title}
                 allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                sandbox="allow-top-navigation allow-top-navigation-by-user-activation allow-downloads allow-scripts allow-same-origin allow-popups allow-modals allow-popups-to-escape-sandbox allow-forms" 
                 allowFullScreen={true} 
                 style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src={(latestIssue.pdfUrl || "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365").replace('issuu.com', 'e.issuu.com').replace('?fr=', '&fr=')}
+                src={fixIssuuEmbedUrl(latestIssue.pdfUrl)}
               />
             </div>
           </div>

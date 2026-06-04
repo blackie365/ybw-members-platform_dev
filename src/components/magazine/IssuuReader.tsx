@@ -5,6 +5,7 @@ import { X, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
+import { fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 
 interface IssuuReaderProps {
   url: string;
@@ -12,32 +13,7 @@ interface IssuuReaderProps {
 }
 
 export default function IssuuReader({ url, title }: IssuuReaderProps) {
-  // Convert standard Issuu URL to Embed URL if possible
-  // From: https://issuu.com/blackie365/docs/ybw_feb_2026?fr=...
-  // To: https://e.issuu.com/embed.html?d=ybw_feb_2026&u=blackie365
-  
-  const getEmbedUrl = (originalUrl: string) => {
-    try {
-      const urlObj = new URL(originalUrl);
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      
-      // Expected path: /username/docs/document-id
-      if (pathParts.length >= 3 && pathParts[1] === 'docs') {
-        const username = pathParts[0];
-        const docId = pathParts[2];
-        return `https://e.issuu.com/embed.html?d=${docId}&u=${username}`;
-      }
-      
-      // Fallback: if it's already an e.issuu.com link
-      if (originalUrl.includes('e.issuu.com')) return originalUrl;
-      
-      return originalUrl;
-    } catch (e) {
-      return originalUrl;
-    }
-  };
-
-  const embedUrl = getEmbedUrl(url);
+  const embedUrl = fixIssuuEmbedUrl(url);
 
   return (
     <div className="fixed inset-0 bg-[#050505] flex flex-col z-[100]">
