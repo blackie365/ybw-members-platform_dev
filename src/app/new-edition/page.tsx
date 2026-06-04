@@ -186,7 +186,7 @@ export default async function NewEditionPage() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link 
-              href="/events" 
+              href="/news?tag=events" 
               className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-8 py-3 text-sm font-medium text-foreground transition-all hover:border-accent/30 hover:bg-accent/5"
             >
               View Upcoming Events
