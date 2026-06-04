@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { WebhookEvent } from '@clerk/nextjs/server'
 import { adminDb } from '@/lib/firebase-admin'
 import slugify from '@sindresorhus/slugify'
+import { addGhostMember } from '@/lib/ghost-admin'
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -67,6 +68,11 @@ export async function POST(req: Request) {
     const acceptsNewsletter = unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
 
     try {
+      if (!adminDb) {
+        console.error('Firestore Admin SDK not initialized');
+        return new Response('Error: DB not initialized', { status: 500 });
+      }
+
       // Sync to Firestore using standardized schema
       await adminDb.collection('newMemberCollection').doc(id).set({
         firstName,
@@ -93,6 +99,20 @@ export async function POST(req: Request) {
     } catch (error) {
       console.error('Error syncing user to Firestore:', error)
       return new Response('Error: Firestore sync failed', { status: 500 })
+    }
+
+    // 2. Sync to Ghost CMS (Non-critical, don't fail the whole webhook)
+    if (eventType === 'user.created') {
+      try {
+        await addGhostMember({
+          email,
+          name: fullName,
+          labels: ['clerk-signup', 'free-member']
+        });
+        console.log(`Successfully synced Clerk user ${id} to Ghost CMS.`);
+      } catch (ghostError) {
+        console.warn('Ghost CMS sync failed (non-critical):', ghostError);
+      }
     }
   }
 
