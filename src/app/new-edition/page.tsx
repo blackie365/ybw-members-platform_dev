@@ -72,11 +72,6 @@ export default async function NewEditionPage() {
                     Launch Digital Reader
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="border-zinc-700 text-white hover:bg-zinc-800 px-8 py-6 h-auto text-lg rounded-none">
-                  <Link href="/events">
-                    Pick Up Print Copy
-                  </Link>
-                </Button>
               </div>
 
               <div className="mt-12 flex items-center gap-4 text-sm text-zinc-500">
