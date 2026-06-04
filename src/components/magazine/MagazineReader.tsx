@@ -364,7 +364,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
-      <div className="mt-[8%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
+      <div className="mt-[12%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
         <div className="flex items-center gap-4 group">
           <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
              {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -375,7 +375,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
             />
           </div>
           <div>
-            <p className="font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+            <p className="font-serif text-[clamp(0.9rem,2.2vh,1.5rem)] italic text-zinc-900 leading-tight">{data.author}</p>
           </div>
         </div>
       </div>
@@ -520,8 +520,8 @@ const PageColumn = ({ data, imageVersion }: any) => (
         <div className="flex flex-col lg:flex-row gap-[8%] items-start">
           <div className="lg:w-[65%] space-y-[4%] text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-300 leading-relaxed font-light">
             <SafeText html={data.text} />
-            <div className="h-[2px] w-[clamp(3rem,6vw,8rem)] bg-accent mt-[8%]" />
-            <p className="font-serif italic text-[clamp(1.2rem,3.5vh,2rem)] text-white mt-[2%]">{data.author}</p>
+            <div className="h-[2px] w-[clamp(3rem,6vw,8rem)] bg-accent mt-[12%]" />
+            <p className="font-serif italic text-[clamp(1rem,3vh,1.7rem)] text-white mt-[3%]">{data.author}</p>
           </div>
           {data.tips && data.tips.length > 0 && (
             <div className="lg:w-[35%] bg-white/5 p-[6%] rounded-xl backdrop-blur-md border border-white/10 w-full shadow-2xl mt-[8%] lg:mt-0">
