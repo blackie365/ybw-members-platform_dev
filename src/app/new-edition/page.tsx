@@ -79,7 +79,7 @@ export default async function NewEditionPage() {
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800" />
                   ))}
                 </div>
-                <p>Join <span className="text-white font-medium">2,000+</span> digital readers</p>
+                <p>Join <span className="text-white font-medium">5,000+</span> digital visitors</p>
               </div>
             </div>
 
