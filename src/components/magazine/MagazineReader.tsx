@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Logo } from '@/components/Logo';
 import { MagazinePage, MagazineIssue } from '@/lib/magazine-service';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface MagazineReaderProps {
   issue: MagazineIssue;
@@ -295,7 +296,7 @@ function renderPage(page: any, imageVersion: string) {
 const PageCover = ({ data, imageVersion }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-zinc-900">
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={`${data.image}?v=${imageVersion}`} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]" />
+    <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]" />
     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30" />
     
     {/* Brand Overlay */}
@@ -332,7 +333,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
     <div className="lg:w-[35%] xl:w-[30%] shrink-0">
       <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[400px] mx-auto lg:mx-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
+        <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
       <div className="mt-[5%] text-center lg:text-left">
         <p className="font-serif text-[clamp(1.2rem,3vh,2.5rem)] italic text-zinc-900">{data.author}</p>
@@ -401,7 +402,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
   <div className="h-full w-full relative flex flex-col lg:grid lg:grid-cols-2 bg-[#FAF9F6] overflow-y-auto lg:overflow-hidden">
     <div className="relative h-[40vh] lg:h-full overflow-hidden group shrink-0 shadow-2xl">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110 brightness-100" />
+      <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110 brightness-100" />
       <div className="absolute inset-0 bg-accent/5 mix-blend-overlay" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent" />
     </div>
@@ -426,7 +427,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10 sm:opacity-15" />
+        <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10 sm:opacity-15" />
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
       </div>
     )}
@@ -460,7 +461,7 @@ const PageColumn = ({ data, imageVersion }: any) => (
     {data.image && (
       <div className="absolute inset-0 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-25 sm:opacity-40" />
+        <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-25 sm:opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
       </div>
     )}
@@ -499,7 +500,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-[#FAF9F6] flex flex-col lg:block overflow-y-auto lg:overflow-hidden">
     <div className="relative lg:absolute top-0 right-0 w-full lg:w-[55%] h-[40vh] lg:h-full shrink-0 shadow-2xl">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`${data.image}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
+      <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
     </div>
     <div className="relative h-full w-full p-[8%] flex flex-col justify-center z-10">
@@ -529,7 +530,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
         <div className="absolute -inset-[3%] border-2 border-accent/20 rounded-2xl -rotate-3" />
         <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl rotate-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${data.image}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+          <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
         </div>
       </div>
       <div className="text-center lg:text-left py-[4%] flex-1">
@@ -554,7 +555,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
 const PagePartner = ({ data, imageVersion }: any) => (
   <div className="h-full w-full relative overflow-hidden bg-black">
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={`${data.image}?v=${imageVersion}`} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]" />
+    <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]" />
     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
     
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-[8%]">
@@ -580,7 +581,7 @@ const PageBackCover = ({ data, imageVersion }: any) => (
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${data.image}?v=${imageVersion}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+        <img src={`${fixMagazineImageUrl(data.image)}?v=${imageVersion}`} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/60" />
       </div>
     )}

@@ -1,10 +1,11 @@
 import { adminDb } from './firebase-admin';
 import { MagazineIssue, MagazinePage } from './magazine-service';
 import { siteContent } from './site-content';
+import { fixMagazineImageUrl } from './magazine-utils';
 
 /**
  * Helper to serialize Firestore data for Next.js Server Components.
- * Converts Timestamps to ISO strings.
+ * Converts Timestamps to ISO strings and fixes image URLs.
  */
 function serializeData(data: any) {
   if (!data) return data;
@@ -14,8 +15,13 @@ function serializeData(data: any) {
   Object.keys(serialized).forEach(key => {
     const value = serialized[key];
     
+    // Handle image fields
+    if (typeof value === 'string' && (key === 'image' || key === 'coverImage' || key.toLowerCase().includes('imageurl'))) {
+      serialized[key] = fixMagazineImageUrl(value);
+    }
+    
     // Handle Firestore Timestamps (Admin SDK)
-    if (value && typeof value === 'object' && '_seconds' in value) {
+    else if (value && typeof value === 'object' && '_seconds' in value) {
       serialized[key] = new Date(value._seconds * 1000).toISOString();
     } 
     // Handle Firestore Timestamps (Client SDK / Some Admin versions)
