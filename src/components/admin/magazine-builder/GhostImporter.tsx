@@ -18,11 +18,13 @@ import { toast } from 'sonner';
 import { mapGhostToTemplate, MAGAZINE_TEMPLATES } from '@/lib/magazine-theme';
 
 interface GhostImporterProps {
-  onImport: (post: any, type: string) => Promise<void>;
+  onImport: (post: any, type: string, targetPageId?: string) => Promise<void>;
   isImporting: boolean;
+  selectedPageId?: string;
+  selectedPageType?: string;
 }
 
-export function GhostImporter({ onImport, isImporting }: GhostImporterProps) {
+export function GhostImporter({ onImport, isImporting, selectedPageId, selectedPageType }: GhostImporterProps) {
   const [ghostPosts, setGhostPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,17 +135,30 @@ export function GhostImporter({ onImport, isImporting }: GhostImporterProps) {
                       </p>
 
                       <div className="flex flex-col gap-2 mt-3">
-                        <Button 
-                          size="sm" 
-                          className="h-7 text-[10px] uppercase font-bold tracking-widest bg-accent hover:bg-accent/90"
-                          onClick={() => handleSmartImport(post)}
-                          disabled={isImporting}
-                        >
-                          {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
-                          Smart Import ({template?.name.split(' ')[0]})
-                        </Button>
+                        {selectedPageId && selectedPageType ? (
+                          <Button 
+                            size="sm" 
+                            className="h-8 text-[10px] uppercase font-bold tracking-widest bg-black hover:bg-zinc-800 text-white shadow-lg"
+                            onClick={() => onImport(post, selectedPageType, selectedPageId)}
+                            disabled={isImporting}
+                          >
+                            {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
+                            Import into {selectedPageType.toUpperCase()}
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            className="h-7 text-[10px] uppercase font-bold tracking-widest bg-accent hover:bg-accent/90 text-white"
+                            onClick={() => handleSmartImport(post)}
+                            disabled={isImporting}
+                          >
+                            {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
+                            Smart Import ({template?.name.split(' ')[0]})
+                          </Button>
+                        )}
                         
                         <div className="flex flex-wrap gap-1">
+                          <span className="text-[8px] text-muted-foreground w-full mb-0.5 uppercase tracking-tighter opacity-50">Create New:</span>
                           {MAGAZINE_TEMPLATES.filter(t => t.category === 'content' || t.category === 'feature').slice(0, 3).map(t => (
                             <Button 
                               key={t.id}
