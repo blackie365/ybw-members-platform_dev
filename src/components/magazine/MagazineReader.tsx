@@ -355,9 +355,21 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
-      <div className="mt-[5%] text-center lg:text-left">
-        <p className="font-serif text-[clamp(1.2rem,3vh,2.5rem)] italic text-zinc-900">{data.author}</p>
-        <p className="text-[clamp(10px,1.1vh,12px)] uppercase tracking-[0.2em] text-accent font-bold mt-[1%]">{data.role}</p>
+      <div className="mt-[8%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
+        <div className="flex items-center gap-4 group">
+          <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
+             {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src="https://www.gravatar.com/avatar/29532578500282030f2f3d53f2c5e533?s=200&d=mp" 
+              alt="Editor Avatar" 
+              className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
+            />
+          </div>
+          <div>
+            <p className="font-serif text-[clamp(1.2rem,3vh,2rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+            <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.2em] text-accent font-bold mt-[2%]">{data.role}</p>
+          </div>
+        </div>
       </div>
     </div>
     <div className="lg:w-[65%] xl:w-[70%] flex flex-col justify-center py-[2%]">
@@ -431,8 +443,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
         <Badge variant="outline" className="mb-[5%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Feature</Badge>
         <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[2%] leading-[0.9] tracking-tighter text-zinc-900">{data.title}</h2>
         <div className="flex items-center gap-[4%] mb-[6%]">
-          <div className="h-px w-[clamp(2rem,5vw,4rem)] bg-accent" />
-          <h3 className="text-[clamp(0.8rem,1.8vh,1.3rem)] uppercase tracking-[0.3em] text-zinc-500 font-bold leading-none">Featuring {data.name}</h3>
+          <div className="h-[2px] w-[clamp(2rem,5vw,4rem)] bg-accent/30" />
+          <h3 className="text-[clamp(0.8rem,1.8vh,1.2rem)] uppercase tracking-[0.3em] text-zinc-500 font-bold leading-none">Words by {data.name}</h3>
         </div>
         <div className="relative">
           <Quote className="absolute -left-[8%] -top-[15%] h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] text-accent/5 hidden sm:block" />

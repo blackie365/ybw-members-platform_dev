@@ -236,8 +236,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             author: post.primary_author?.name || 'Gill Laidler',
             role: 'Editor-in-Chief',
             image: post.feature_image || '',
-            text: cleanText.substring(0, 3000),
-            quote: pulloutQuote
+            text: cleanText.substring(0, 4000),
+            quote: pulloutQuote,
+            intro: subtitle
           };
           break;
         case 'column':
