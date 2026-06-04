@@ -358,7 +358,7 @@ const PageCover = ({ data, imageVersion }: any) => (
 );
 
 const PageEditorial = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6]">
+  <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
     <div className="lg:w-[35%] xl:w-[30%] shrink-0">
       <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[400px] mx-auto lg:mx-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -464,7 +464,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
 );
 
 const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative p-[5%] pb-[15vh] flex flex-col justify-start bg-white pt-[10%] lg:pt-[5%]">
+  <div className="min-h-full w-full relative p-[5%] pb-[15vh] flex flex-col justify-start bg-white pt-[10%] lg:pt-[5%] overflow-visible">
     {data.image && (
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -501,7 +501,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
 );
 
 const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-zinc-900 text-white flex flex-col justify-start pb-[15vh] pt-[10%] lg:pt-[8%]">
+  <div className="min-h-full w-full relative bg-zinc-900 text-white flex flex-col justify-start pb-[15vh] pt-[10%] lg:pt-[8%] overflow-visible">
     {data.image && (
       <div className="absolute inset-0 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -543,7 +543,7 @@ const PageColumn = ({ data, imageVersion }: any) => (
 );
 
 const PageLifestyle = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-[#FAF9F6] flex flex-col lg:block pb-[15vh]">
+  <div className="min-h-full w-full relative bg-[#FAF9F6] flex flex-col lg:block pb-[15vh] overflow-visible">
     <div className="relative lg:absolute top-0 right-0 w-full lg:w-[55%] h-[40vh] lg:h-full shrink-0 shadow-2xl">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
@@ -568,7 +568,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
 );
 
 const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full p-[5%] pb-[15vh] bg-white flex flex-col justify-start pt-[10%] lg:pt-[5%]">
+  <div className="min-h-full w-full p-[5%] pb-[15vh] bg-white flex flex-col justify-start pt-[10%] lg:pt-[5%] overflow-visible">
     <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row items-center gap-[8%] lg:gap-[10%] w-full min-h-0">
       <div className="relative h-[30vh] lg:h-[60vh] aspect-[3/4] shrink-0">
         <div className="absolute -inset-[3%] border-2 border-accent/20 rounded-2xl -rotate-3" />
