@@ -369,8 +369,8 @@ const PageEditorial = ({ data, imageVersion }: any) => (
             />
           </div>
           <div>
-            <p className="font-serif text-[clamp(1.2rem,3vh,2rem)] italic text-zinc-900 leading-tight">{data.author}</p>
-            <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.2em] text-accent font-bold mt-[2%]">{data.role}</p>
+            <p className="text-[clamp(0.7rem,1.5vh,1.1rem)] uppercase tracking-[0.2em] text-accent font-bold mb-[2%]">By the Editor:</p>
+            <p className="font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] italic text-zinc-900 leading-tight">{data.author}</p>
           </div>
         </div>
       </div>
@@ -446,8 +446,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
         <Badge variant="outline" className="mb-[6%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Feature</Badge>
         <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[4%] leading-[0.9] tracking-tighter text-zinc-900">{data.title}</h2>
         <div className="flex items-center gap-[4%] mb-[10%] mt-[2%]">
-          <div className="h-[2px] w-[clamp(2.5rem,6vw,5rem)] bg-accent/40" />
-          <h3 className="text-[clamp(0.85rem,2vh,1.4rem)] uppercase tracking-[0.3em] text-zinc-500 font-bold leading-none">Words by {data.name}</h3>
+          <div className="h-[1px] w-[clamp(1.5rem,4vw,3rem)] bg-accent/30" />
+          <h3 className="text-[clamp(0.7rem,1.5vh,1.1rem)] uppercase tracking-[0.2em] text-zinc-400 font-medium leading-none">By the Editor: {data.name}</h3>
         </div>
         <div className="relative">
           <Quote className="absolute -left-[8%] -top-[15%] h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] text-accent/5 hidden sm:block" />
@@ -470,7 +470,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
     <div className="relative z-10 max-w-[min(94%,1000px)] mx-auto w-full min-h-0">
       <div className="flex items-center gap-[2%] mb-[4%]">
         <Quote className="h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/10" />
-        {data.name && <p className="text-[clamp(9px,1vh,12px)] uppercase tracking-[0.4em] text-accent/60 font-bold">Continued: {data.name}</p>}
+        {data.name && <p className="text-[clamp(8px,0.9vh,10px)] uppercase tracking-[0.3em] text-accent/50 font-medium">Continued: {data.name}</p>}
       </div>
       <div className="lg:overflow-y-auto pr-[4%] scrollbar-hide max-h-[75vh]">
         <h2 className="text-[clamp(1.3rem,4vh,3rem)] font-serif italic text-black leading-tight mb-[6%] max-w-[800px]">
