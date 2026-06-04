@@ -89,7 +89,7 @@ export default async function NewEditionPage() {
                 <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
-                    src={`${fixMagazineImageUrl(latestIssue.coverImage)}?v=${IMAGE_VERSION}`}
+                    src={fixMagazineImageUrl(latestIssue.coverImage, IMAGE_VERSION)}
                     alt={`${latestIssue.title} Cover`}
                     className="absolute inset-0 w-full h-full object-cover border border-white/10"
                   />
@@ -217,7 +217,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`${fixMagazineImageUrl(issue.coverImage)}?v=${IMAGE_VERSION}`}
+                    src={fixMagazineImageUrl(issue.coverImage, IMAGE_VERSION)}
                     alt={issue.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
