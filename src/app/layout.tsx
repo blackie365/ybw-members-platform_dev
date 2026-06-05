@@ -94,10 +94,10 @@ export default async function RootLayout({
           {process.env.NODE_ENV === 'production' && <Analytics />}
           
           {/* Google Analytics */}
-          {process.env.NEXT_PUBLIC_GA_ID && (
+          {(process.env.NEXT_PUBLIC_GA_ID || 'G-DG46YGJBYR') && (
             <>
               <Script
-                src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+                src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || 'G-DG46YGJBYR'}`}
                 strategy="afterInteractive"
               />
               <Script id="google-analytics" strategy="afterInteractive">
@@ -106,7 +106,7 @@ export default async function RootLayout({
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
 
-                  gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_ID || 'G-DG46YGJBYR'}');
                 `}
               </Script>
             </>
