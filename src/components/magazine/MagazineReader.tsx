@@ -278,18 +278,26 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
 function SafeText({ html, className }: { html: string; className?: string }) {
   if (!html) return null;
   
-  // If it's plain text (no tags), convert newlines to <br />
-  // If it has tags but no <p> or <br>, it might still need newline conversion
   let content = html;
   if (!html.includes('<')) {
-    content = html.replace(/\n/g, '<br />');
+    const normalized = html.replace(/\r\n/g, '\n');
+    const lines = normalized
+      .split(/\n+/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    content = lines.map((l) => `<p>${l}</p>`).join('');
   } else if (!html.includes('<p') && !html.includes('<br')) {
     content = html.replace(/\n/g, '<br />');
   }
   
   return (
     <div 
-      className={className}
+      className={[
+        '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       dangerouslySetInnerHTML={{ __html: content }} 
     />
   );
@@ -326,29 +334,61 @@ function getHtmlBlocks(html: string): string[] {
   }
 
   const normalized = hasTags ? html : html.replace(/\r\n/g, '\n');
+
+  if (!hasTags) {
+    const lines = normalized
+      .split(/\n+/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) return [];
+    return lines.map((l) => `<p>${l}</p>`);
+  }
+
   const parts = normalized
     .split(/\n{2,}/g)
     .map((p) => p.trim())
     .filter(Boolean);
 
-  if (parts.length === 0) return hasTags ? [html] : [`<p>${normalized}</p>`];
-  return hasTags ? parts : parts.map((p) => `<p>${p.replace(/\n/g, '<br />')}</p>`);
+  if (parts.length === 0) return [html];
+  return parts;
 }
 
 function splitBlocksByWeight(blocks: string[]) {
   const weights = blocks.map((b) => b.replace(/<[^>]*>/g, '').length);
   const total = weights.reduce((sum, w) => sum + w, 0);
-  const target = total / 2;
+  if (blocks.length <= 1) {
+    return { leftBlocks: blocks, rightBlocks: [] };
+  }
 
+  const ideal = total / 2;
+
+  const prefixSums: number[] = [];
   let running = 0;
-  let splitIndex = blocks.length;
-  for (let i = 0; i < blocks.length; i += 1) {
+  for (let i = 0; i < weights.length; i += 1) {
     running += weights[i];
-    if (running >= target) {
-      splitIndex = i + 1;
-      break;
+    prefixSums[i] = running;
+  }
+
+  let bestIndex = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let i = 1; i < blocks.length; i += 1) {
+    const left = prefixSums[i - 1];
+    const right = total - left;
+    const diff = Math.abs(left - right);
+
+    const balancePenalty = diff / (ideal || 1);
+    const minBlocksPenalty = i === 1 || i === blocks.length - 1 ? 0.25 : 0;
+
+    const score = balancePenalty + minBlocksPenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = i;
     }
   }
+
+  const splitIndex = bestIndex;
 
   return {
     leftBlocks: blocks.slice(0, splitIndex),
@@ -403,7 +443,7 @@ const PageCover = ({ data, imageVersion }: any) => (
     {/* Brand Overlay */}
     <div className="absolute top-[8%] left-1/2 -translate-x-1/2 text-center w-full px-8">
       <p className="text-white/70 text-[clamp(10px,1.2vh,13px)] tracking-[0.4em] uppercase mb-[2%] font-semibold drop-shadow-md">{data.date} · {data.issue}</p>
-      <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] font-medium tracking-tighter leading-[0.9] mb-[2%] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
+      <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] font-medium tracking-[-0.025em] leading-[0.9] mb-[2%] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
         Yorkshire <br />
         <span className="italic">BusinessWoman</span>
       </h2>
@@ -418,10 +458,10 @@ const PageCover = ({ data, imageVersion }: any) => (
         transition={{ delay: 0.5, duration: 1 }}
       >
         <Badge className="bg-accent text-white border-none rounded-none mb-[3%] px-[3%] py-[0.5%] tracking-widest uppercase text-[clamp(10px,1.2vh,13px)] shadow-xl">Special Report</Badge>
-        <h1 className="text-white text-[clamp(1.5rem,5vh,4rem)] font-serif font-medium leading-[1.1] mb-[3%] drop-shadow-lg">
+        <h1 className="text-white text-[clamp(1.5rem,5vh,4rem)] font-serif font-medium tracking-[-0.025em] leading-[1.1] mb-[3%] drop-shadow-lg">
           {data.headline}
         </h1>
-        <p className="text-white/90 text-[clamp(0.85rem,1.8vh,1.3rem)] font-light max-w-2xl border-l-4 border-accent pl-[4%] line-clamp-3 sm:line-clamp-none leading-relaxed drop-shadow-md">
+        <p className="text-white/90 text-[clamp(0.85rem,1.8vh,1.3rem)] font-light max-w-2xl border-l-4 border-accent pl-[4%] line-clamp-3 sm:line-clamp-none leading-[1.4] drop-shadow-md">
           {data.subheadline}
         </p>
       </motion.div>
@@ -438,6 +478,8 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const { leftBlocks, rightBlocks } = splitBlocksByWeight(bodyBlocks);
   const leftHtml = leftBlocks.join('');
   const rightHtml = rightBlocks.join('');
+
+  const bodyRichTextClass = 'text-zinc-700';
 
   return (
     <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
@@ -469,18 +511,18 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             Editor&apos;s Note
           </Badge>
 
-          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
+          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-[-0.025em] text-zinc-900 leading-[0.9]">{data.title}</h2>
 
           {(data.intro || standfirstHtml) && (
             <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
-              <SafeText html={data.intro || standfirstHtml} />
+              <SafeText html={data.intro || standfirstHtml} className="[&_p]:mb-0" />
             </div>
           )}
 
           <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
             <div className="lg:hidden">
               <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                <SafeText html={bodyBlocks.join('')} />
+                <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
               </div>
               {data.quote && (
                 <blockquote className="mt-8 border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm">
@@ -493,11 +535,11 @@ const PageEditorial = ({ data, imageVersion }: any) => {
               <div className="hidden lg:grid grid-cols-[1fr_1fr_260px] gap-12 items-start">
                 <div className="min-w-0">
                   <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                    <SafeText html={leftHtml} />
+                    <SafeText html={leftHtml} className={bodyRichTextClass} />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <SafeText html={rightHtml} />
+                  <SafeText html={rightHtml} className={bodyRichTextClass} />
                 </div>
                 <aside className="min-w-0">
                   <blockquote className="border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.05rem,2.2vh,1.55rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
@@ -508,7 +550,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             ) : (
               <div className="hidden lg:block lg:columns-2 gap-12">
                 <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                  <SafeText html={bodyBlocks.join('')} />
+                  <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
                 </div>
               </div>
             )}
@@ -522,7 +564,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
 const PageContents = ({ data }: any) => (
   <div className="min-h-full w-full p-[5%] pb-[15vh] grid lg:grid-cols-2 gap-[8%] bg-white pt-[10%] lg:pt-[5%]">
     <div className="flex flex-col justify-center max-w-[500px] mx-auto lg:mx-0 w-full">
-      <h2 className="text-[clamp(2.2rem,7vh,5rem)] font-serif mb-[8%] tracking-tighter text-zinc-900 leading-none">In This <span className="italic text-accent">Issue</span></h2>
+      <h2 className="text-[clamp(2.2rem,7vh,5rem)] font-serif mb-[8%] tracking-[-0.025em] text-zinc-900 leading-none">In This <span className="italic text-accent">Issue</span></h2>
       <div className="space-y-[4%]">
         {data.items?.map((item: any, i: number) => (
           <div key={i} className="group cursor-pointer flex items-end gap-[5%] border-b border-zinc-100 pb-[4%] hover:border-accent/60 transition-all duration-500">
@@ -580,14 +622,14 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => (
     <div className="p-[8%] flex flex-col justify-center bg-[#FAF9F6]">
       <div className="max-w-[min(100%,700px)]">
         <Badge variant="outline" className="mb-[6%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Feature</Badge>
-        <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[4%] leading-[0.9] tracking-tighter text-zinc-900">{data.title}</h2>
+        <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[4%] leading-[0.9] tracking-[-0.025em] text-zinc-900">{data.title}</h2>
         <div className="flex items-center gap-[4%] mb-[10%] mt-[2%]">
           <div className="h-[1px] w-[clamp(1.5rem,4vw,3rem)] bg-accent/30" />
           <h3 className="text-[clamp(0.8rem,1.8vh,1.3rem)] uppercase tracking-[0.3em] text-zinc-500 font-medium leading-none">{data.name}</h3>
         </div>
         <div className="relative">
           <Quote className="absolute -left-[8%] -top-[15%] h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] text-accent/5 hidden sm:block" />
-          <SafeText html={data.intro} className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-800 font-light leading-relaxed border-l-[6px] border-accent pl-[8%] italic relative z-10 bg-white/40 py-[5%] pr-[5%] shadow-sm" />
+          <SafeText html={data.intro} className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-800 font-light leading-[1.4] border-l-[6px] border-accent pl-[8%] italic relative z-10 bg-white/40 py-[5%] pr-[5%] shadow-sm" />
         </div>
       </div>
     </div>
@@ -609,11 +651,11 @@ const PageFeatureRight = ({ data, imageVersion }: any) => (
         {data.name && <p className="text-[clamp(8px,0.9vh,10px)] uppercase tracking-[0.3em] text-accent/50 font-medium">{data.name}</p>}
       </div>
       <div className="pr-[4%]">
-        <h2 className="text-[clamp(1.3rem,4vh,3rem)] font-serif italic text-black leading-tight mb-[6%] max-w-[800px]">
+        <h2 className="text-[clamp(1.3rem,4vh,3rem)] font-serif italic text-black tracking-[-0.025em] leading-tight mb-[6%] max-w-[800px]">
           &quot;{data.quote}&quot;
         </h2>
         <div className="grid lg:grid-cols-2 gap-[8%] items-start">
-          <SafeText html={data.text} className="space-y-[4%] text-[clamp(0.9rem,2vh,1.2rem)] text-zinc-600 leading-relaxed font-light" />
+          <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.2rem)] text-zinc-600 leading-[1.4] font-light" />
           <div className="bg-zinc-50 p-[8%] rounded-[2rem] shadow-sm border border-zinc-100 mt-[5%] lg:mt-0">
             <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.3em] font-bold text-accent mb-[8%]">Snapshot</p>
             <div className="space-y-[6%]">
@@ -644,13 +686,13 @@ const PageColumn = ({ data, imageVersion }: any) => (
       <Badge className="bg-accent text-white rounded-none mb-[5%] tracking-widest uppercase px-[4%] py-[1%] text-[clamp(9px,1.1vh,12px)] shadow-lg">
         {data.category}
       </Badge>
-      <h2 className="text-[clamp(1.8rem,7vh,4.5rem)] font-serif mb-[6%] tracking-tight leading-[0.9] text-white">
+      <h2 className="text-[clamp(1.8rem,7vh,4.5rem)] font-serif mb-[6%] tracking-[-0.025em] leading-[0.9] text-white">
         {data.title}
       </h2>
       <div className="pr-[4%]">
         <div className="flex flex-col lg:flex-row gap-[8%] items-start">
-          <div className="lg:w-[65%] space-y-[4%] text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-300 leading-relaxed font-light">
-            <SafeText html={data.text} />
+          <div className="lg:w-[65%] text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-300 leading-[1.4] font-light">
+            <SafeText html={data.text} className="text-zinc-300" />
             <div className="h-[2px] w-[clamp(3rem,6vw,8rem)] bg-accent mt-[12%]" />
             <p className="font-serif italic text-[clamp(1rem,3vh,1.7rem)] text-white mt-[3%]">{data.author}</p>
           </div>
@@ -683,8 +725,8 @@ const PageLifestyle = ({ data, imageVersion }: any) => (
     <div className="relative h-full w-full p-[8%] flex flex-col justify-start lg:justify-center z-10 min-h-0 pt-[12%] lg:pt-[8%]">
       <div className="max-w-[min(100%,500px)] lg:max-w-[42%] pr-[4%]">
         <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">Lifestyle</Badge>
-        <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-tighter leading-[0.85]">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
-        <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-relaxed font-light mb-[8%] max-w-lg" />
+        <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
+        <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[8%] max-w-lg" />
         <div className="space-y-[3%]">
           {data.highlights?.map((h: any, i: number) => (
             <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
@@ -710,15 +752,15 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
       </div>
       <div className="text-center lg:text-left py-[4%] flex-1 pr-[4%]">
         <Badge className="bg-accent text-white mb-[6%] tracking-widest uppercase text-[clamp(9px,1.1vh,12px)] px-[5%] py-[1.5%] shadow-lg">Member Spotlight</Badge>
-        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[1%] tracking-tight text-zinc-900 leading-none">{data.name}</h2>
+        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[1%] tracking-[-0.025em] text-zinc-900 leading-none">{data.name}</h2>
         <p className="text-[clamp(1rem,2.2vh,1.5rem)] text-accent font-medium mb-[8%] tracking-wide">{data.role}</p>
         <div className="relative mb-[6%]">
            <Quote className="absolute -left-[5%] -top-[10%] h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/5 hidden lg:block" />
-          <p className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-600 leading-relaxed font-light italic border-l-4 border-accent/20 pl-[5%] relative z-10">
+          <p className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-600 leading-[1.4] font-light italic border-l-4 border-accent/20 pl-[5%] relative z-10">
             &quot;{data.message}&quot;
           </p>
         </div>
-        <SafeText html={data.bio} className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-relaxed max-w-xl mx-auto lg:mx-0" />
+        <SafeText html={data.bio} className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-[1.4] max-w-xl mx-auto lg:mx-0" />
         <Button className="mt-[8%] rounded-none px-[8%] py-[3%] h-auto bg-black text-white hover:bg-accent transition-all duration-300 tracking-widest uppercase text-[clamp(9px,1vh,11px)] shadow-xl border-none">Read Full Profile</Button>
       </div>
     </div>
@@ -750,7 +792,7 @@ const PagePartner = ({ data, imageVersion }: any) => (
         className="max-w-[min(90%,1000px)]"
       >
         <p className="text-accent text-[clamp(9px,1.1vh,12px)] tracking-[0.6em] uppercase mb-[4%] font-bold drop-shadow-md">Partner Feature</p>
-        <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[2%] tracking-tight leading-none drop-shadow-2xl">{data.brand}</h2>
+        <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[2%] tracking-[-0.025em] leading-none drop-shadow-2xl">{data.brand}</h2>
         <p className="text-white/70 text-[clamp(1rem,2.5vh,2.2rem)] font-light mb-[8%] tracking-wide leading-tight drop-shadow-lg">{data.headline}</p>
         <div className="bg-accent text-white px-[8%] py-[3%] text-[clamp(1rem,3vh,2.5rem)] font-serif italic shadow-[0_20px_50px_rgba(163,65,58,0.4)] inline-block">
           {data.offer}
@@ -770,7 +812,7 @@ const PageBackCover = ({ data, imageVersion }: any) => (
       </div>
     )}
     <div className="relative z-10 max-w-[min(90%,800px)] w-full flex flex-col items-center">
-      <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[6%] tracking-tighter leading-[0.85] drop-shadow-2xl">
+      <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[6%] tracking-[-0.025em] leading-[0.85] drop-shadow-2xl">
         Yorkshire <br />
         <span className="italic text-accent">BusinessWoman</span>
       </h2>
@@ -778,7 +820,7 @@ const PageBackCover = ({ data, imageVersion }: any) => (
       
       <div className="space-y-[2vh] mb-[10%]">
         <p className="text-white/60 text-[clamp(9px,1vh,12px)] tracking-[0.4em] uppercase font-bold">Next Edition</p>
-        <h3 className="text-white text-[clamp(1.3rem,3.5vh,3rem)] font-serif leading-tight drop-shadow-lg">{data.nextIssue}</h3>
+        <h3 className="text-white text-[clamp(1.3rem,3.5vh,3rem)] font-serif tracking-[-0.025em] leading-tight drop-shadow-lg">{data.nextIssue}</h3>
       </div>
       
       <Button className="rounded-full px-[8%] py-[3%] h-auto text-[clamp(0.9rem,2vh,1.3rem)] bg-accent hover:bg-white hover:text-accent transition-all duration-500 mb-[10%] shadow-2xl border-none" asChild>
