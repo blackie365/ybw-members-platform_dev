@@ -401,7 +401,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
               &quot;{data.quote}&quot;
             </blockquote>
           )}
-          <div className="first-letter:text-[clamp(3rem,10vh,6rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.7] first-letter:mt-[2%]">
+          <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
             <SafeText html={data.text} />
           </div>
           {data.quote && (
