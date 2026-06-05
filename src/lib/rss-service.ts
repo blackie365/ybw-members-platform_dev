@@ -18,7 +18,9 @@ export interface RSSFeedItem {
 const SOURCES = [
   { name: 'Yorkshire Post', url: 'https://www.yorkshirepost.co.uk/business/rss' },
   { name: 'The Business Desk', url: 'https://www.thebusinessdesk.com/yorkshire/feed/' },
-  { name: 'BDaily Yorkshire', url: 'https://bdaily.co.uk/news/yorkshire/feed' }
+  { name: 'BDaily Yorkshire', url: 'https://bdaily.co.uk/news/yorkshire/feed' },
+  { name: 'Insider Media', url: 'https://www.insidermedia.com/rss/yorkshire' },
+  { name: 'BBC Yorkshire', url: 'https://feeds.bbci.co.uk/news/england/yorkshire/rss.xml' }
 ];
 
 export async function getYorkshireRegionalNews(limit = 10): Promise<RSSFeedItem[]> {

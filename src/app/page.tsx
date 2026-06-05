@@ -142,7 +142,7 @@ export default async function MagazinePage() {
     });
 
     // 2d. Fetch Regional RSS News
-    regionalNews = await getYorkshireRegionalNews(6);
+    regionalNews = await getYorkshireRegionalNews(9);
 
     tags = await getTags({ limit: 10, include: 'count.posts', order: 'count.posts DESC' });
     const featuredMembers = await getFeaturedMembers();
