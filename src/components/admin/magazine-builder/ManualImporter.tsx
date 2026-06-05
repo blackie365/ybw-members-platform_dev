@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-interface ManualImporterProps {
+export interface ManualImporterProps {
   onImport: (content: any, type: string, targetPageId?: string) => Promise<void>;
   isImporting: boolean;
   selectedPageId?: string;

@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 
 import { mapGhostToTemplate, MAGAZINE_TEMPLATES } from '@/lib/magazine-theme';
 
-interface GhostImporterProps {
+export interface GhostImporterProps {
   onImport: (post: any, type: string, targetPageId?: string) => Promise<void>;
   isImporting: boolean;
   selectedPageId?: string;
