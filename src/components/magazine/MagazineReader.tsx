@@ -295,6 +295,67 @@ function SafeText({ html, className }: { html: string; className?: string }) {
   );
 }
 
+function getHtmlBlocks(html: string): string[] {
+  if (!html) return [];
+
+  const hasTags = html.includes('<');
+
+  if (typeof window !== 'undefined' && hasTags && typeof DOMParser !== 'undefined') {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const nodes = Array.from(doc.body.childNodes);
+
+      const blocks = nodes
+        .map((node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const text = (node.textContent || '').trim();
+            if (!text) return '';
+            return `<p>${text}</p>`;
+          }
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element;
+            const outer = el.outerHTML?.trim() || '';
+            return outer;
+          }
+          return '';
+        })
+        .filter(Boolean);
+
+      if (blocks.length > 0) return blocks;
+    } catch {}
+  }
+
+  const normalized = hasTags ? html : html.replace(/\r\n/g, '\n');
+  const parts = normalized
+    .split(/\n{2,}/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return hasTags ? [html] : [`<p>${normalized}</p>`];
+  return hasTags ? parts : parts.map((p) => `<p>${p.replace(/\n/g, '<br />')}</p>`);
+}
+
+function splitBlocksByWeight(blocks: string[]) {
+  const weights = blocks.map((b) => b.replace(/<[^>]*>/g, '').length);
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const target = total / 2;
+
+  let running = 0;
+  let splitIndex = blocks.length;
+  for (let i = 0; i < blocks.length; i += 1) {
+    running += weights[i];
+    if (running >= target) {
+      splitIndex = i + 1;
+      break;
+    }
+  }
+
+  return {
+    leftBlocks: blocks.slice(0, splitIndex),
+    rightBlocks: blocks.slice(splitIndex),
+  };
+}
+
 function renderPage(page: any, imageVersion: string) {
   switch (page.type) {
     case 'cover':
@@ -368,66 +429,95 @@ const PageCover = ({ data, imageVersion }: any) => (
   </div>
 );
 
-const PageEditorial = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
-    {/* Column 1: Left Image */}
-    <div className="lg:w-[25%] xl:w-[20%] shrink-0">
-      <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
-      </div>
-      <div className="mt-[12%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
-        <div className="flex items-center gap-4 group">
-          <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
-             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src="https://www.gravatar.com/avatar/29532578500282030f2f3d53f2c5e533?s=200&d=mp" 
-              alt="Editor Avatar" 
-              className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
-            />
+const PageEditorial = ({ data, imageVersion }: any) => {
+  const allBlocks = getHtmlBlocks(data.text || '');
+
+  const standfirstHtml = !data.intro && allBlocks.length > 1 ? allBlocks[0] : '';
+  const bodyBlocks = standfirstHtml ? allBlocks.slice(1) : allBlocks;
+
+  const { leftBlocks, rightBlocks } = splitBlocksByWeight(bodyBlocks);
+  const leftHtml = leftBlocks.join('');
+  const rightHtml = rightBlocks.join('');
+
+  return (
+    <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
+      <div className="lg:w-[25%] xl:w-[20%] shrink-0">
+        <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
+        </div>
+        <div className="mt-[12%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
+          <div className="flex items-center gap-4 group">
+            <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://www.gravatar.com/avatar/29532578500282030f2f3d53f2c5e533?s=200&d=mp"
+                alt="Editor Avatar"
+                className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+              />
+            </div>
+            <div>
+              <p className="font-serif text-[clamp(0.9rem,2.2vh,1.5rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-serif text-[clamp(0.9rem,2.2vh,1.5rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+        </div>
+      </div>
+
+      <div className="lg:w-[75%] xl:w-[80%] flex flex-col justify-start">
+        <div className="max-w-[1000px] w-full">
+          <Badge variant="outline" className="mb-[3%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">
+            Editor&apos;s Note
+          </Badge>
+
+          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
+
+          {(data.intro || standfirstHtml) && (
+            <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
+              <SafeText html={data.intro || standfirstHtml} />
+            </div>
+          )}
+
+          <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
+            <div className="lg:hidden">
+              <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
+                <SafeText html={bodyBlocks.join('')} />
+              </div>
+              {data.quote && (
+                <blockquote className="mt-8 border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm">
+                  &quot;{data.quote}&quot;
+                </blockquote>
+              )}
+            </div>
+
+            {data.quote ? (
+              <div className="hidden lg:grid grid-cols-[1fr_240px_1fr] gap-12 items-start">
+                <div className="min-w-0">
+                  <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
+                    <SafeText html={leftHtml} />
+                  </div>
+                </div>
+                <div className="relative">
+                  <blockquote className="w-[120%] -ml-[10%] border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.1rem,2.4vh,1.7rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
+                    &quot;{data.quote}&quot;
+                  </blockquote>
+                </div>
+                <div className="min-w-0">
+                  <SafeText html={rightHtml} />
+                </div>
+              </div>
+            ) : (
+              <div className="hidden lg:block lg:columns-2 gap-12">
+                <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
+                  <SafeText html={bodyBlocks.join('')} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-
-    {/* Columns 2 & 3: Content Area */}
-    <div className="lg:w-[75%] xl:w-[80%] flex flex-col justify-start">
-      <div className="max-w-[1000px] w-full">
-        <Badge variant="outline" className="mb-[3%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">Editor&apos;s Note</Badge>
-        
-        {/* Title: Spans 2 content columns */}
-        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
-        
-        {/* Intro/Standfirst: Spans 2 content columns, bold */}
-        {data.intro && (
-          <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
-            <SafeText html={data.intro} />
-          </div>
-        )}
-
-        {/* Body Content: 2 Columns */}
-        <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative lg:columns-2 gap-12">
-          {data.quote && (
-            <blockquote className="float-right w-[60%] ml-6 mb-4 border-l-[4px] border-accent/30 pl-6 py-4 italic text-zinc-600 font-serif text-[clamp(1rem,2.2vh,1.4rem)] leading-[1.4] bg-accent/5 pr-4 shadow-sm hidden sm:block">
-              &quot;{data.quote}&quot;
-            </blockquote>
-          )}
-          <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-            <SafeText html={data.text} />
-          </div>
-          {data.quote && (
-            <blockquote className="border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm sm:hidden mt-6">
-              &quot;{data.quote}&quot;
-            </blockquote>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const PageContents = ({ data }: any) => (
   <div className="min-h-full w-full p-[5%] pb-[15vh] grid lg:grid-cols-2 gap-[8%] bg-white pt-[10%] lg:pt-[5%]">

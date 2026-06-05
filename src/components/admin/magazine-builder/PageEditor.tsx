@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type, Quote, Heading1, Heading2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, Loader2, Edit2, Bold, Italic, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
