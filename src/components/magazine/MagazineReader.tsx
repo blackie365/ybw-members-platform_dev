@@ -349,17 +349,38 @@ function getHtmlBlocks(html: string): string[] {
 function splitBlocksByWeight(blocks: string[]) {
   const weights = blocks.map((b) => b.replace(/<[^>]*>/g, '').length);
   const total = weights.reduce((sum, w) => sum + w, 0);
-  const target = total / 2;
+  if (blocks.length <= 1) {
+    return { leftBlocks: blocks, rightBlocks: [] };
+  }
 
+  const ideal = total / 2;
+
+  const prefixSums: number[] = [];
   let running = 0;
-  let splitIndex = blocks.length;
-  for (let i = 0; i < blocks.length; i += 1) {
+  for (let i = 0; i < weights.length; i += 1) {
     running += weights[i];
-    if (running >= target) {
-      splitIndex = i + 1;
-      break;
+    prefixSums[i] = running;
+  }
+
+  let bestIndex = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let i = 1; i < blocks.length; i += 1) {
+    const left = prefixSums[i - 1];
+    const right = total - left;
+    const diff = Math.abs(left - right);
+
+    const balancePenalty = diff / (ideal || 1);
+    const minBlocksPenalty = i === 1 || i === blocks.length - 1 ? 0.25 : 0;
+
+    const score = balancePenalty + minBlocksPenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = i;
     }
   }
+
+  const splitIndex = bestIndex;
 
   return {
     leftBlocks: blocks.slice(0, splitIndex),
