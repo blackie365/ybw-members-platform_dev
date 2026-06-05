@@ -439,14 +439,17 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const leftHtml = leftBlocks.join('');
   const rightHtml = rightBlocks.join('');
 
+  const bodyRichTextClass =
+    'text-zinc-700 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_p+_p]:indent-[1.25em] [&_p+_p]:mt-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2';
+
   return (
     <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
       <div className="lg:w-[25%] xl:w-[20%] shrink-0">
-        <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0">
+        <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0 ring-1 ring-black/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
         </div>
-        <div className="mt-[12%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
+        <div className="mt-[10%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
           <div className="flex items-center gap-4 group">
             <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -458,6 +461,9 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             </div>
             <div>
               <p className="font-serif text-[clamp(0.9rem,2.2vh,1.5rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+              {data.role && (
+                <p className="mt-1 text-[11px] uppercase tracking-[0.25em] text-zinc-500 font-medium">{data.role}</p>
+              )}
             </div>
           </div>
         </div>
@@ -469,18 +475,18 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             Editor&apos;s Note
           </Badge>
 
-          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
+          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.92]">{data.title}</h2>
 
           {(data.intro || standfirstHtml) && (
-            <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
-              <SafeText html={data.intro || standfirstHtml} />
+            <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[92%] font-serif italic border-b border-accent/10 pb-6">
+              <SafeText html={data.intro || standfirstHtml} className="[&_p]:mb-0 [&_strong]:font-extrabold" />
             </div>
           )}
 
           <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
             <div className="lg:hidden">
               <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                <SafeText html={bodyBlocks.join('')} />
+                <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
               </div>
               {data.quote && (
                 <blockquote className="mt-8 border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm">
@@ -493,22 +499,25 @@ const PageEditorial = ({ data, imageVersion }: any) => {
               <div className="hidden lg:grid grid-cols-[1fr_1fr_260px] gap-12 items-start">
                 <div className="min-w-0">
                   <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                    <SafeText html={leftHtml} />
+                    <SafeText html={leftHtml} className={bodyRichTextClass} />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <SafeText html={rightHtml} />
+                  <SafeText html={rightHtml} className={bodyRichTextClass} />
                 </div>
-                <aside className="min-w-0">
-                  <blockquote className="border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.05rem,2.2vh,1.55rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
-                    &quot;{data.quote}&quot;
-                  </blockquote>
+                <aside className="min-w-0 lg:sticky lg:top-24">
+                  <div className="relative">
+                    <Quote className="absolute -left-8 -top-10 h-16 w-16 text-accent/10" />
+                    <blockquote className="border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-700 font-serif text-[clamp(1.05rem,2.2vh,1.55rem)] leading-[1.35] bg-white/40 pr-5 shadow-sm ring-1 ring-black/5">
+                      &quot;{data.quote}&quot;
+                    </blockquote>
+                  </div>
                 </aside>
               </div>
             ) : (
               <div className="hidden lg:block lg:columns-2 gap-12">
                 <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                  <SafeText html={bodyBlocks.join('')} />
+                  <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
                 </div>
               </div>
             )}
