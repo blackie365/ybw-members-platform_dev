@@ -9,7 +9,13 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
     url.searchParams.append('key', GHOST_CONTENT_API_KEY);
-    url.searchParams.append('limit', options?.limit?.toString() || 'all');
+    
+    // Safety: Default to 15 posts if no limit is provided, and never exceed 100 in a single request.
+    // This prevents performance issues with categories that have hundreds of articles.
+    let limit = options?.limit || 15;
+    if (typeof limit === 'number' && limit > 100) limit = 100;
+    
+    url.searchParams.append('limit', limit.toString());
     url.searchParams.append('include', 'tags,authors');
     url.searchParams.append('formats', 'html,plaintext');
     
@@ -119,7 +125,12 @@ export async function getTags(options?: { limit?: number | string; include?: str
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/tags/`);
     url.searchParams.append('key', GHOST_CONTENT_API_KEY);
-    url.searchParams.append('limit', options?.limit?.toString() || 'all');
+    
+    // Safety: Default to 20 tags and cap at 100
+    let limit = options?.limit || 20;
+    if (typeof limit === 'number' && limit > 100) limit = 100;
+    
+    url.searchParams.append('limit', limit.toString());
     
     if (options?.include) {
       url.searchParams.append('include', options.include);
