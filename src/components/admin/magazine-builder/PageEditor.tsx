@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Edit2 } from 'lucide-react';
+import { Save, Loader2, Edit2, Bold, Italic, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,67 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
     setContent((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const insertTextAtCursor = (field: string, before: string, after: string = '') => {
+    const textarea = document.getElementById(`editor-${field}`) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    
+    updateContent(field, newText);
+    
+    // Set focus back and adjust selection
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
+  };
+
+  const FormattingToolbar = ({ field }: { field: string }) => (
+    <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-t-lg border border-b-0">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-8 w-8 p-0" 
+        onClick={() => insertTextAtCursor(field, '<strong>', '</strong>')}
+        title="Bold"
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-8 w-8 p-0" 
+        onClick={() => insertTextAtCursor(field, '<em>', '</em>')}
+        title="Italic"
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
+      <div className="w-px h-4 bg-border mx-1" />
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-8 w-8 p-0" 
+        onClick={() => insertTextAtCursor(field, '<p>', '</p>')}
+        title="Paragraph"
+      >
+        <Type className="h-4 w-4" />
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-8 w-8 p-0" 
+        onClick={() => insertTextAtCursor(field, '<br />')}
+        title="Line Break"
+      >
+        <span className="text-[10px] font-bold">BR</span>
+      </Button>
+    </div>
+  );
+
   const renderEditorFields = () => {
     const safeContent = content || {};
     
@@ -78,18 +139,47 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
       case 'editorial':
         return (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Editor Name</Label>
-              <Input value={safeContent.author || ''} onChange={(e) => updateContent('author', e.target.value)} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Editor Name</Label>
+                <Input value={safeContent.author || ''} onChange={(e) => updateContent('author', e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Editor Image URL</Label>
+                <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label>Editor Image</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+              <div className="flex justify-between items-center">
+                <Label>Intro Text (Bold Standfirst)</Label>
+                <span className="text-[10px] text-muted-foreground italic">Spans both content columns</span>
+              </div>
+              <FormattingToolbar field="intro" />
+              <Textarea 
+                id="editor-intro"
+                className="rounded-t-none"
+                rows={3} 
+                value={safeContent.intro || ''} 
+                onChange={(e) => updateContent('intro', e.target.value)} 
+              />
             </div>
+
             <div className="space-y-2">
-              <Label>Editorial Text</Label>
-              <Textarea rows={10} value={safeContent.text || ''} onChange={(e) => updateContent('text', e.target.value)} />
+              <div className="flex justify-between items-center">
+                <Label>Editorial Body Text</Label>
+                <span className="text-[10px] text-muted-foreground italic">Split into 2 columns on reader</span>
+              </div>
+              <FormattingToolbar field="text" />
+              <Textarea 
+                id="editor-text"
+                className="rounded-t-none"
+                rows={12} 
+                value={safeContent.text || ''} 
+                onChange={(e) => updateContent('text', e.target.value)} 
+              />
             </div>
+
             <div className="space-y-2">
               <Label>Pull Quote</Label>
               <Input value={safeContent.quote || ''} onChange={(e) => updateContent('quote', e.target.value)} />
