@@ -8,6 +8,7 @@ import { LatestEvents } from "@/components/magazine/latest-events"
 import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience"
+import { EventsCountdownStrip } from "@/components/magazine/events-countdown-strip"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
@@ -147,6 +148,13 @@ export default async function MagazinePage() {
     return (
       <div className="bg-background">
         <div className="flex-1">
+          {/* Live Events Countdown Strip */}
+          <EventsCountdownStrip 
+            targetDate="2026-06-25T18:00:00" 
+            title="Yorkshire BusinessWoman Awards 2026" 
+            link="/news?tag=events" 
+          />
+          
           <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
           
           {/* Industry Hubs - Quick Access Strip */}
