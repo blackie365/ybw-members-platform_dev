@@ -11,6 +11,7 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
     url.searchParams.append('key', GHOST_CONTENT_API_KEY);
     url.searchParams.append('limit', options?.limit?.toString() || 'all');
     url.searchParams.append('include', 'tags,authors');
+    url.searchParams.append('formats', 'html,plaintext');
     
     if (options?.filter) {
       url.searchParams.append('filter', options.filter);
@@ -86,6 +87,7 @@ export async function getSinglePost(postSlug: string) {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/slug/${postSlug}/`);
     url.searchParams.append('key', GHOST_CONTENT_API_KEY);
     url.searchParams.append('include', 'tags,authors');
+    url.searchParams.append('formats', 'html,plaintext');
 
     const response = await fetch(url.toString(), {
       headers: {
