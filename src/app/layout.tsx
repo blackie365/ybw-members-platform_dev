@@ -82,6 +82,25 @@ export default async function RootLayout({
     >
       <html lang="en" className="bg-background" suppressHydrationWarning>
         <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
+          {/* Organization Schema */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "Yorkshire BusinessWoman",
+                "url": "https://yorkshirebusinesswoman.co.uk",
+                "logo": "https://yorkshirebusinesswoman.co.uk/logo.png",
+                "description": "Empowering businesswomen across Yorkshire with networking, support, and recognition.",
+                "sameAs": [
+                  "https://www.facebook.com/YorkshireBusinesswoman",
+                  "https://twitter.com/YorkshireBW",
+                  "https://www.linkedin.com/company/yorkshire-businesswoman"
+                ]
+              })
+            }}
+          />
           <Providers>
             <Header />
             <NewsTicker posts={trendingPosts} />

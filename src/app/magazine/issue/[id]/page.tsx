@@ -68,5 +68,30 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
   }
 
   // Pass server-fetched data to the client-side interactive reader
-  return <MagazineReader issue={issue} pages={displayPages as any} id={id} />;
+  return (
+    <>
+      {/* Magazine Edition Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "PublicationIssue",
+            "name": issue.title,
+            "description": issue.description,
+            "issueNumber": id,
+            "datePublished": issue.publishDate,
+            "image": issue.coverImage,
+            "isPartOf": {
+              "@type": "Periodical",
+              "name": "Yorkshire BusinessWoman Magazine",
+              "issn": "2633-3511", // Standard for magazines
+              "publisher": "Yorkshire BusinessWoman"
+            }
+          })
+        }}
+      />
+      <MagazineReader issue={issue} pages={displayPages as any} id={id} />
+    </>
+  );
 }
