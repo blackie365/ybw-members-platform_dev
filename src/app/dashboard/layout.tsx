@@ -55,6 +55,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   };
 
+  const currentPage = navItems.find(item => 
+    item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href)
+  );
+  
+  const pageTitle = currentPage?.name || 'Member Dashboard';
+
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -68,17 +74,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-        {/* Header */}
-        <div className="mb-10">
-          <h1 className="font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-            Member Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Welcome back! Manage your profile, connect with members, and explore opportunities.
-          </p>
+      {/* Black Header Section - Matches site-wide hero style */}
+      <div className="relative bg-primary overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-accent" />
+          <div className="absolute -bottom-40 right-0 h-[400px] w-[400px] rounded-full bg-accent" />
         </div>
         
+        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">
+              Member Portal
+            </span>
+            <h1 className="mt-4 font-serif text-4xl font-medium text-primary-foreground sm:text-5xl">
+              {pageTitle}
+            </h1>
+            <p className="mt-6 text-lg text-primary-foreground/70 leading-relaxed max-w-2xl">
+              Welcome back! Manage your profile, connect with members, and explore exclusive opportunities.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] gap-8 lg:gap-10">
           
