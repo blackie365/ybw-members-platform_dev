@@ -395,9 +395,9 @@ const PageEditorial = ({ data, imageVersion }: any) => (
       <div className="max-w-[800px]">
         <Badge variant="outline" className="mb-[4%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">Editor&apos;s Note</Badge>
         <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[5%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
-        <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-relaxed font-light relative">
+        <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
           {data.quote && (
-            <blockquote className="float-right w-[45%] ml-6 mb-4 border-l-[4px] border-accent/30 pl-6 py-4 italic text-zinc-600 font-serif text-[clamp(1rem,2.2vh,1.4rem)] leading-relaxed bg-accent/5 pr-4 shadow-sm hidden sm:block">
+            <blockquote className="float-right w-[45%] ml-6 mb-4 border-l-[4px] border-accent/30 pl-6 py-4 italic text-zinc-600 font-serif text-[clamp(1rem,2.2vh,1.4rem)] leading-[1.4] bg-accent/5 pr-4 shadow-sm hidden sm:block">
               &quot;{data.quote}&quot;
             </blockquote>
           )}
@@ -405,7 +405,7 @@ const PageEditorial = ({ data, imageVersion }: any) => (
             <SafeText html={data.text} />
           </div>
           {data.quote && (
-            <blockquote className="border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-relaxed bg-accent/5 pr-[5%] shadow-sm sm:hidden mt-6">
+            <blockquote className="border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm sm:hidden mt-6">
               &quot;{data.quote}&quot;
             </blockquote>
           )}
