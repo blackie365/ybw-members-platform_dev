@@ -440,7 +440,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const rightHtml = rightBlocks.join('');
 
   const bodyRichTextClass =
-    'text-zinc-700 [&_p]:mb-0 [&_p+_p]:indent-[1.25em] [&_p+_p]:mt-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2';
+    'text-zinc-700 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2';
 
   return (
     <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
