@@ -9,7 +9,9 @@ import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { EventsCountdownStrip } from "@/components/magazine/events-countdown-strip"
+import { YorkshireNewsWire } from "@/components/magazine/yorkshire-news-wire"
 import { getPosts, getTags } from "@/lib/ghost"
+import { getYorkshireRegionalNews } from "@/lib/rss-service"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
@@ -82,6 +84,7 @@ export default async function MagazinePage() {
   let businessPosts: any[] = [];
   let fashionPosts: any[] = [];
   let healthPosts: any[] = [];
+  let regionalNews: any[] = [];
   let tags: any[] = [];
   let featuredMember: any = null;
   let errorOccurred = false;
@@ -137,6 +140,9 @@ export default async function MagazinePage() {
       filter: "tag:health-wellbeing",
       order: "published_at DESC"
     });
+
+    // 2d. Fetch Regional RSS News
+    regionalNews = await getYorkshireRegionalNews(6);
 
     tags = await getTags({ limit: 10, include: 'count.posts', order: 'count.posts DESC' });
     const featuredMembers = await getFeaturedMembers();
@@ -200,7 +206,11 @@ export default async function MagazinePage() {
         <CategorySection title="Tech & Digital" posts={techPosts} />
         
         <LatestEvents events={latestEvents} />
-        <CategorySection title="Business Insights" posts={businessPosts} />
+          
+          {/* External Regional News Wire */}
+          <YorkshireNewsWire news={regionalNews} />
+
+          <CategorySection title="Business Insights" posts={businessPosts} />
         
         <FeaturedInterview member={featuredMember} />
         
