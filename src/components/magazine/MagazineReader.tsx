@@ -486,7 +486,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             Editor&apos;s Note
           </Badge>
 
-          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-[-0.015em] text-zinc-900 leading-[0.92]">{data.title}</h2>
+          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-[-0.025em] text-zinc-900 leading-[0.92]">{data.title}</h2>
 
           {(data.intro || standfirstHtml) && (
             <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[92%] font-serif italic border-b border-accent/10 pb-6">
