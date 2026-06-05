@@ -695,36 +695,36 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           </div>
         </TabsContent>
 
-        <TabsContent value="import" className="mt-0">
-          <div className="space-y-6">
-            <div className="p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-4">
-              <div className="bg-accent p-2 rounded-full text-white shadow-lg">
-                <Save className="h-5 w-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-accent">Import & Integration</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Choose to import from Ghost CMS for existing articles, or use <strong>Manual Import</strong> to paste raw text and images directly into your template.
-                </p>
-              </div>
-            </div>
+            <TabsContent value="import" className="mt-0">
+              <div className="space-y-6">
+                <div className="p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-4">
+                  <div className="bg-accent p-2 rounded-full text-white shadow-lg">
+                    <Save className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-accent">Import & Integration</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Choose to import from Ghost CMS for existing articles, or use <strong>Manual Import</strong> to paste raw text and images directly into your template.
+                    </p>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <GhostImporter 
-                onImport={handleImportContent} 
-                isImporting={saving}
-                selectedPageId={selectedPageId || undefined}
-                selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-              />
-              <ManualImporter 
-                onImport={handleImportContent}
-                isImporting={saving}
-                selectedPageId={selectedPageId || undefined}
-                selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-              />
-            </div>
-          </div>
-        </TabsContent>
+                <div className="flex flex-col gap-8">
+                  <GhostImporter 
+                    onImport={handleImportContent} 
+                    isImporting={saving}
+                    selectedPageId={selectedPageId || undefined}
+                    selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+                  />
+                  <ManualImporter 
+                    onImport={handleImportContent}
+                    isImporting={saving}
+                    selectedPageId={selectedPageId || undefined}
+                    selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+                  />
+                </div>
+              </div>
+            </TabsContent>
       </Tabs>
     </div>
   );

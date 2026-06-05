@@ -94,7 +94,7 @@ export function GhostImporter({ onImport, isImporting, selectedPageId, selectedP
             <p className="text-sm text-muted-foreground">No articles found matching your search.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredPosts.map((post) => {
               const recommendedType = mapGhostToTemplate(post);
               const template = MAGAZINE_TEMPLATES.find(t => t.id === recommendedType);
@@ -127,19 +127,19 @@ export function GhostImporter({ onImport, isImporting, selectedPageId, selectedP
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <h4 className="font-bold text-sm truncate pr-2">{post.title}</h4>
+                        <h4 className="font-bold text-sm leading-tight pr-2">{post.title}</h4>
                       </div>
                       
-                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                      <p className="text-[10px] text-muted-foreground mt-1">
                         {post.primary_tag?.name || 'Uncategorized'} · {post.reading_time || 1} min read
                       </p>
 
                       <div className="flex flex-col gap-2 mt-3">
                         {selectedPageId && selectedPageType ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 px-2 py-1 bg-accent/10 border border-accent/20 rounded text-[9px] text-accent font-bold uppercase tracking-tighter">
+                          <div className="flex flex-col sm:flex-row items-center gap-2">
+                            <div className="flex items-center gap-2 px-2 py-1 bg-accent/10 border border-accent/20 rounded text-[9px] text-accent font-bold uppercase tracking-tighter whitespace-nowrap">
                               <Info className="h-3 w-3" />
-                              Target: {selectedPageType.toUpperCase()} Spread
+                              Target: {selectedPageType.toUpperCase()}
                             </div>
                             <Button 
                               size="sm" 
@@ -152,19 +152,21 @@ export function GhostImporter({ onImport, isImporting, selectedPageId, selectedP
                             </Button>
                           </div>
                         ) : (
-                          <Button 
-                            size="sm" 
-                            className="h-7 text-[10px] uppercase font-bold tracking-widest bg-accent hover:bg-accent/90 text-white"
-                            onClick={() => handleSmartImport(post)}
-                            disabled={isImporting}
-                          >
-                            {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
-                            Smart Import ({template?.name.split(' ')[0]})
-                          </Button>
+                          <div className="flex flex-col sm:flex-row items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              className="w-full h-7 text-[10px] uppercase font-bold tracking-widest bg-accent hover:bg-accent/90 text-white"
+                              onClick={() => handleSmartImport(post)}
+                              disabled={isImporting}
+                            >
+                              {isImporting ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Ghost className="h-3 w-3 mr-2" />}
+                              Smart Import ({template?.name.split(' ')[0]})
+                            </Button>
+                          </div>
                         )}
                         
                         <div className="flex flex-wrap gap-1">
-                          <span className="text-[8px] text-muted-foreground w-full mb-0.5 uppercase tracking-tighter opacity-50">Create New:</span>
+                          <span className="text-[8px] text-muted-foreground w-full mb-0.5 uppercase tracking-tighter opacity-50">Create New spread:</span>
                           {MAGAZINE_TEMPLATES.filter(t => t.category === 'content' || t.category === 'feature').slice(0, 3).map(t => (
                             <Button 
                               key={t.id}
