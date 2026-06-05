@@ -28,6 +28,8 @@ import dynamic from 'next/dynamic';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import type { GhostImporterProps } from '../../../../../components/admin/magazine-builder/GhostImporter';
+import type { ManualImporterProps } from '../../../../../components/admin/magazine-builder/ManualImporter';
 
 // Lazy Load Heavy Admin Components
 // This prevents regular users from downloading builder code and speeds up initial admin load
@@ -45,11 +47,11 @@ const PageEditor = dynamic(() => import('@/components/admin/magazine-builder/Pag
 
 const PageTypeSelector = dynamic(() => import('@/components/admin/magazine-builder/PageTypeSelector').then(m => m.PageTypeSelector));
 
-const GhostImporter = dynamic(() => import('@/components/admin/magazine-builder/GhostImporter').then(m => m.GhostImporter), {
+const GhostImporter = dynamic<GhostImporterProps>(() => import('../../../../../components/admin/magazine-builder/GhostImporter').then(m => m.GhostImporter), {
   loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Ghost Importer...</p></div>
 });
 
-const ManualImporter = dynamic(() => import('@/components/admin/magazine-builder/ManualImporter').then(m => m.ManualImporter), {
+const ManualImporter = dynamic<ManualImporterProps>(() => import('../../../../../components/admin/magazine-builder/ManualImporter').then(m => m.ManualImporter), {
   loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Manual Importer...</p></div>
 });
 
@@ -709,13 +711,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-8">
-                  <GhostImporter 
-                    onImport={handleImportContent} 
-                    isImporting={saving}
-                    selectedPageId={selectedPageId || undefined}
-                    selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-                  />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2">
+                    <GhostImporter 
+                      onImport={handleImportContent} 
+                      isImporting={saving}
+                      selectedPageId={selectedPageId || undefined}
+                      selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+                    />
+                  </div>
                   <ManualImporter 
                     onImport={handleImportContent}
                     isImporting={saving}
