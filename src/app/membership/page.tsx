@@ -127,6 +127,29 @@ export default function MembershipPage() {
 
       {/* Pricing section */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+        {/* Existing Member Help */}
+        {!user && (
+          <div className="mb-12 flex justify-center">
+            <div className="bg-accent/5 border border-accent/20 rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+              <div className="bg-accent/10 p-2 rounded-xl">
+                <Users className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Already have a free account?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Sign in first to upgrade your membership instantly without creating a new account.
+                </p>
+              </div>
+              <Link 
+                href="/sign-in?redirect_url=/membership"
+                className="whitespace-nowrap rounded-full bg-accent px-6 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition-all shadow-sm"
+              >
+                Sign In to Upgrade
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Billing Toggle */}
         <div className="flex justify-center">
           <div className="inline-flex items-center rounded-full p-1 bg-muted">

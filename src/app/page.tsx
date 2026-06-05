@@ -9,7 +9,7 @@ import { CategorySection } from "@/components/magazine/category-section"
 import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { EventsCountdownStrip } from "@/components/magazine/events-countdown-strip"
-import { YorkshireNewsWire } from "@/components/magazine/yorkshire-news-wire"
+import { NewsroomPortal } from "@/components/magazine/newsroom-portal"
 import { getPosts, getTags } from "@/lib/ghost"
 import { getYorkshireRegionalNews } from "@/lib/rss-service"
 import { adminDb } from "@/lib/firebase-admin"
@@ -164,12 +164,6 @@ export default async function MagazinePage() {
     );
   }
 
-  // Filter out carousel posts from the main grid to avoid duplicates and limit to 6 stories
-  const featuredIds = (featuredPosts || []).map((p: any) => p.id);
-  const gridPosts = (recentPosts || [])
-    .filter((p: any) => !featuredIds.includes(p.id))
-    .slice(0, 6);
-
   return (
     <div className="bg-background">
       <div className="flex-1">
@@ -199,18 +193,14 @@ export default async function MagazinePage() {
           </div>
         </div>
 
-        <ArticleGrid posts={gridPosts} />
+        <NewsroomPortal ghostPosts={recentPosts} rssNews={regionalNews} />
         
         {/* Dynamic Industry Hub Sections */}
         <CategorySection title="Agency News" posts={agencyPosts} />
         <CategorySection title="Tech & Digital" posts={techPosts} />
         
         <LatestEvents events={latestEvents} />
-          
-          {/* External Regional News Wire */}
-          <YorkshireNewsWire news={regionalNews} />
-
-          <CategorySection title="Business Insights" posts={businessPosts} />
+        <CategorySection title="Business Insights" posts={businessPosts} />
         
         <FeaturedInterview member={featuredMember} />
         
