@@ -1,5 +1,6 @@
 import { SignUp } from '@clerk/nextjs'
 import { Suspense } from 'react'
+import Link from 'next/link'
 
 function SignUpContent() {
   return (
@@ -113,7 +114,7 @@ function SignUpContent() {
               If you already have a free account (e.g. from our newsletter), you don&apos;t need to sign up again. Simply sign in to upgrade to Premium instantly.
             </p>
             <div className="mt-6">
-              <a 
+              <Link 
                 href="/sign-in?redirect_url=/membership" 
                 className="inline-flex items-center gap-2 text-[#8b3e2f] hover:text-[#722f25] font-bold text-[11px] uppercase tracking-[0.2em] transition-all"
               >
@@ -121,7 +122,7 @@ function SignUpContent() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
