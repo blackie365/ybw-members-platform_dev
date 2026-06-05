@@ -370,8 +370,9 @@ const PageCover = ({ data, imageVersion }: any) => (
 
 const PageEditorial = ({ data, imageVersion }: any) => (
   <div className="min-h-full w-full p-[5%] pb-[15vh] flex flex-col lg:flex-row gap-[5%] bg-[#FAF9F6] overflow-visible">
-    <div className="lg:w-[35%] xl:w-[30%] shrink-0">
-      <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[400px] mx-auto lg:mx-0">
+    {/* Column 1: Left Image */}
+    <div className="lg:w-[25%] xl:w-[20%] shrink-0">
+      <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
       </div>
@@ -391,13 +392,26 @@ const PageEditorial = ({ data, imageVersion }: any) => (
         </div>
       </div>
     </div>
-    <div className="lg:w-[65%] xl:w-[70%] flex flex-col justify-start py-[5%] lg:py-[2%]">
-      <div className="max-w-[800px]">
-        <Badge variant="outline" className="mb-[4%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">Editor&apos;s Note</Badge>
-        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[5%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
-        <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
+
+    {/* Columns 2 & 3: Content Area */}
+    <div className="lg:w-[75%] xl:w-[80%] flex flex-col justify-start">
+      <div className="max-w-[1000px] w-full">
+        <Badge variant="outline" className="mb-[3%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">Editor&apos;s Note</Badge>
+        
+        {/* Title: Spans 2 content columns */}
+        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-tight text-zinc-900 leading-[0.9]">{data.title}</h2>
+        
+        {/* Intro/Standfirst: Spans 2 content columns, bold */}
+        {data.intro && (
+          <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
+            <SafeText html={data.intro} />
+          </div>
+        )}
+
+        {/* Body Content: 2 Columns */}
+        <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative lg:columns-2 gap-12">
           {data.quote && (
-            <blockquote className="float-right w-[45%] ml-6 mb-4 border-l-[4px] border-accent/30 pl-6 py-4 italic text-zinc-600 font-serif text-[clamp(1rem,2.2vh,1.4rem)] leading-[1.4] bg-accent/5 pr-4 shadow-sm hidden sm:block">
+            <blockquote className="float-right w-[60%] ml-6 mb-4 border-l-[4px] border-accent/30 pl-6 py-4 italic text-zinc-600 font-serif text-[clamp(1rem,2.2vh,1.4rem)] leading-[1.4] bg-accent/5 pr-4 shadow-sm hidden sm:block">
               &quot;{data.quote}&quot;
             </blockquote>
           )}
