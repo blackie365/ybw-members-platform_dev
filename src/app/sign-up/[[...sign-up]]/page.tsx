@@ -1,5 +1,6 @@
 import { SignUp } from '@clerk/nextjs'
 import { Suspense } from 'react'
+import Link from 'next/link'
 
 function SignUpContent() {
   return (
@@ -71,7 +72,7 @@ function SignUpContent() {
             path="/sign-up"
             routing="path"
             signInUrl="/sign-in"
-            forceRedirectUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
             appearance={{
               variables: {
                 colorPrimary: '#8b3e2f', // Brick Color
@@ -105,6 +106,25 @@ function SignUpContent() {
               }
             }}
           />
+
+          {/* Upgrade Path for existing users */}
+          <div className="mt-12 p-6 border border-accent/20 bg-accent/5 rounded-2xl">
+            <h3 className="text-lg font-serif font-medium text-foreground">Already a Free Member?</h3>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              If you already have a free account (e.g. from our newsletter), you don&apos;t need to sign up again. Simply sign in to upgrade to Premium instantly.
+            </p>
+            <div className="mt-6">
+              <Link 
+                href="/sign-in?redirect_url=/membership" 
+                className="inline-flex items-center gap-2 text-[#8b3e2f] hover:text-[#722f25] font-bold text-[11px] uppercase tracking-[0.2em] transition-all"
+              >
+                Sign In to Upgrade Now
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
