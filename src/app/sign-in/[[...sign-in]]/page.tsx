@@ -71,7 +71,7 @@ function SignInContent() {
             path="/sign-in"
             routing="path"
             signUpUrl="/sign-up"
-            fallbackRedirectUrl="/dashboard"
+            forceRedirectUrl="/dashboard"
             appearance={{
               variables: {
                 colorPrimary: '#8b3e2f', // Brick Color
