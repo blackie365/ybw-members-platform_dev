@@ -490,20 +490,20 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             </div>
 
             {data.quote ? (
-              <div className="hidden lg:grid grid-cols-[1fr_240px_1fr] gap-12 items-start">
+              <div className="hidden lg:grid grid-cols-[1fr_1fr_260px] gap-12 items-start">
                 <div className="min-w-0">
                   <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
                     <SafeText html={leftHtml} />
                   </div>
                 </div>
-                <div className="relative">
-                  <blockquote className="w-[120%] -ml-[10%] border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.1rem,2.4vh,1.7rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
-                    &quot;{data.quote}&quot;
-                  </blockquote>
-                </div>
                 <div className="min-w-0">
                   <SafeText html={rightHtml} />
                 </div>
+                <aside className="min-w-0">
+                  <blockquote className="border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.05rem,2.2vh,1.55rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
+                    &quot;{data.quote}&quot;
+                  </blockquote>
+                </aside>
               </div>
             ) : (
               <div className="hidden lg:block lg:columns-2 gap-12">
