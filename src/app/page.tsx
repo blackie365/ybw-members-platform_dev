@@ -11,6 +11,7 @@ import { MagazineExperience } from "@/components/magazine/magazine-experience"
 import { getPosts, getTags } from "@/lib/ghost"
 import { adminDb } from "@/lib/firebase-admin"
 import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 
 // Homepage - Yorkshire BusinessWoman Magazine
 
@@ -102,7 +103,25 @@ export default async function MagazinePage() {
       order: "published_at DESC"
     });
 
-    // 2c. Fetch category specific posts
+    // 2c. Fetch category specific posts for Industry Hubs
+    const agencyPosts = await getPosts({
+      limit: 3,
+      filter: "tag:agency",
+      order: "published_at DESC"
+    });
+
+    const techPosts = await getPosts({
+      limit: 3,
+      filter: "tag:tech",
+      order: "published_at DESC"
+    });
+
+    const businessPosts = await getPosts({
+      limit: 3,
+      filter: "tag:business",
+      order: "published_at DESC"
+    });
+
     fashionPosts = await getPosts({
       limit: 3,
       filter: "tag:fashion-lifestyle",
@@ -115,15 +134,62 @@ export default async function MagazinePage() {
       order: "published_at DESC"
     });
 
-    tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
+    tags = await getTags({ limit: 10, include: 'count.posts', order: 'count.posts DESC' });
     const featuredMembers = await getFeaturedMembers();
     featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
+
+    // Filter out carousel posts from the main grid to avoid duplicates and limit to 6 stories
+    const featuredIds = (featuredPosts || []).map((p: any) => p.id);
+    const gridPosts = (recentPosts || [])
+      .filter((p: any) => !featuredIds.includes(p.id))
+      .slice(0, 6);
+
+    return (
+      <div className="bg-background">
+        <div className="flex-1">
+          <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
+          
+          {/* Industry Hubs - Quick Access Strip */}
+          <div className="border-y border-border/50 bg-accent/5">
+            <div className="mx-auto max-w-7xl px-4 lg:px-8 py-3 flex items-center justify-between overflow-x-auto scrollbar-hide gap-8 whitespace-nowrap">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-accent shrink-0">Industry Hubs:</span>
+              <div className="flex gap-6 lg:gap-12">
+                {['Agency', 'Tech', 'Business', 'Fashion', 'Health'].map((hub) => (
+                  <Link key={hub} href={`/news?tag=${hub.toLowerCase()}`} className="text-xs font-medium hover:text-accent transition-colors">
+                    {hub}
+                  </Link>
+                ))}
+              </div>
+              <Link href="/news" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors ml-auto">
+                Explore All <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+
+          <ArticleGrid posts={gridPosts} />
+          
+          {/* Dynamic Industry Hub Sections */}
+          <CategorySection title="Agency News" posts={agencyPosts} />
+          <CategorySection title="Tech & Digital" posts={techPosts} />
+          
+          <LatestEvents events={latestEvents} />
+          <CategorySection title="Business Insights" posts={businessPosts} />
+          
+          <FeaturedInterview member={featuredMember} />
+          
+          <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
+          <CategorySection title="Health & Wellbeing" posts={healthPosts} />
+          
+          <CategoriesSection tags={tags} />
+          <HomeEconomicInsights />
+          <MagazineExperience />
+          <NewsletterSection />
+          <TestimonialsSection />
+        </div>
+      </div>
+    );
   } catch (error) {
     console.error("Critical error fetching data for MagazinePage:", error);
-    errorOccurred = true;
-  }
-
-  if (errorOccurred) {
     return (
       <div className="bg-background min-h-screen flex items-center justify-center">
         <div className="text-center px-4">
@@ -134,28 +200,4 @@ export default async function MagazinePage() {
       </div>
     );
   }
-
-  // Filter out carousel posts from the main grid to avoid duplicates and limit to 6 stories
-  const featuredIds = (featuredPosts || []).map((p: any) => p.id);
-  const gridPosts = (recentPosts || [])
-    .filter((p: any) => !featuredIds.includes(p.id))
-    .slice(0, 6);
-
-  return (
-    <div className="bg-background">
-      <div className="flex-1">
-        <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
-        <ArticleGrid posts={gridPosts} />
-        <LatestEvents events={latestEvents} />
-        <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
-        <FeaturedInterview member={featuredMember} />
-        <CategorySection title="Health & Wellbeing" posts={healthPosts} />
-        <CategoriesSection tags={tags} />
-        <HomeEconomicInsights />
-        <MagazineExperience />
-        <NewsletterSection />
-        <TestimonialsSection />
-      </div>
-    </div>
-  );
 }
