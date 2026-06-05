@@ -326,13 +326,24 @@ function getHtmlBlocks(html: string): string[] {
   }
 
   const normalized = hasTags ? html : html.replace(/\r\n/g, '\n');
+
+  if (!hasTags) {
+    const lines = normalized
+      .split(/\n+/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) return [];
+    return lines.map((l) => `<p>${l}</p>`);
+  }
+
   const parts = normalized
     .split(/\n{2,}/g)
     .map((p) => p.trim())
     .filter(Boolean);
 
-  if (parts.length === 0) return hasTags ? [html] : [`<p>${normalized}</p>`];
-  return hasTags ? parts : parts.map((p) => `<p>${p.replace(/\n/g, '<br />')}</p>`);
+  if (parts.length === 0) return [html];
+  return parts;
 }
 
 function splitBlocksByWeight(blocks: string[]) {
