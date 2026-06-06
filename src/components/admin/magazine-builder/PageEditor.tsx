@@ -60,7 +60,7 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
     }, 0);
   };
 
-  const FormattingToolbar = ({ field }: { field: string }) => (
+  const FormattingToolbar = ({ field, allowParagraph = true }: { field: string; allowParagraph?: boolean }) => (
     <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-t-lg border border-b-0">
       <Button 
         variant="ghost" 
@@ -80,16 +80,20 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
       >
         <Italic className="h-4 w-4" />
       </Button>
-      <div className="w-px h-4 bg-border mx-1" />
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="h-8 w-8 p-0" 
-        onClick={() => insertTextAtCursor(field, '<p>', '</p>')}
-        title="Paragraph"
-      >
-        <Type className="h-4 w-4" />
-      </Button>
+      {allowParagraph && (
+        <>
+          <div className="w-px h-4 bg-border mx-1" />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0" 
+            onClick={() => insertTextAtCursor(field, '<p>', '</p>')}
+            title="Paragraph"
+          >
+            <Type className="h-4 w-4" />
+          </Button>
+        </>
+      )}
       <Button 
         variant="ghost" 
         size="sm" 
@@ -115,7 +119,13 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             </div>
             <div className="space-y-2 col-span-2">
               <Label>Sub-headline</Label>
-              <Textarea value={safeContent.subheadline || ''} onChange={(e) => updateContent('subheadline', e.target.value)} />
+              <FormattingToolbar field="subheadline" allowParagraph={false} />
+              <Textarea
+                id="editor-subheadline"
+                className="rounded-t-none"
+                value={safeContent.subheadline || ''}
+                onChange={(e) => updateContent('subheadline', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Date Text</Label>
@@ -230,7 +240,13 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             </div>
             <div className="space-y-2">
               <Label>Introduction Text</Label>
-              <Textarea value={safeContent.intro || ''} onChange={(e) => updateContent('intro', e.target.value)} />
+              <FormattingToolbar field="intro" />
+              <Textarea
+                id="editor-intro"
+                className="rounded-t-none"
+                value={safeContent.intro || ''}
+                onChange={(e) => updateContent('intro', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Quote</Label>
@@ -278,7 +294,14 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             </div>
             <div className="space-y-2">
               <Label>Column Text</Label>
-              <Textarea rows={6} value={safeContent.text || ''} onChange={(e) => updateContent('text', e.target.value)} />
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={6}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Tips (JSON Array of Strings)</Label>
@@ -305,7 +328,14 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             </div>
             <div className="space-y-2">
               <Label>Main Text</Label>
-              <Textarea rows={6} value={safeContent.text || ''} onChange={(e) => updateContent('text', e.target.value)} />
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={6}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Highlights (JSON Array of Strings)</Label>
@@ -336,11 +366,24 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
             </div>
             <div className="space-y-2">
               <Label>Member Quote/Message</Label>
-              <Textarea value={safeContent.message || ''} onChange={(e) => updateContent('message', e.target.value)} />
+              <FormattingToolbar field="message" allowParagraph={false} />
+              <Textarea
+                id="editor-message"
+                className="rounded-t-none"
+                value={safeContent.message || ''}
+                onChange={(e) => updateContent('message', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Biography</Label>
-              <Textarea rows={4} value={safeContent.bio || ''} onChange={(e) => updateContent('bio', e.target.value)} />
+              <FormattingToolbar field="bio" />
+              <Textarea
+                id="editor-bio"
+                className="rounded-t-none"
+                rows={4}
+                value={safeContent.bio || ''}
+                onChange={(e) => updateContent('bio', e.target.value)}
+              />
             </div>
           </div>
         );
