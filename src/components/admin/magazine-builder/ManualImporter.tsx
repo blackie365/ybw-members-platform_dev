@@ -68,6 +68,11 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
         manualContent.bio = rawText;
         manualContent.image = imageUrl;
         break;
+      case 'lifestyle':
+        manualContent.title = title || 'Lifestyle';
+        manualContent.text = rawText;
+        manualContent.image = imageUrl;
+        break;
       default:
         manualContent.text = rawText;
         manualContent.image = imageUrl;
