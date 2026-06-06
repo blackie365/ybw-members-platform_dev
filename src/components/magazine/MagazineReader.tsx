@@ -717,6 +717,36 @@ const PageColumn = ({ data, imageVersion }: any) => (
 const PageLifestyle = ({ data, imageVersion }: any) => {
   const title = (data.title || '').trim();
   const titleLines = title ? title.split('\n').map((l: string) => l.trim()).filter(Boolean) : [];
+  const renderStyledTitleLine = (line: string) => {
+    const parts: React.ReactNode[] = [];
+    const re = /\*([^*]+)\*/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = re.exec(line)) !== null) {
+      const start = match.index;
+      const full = match[0];
+      const inner = match[1] || '';
+
+      if (start > lastIndex) {
+        parts.push(line.slice(lastIndex, start));
+      }
+
+      parts.push(
+        <span key={`${start}-${inner}`} className="italic text-accent">
+          {inner}
+        </span>
+      );
+
+      lastIndex = start + full.length;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : line;
+  };
 
   return (
     <div className="min-h-full w-full relative bg-[#FAF9F6] flex flex-col lg:block pb-[15vh] overflow-visible">
@@ -735,7 +765,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               titleLines.map((line: string, i: number) => (
                 <React.Fragment key={`${line}-${i}`}>
                   {i > 0 && <br />}
-                  {line}
+                  {renderStyledTitleLine(line)}
                 </React.Fragment>
               ))
             ) : (
