@@ -502,9 +502,9 @@ const PageCover = ({ data, imageVersion }: any) => (
         <h1 className="text-white text-[clamp(1.5rem,5vh,4rem)] font-serif font-medium tracking-[-0.025em] leading-[1.1] mb-[3%] drop-shadow-lg">
           {data.headline}
         </h1>
-        <p className="text-white/90 text-[clamp(0.85rem,1.8vh,1.3rem)] font-light max-w-2xl border-l-4 border-accent pl-[4%] line-clamp-3 sm:line-clamp-none leading-[1.4] drop-shadow-md">
-          {data.subheadline}
-        </p>
+        <div className="text-white/90 text-[clamp(0.85rem,1.8vh,1.3rem)] font-light max-w-2xl border-l-4 border-accent pl-[4%] line-clamp-3 sm:line-clamp-none leading-[1.4] drop-shadow-md [&_p]:m-0 [&_p]:inline [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2">
+          <SafeText html={data.subheadline || ''} />
+        </div>
       </motion.div>
     </div>
   </div>
@@ -845,9 +845,9 @@ const PageSpotlight = ({ data, imageVersion }: any) => (
         <p className="text-[clamp(1rem,2.2vh,1.5rem)] text-accent font-medium mb-[8%] tracking-wide">{data.role}</p>
         <div className="relative mb-[6%]">
            <Quote className="absolute -left-[5%] -top-[10%] h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/5 hidden lg:block" />
-          <p className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-600 leading-[1.4] font-light italic border-l-4 border-accent/20 pl-[5%] relative z-10">
-            &quot;{data.message}&quot;
-          </p>
+          <div className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-600 leading-[1.4] font-light italic border-l-4 border-accent/20 pl-[5%] relative z-10 [&_p]:m-0 [&_p]:inline [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 before:content-['“'] after:content-['”']">
+            <SafeText html={data.message || ''} />
+          </div>
         </div>
         <SafeText html={data.bio} className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-[1.4] max-w-xl mx-auto lg:mx-0" />
         <Button className="mt-[8%] rounded-none px-[8%] py-[3%] h-auto bg-black text-white hover:bg-accent transition-all duration-300 tracking-widest uppercase text-[clamp(9px,1vh,11px)] shadow-xl border-none">Read Full Profile</Button>
