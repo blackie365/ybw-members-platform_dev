@@ -17,14 +17,20 @@ interface PageEditorProps {
 
 export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
+  const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
 
   useEffect(() => {
     if (page?.content) {
       setContent(page.content);
+      if (page.type === 'lifestyle') {
+        const initial = Array.isArray((page.content as any)?.images) ? (page.content as any).images : [];
+        setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
+      }
     } else {
       setContent({});
+      setLifestyleImagesDraft('[]');
     }
-  }, [page?.docId, page?.content]);
+  }, [page?.docId, page?.content, page?.type]);
 
   if (!page) {
     return (
@@ -334,9 +340,14 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Label>Additional Images (JSON Array of URLs)</Label>
               <Textarea
                 rows={4}
-                value={JSON.stringify(safeContent.images || [], null, 2)}
+                value={lifestyleImagesDraft}
                 onChange={(e) => {
-                  try { updateContent('images', JSON.parse(e.target.value)); } catch (err) {}
+                  const next = e.target.value;
+                  setLifestyleImagesDraft(next);
+                  try {
+                    const parsed = JSON.parse(next);
+                    if (Array.isArray(parsed)) updateContent('images', parsed);
+                  } catch (err) {}
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Format: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
