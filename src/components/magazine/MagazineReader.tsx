@@ -770,7 +770,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
       const full = match[0];
       const inner = match[1] || '';
 
-      if (start > lastIndex) parts.push(line.slice(lastIndex, start));
+      if (start > lastIndex) {
+        parts.push(line.slice(lastIndex, start));
+      }
       parts.push(
         <span key={`${start}-${inner}`} className="italic text-accent">
           {inner}
@@ -779,7 +781,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
       lastIndex = start + full.length;
     }
 
-    if (lastIndex < line.length) parts.push(line.slice(lastIndex));
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
     return parts.length > 0 ? parts : line;
   };
 
