@@ -842,7 +842,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                 <img
                   src={fixMagazineImageUrl(data.logo, imageVersion)}
                   alt="Logo"
-                  className="h-10 w-auto object-contain opacity-90"
+                  className="h-14 sm:h-16 lg:h-20 w-auto max-w-[min(100%,320px)] object-contain opacity-90"
                 />
               </div>
             )}
