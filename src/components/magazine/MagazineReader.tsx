@@ -756,30 +756,78 @@ const PageColumn = ({ data, imageVersion }: any) => (
   </div>
 );
 
-const PageLifestyle = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-[#FAF9F6] flex flex-col lg:block pb-[15vh] overflow-visible">
-    <div className="relative lg:absolute top-0 right-0 w-full lg:w-[55%] h-[40vh] lg:h-full shrink-0 shadow-2xl">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
-    </div>
-    <div className="relative h-full w-full p-[8%] flex flex-col justify-start lg:justify-center z-10 min-h-0 pt-[12%] lg:pt-[8%]">
-      <div className="max-w-[min(100%,500px)] lg:max-w-[42%] pr-[4%]">
-        <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">Lifestyle</Badge>
-        <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">The <span className="italic text-accent">Art</span> of <br />Balance</h2>
-        <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[8%] max-w-lg" />
-        <div className="space-y-[3%]">
-          {data.highlights?.map((h: any, i: number) => (
-            <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
-              <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
-              <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">{h}</p>
-            </div>
-          ))}
+const PageLifestyle = ({ data, imageVersion }: any) => {
+  const title = (data.title || '').trim();
+  const titleLines = title ? title.split('\n').map((l: string) => l.trim()).filter(Boolean) : [];
+  const renderStyledTitleLine = (line: string) => {
+    const parts: React.ReactNode[] = [];
+    const re = /\*([^*]+)\*/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = re.exec(line)) !== null) {
+      const start = match.index;
+      const full = match[0];
+      const inner = match[1] || '';
+
+      if (start > lastIndex) {
+        parts.push(line.slice(lastIndex, start));
+      }
+      parts.push(
+        <span key={`${start}-${inner}`} className="italic text-accent">
+          {inner}
+        </span>
+      );
+      lastIndex = start + full.length;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
+    return parts.length > 0 ? parts : line;
+  };
+
+  return (
+    <div className="min-h-full w-full relative bg-[#FAF9F6] flex flex-col lg:block pb-[15vh] overflow-visible">
+      <div className="relative lg:absolute top-0 right-0 w-full lg:w-[55%] h-[40vh] lg:h-full shrink-0 shadow-2xl">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
+      </div>
+      <div className="relative h-full w-full p-[8%] flex flex-col justify-start lg:justify-center z-10 min-h-0 pt-[12%] lg:pt-[8%]">
+        <div className="max-w-[min(100%,500px)] lg:max-w-[42%] pr-[4%]">
+          <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">
+            Lifestyle
+          </Badge>
+          <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">
+            {titleLines.length > 0 ? (
+              titleLines.map((line: string, i: number) => (
+                <React.Fragment key={`${line}-${i}`}>
+                  {i > 0 && <br />}
+                  {renderStyledTitleLine(line)}
+                </React.Fragment>
+              ))
+            ) : (
+              <>
+                The <span className="italic text-accent">Art</span> of <br />
+                Balance
+              </>
+            )}
+          </h2>
+          <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[8%] max-w-lg" />
+          <div className="space-y-[3%]">
+            {data.highlights?.map((h: any, i: number) => (
+              <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
+                <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
+                <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">{h}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const PageSpotlight = ({ data, imageVersion }: any) => (
   <div className="min-h-full w-full p-[5%] pb-[15vh] bg-white flex flex-col justify-start pt-[10%] lg:pt-[5%] overflow-visible">
