@@ -782,6 +782,10 @@ const PageColumn = ({ data, imageVersion }: any) => (
 const PageLifestyle = ({ data, imageVersion }: any) => {
   const title = (data.title || '').trim();
   const titleLines = title ? title.split('\n').map((l: string) => l.trim()).filter(Boolean) : [];
+  const extraImages: string[] = Array.isArray(data.images)
+    ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
+    : [];
+
   const renderStyledTitleLine = (line: string) => {
     const parts: React.ReactNode[] = [];
     const re = /\*([^*]+)\*/g;
@@ -823,6 +827,16 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">
             Lifestyle
           </Badge>
+          {data.logo && (
+            <div className="mb-[4%]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fixMagazineImageUrl(data.logo, imageVersion)}
+                alt="Logo"
+                className="h-10 w-auto object-contain opacity-90"
+              />
+            </div>
+          )}
           <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">
             {titleLines.length > 0 ? (
               titleLines.map((line: string, i: number) => (
@@ -838,15 +852,31 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               </>
             )}
           </h2>
-          <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[8%] max-w-lg" />
-          <div className="space-y-[3%]">
-            {data.highlights?.map((h: any, i: number) => (
-              <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
-                <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
-                <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">{h}</p>
-              </div>
-            ))}
-          </div>
+          {data.highlights?.length > 0 && (
+            <div className="mb-[6%] space-y-[3%]">
+              {data.highlights?.map((h: any, i: number) => (
+                <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
+                  <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
+                  <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">{h}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[6%] max-w-lg" />
+          {extraImages.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              {extraImages.slice(0, 4).map((src: string, i: number) => (
+                <div key={`${src}-${i}`} className="relative aspect-[4/3] overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fixMagazineImageUrl(src, imageVersion)}
+                    alt={`Lifestyle image ${i + 1}`}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       </div>
