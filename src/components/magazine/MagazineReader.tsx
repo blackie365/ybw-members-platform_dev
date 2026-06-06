@@ -782,6 +782,10 @@ const PageColumn = ({ data, imageVersion }: any) => (
 const PageLifestyle = ({ data, imageVersion }: any) => {
   const title = (data.title || '').trim();
   const titleLines = title ? title.split('\n').map((l: string) => l.trim()).filter(Boolean) : [];
+  const extraImages: string[] = Array.isArray(data.images)
+    ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
+    : [];
+
   const renderStyledTitleLine = (line: string) => {
     const parts: React.ReactNode[] = [];
     const re = /\*([^*]+)\*/g;
@@ -811,44 +815,93 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   };
 
   return (
-    <div className="min-h-full w-full relative bg-[#FAF9F6] pb-[15vh] overflow-visible">
-      <div className="h-full w-full lg:grid lg:grid-cols-12">
-        <div className="relative h-[40vh] lg:h-full lg:col-span-7 lg:col-start-6 shadow-2xl">
+    <div className={`min-h-full w-full ${PAGE_PAD} bg-[#FAF9F6] overflow-visible`}>
+      <div className={`${GRID_CONTENT} ${GRID_12} items-start gap-y-[clamp(1.25rem,3vw,2.5rem)]`}>
+        <div className="col-span-12 lg:col-span-7 lg:order-2 relative h-[40vh] min-h-[320px] lg:h-auto lg:min-h-[70vh] overflow-hidden shadow-2xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={title || 'Lifestyle'}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
         </div>
-        <div className="relative p-[8%] flex flex-col justify-start lg:justify-center z-10 min-h-0 pt-[12%] lg:pt-[8%] lg:col-span-5 lg:col-start-1">
-        <div className="max-w-[min(100%,500px)] pr-[4%]">
-          <Badge variant="outline" className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]">
-            Lifestyle
-          </Badge>
-          <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">
-            {titleLines.length > 0 ? (
-              titleLines.map((line: string, i: number) => (
-                <React.Fragment key={`${line}-${i}`}>
-                  {i > 0 && <br />}
-                  {renderStyledTitleLine(line)}
-                </React.Fragment>
-              ))
-            ) : (
-              <>
-                The <span className="italic text-accent">Art</span> of <br />
-                Balance
-              </>
-            )}
-          </h2>
-          <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[8%] max-w-lg" />
-          <div className="space-y-[3%]">
-            {data.highlights?.map((h: any, i: number) => (
-              <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
-                <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
-                <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">{h}</p>
+
+        <div className="col-span-12 lg:col-span-5 lg:order-1 flex flex-col justify-start lg:justify-center min-h-0">
+          <div className="max-w-[min(100%,500px)]">
+            <Badge
+              variant="outline"
+              className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]"
+            >
+              Lifestyle
+            </Badge>
+
+            {data.logo && (
+              <div className="mb-[4%]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.logo, imageVersion)}
+                  alt="Logo"
+                  className="h-10 w-auto object-contain opacity-90"
+                />
               </div>
-            ))}
+            )}
+
+            <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">
+              {titleLines.length > 0 ? (
+                titleLines.map((line: string, i: number) => (
+                  <React.Fragment key={`${line}-${i}`}>
+                    {i > 0 && <br />}
+                    {renderStyledTitleLine(line)}
+                  </React.Fragment>
+                ))
+              ) : (
+                <>
+                  The <span className="italic text-accent">Art</span> of <br />
+                  Balance
+                </>
+              )}
+            </h2>
+
+            {data.highlights?.length > 0 && (
+              <div className="mb-[6%] space-y-[3%]">
+                {data.highlights?.map((h: any, i: number) => (
+                  <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
+                    <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
+                    <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">
+                      {h}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <SafeText
+              html={data.text}
+              className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[6%] max-w-lg"
+            />
+
+            {extraImages.length > 0 && (
+              <div className={`${GRID_12} gap-y-4`}>
+                {extraImages.slice(0, 8).map((src: string, i: number) => (
+                  <div
+                    key={`${src}-${i}`}
+                    className={`relative aspect-[4/3] overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5 bg-white ${
+                      extraImages.length === 1 ? 'col-span-12' : 'col-span-6'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={fixMagazineImageUrl(src, imageVersion)}
+                      alt={`Lifestyle image ${i + 1}`}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

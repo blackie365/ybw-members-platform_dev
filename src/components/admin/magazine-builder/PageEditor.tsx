@@ -323,8 +323,23 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Logo Image URL (Optional)</Label>
+              <Input value={safeContent.logo || ''} onChange={(e) => updateContent('logo', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Lifestyle Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Additional Images (JSON Array of URLs)</Label>
+              <Textarea
+                rows={4}
+                value={JSON.stringify(safeContent.images || [], null, 2)}
+                onChange={(e) => {
+                  try { updateContent('images', JSON.parse(e.target.value)); } catch (err) {}
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Format: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
             </div>
             <div className="space-y-2">
               <Label>Main Text</Label>
