@@ -287,7 +287,16 @@ function SafeText({ html, className }: { html: string; className?: string }) {
       .filter(Boolean);
     content = lines.map((l) => `<p>${l}</p>`).join('');
   } else if (!html.includes('<p') && !html.includes('<br')) {
-    content = html.replace(/\n/g, '<br />');
+    const normalized = html.replace(/\r\n/g, '\n');
+    const lines = normalized
+      .split(/\n+/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length > 1) {
+      content = lines.map((l) => `<p>${l}</p>`).join('');
+    } else {
+      content = html.replace(/\n/g, '<br />');
+    }
   }
   
   return (
@@ -307,29 +316,61 @@ function getHtmlBlocks(html: string): string[] {
   if (!html) return [];
 
   const hasTags = html.includes('<');
+  const normalizedRaw = html.replace(/\r\n/g, '\n');
+
+  if (hasTags && !html.includes('<p') && normalizedRaw.includes('\n')) {
+    const lines = normalizedRaw
+      .split(/\n+/g)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    if (lines.length > 1) return lines.map((l) => `<p>${l}</p>`);
+  }
 
   if (typeof window !== 'undefined' && hasTags && typeof DOMParser !== 'undefined') {
     try {
       const doc = new DOMParser().parseFromString(html, 'text/html');
-      const nodes = Array.from(doc.body.childNodes);
+      const body = doc.body;
 
-      const blocks = nodes
-        .map((node) => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            const text = (node.textContent || '').trim();
-            if (!text) return '';
-            return `<p>${text}</p>`;
-          }
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as Element;
-            const outer = el.outerHTML?.trim() || '';
-            return outer;
-          }
-          return '';
-        })
+      const paragraphs = Array.from(body.querySelectorAll('p'));
+      if (paragraphs.length > 0) {
+        return paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean);
+      }
+
+      const blockTagNames = new Set([
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'ul',
+        'ol',
+        'blockquote',
+        'pre',
+        'figure',
+        'hr',
+      ]);
+
+      const blockChildren = Array.from(body.children).filter((el) =>
+        blockTagNames.has(el.tagName.toLowerCase())
+      );
+      if (blockChildren.length > 0) {
+        return blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean);
+      }
+
+      const inner = body.innerHTML.trim();
+      if (!inner) return [];
+
+      const parts = inner
+        .split(/(?:<br\s*\/?>\s*){2,}/gi)
+        .map((p) => p.trim())
         .filter(Boolean);
+      if (parts.length > 1) {
+        return parts.map((p) => `<p>${p}</p>`);
+      }
 
-      if (blocks.length > 0) return blocks;
+      return [`<p>${inner}</p>`];
     } catch {}
   }
 
