@@ -33,6 +33,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [direction, setDirection] = useState(0);
   const [imageVersion, setImageVersion] = useState<string>('');
+  const isCover = pages[currentPage]?.type === 'cover';
 
   useEffect(() => {
     setImageVersion(Date.now().toString());
@@ -164,7 +165,14 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
         </button>
 
         {/* Page Viewport */}
-        <div className="relative w-full h-full max-w-[min(94vw,1200px)] aspect-[3/4] lg:aspect-auto lg:h-[min(90vh,850px)] xl:h-[min(80vh,950px)] mx-auto overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.4)] bg-white text-zinc-900 self-center">
+        <div
+          className={[
+            'relative w-full h-full mx-auto overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.4)] bg-white text-zinc-900 self-center',
+            isCover
+              ? 'max-w-none aspect-auto lg:h-[min(92vh,980px)]'
+              : 'max-w-[min(94vw,1200px)] aspect-[3/4] lg:aspect-auto lg:h-[min(90vh,850px)] xl:h-[min(80vh,950px)]',
+          ].join(' ')}
+        >
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
                 key={currentPage}
@@ -488,14 +496,14 @@ const PageCover = ({ data, imageVersion }: any) => (
     {/* Brand Overlay */}
     <div className="absolute top-[8%] inset-x-0">
       <div className={`${GRID_CONTENT} px-8`}>
-        <div className={`${GRID_12} text-center`}>
-          <div className="col-span-12">
+        <div className={`${GRID_12} items-start`}>
+          <div className="col-span-12 lg:col-span-7 text-left">
             <p className="text-white/70 text-[clamp(10px,1.2vh,13px)] tracking-[0.4em] uppercase mb-[2%] font-semibold drop-shadow-md">{data.date} · {data.issue}</p>
             <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] font-medium tracking-[-0.025em] leading-[0.9] mb-[2%] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
               Yorkshire <br />
               <span className="italic">BusinessWoman</span>
             </h2>
-            <div className="h-0.5 w-[clamp(3rem,8vw,6rem)] bg-accent mx-auto shadow-lg" />
+            <div className="h-0.5 w-[clamp(3rem,8vw,6rem)] bg-accent shadow-lg" />
           </div>
         </div>
       </div>
