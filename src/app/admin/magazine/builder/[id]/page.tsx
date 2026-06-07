@@ -700,6 +700,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 selectedPageId={selectedPageId}
                 onSelectPage={setSelectedPageId}
                 onDeletePage={handleDeletePage}
+                onChangeType={(pageDocId, type) => {
+                  handleChangePageType(pageDocId, type);
+                }}
                 onMovePage={handleMovePage}
                 isSaving={saving}
               />
