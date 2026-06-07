@@ -536,92 +536,62 @@ const PageCover = ({ data, imageVersion }: any) => (
 const PageEditorial = ({ data, imageVersion }: any) => {
   const allBlocks = getHtmlBlocks(data.text || '');
 
-  const standfirstHtml = !data.intro && allBlocks.length > 1 ? allBlocks[0] : '';
-  const bodyBlocks = standfirstHtml ? allBlocks.slice(1) : allBlocks;
-
-  const { leftBlocks, rightBlocks } = splitBlocksByWeight(bodyBlocks);
-  const leftHtml = leftBlocks.join('');
-  const rightHtml = rightBlocks.join('');
-
-  const bodyRichTextClass = 'text-zinc-700';
+  const introHtml = data.intro || (!data.intro && allBlocks.length > 1 ? allBlocks[0] : '');
+  const bodyHtml = (introHtml ? allBlocks.slice(1) : allBlocks).join('');
+  const signature = String(data.author || '').trim().split(/\s+/g).filter(Boolean)[0] || '';
 
   return (
     <div className={`min-h-full w-full ${PAGE_PAD} bg-[#FAF9F6] overflow-visible`}>
       <div className={`${GRID_CONTENT} ${GRID_12} items-start`}>
-      <div className="col-span-12 lg:col-span-3">
-        <div className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] grayscale hover:grayscale-0 transition-all duration-1000 w-full max-w-[300px] mx-auto lg:mx-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="absolute inset-0 w-full h-full object-cover" />
-        </div>
-        <div className="mt-[12%] flex flex-col items-center lg:items-start text-center lg:text-left gap-4">
-          <div className="flex items-center gap-4 group">
-            <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-accent/20 group-hover:border-accent transition-colors shadow-lg">
+        <div className="col-span-12 lg:col-span-4">
+          <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.5em] text-accent/70 font-semibold mb-6">
+            Editor&apos;s Note
+          </p>
+          <div className="w-full max-w-[360px] mx-auto lg:mx-0">
+            <div className="relative aspect-[3/4] rounded-md overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] bg-black/5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://www.gravatar.com/avatar/29532578500282030f2f3d53f2c5e533?s=200&d=mp"
-                alt="Editor Avatar"
-                className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                src={fixMagazineImageUrl(data.image, imageVersion)}
+                alt={data.author}
+                className="absolute inset-0 w-full h-full object-cover"
               />
             </div>
-            <div>
-              <p className="font-serif text-[clamp(0.9rem,2.2vh,1.5rem)] italic text-zinc-900 leading-tight">{data.author}</p>
+            <div className="mt-4 rounded-md bg-white/60 border border-zinc-200/60 px-5 py-4">
+              <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-semibold mb-2">Editor</p>
+              <p className="font-serif text-[clamp(1rem,2.2vh,1.35rem)] text-zinc-900 leading-tight">{data.author}</p>
+              <p className="text-[11px] text-zinc-500 mt-1">Yorkshire BusinessWoman Magazine</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="col-span-12 lg:col-span-9 flex flex-col justify-start">
-        <div className="max-w-[1000px] w-full">
-          <Badge variant="outline" className="mb-[3%] w-fit border-accent text-accent tracking-[0.3em] uppercase text-[clamp(9px,1vh,11px)] px-[3%] py-[1%]">
-            Editor&apos;s Note
-          </Badge>
+        <div className="col-span-12 lg:col-span-8 flex flex-col justify-start">
+          <div className="w-full max-w-[820px]">
+            <h2 className="text-[clamp(1.9rem,5.5vh,4rem)] font-serif mb-5 tracking-[-0.025em] text-zinc-900 leading-[1]">
+              {data.title}
+            </h2>
 
-          <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[3%] tracking-[-0.025em] text-zinc-900 leading-[0.9]">{data.title}</h2>
+            {data.quote && (
+              <blockquote className="mb-8 text-accent italic font-serif text-[clamp(1.05rem,2.3vh,1.55rem)] leading-[1.4]">
+                &quot;{data.quote}&quot;
+              </blockquote>
+            )}
 
-          {(data.intro || standfirstHtml) && (
-            <div className="text-[clamp(1.1rem,2.5vh,1.6rem)] font-bold text-zinc-900 leading-snug mb-[4%] max-w-[90%] font-serif italic border-b border-accent/10 pb-6">
-              <SafeText html={data.intro || standfirstHtml} className="[&_p]:mb-0" />
-            </div>
-          )}
-
-          <div className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-800 leading-[1.4] font-light relative">
-            <div className="lg:hidden">
-              <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
+            {introHtml && (
+              <div className="text-[clamp(0.95rem,2vh,1.1rem)] text-zinc-700 leading-[1.6] font-light mb-6">
+                <SafeText html={introHtml} className="[&_p]:mb-0" />
               </div>
-              {data.quote && (
-                <blockquote className="mt-8 border-l-[6px] border-accent/30 pl-[5%] py-[3%] italic text-zinc-600 font-serif text-[clamp(1.1rem,2.5vh,1.8rem)] leading-[1.4] bg-accent/5 pr-[5%] shadow-sm">
-                  &quot;{data.quote}&quot;
-                </blockquote>
-              )}
-            </div>
+            )}
 
-            {data.quote ? (
-              <div className="hidden lg:grid grid-cols-[1fr_1fr_260px] gap-12 items-start">
-                <div className="min-w-0">
-                  <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                    <SafeText html={leftHtml} className={bodyRichTextClass} />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <SafeText html={rightHtml} className={bodyRichTextClass} />
-                </div>
-                <aside className="min-w-0">
-                  <blockquote className="border-l-[6px] border-accent/30 pl-6 py-6 italic text-zinc-600 font-serif text-[clamp(1.05rem,2.2vh,1.55rem)] leading-[1.35] bg-accent/5 pr-5 shadow-sm">
-                    &quot;{data.quote}&quot;
-                  </blockquote>
-                </aside>
-              </div>
-            ) : (
-              <div className="hidden lg:block lg:columns-2 gap-12">
-                <div className="first-letter:text-[clamp(3.5rem,8.5vh,5.2rem)] first-letter:font-serif first-letter:text-accent first-letter:float-left first-letter:mr-[4%] first-letter:leading-[0.85] first-letter:mt-[1%]">
-                  <SafeText html={bodyBlocks.join('')} className={bodyRichTextClass} />
-                </div>
+            <SafeText html={bodyHtml} className="text-[clamp(0.95rem,2vh,1.1rem)] text-zinc-700 leading-[1.7] font-light" />
+
+            {signature && (
+              <div className="mt-10 flex items-center gap-3">
+                <div className="h-px w-12 bg-accent/30" />
+                <p className="font-serif italic text-accent">{signature}</p>
               </div>
             )}
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
