@@ -9,11 +9,11 @@
  * Usage: node scripts/import-ghost-to-beehiiv.js --limit 5
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const fetch = require('node-fetch');
 
 // Ghost Config
-const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
+const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk')?.replace(/\/$/, '');
 const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || '61f6041a1f00410f9ac05a60a4';
 
 // Beehiiv Config
@@ -21,7 +21,7 @@ const BEEHIIV_API_KEY = process.env.BEEHIIV_API_KEY;
 const BEEHIIV_PUBLICATION_ID = process.env.BEEHIIV_PUBLICATION_ID;
 const BEEHIIV_API_URL = 'https://api.beehiiv.com/v2';
 
-const limit = parseInt(process.argv.find(arg => arg.startsWith('--limit'))?.split('=')[1]) || 3;
+const limit = parseInt(process.argv?.find(arg => arg?.startsWith('--limit'))?.split('=')?.[1]) || 3;
 
 async function importLatestPosts() {
     if (!BEEHIIV_API_KEY || !BEEHIIV_PUBLICATION_ID) {
@@ -34,22 +34,22 @@ async function importLatestPosts() {
     try {
         // 1. Get posts from Ghost
         const ghostUrl = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
-        ghostUrl.searchParams.append('key', GHOST_CONTENT_API_KEY);
-        ghostUrl.searchParams.append('limit', limit);
-        ghostUrl.searchParams.append('include', 'tags,authors');
-        ghostUrl.searchParams.append('formats', 'html,plaintext');
+        ghostUrl?.searchParams?.append('key', GHOST_CONTENT_API_KEY);
+        ghostUrl?.searchParams?.append('limit', limit);
+        ghostUrl?.searchParams?.append('include', 'tags,authors');
+        ghostUrl?.searchParams?.append('formats', 'html,plaintext');
 
-        const ghostRes = await fetch(ghostUrl.toString(), {
+        const ghostRes = await fetch(ghostUrl?.toString(), {
             headers: { 'Accept-Version': 'v5.0' }
         });
 
-        if (!ghostRes.ok) throw new Error(`Ghost Error: ${ghostRes.statusText}`);
-        const { posts } = await ghostRes.json();
+        if (!ghostRes?.ok) throw new Error(`Ghost Error: ${ghostRes.statusText}`);
+        const { posts } = await ghostRes?.json();
 
-        console.log(`✅ Found ${posts.length} posts. Starting import to Beehiiv...`);
+        console.log(`✅ Found ${posts?.length} posts. Starting import to Beehiiv...`);
 
         for (const post of posts) {
-            console.log(`\n📝 Importing: "${post.title}"...`);
+            console.log(`\n📝 Importing: "${post?.title}"...`);
 
             // 2. Push to Beehiiv as a Draft
             const beehiivRes = await fetch(`${BEEHIIV_API_URL}/publications/${BEEHIIV_PUBLICATION_ID}/posts`, {
@@ -59,24 +59,24 @@ async function importLatestPosts() {
                     'Authorization': `Bearer ${BEEHIIV_API_KEY}`
                 },
                 body: JSON.stringify({
-                    title: post.title,
-                    subtitle: post.custom_excerpt || post.excerpt?.substring(0, 140) || '',
-                    body: post.html, // Beehiiv accepts HTML content
+                    title: post?.title,
+                    subtitle: post?.custom_excerpt || post?.excerpt?.substring(0, 140) || '',
+                    body: post?.html, // Beehiiv accepts HTML content
                     status: 'draft', // Always import as draft for safety
                     platform: 'both', // web and email
                     audience: 'both', // free and premium
-                    authors: post.authors?.map(a => a.name) || [],
-                    content_tags: post.tags?.map(t => t.name) || []
+                    authors: post?.authors?.map(a => a?.name) || [],
+                    content_tags: post?.tags?.map(t => t?.name) || []
                 })
             });
 
-            if (beehiivRes.ok) {
-                const data = await beehiivRes.json();
+            if (beehiivRes?.ok) {
+                const data = await beehiivRes?.json();
                 console.log(`✅ Successfully created draft in Beehiiv!`);
-                console.log(`🔗 Edit it here: https://app.beehiiv.com/publications/${BEEHIIV_PUBLICATION_ID}/posts/${data.data.id}/edit`);
+                console.log(`🔗 Edit it here: https://app.beehiiv.com/publications/${BEEHIIV_PUBLICATION_ID}/posts/${data?.data?.id}/edit`);
             } else {
-                const err = await beehiivRes.json();
-                console.error(`❌ Beehiiv Error:`, err.errors?.[0]?.message || beehiivRes.statusText);
+                const err = await beehiivRes?.json();
+                console.error(`❌ Beehiiv Error:`, err?.errors?.[0]?.message || beehiivRes?.statusText);
             }
 
             // Tiny delay to avoid hitting rate limits
@@ -86,8 +86,8 @@ async function importLatestPosts() {
         console.log(`\n🎉 Import process complete!`);
 
     } catch (error) {
-        console.error(`\n❌ Fatal Error:`, error.message);
+        console.error(`\n❌ Fatal Error:`, error?.message);
     }
 }
 
-importLatestPosts().catch(console.error);
+importLatestPosts()?.catch(console.error);

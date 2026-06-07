@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
+import React, { useState, useEffect } from 'react';
 // Full-width hero carousel with latest articles overlay
-import * as React from "react"
-import Image from "next/image"
-import Link from "next/link"
-import { ArrowRight, BookOpen } from "lucide-react"
-import { motion } from "framer-motion"
-import useEmblaCarousel from "embla-carousel-react"
-import Autoplay from "embla-carousel-autoplay"
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, BookOpen } from "lucide-react";
+import { motion } from "framer-motion";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
 
 export function HeroSection({ posts, recentPosts }: { posts: any[], recentPosts?: any[] }) {
   const [mounted, setMounted] = React.useState(false)
@@ -187,8 +187,7 @@ function LatestArticleItem({
       href={`/news/${article.slug}`}
       className={`group flex gap-4 p-3 transition-all rounded-sm ${
         isActive 
-          ? "bg-white/10" 
-          : "hover:bg-white/5"
+          ? "bg-white/10" :"hover:bg-white/5"
       }`}
     >
       {/* Number indicator */}
@@ -220,8 +219,7 @@ function LatestArticleItem({
       <div className="flex-shrink-0 self-center">
         <ArrowRight className={`h-4 w-4 transition-all ${
           isActive 
-            ? "text-accent translate-x-0 opacity-100" 
-            : "text-white/40 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+            ? "text-accent translate-x-0 opacity-100" :"text-white/40 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
         }`} />
       </div>
     </Link>

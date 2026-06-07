@@ -1,16 +1,16 @@
-import { HeroSection } from "@/components/magazine/hero-section"
-import { ArticleGrid } from "@/components/magazine/article-grid"
-import { FeaturedInterview } from "@/components/magazine/featured-interview"
-import { CategoriesSection } from "@/components/magazine/categories-section"
-import { NewsletterSection } from "@/components/magazine/newsletter-section"
-import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights"
-import { LatestEvents } from "@/components/magazine/latest-events"
-import { CategorySection } from "@/components/magazine/category-section"
-import { TestimonialsSection } from "@/components/magazine/testimonials-section"
-import { MagazineExperience } from "@/components/magazine/magazine-experience"
-import { getPosts, getTags } from "@/lib/ghost"
-import { adminDb } from "@/lib/firebase-admin"
-import Link from "next/link"
+import { HeroSection } from "@/components/magazine/hero-section";
+import { ArticleGrid } from "@/components/magazine/article-grid";
+import { FeaturedInterview } from "@/components/magazine/featured-interview";
+import { CategoriesSection } from "@/components/magazine/categories-section";
+import { NewsletterSection } from "@/components/magazine/newsletter-section";
+import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights";
+import { LatestEvents } from "@/components/magazine/latest-events";
+import { CategorySection } from "@/components/magazine/category-section";
+import { TestimonialsSection } from "@/components/magazine/testimonials-section";
+import { MagazineExperience } from "@/components/magazine/magazine-experience";
+import { getPosts, getTags } from "@/lib/ghost";
+import { adminDb } from "@/lib/firebase-admin";
+ import Link from"next/link";
 
 // Homepage - Yorkshire BusinessWoman Magazine
 

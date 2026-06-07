@@ -1,9 +1,8 @@
-"use client"
-
-import Image from "next/image"
-import Link from "next/link"
-import { ArrowRight } from "lucide-react"
-import { motion } from "framer-motion"
+"use client";
+import Image from"next/image";
+ import Link from"next/link";
+import { ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export function FeaturedInterview({ member }: { member?: any }) {
   if (!member || typeof member !== 'object') return null;

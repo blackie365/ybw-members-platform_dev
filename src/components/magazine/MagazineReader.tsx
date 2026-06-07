@@ -3,19 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  X, 
-  Menu, 
-  Download, 
-  Share2, 
-  Quote, 
-  Star,
-  Award,
-  Users,
-  ArrowRight
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Menu, Download, Share2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Logo } from '@/components/Logo';

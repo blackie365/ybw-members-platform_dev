@@ -133,9 +133,7 @@ export default function MembershipPage() {
             <button
               onClick={() => setBillingCycle('monthly')}
               className={`rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
-                billingCycle === 'monthly'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                billingCycle === 'monthly' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
               }`}
             >
               Monthly
@@ -143,9 +141,7 @@ export default function MembershipPage() {
             <button
               onClick={() => setBillingCycle('annually')}
               className={`rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
-                billingCycle === 'annually'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                billingCycle === 'annually' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
               }`}
             >
               Annually

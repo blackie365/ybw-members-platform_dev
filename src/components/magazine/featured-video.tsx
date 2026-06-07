@@ -1,4 +1,4 @@
-import { MuxVideoPlayer } from "@/components/MuxVideoPlayer"
+import { MuxVideoPlayer } from "@/components/MuxVideoPlayer";
 
 export function FeaturedVideoSection() {
   return (

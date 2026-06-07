@@ -27,16 +27,7 @@ export const MAGAZINE_THEME = {
 };
 
 export type MagazineTemplateId = 
-  | 'cover' 
-  | 'editorial' 
-  | 'contents' 
-  | 'feature-left' 
-  | 'feature-right' 
-  | 'column' 
-  | 'lifestyle' 
-  | 'spotlight' 
-  | 'partner' 
-  | 'back-cover';
+  | 'cover' |'editorial' |'contents' |'feature-left' |'feature-right' |'column' |'lifestyle' |'spotlight' |'partner' |'back-cover';
 
 export interface MagazineTemplate {
   id: MagazineTemplateId;

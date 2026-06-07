@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 import {
   EmailLayout,
   EmailHeading,
@@ -7,7 +7,7 @@ import {
   EmailInfoCard,
   EmailHighlightBox,
   EmailDivider,
-} from "./email-layout"
+} from "./email-layout";
 
 interface MembershipExpiringEmailProps {
   firstName: string

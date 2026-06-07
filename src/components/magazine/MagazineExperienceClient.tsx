@@ -1,10 +1,10 @@
-import Image from "next/image"
-import Link from "next/link"
-import { ArrowRight, Ghost } from "lucide-react"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { MagazineIssue } from "@/lib/magazine-service"
+
+ import Link from"next/link";
+import { ArrowRight } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { MagazineIssue } from "@/lib/magazine-service";
 
 interface MagazineExperienceClientProps {
   latestIssue: MagazineIssue;

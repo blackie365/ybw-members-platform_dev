@@ -1,5 +1,5 @@
-import { MetadataRoute } from 'next'
-import { getMagazineIssuesServer } from '@/lib/magazine-service-server'
+import { MetadataRoute } from 'next';
+import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'

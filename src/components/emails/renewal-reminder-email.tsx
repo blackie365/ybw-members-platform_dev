@@ -1,12 +1,5 @@
-import * as React from "react"
-import {
-  EmailLayout,
-  EmailHeading,
-  EmailText,
-  EmailButton,
-  EmailHighlightBox,
-  EmailInfoCard,
-} from "./email-layout"
+import * as React from "react";
+import { EmailLayout, EmailHeading, EmailText, EmailHighlightBox, EmailInfoCard,  } from "./email-layout";
 
 interface RenewalReminderEmailProps {
   firstName: string

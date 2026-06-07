@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect, useRef, use } from "react"
-import { useAuth } from "@/lib/AuthContext"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Loader2, ArrowLeft, Send } from "lucide-react"
-import { getOtherParticipant, type Message, type MessageThread } from "@/lib/messages"
+"use client";
+import { useState, useEffect, useRef, use } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
+ import Link from"next/link";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Loader2, ArrowLeft, Send } from "lucide-react";
+import { getOtherParticipant, type Message, type MessageThread } from "@/lib/messages";
 
 export default function ThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params)
@@ -165,8 +164,7 @@ export default function ThreadPage({ params }: { params: Promise<{ threadId: str
                     <div
                       className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                         isOwn
-                          ? "bg-accent text-white rounded-br-md"
-                          : "bg-muted rounded-bl-md"
+                          ? "bg-accent text-white rounded-br-md" :"bg-muted rounded-bl-md"
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>

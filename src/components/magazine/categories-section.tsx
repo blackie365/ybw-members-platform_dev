@@ -1,5 +1,5 @@
-import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export function CategoriesSection({ tags }: { tags?: any[] }) {
   if (!tags || tags.length === 0) return null

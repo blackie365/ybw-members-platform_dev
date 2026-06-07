@@ -25,22 +25,21 @@ export function AdminSidebar() {
   return (
     <aside className="w-64 min-h-[calc(100vh-4rem)] bg-background border-r shrink-0 hidden md:block">
       <nav className="p-4 space-y-1">
-        {adminNavItems.map((item) => {
-          const isActive = pathname === item.href || 
-            (item.href !== "/admin" && pathname.startsWith(item.href));
+        {adminNavItems?.map((item) => {
+          const isActive = pathname === item?.href || 
+            (item?.href !== "/admin" && pathname?.startsWith(item?.href));
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item?.href}
+              href={item?.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive 
-                  ? "bg-accent/10 text-accent" 
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-accent/10 text-accent" :"text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               <item.icon className={cn("h-4 w-4", isActive ? "text-accent" : "text-muted-foreground")} />
-              {item.label}
+              {item?.label}
             </Link>
           );
         })}

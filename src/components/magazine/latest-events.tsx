@@ -1,10 +1,9 @@
-"use client"
-
-import Link from "next/link"
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { ArrowRight, MapPin } from "lucide-react"
-import { format } from "date-fns"
+"use client";
+import Link from"next/link";
+ import Image from"next/image";
+import { motion } from "framer-motion";
+import { ArrowRight, MapPin } from "lucide-react";
+import { format } from "date-fns";
 
 interface GhostPost {
   id: string

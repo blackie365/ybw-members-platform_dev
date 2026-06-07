@@ -1,15 +1,14 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Plus, Search, BookOpen, ExternalLink, Trash2, Edit2, Loader2, Image as ImageIcon, Calendar } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/actions/adminActions"
-import Link from "next/link"
-import { toast } from "sonner"
-import Image from "next/image"
+"use client";
+import { useState, useEffect } from "react";
+import { Plus, Search, ExternalLink, Trash2, Edit2, Loader2, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/actions/adminActions";
+ import Link from"next/link";
+import { toast } from "sonner";
+ import Image from"next/image";
 
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])

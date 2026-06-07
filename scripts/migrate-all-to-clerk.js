@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load env vars
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 if (!CLERK_SECRET_KEY) {
@@ -14,12 +14,12 @@ if (!CLERK_SECRET_KEY) {
 
 // Initialize Firebase Admin
 try {
-  const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+  const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+  if (fs?.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
+    if (!admin?.apps?.length) {
+      admin?.initializeApp({
+        credential: admin?.credential?.cert(serviceAccount),
       });
     }
   } else {
@@ -27,67 +27,67 @@ try {
     process.exit(1);
   }
 } catch (e) {
-  console.error('Error initializing Firebase:', e.message);
+  console.error('Error initializing Firebase:', e?.message);
   process.exit(1);
 }
 
-const db = admin.firestore();
+const db = admin?.firestore();
 
 async function migrateAllToClerk() {
   console.log('🚀 Starting full migration from Firestore to Clerk Production...');
 
   // 1. Fetch all members from Firestore
-  const snapshot = await db.collection('newMemberCollection').get();
-  const members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  console.log(`📊 Found ${members.length} members in Firestore.`);
+  const snapshot = await db?.collection('newMemberCollection')?.get();
+  const members = snapshot?.docs?.map(doc => ({ id: doc?.id, ...doc?.data() }));
+  console.log(`📊 Found ${members?.length} members in Firestore.`);
 
   // 2. Clean up Clerk (EXCEPT ADMIN)
   console.log('\n--- Cleaning up existing Clerk users (keeping rob@topicuk.co.uk) ---');
   try {
     let hasMore = true;
     while (hasMore) {
-      const listResponse = await axios.get('https://api.clerk.com/v1/users?limit=100', {
+      const listResponse = await axios?.get('https://api.clerk.com/v1/users?limit=100', {
         headers: { 'Authorization': `Bearer ${CLERK_SECRET_KEY}` }
       });
       
-      const users = listResponse.data;
-      if (users.length === 0) {
+      const users = listResponse?.data;
+      if (users?.length === 0) {
         hasMore = false;
         break;
       }
 
       for (const user of users) {
-        const email = user.email_addresses[0]?.email_address;
+        const email = user?.email_addresses?.[0]?.email_address;
         if (email === 'rob@topicuk.co.uk') {
           console.log(`Skipping admin: ${email}`);
           continue;
         }
 
         try {
-          await axios.delete(`https://api.clerk.com/v1/users/${user.id}`, {
+          await axios?.delete(`https://api.clerk.com/v1/users/${user?.id}`, {
             headers: { 'Authorization': `Bearer ${CLERK_SECRET_KEY}` }
           });
           console.log(`Deleted: ${email}`);
         } catch (e) {
-          console.error(`Failed to delete ${email}: ${e.message}`);
+          console.error(`Failed to delete ${email}: ${e?.message}`);
         }
       }
       
-      if (users.length < 100) hasMore = false;
+      if (users?.length < 100) hasMore = false;
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     console.log('Cleanup complete.');
   } catch (error) {
-    console.error('Error during cleanup:', error.message);
+    console.error('Error during cleanup:', error?.message);
   }
 
   // 3. Import all members
-  console.log(`\n--- Importing ${members.length} members to Clerk ---`);
+  console.log(`\n--- Importing ${members?.length} members to Clerk ---`);
   let successCount = 0;
   let skipCount = 0;
 
   for (const member of members) {
-    const email = member.email?.toLowerCase().trim();
+    const email = member?.email?.toLowerCase()?.trim();
     if (!email) {
       console.log('Skipping member without email');
       skipCount++;
@@ -102,14 +102,14 @@ async function migrateAllToClerk() {
 
     console.log(`Importing: ${email}...`);
     try {
-      await axios.post('https://api.clerk.com/v1/users', {
+      await axios?.post('https://api.clerk.com/v1/users', {
         email_address: [email],
-        first_name: member.firstName || '',
-        last_name: member.lastName || '',
+        first_name: member?.firstName || '',
+        last_name: member?.lastName || '',
         public_metadata: {
-          firestoreId: member.id,
-          membershipTier: member.membershipTier || 'free',
-          isPremium: member.membershipTier && member.membershipTier !== 'free' ? true : false
+          firestoreId: member?.id,
+          membershipTier: member?.membershipTier || 'free',
+          isPremium: member?.membershipTier && member?.membershipTier !== 'free' ? true : false
         },
         skip_password_requirement: true,
         skip_password_checks: true,
@@ -122,8 +122,8 @@ async function migrateAllToClerk() {
       console.log(`✅ Success: ${email}`);
       successCount++;
     } catch (error) {
-      const errMsg = error.response?.data?.errors?.[0]?.message || error.message;
-      if (errMsg.includes('already exists')) {
+      const errMsg = error?.response?.data?.errors?.[0]?.message || error?.message;
+      if (errMsg?.includes('already exists')) {
         console.log(`ℹ️ Already exists: ${email}`);
         successCount++;
       } else {
@@ -135,9 +135,9 @@ async function migrateAllToClerk() {
   }
 
   console.log(`\nMigration complete.`);
-  console.log(`Total members processed: ${members.length}`);
+  console.log(`Total members processed: ${members?.length}`);
   console.log(`Successfully imported/verified: ${successCount}`);
   console.log(`Skipped: ${skipCount}`);
 }
 
-migrateAllToClerk().catch(console.error);
+migrateAllToClerk()?.catch(console.error);

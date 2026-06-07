@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const fetch = require('node-fetch');
 
 const BEEHIIV_API_KEY = process.env.BEEHIIV_API_KEY;
@@ -29,10 +29,10 @@ async function setupTestSegment() {
             })
         });
 
-        const data = await response.json();
+        const data = await response?.json();
 
-        if (response.ok) {
-            const segmentId = data.data.id;
+        if (response?.ok) {
+            const segmentId = data?.data?.id;
             console.log(`✅ Created Segment: 'Admin Test Group' (ID: ${segmentId})`);
             
             // Now add Rob to this segment
@@ -54,16 +54,16 @@ async function setupTestSegment() {
                 })
             });
 
-            if (subResponse.ok) {
+            if (subResponse?.ok) {
                 console.log(`✅ Rob successfully tagged for the test segment.`);
             }
         } else {
-            console.error(`❌ Beehiiv error:`, data.errors?.[0]?.message || response.statusText);
+            console.error(`❌ Beehiiv error:`, data?.errors?.[0]?.message || response?.statusText);
             console.log(`\n💡 Note: If segment creation is restricted via API, I'll provide instructions for the dashboard.`);
         }
     } catch (error) {
-        console.error(`❌ Error:`, error.message);
+        console.error(`❌ Error:`, error?.message);
     }
 }
 
-setupTestSegment().catch(console.error);
+setupTestSegment()?.catch(console.error);

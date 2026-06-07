@@ -7,7 +7,7 @@
  * - Cleans names and applies schema
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const path = require('path');
 const fs = require('fs');
@@ -18,32 +18,32 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Initialize Firebase Admin
 try {
-    const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+    const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+    if (fs?.existsSync(serviceAccountPath)) {
+        const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
+        if (!admin?.apps?.length) {
+            admin?.initializeApp({
+                credential: admin?.credential?.cert(serviceAccount),
             });
         }
     }
 } catch (e) {}
 
-const db = admin.firestore();
+const db = admin?.firestore();
 
 // Name cleaning helper
 function toTitleCase(str) {
     if (!str) return '';
-    return str.toLowerCase().split(/([\s\-])/).map(part => {
+    return str?.toLowerCase()?.split(/([\s\-])/)?.map(part => {
         if (part === ' ' || part === '-') return part;
-        return part.charAt(0).toUpperCase() + part.slice(1);
-    }).join('');
+        return part?.charAt(0)?.toUpperCase() + part?.slice(1);
+    })?.join('');
 }
 
 function cleanName(name) {
     if (!name) return '';
-    let cleaned = name.replace(/^(mr|mrs|ms|miss|dr|prof|sir|lady|rev)\.?\s+/gi, '');
-    cleaned = cleaned.trim();
+    let cleaned = name?.replace(/^(mr|mrs|ms|miss|dr|prof|sir|lady|rev)\.?\s+/gi, '');
+    cleaned = cleaned?.trim();
     return toTitleCase(cleaned);
 }
 
@@ -51,18 +51,18 @@ async function masterSync() {
     console.log(`\n🚀 Starting Master Sync from Final Source of Truth...\n`);
 
     // 1. Read the CSV
-    const csvPath = path.join(process.cwd(), 'membersFinalList.2026-05-21.csv');
-    const fileContent = fs.readFileSync(csvPath, 'utf8');
-    const records = csv.parse(fileContent, {
+    const csvPath = path?.join(process.cwd(), 'membersFinalList.2026-05-21.csv');
+    const fileContent = fs?.readFileSync(csvPath, 'utf8');
+    const records = csv?.parse(fileContent, {
         columns: true,
         skip_empty_lines: true
     });
 
-    console.log(`📊 Found ${records.length} members in the Final List CSV.`);
+    console.log(`📊 Found ${records?.length} members in the Final List CSV.`);
 
     // 2. Fetch all current Firestore members
-    const snapshot = await db.collection('newMemberCollection').get();
-    const firestoreMembers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snapshot = await db?.collection('newMemberCollection')?.get();
+    const firestoreMembers = snapshot?.docs?.map(doc => ({ id: doc?.id, ...doc?.data() }));
     const authorizedEmails = new Set(records.map(r => r.email.toLowerCase().trim()));
     const standardizedDocIds = new Set();
 
@@ -71,44 +71,44 @@ async function masterSync() {
 
     // 3. Process the Final List
     for (const record of records) {
-        const email = record.email.toLowerCase().trim();
-        const originalName = record.name || '';
+        const email = record?.email?.toLowerCase()?.trim();
+        const originalName = record?.name || '';
         const cleanedDisplayName = cleanName(originalName);
-        const nameParts = cleanedDisplayName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const nameParts = cleanedDisplayName?.split(' ');
+        const firstName = nameParts?.[0] || '';
+        const lastName = nameParts?.slice(1)?.join(' ') || '';
 
         // Determine Tier
         let tier = 'free';
         let billingInterval = null;
 
-        if (record.complimentary_plan === 'true' || record.note?.toLowerCase().includes('complimentary') || record.note?.toLowerCase().includes('free')) {
+        if (record?.complimentary_plan === 'true' || record?.note?.toLowerCase()?.includes('complimentary') || record?.note?.toLowerCase()?.includes('free')) {
             tier = 'complimentary';
-        } else if (record.stripe_customer_id) {
+        } else if (record?.stripe_customer_id) {
             // Default to paid_monthly, then refine
             tier = 'paid_monthly';
             
             // Try to get billing interval from Stripe if key is present
             if (process.env.STRIPE_SECRET_KEY) {
                 try {
-                    const subscriptions = await stripe.subscriptions.list({
-                        customer: record.stripe_customer_id,
+                    const subscriptions = await stripe?.subscriptions?.list({
+                        customer: record?.stripe_customer_id,
                         status: 'active',
                         limit: 1
                     });
-                    if (subscriptions.data.length > 0) {
-                        billingInterval = subscriptions.data[0].items.data[0].plan.interval; // 'month' or 'year'
+                    if (subscriptions?.data?.length > 0) {
+                        billingInterval = subscriptions?.data?.[0]?.items?.data?.[0]?.plan?.interval; // 'month' or 'year'
                     }
                 } catch (e) {
-                    console.log(`⚠️ Could not fetch Stripe data for ${email}: ${e.message}`);
+                    console.log(`⚠️ Could not fetch Stripe data for ${email}: ${e?.message}`);
                 }
             }
             
             // Fallback interval check from notes
             if (!billingInterval) {
-                if (record.note?.toLowerCase().includes('annual') || record.note?.toLowerCase().includes('year')) {
+                if (record?.note?.toLowerCase()?.includes('annual') || record?.note?.toLowerCase()?.includes('year')) {
                     billingInterval = 'year';
-                } else if (record.note?.toLowerCase().includes('monthly')) {
+                } else if (record?.note?.toLowerCase()?.includes('monthly')) {
                     billingInterval = 'month';
                 }
             }
@@ -121,23 +121,23 @@ async function masterSync() {
         }
 
         // Find or Create member in Firestore
-        const existing = firestoreMembers.find(m => m.email?.toLowerCase() === email);
-        const memberRef = existing ? db.collection('newMemberCollection').doc(existing.id) : db.collection('newMemberCollection').doc();
+        const existing = firestoreMembers?.find(m => m?.email?.toLowerCase() === email);
+        const memberRef = existing ? db?.collection('newMemberCollection')?.doc(existing?.id) : db?.collection('newMemberCollection')?.doc();
 
-        standardizedDocIds.add(memberRef.id);
+        standardizedDocIds?.add(memberRef?.id);
 
-        await memberRef.set({
+        await memberRef?.set({
             email,
             displayName: cleanedDisplayName,
             firstName,
             lastName,
             membershipTier: tier,
-            billingInterval: billingInterval || (tier.startsWith('paid_') ? (tier === 'paid_annual' ? 'year' : 'month') : 'none'),
-            stripeCustomerId: record.stripe_customer_id || null,
+            billingInterval: billingInterval || (tier?.startsWith('paid_') ? (tier === 'paid_annual' ? 'year' : 'month') : 'none'),
+            stripeCustomerId: record?.stripe_customer_id || null,
             isNewsletterAuthorized: true,
             userInactive: false,
             status: 'active',
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date()?.toISOString(),
             migrationSource: 'FinalList_2026-05-21'
         }, { merge: true });
 
@@ -147,30 +147,30 @@ async function masterSync() {
 
     // 4. Mark everyone else as Inactive
     let inactivatedBatchCount = 0;
-    let batch = db.batch();
+    let batch = db?.batch();
     
     for (const fm of firestoreMembers) {
-        if (!standardizedDocIds.has(fm.id)) {
-            const mRef = db.collection('newMemberCollection').doc(fm.id);
-            batch.update(mRef, {
+        if (!standardizedDocIds?.has(fm?.id)) {
+            const mRef = db?.collection('newMemberCollection')?.doc(fm?.id);
+            batch?.update(mRef, {
                 userInactive: true,
                 isNewsletterAuthorized: false,
-                updatedAt: new Date().toISOString(),
+                updatedAt: new Date()?.toISOString(),
                 status: 'inactive'
             });
             inactivatedCount++;
             inactivatedBatchCount++;
 
             if (inactivatedBatchCount >= 400) {
-                await batch.commit();
-                batch = db.batch();
+                await batch?.commit();
+                batch = db?.batch();
                 inactivatedBatchCount = 0;
             }
         }
     }
 
     if (inactivatedBatchCount > 0) {
-        await batch.commit();
+        await batch?.commit();
     }
 
     console.log(`\n🎉 Master Sync Complete!`);
@@ -179,4 +179,4 @@ async function masterSync() {
     console.log(`\nYour database is now 100% aligned with the final source of truth.`);
 }
 
-masterSync().catch(console.error);
+masterSync()?.catch(console.error);

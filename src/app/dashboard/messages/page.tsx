@@ -1,16 +1,15 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useAuth } from "@/lib/AuthContext"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Loader2, MessageSquare, Search, PenSquare } from "lucide-react"
-import { getOtherParticipant, type MessageThread } from "@/lib/messages"
+"use client";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
+ import Link from"next/link";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, MessageSquare, Search, PenSquare } from "lucide-react";
+import { getOtherParticipant, type MessageThread } from "@/lib/messages";
 
 export default function MessagesPage() {
   const { user, loading: authLoading, profile } = useAuth()

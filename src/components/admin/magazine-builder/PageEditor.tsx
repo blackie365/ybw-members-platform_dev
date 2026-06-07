@@ -255,8 +255,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
           </div>
         );
-      case 'feature-left':
-      case 'feature-right':
+      case 'feature-left': case'feature-right':
         return (
           <div className="space-y-4">
             <div className="space-y-2">

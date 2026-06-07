@@ -1,35 +1,34 @@
-"use client"
-
-import Image from "next/image"
-import { motion } from "framer-motion"
-import { Quote } from "lucide-react"
+"use client";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { Quote } from "lucide-react";
 
 const testimonials = [
-  {
-    quote: "I still cannot say enough great things about this group and I’m so grateful that I am a part of such an outstanding community of incredible women!",
-    name: "Zoe Hands",
-    role: "Member",
-    company: "Yorkshire BusinessWoman",
-    avatar: "/images/testimonials/zoe-hands.png",
-    keywords: ["Community", "Inspiration", "Support"]
-  },
-  {
-    quote: "I joined whilst we were in Lock Down and it was the community and support network that inspired me to join.",
-    name: "Fiona Ibbetson",
-    role: "Member for five years",
-    company: "Yorkshire BusinessWoman",
-    avatar: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/members/GhYFbFkADwz59Af88nHq/avatar-1770214197148-thumb.jpg",
-    keywords: ["Community", "Support", "Inspiration"]
-  },
-  {
-    quote: "The support and mentorship from fellow members helped me scale my business beyond what I thought possible.",
-    name: "Emma Richardson",
-    role: "Managing Director",
-    company: "Yorkshire Creative Agency",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&q=80",
-    keywords: ["Mentorship", "Scaling", "Community"]
-  }
-]
+{
+  quote: "I still cannot say enough great things about this group and I’m so grateful that I am a part of such an outstanding community of incredible women!",
+  name: "Zoe Hands",
+  role: "Member",
+  company: "Yorkshire BusinessWoman",
+  avatar: "/images/testimonials/zoe-hands.png",
+  keywords: ["Community", "Inspiration", "Support"]
+},
+{
+  quote: "I joined whilst we were in Lock Down and it was the community and support network that inspired me to join.",
+  name: "Fiona Ibbetson",
+  role: "Member for five years",
+  company: "Yorkshire BusinessWoman",
+  avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1a193bc11-1767466695042.png",
+  keywords: ["Community", "Support", "Inspiration"]
+},
+{
+  quote: "The support and mentorship from fellow members helped me scale my business beyond what I thought possible.",
+  name: "Emma Richardson",
+  role: "Managing Director",
+  company: "Yorkshire Creative Agency",
+  avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1b678f70e-1772278210101.png",
+  keywords: ["Mentorship", "Scaling", "Community"]
+}];
+
 
 export function TestimonialsSection() {
   return (
@@ -37,13 +36,13 @@ export function TestimonialsSection() {
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
         {/* Section Header */}
         <div className="mb-8 max-w-2xl">
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="font-serif text-2xl font-medium leading-tight text-foreground"
-          >
+            className="font-serif text-2xl font-medium leading-tight text-foreground">
+            
             What Yorkshire Says
           </motion.h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -53,15 +52,15 @@ export function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid gap-8 md:grid-cols-3">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={testimonial.name}
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="group relative flex flex-col bg-card border border-border p-8 transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20"
-            >
+          {testimonials.map((testimonial, index) =>
+          <motion.div
+            key={testimonial.name}
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+            className="group relative flex flex-col bg-card border border-border p-8 transition-all duration-300 hover:shadow-lg dark:hover:shadow-black/20">
+            
               {/* Quote Icon */}
               <Quote className="h-8 w-8 text-accent/20 mb-6" />
               
@@ -74,25 +73,25 @@ export function TestimonialsSection() {
 
               {/* Keywords */}
               <div className="mt-6 flex flex-wrap gap-2">
-                {testimonial.keywords.map((keyword) => (
-                  <span 
-                    key={keyword}
-                    className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
-                  >
+                {testimonial.keywords.map((keyword) =>
+              <span
+                key={keyword}
+                className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                
                     {keyword}
                   </span>
-                ))}
+              )}
               </div>
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-4 pt-6 border-t border-border">
                 <div className="relative h-12 w-12 flex-shrink-0">
                   <Image
-                    src={testimonial.avatar}
-                    alt={testimonial.name}
-                    fill
-                    className="rounded-full object-cover"
-                  />
+                  src={testimonial.avatar}
+                  alt={testimonial.name}
+                  fill
+                  className="rounded-full object-cover" />
+                
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground">
@@ -104,7 +103,7 @@ export function TestimonialsSection() {
                 </div>
               </div>
             </motion.div>
-          ))}
+          )}
         </div>
 
         {/* Placeholder Disclaimer */}
@@ -114,6 +113,6 @@ export function TestimonialsSection() {
           </p>
         </div>
       </div>
-    </section>
-  )
+    </section>);
+
 }

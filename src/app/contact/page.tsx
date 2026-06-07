@@ -79,7 +79,6 @@ export default async function ContactPage() {
           </div>
         </div>
       </div>
-
       {/* Right side - Form */}
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-12 xl:px-20 bg-background">
         <div className="mx-auto w-full max-w-lg">
@@ -101,11 +100,11 @@ export default async function ContactPage() {
           {/* Render Ghost Content below the form if it exists */}
           {page?.html && (
             <div className="mt-16 pt-12 border-t border-border">
-              {page.feature_image && (
+              {page?.feature_image && (
                 <div className="relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-xl">
                   <Image
-                    src={page.feature_image}
-                    alt={page.title}
+                    src={page?.feature_image}
+                    alt={page?.title}
                     fill
                     className="object-cover"
                     priority
@@ -115,7 +114,7 @@ export default async function ContactPage() {
               
               <div 
                 className="prose prose-lg max-w-none text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: page.html }}
+                dangerouslySetInnerHTML={{ __html: page?.html }}
               />
             </div>
           )}

@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const fs = require('fs');
 const path = require('path');
 
@@ -32,7 +32,7 @@ const htmlTemplate = `
       <div class="label">Daily News Digest</div>
     </div>
     <div class="content">
-      <div class="date">${new Date().toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+      <div class="date">${new Date()?.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
       <h1 class="greeting">Good morning, {{subscriber.first_name}}.</h1>
       <p class="intro">Here are today's top stories from across Yorkshire.</p>
       
@@ -50,7 +50,7 @@ const htmlTemplate = `
       <!-- BEEHIIV DYNAMIC POSTS END -->
     </div>
     <div class="footer">
-      &copy; ${new Date().getFullYear()} Yorkshire Businesswoman. All rights reserved.<br>
+      &copy; ${new Date()?.getFullYear()} Yorkshire Businesswoman. All rights reserved.<br>
       You are receiving this email because you are a member of our community.<br>
       <a href="{{unsubscribe_url}}" style="color: #b79c65; text-decoration: underline;">Unsubscribe</a>
     </div>
@@ -59,6 +59,6 @@ const htmlTemplate = `
 </html>
 `;
 
-const outputPath = path.join(process.cwd(), 'beehiiv-newsletter-template.html');
-fs.writeFileSync(outputPath, htmlTemplate);
+const outputPath = path?.join(process.cwd(), 'beehiiv-newsletter-template.html');
+fs?.writeFileSync(outputPath, htmlTemplate);
 console.log('✅ Beehiiv template created successfully!');

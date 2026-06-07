@@ -1,13 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Type, 
-  Image as ImageIcon,
-  ClipboardPaste,
-  Loader2,
-  CheckCircle2
-} from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,8 +49,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
         manualContent.text = rawText;
         manualContent.image = imageUrl;
         break;
-      case 'feature-left':
-      case 'feature-right':
+      case 'feature-left': case'feature-right':
         manualContent.name = author || 'Featured Guest';
         manualContent.title = title || 'Feature Story';
         manualContent.text = rawText;

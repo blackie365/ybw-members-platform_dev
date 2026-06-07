@@ -33,8 +33,7 @@ export async function POST(request: Request) {
 
     // If the request specifies a subscription plan (e.g. Premium Member)
     if (plan === 'premium') {
-      const priceId = cycle === 'annually' 
-        ? 'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
+      const priceId = cycle === 'annually' ?'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
         : 'price_1TVHicLZwCrAHQYPLXqio8Bi'; // Monthly Price ID
 
       const session = await stripe.checkout.sessions.create({

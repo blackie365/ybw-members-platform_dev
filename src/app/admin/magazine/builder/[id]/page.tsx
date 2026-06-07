@@ -384,7 +384,19 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         // Update existing page
         const res = await updateMagazinePageAction(id, targetPageId, { content });
         if (res.success) {
-          toast.success(`Updated spread with content from "${post.title}"`);
+          toast.success(`Updated spread with content from "${post.title}"
+import { IssueMetadata } from '@/components/admin/magazine-builder/IssueMetadata';
+import { PageTypeSelector } from '@/components/admin/magazine-builder/PageTypeSelector';
+import { PageList } from '@/components/admin/magazine-builder/PageList';
+import { PageEditor } from '@/components/admin/magazine-builder/PageEditor';
+import { GhostImporter } from '@/components/admin/magazine-builder/GhostImporter';
+import { ManualImporter } from '@/components/admin/magazine-builder/ManualImporter';
+
+
+
+
+
+`);
           await loadData(true);
           setActiveTab('builder');
         }

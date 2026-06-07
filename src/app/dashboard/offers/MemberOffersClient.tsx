@@ -156,8 +156,7 @@ export default function MemberOffersClient({
           </h3>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
             {initialOffers.length > 0 
-              ? 'Try adjusting your search terms or clearing the filter.' 
-              : 'Check back soon for exclusive discounts and perks from our partners.'}
+              ? 'Try adjusting your search terms or clearing the filter.' :'Check back soon for exclusive discounts and perks from our partners.'}
           </p>
           <div className="mt-6">
             {initialOffers.length > 0 ? (

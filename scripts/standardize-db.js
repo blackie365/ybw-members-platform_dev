@@ -10,7 +10,7 @@
  * Usage: node scripts/standardize-db.js --dry-run
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -21,21 +21,21 @@ const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const projectId = process.env.FIREBASE_PROJECT_ID || 'newmembersdirectory130325';
 
 if (privateKey) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
+    privateKey = privateKey?.replace(/\\n/g, '\n');
 }
 
-if (!admin.apps.length) {
+if (!admin?.apps?.length) {
     try {
-        const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-        if (fs.existsSync(serviceAccountPath)) {
-            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+        const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+        if (fs?.existsSync(serviceAccountPath)) {
+            const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
+            admin?.initializeApp({
+                credential: admin?.credential?.cert(serviceAccount),
             });
             console.log('✅ Loaded credentials from serviceAccountKey.json');
         } else if (privateKey && clientEmail) {
-            admin.initializeApp({
-                credential: admin.credential.cert({
+            admin?.initializeApp({
+                credential: admin?.credential?.cert({
                     projectId,
                     clientEmail,
                     privateKey,
@@ -46,14 +46,14 @@ if (!admin.apps.length) {
             throw new Error('No Firebase credentials found (serviceAccountKey.json or env vars)');
         }
     } catch (e) {
-        console.error('❌ Failed to initialize Firebase Admin:', e.message);
+        console.error('❌ Failed to initialize Firebase Admin:', e?.message);
         process.exit(1);
     }
 }
 
-const db = admin.firestore();
+const db = admin?.firestore();
 const COLLECTION_NAME = 'newMemberCollection';
-const isDryRun = process.argv.includes('--dry-run');
+const isDryRun = process.argv?.includes('--dry-run');
 
 // Mapping of legacy/messy fields to standard camelCase fields
 const FIELD_MAP = {
@@ -145,52 +145,52 @@ async function runMigration() {
     console.log(`\n🚀 Starting Firestore Standardization on '${COLLECTION_NAME}'`);
     console.log(isDryRun ? "🧪 DRY RUN MODE - No changes will be written to Firestore" : "⚠️ PRODUCTION MODE - Data will be updated");
 
-    const snapshot = await db.collection(COLLECTION_NAME).get();
-    console.log(`Found ${snapshot.size} documents.\n`);
+    const snapshot = await db?.collection(COLLECTION_NAME)?.get();
+    console.log(`Found ${snapshot?.size} documents.\n`);
 
     // 1. Backup
     const backupData = {};
-    snapshot.docs.forEach(doc => {
-        backupData[doc.id] = doc.data();
+    snapshot?.docs?.forEach(doc => {
+        backupData[doc.id] = doc?.data();
     });
     
-    const backupFile = path.join(process.cwd(), `scripts/backup_${Date.now()}.json`);
-    fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
+    const backupFile = path?.join(process.cwd(), `scripts/backup_${Date.now()}.json`);
+    fs?.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
     console.log(`📦 Backup created: ${backupFile}`);
 
     let updateCount = 0;
 
-    for (const doc of snapshot.docs) {
-        const originalData = doc.data();
+    for (const doc of snapshot?.docs) {
+        const originalData = doc?.data();
         const standardizedData = {};
         const keysToDelete = [];
 
         // Apply mapping
-        Object.entries(originalData).forEach(([key, value]) => {
-            if (FIELD_MAP[key]) {
-                const standardKey = FIELD_MAP[key];
+        Object.entries(originalData)?.forEach(([key, value]) => {
+            if (FIELD_MAP?.[key]) {
+                const standardKey = FIELD_MAP?.[key];
                 // Only set if not already set (prevents overwriting newer camelCase fields with legacy data)
-                if (standardizedData[standardKey] === undefined || standardizedData[standardKey] === null || standardizedData[standardKey] === '') {
+                if (standardizedData?.[standardKey] === undefined || standardizedData?.[standardKey] === null || standardizedData?.[standardKey] === '') {
                     standardizedData[standardKey] = value;
                 }
                 
                 // If it's a legacy key name, mark for deletion
                 if (key !== standardKey) {
-                    keysToDelete.push(key);
+                    keysToDelete?.push(key);
                 }
-            } else if (!FIELDS_TO_REMOVE.includes(key)) {
+            } else if (!FIELDS_TO_REMOVE?.includes(key)) {
                 // Keep unknown fields that aren't on the remove list
                 standardizedData[key] = value;
             } else {
-                keysToDelete.push(key);
+                keysToDelete?.push(key);
             }
         });
 
         // --- NEW IMAGE HEURISTICS ---
         // Look through ALL fields for a storage URL to set as the primary avatar
         let bestImage = null;
-        Object.entries(originalData).forEach(([k, v]) => {
-            if (typeof v === 'string' && v.includes('storage.googleapis.com')) {
+        Object.entries(originalData)?.forEach(([k, v]) => {
+            if (typeof v === 'string' && v?.includes('storage.googleapis.com')) {
                 bestImage = v;
             }
         });
@@ -203,36 +203,36 @@ async function runMigration() {
         // --- END IMAGE HEURISTICS ---
 
         // Ensure display name exists
-        if (!standardizedData.displayName && (standardizedData.firstName || standardizedData.lastName)) {
-            standardizedData.displayName = `${standardizedData.firstName || ''} ${standardizedData.lastName || ''}`.trim();
+        if (!standardizedData?.displayName && (standardizedData?.firstName || standardizedData?.lastName)) {
+            standardizedData.displayName = `${standardizedData?.firstName || ''} ${standardizedData?.lastName || ''}`?.trim();
         }
 
         // --- NEW NAME CLEANING HEURISTICS ---
-        if (standardizedData.displayName) {
-            const originalName = standardizedData.displayName;
+        if (standardizedData?.displayName) {
+            const originalName = standardizedData?.displayName;
             
             // Function to clean name (strips Mr, Mrs, Ms, Miss, Dr and Title Cases)
             const toTitleCase = (str) => {
                 if (!str) return '';
-                return str.toLowerCase().split(/([\s\-])/).map(part => {
+                return str?.toLowerCase()?.split(/([\s\-])/)?.map(part => {
                     if (part === ' ' || part === '-') return part;
-                    return part.charAt(0).toUpperCase() + part.slice(1);
-                }).join('');
+                    return part?.charAt(0)?.toUpperCase() + part?.slice(1);
+                })?.join('');
             };
 
             const cleanName = (name) => {
                 if (!name) return '';
-                let cleaned = name.replace(/^(mr|mrs|ms|miss|dr|prof|sir|lady|rev)\.?\s+/gi, '');
-                cleaned = cleaned.trim();
+                let cleaned = name?.replace(/^(mr|mrs|ms|miss|dr|prof|sir|lady|rev)\.?\s+/gi, '');
+                cleaned = cleaned?.trim();
                 return toTitleCase(cleaned);
             };
 
             const cleanedName = cleanName(originalName);
             if (originalName !== cleanedName) {
                 standardizedData.displayName = cleanedName;
-                const nameParts = cleanedName.split(' ');
-                standardizedData.firstName = nameParts[0] || '';
-                standardizedData.lastName = nameParts.slice(1).join(' ') || '';
+                const nameParts = cleanedName?.split(' ');
+                standardizedData.firstName = nameParts?.[0] || '';
+                standardizedData.lastName = nameParts?.slice(1)?.join(' ') || '';
             }
         }
         // --- END NAME CLEANING HEURISTICS ---
@@ -241,53 +241,53 @@ async function runMigration() {
         // If they have a storage image, are 'paid', 'comped', or 'isPremium', ensure they are in the 'premium' tier
         const isActuallyPremium = 
             !!bestImage ||
-            standardizedData.status === 'paid' || 
-            standardizedData.status === 'comped' || 
-            standardizedData.isPremium === true || 
-            standardizedData.membershipTier === 'Active Member' ||
-            originalData['Member status'] === 'paid' ||
-            originalData['Member status'] === 'comped' ||
-            originalData['Active'] === 'true' ||
-            originalData['Active'] === true;
+            standardizedData?.status === 'paid' || 
+            standardizedData?.status === 'comped' || 
+            standardizedData?.isPremium === true || 
+            standardizedData?.membershipTier === 'Active Member' ||
+            originalData?.['Member status'] === 'paid' ||
+            originalData?.['Member status'] === 'comped' ||
+            originalData?.['Active'] === 'true' ||
+            originalData?.['Active'] === true;
 
-        if (isActuallyPremium && (!standardizedData.membershipTier || standardizedData.membershipTier === 'free' || standardizedData.membershipTier === 'undefined')) {
+        if (isActuallyPremium && (!standardizedData?.membershipTier || standardizedData?.membershipTier === 'free' || standardizedData?.membershipTier === 'undefined')) {
             standardizedData.membershipTier = 'premium';
             standardizedData.status = 'active';
         }
         // --- END STATUS/TIER HEURISTICS ---
 
         // Clean up empty strings or nulls for critical fields if necessary
-        if (standardizedData.tags && typeof standardizedData.tags === 'string') {
+        if (standardizedData?.tags && typeof standardizedData?.tags === 'string') {
             try {
-                standardizedData.tags = JSON.parse(standardizedData.tags);
+                standardizedData.tags = JSON.parse(standardizedData?.tags);
             } catch (e) {
                 standardizedData.tags = [];
             }
         }
 
         // Check if any change actually happened
-        const hasChanges = keysToDelete.length > 0 || JSON.stringify(originalData) !== JSON.stringify(standardizedData);
+        const hasChanges = keysToDelete?.length > 0 || JSON.stringify(originalData) !== JSON.stringify(standardizedData);
 
         if (hasChanges) {
             updateCount++;
             if (isDryRun) {
                 if (updateCount <= 3) {
-                    console.log(`\n[DRY RUN] Would update doc: ${doc.id}`);
-                    console.log(`- Removing: ${keysToDelete.join(', ')}`);
-                    console.log(`- Resulting fields: ${Object.keys(standardizedData).join(', ')}`);
+                    console.log(`\n[DRY RUN] Would update doc: ${doc?.id}`);
+                    console.log(`- Removing: ${keysToDelete?.join(', ')}`);
+                    console.log(`- Resulting fields: ${Object.keys(standardizedData)?.join(', ')}`);
                 }
             } else {
                 // Perform the update:
                 // First delete legacy fields
                 const deletions = {};
-                keysToDelete.forEach(k => {
-                    deletions[k] = admin.firestore.FieldValue.delete();
+                keysToDelete?.forEach(k => {
+                    deletions[k] = admin?.firestore?.FieldValue?.delete();
                 });
                 
-                await db.collection(COLLECTION_NAME).doc(doc.id).update({
+                await db?.collection(COLLECTION_NAME)?.doc(doc?.id)?.update({
                     ...standardizedData,
                     ...deletions,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    updatedAt: admin?.firestore?.FieldValue?.serverTimestamp()
                 });
             }
         }
@@ -300,4 +300,4 @@ async function runMigration() {
     }
 }
 
-runMigration().catch(console.error);
+runMigration()?.catch(console.error);

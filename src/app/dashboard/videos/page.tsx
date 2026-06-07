@@ -29,24 +29,23 @@ export default function VideoLibraryPage() {
           Exclusive video content, masterclasses, and event replays for Yorkshire Businesswoman members.
         </p>
       </div>
-
       <div className="grid gap-12">
-        {videos.map((video) => (
-          <div key={video.id} className="bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/50 overflow-hidden">
+        {videos?.map((video) => (
+          <div key={video?.id} className="bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700/50 overflow-hidden">
             <MuxVideoPlayer 
-              playbackId={video.playbackId} 
-              title={video.title} 
+              playbackId={video?.playbackId} 
+              title={video?.title} 
               className="w-full rounded-none rounded-t-2xl border-b border-zinc-200 dark:border-zinc-700/50" 
             />
             <div className="p-6 sm:p-8">
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">{video.title}</h3>
+                <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">{video?.title}</h3>
                 <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 dark:bg-indigo-400/10 dark:text-indigo-400 dark:ring-indigo-400/30">
-                  {new Date(video.date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                  {new Date(video.date)?.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
                 </span>
               </div>
               <p className="text-zinc-600 dark:text-zinc-400">
-                {video.description}
+                {video?.description}
               </p>
             </div>
           </div>

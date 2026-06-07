@@ -1,19 +1,18 @@
-"use client"
-
-import { useState } from "react"
-import Link from "next/link"
-import { Menu, User, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client";
+import { useState } from "react";
+ import Link from"next/link";
+import { Menu, User, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { Logo } from "@/components/Logo"
-import { ThemeToggle } from "@/components/ThemeToggle"
-import { useAuth } from "@/lib/AuthContext"
-import { useRouter } from "next/navigation"
-import { Shield } from "lucide-react"
+} from "@/components/ui/sheet";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
+import { Shield } from "lucide-react";
 
 const navigation = [
   { name: 'Home', href: '/' },

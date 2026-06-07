@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const path = require('path');
 const fs = require('fs');
@@ -11,26 +11,26 @@ const BEEHIIV_API_URL = 'https://api.beehiiv.com/v2';
 
 // Initialize Firebase Admin
 try {
-    const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-        if (!admin.apps.length) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+    const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+    if (fs?.existsSync(serviceAccountPath)) {
+        const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
+        if (!admin?.apps?.length) {
+            admin?.initializeApp({
+                credential: admin?.credential?.cert(serviceAccount),
             });
         }
     }
 } catch (e) {}
 
-const db = admin.firestore();
+const db = admin?.firestore();
 
 async function addRobToNewsletter() {
     const email = 'rob@topicuk.co.uk';
     console.log(`\n📧 Adding ${email} to Authorized Newsletter List...\n`);
 
     // 1. Update/Create in Firestore with the authorization flag
-    const memberRef = db.collection('newMemberCollection').doc('rob_test_user');
-    await memberRef.set({
+    const memberRef = db?.collection('newMemberCollection')?.doc('rob_test_user');
+    await memberRef?.set({
         email: email,
         displayName: 'Rob Blackwell',
         firstName: 'Rob',
@@ -38,7 +38,7 @@ async function addRobToNewsletter() {
         isNewsletterAuthorized: true,
         status: 'active',
         membershipTier: 'premium',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()?.toISOString()
     }, { merge: true });
 
     console.log(`✅ Firestore updated with isNewsletterAuthorized: true`);
@@ -69,16 +69,16 @@ async function addRobToNewsletter() {
             })
         });
 
-        if (response.ok) {
+        if (response?.ok) {
             console.log(`✅ Successfully added ${email} to Beehiiv!`);
             console.log(`📬 You should receive a welcome email shortly.`);
         } else {
-            const err = await response.json();
-            console.error(`❌ Beehiiv error:`, err.errors?.[0]?.message || response.statusText);
+            const err = await response?.json();
+            console.error(`❌ Beehiiv error:`, err?.errors?.[0]?.message || response?.statusText);
         }
     } catch (error) {
-        console.error(`❌ Sync error:`, error.message);
+        console.error(`❌ Sync error:`, error?.message);
     }
 }
 
-addRobToNewsletter().catch(console.error);
+addRobToNewsletter()?.catch(console.error);

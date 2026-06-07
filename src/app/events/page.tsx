@@ -72,7 +72,7 @@ function EventsLoadingSkeleton() {
 }
 
 async function EventsList({ searchParams }: { searchParams: SearchParams }) {
-  const events = await getEvents(searchParams);
+  let events = await getEvents(searchParams);
   const view = searchParams.view || 'upcoming';
 
   if (events.length === 0) {
@@ -155,9 +155,7 @@ export default async function EventsPage({
               <Link
                 href="/events?view=upcoming"
                 className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
-                  view === 'upcoming'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                  view === 'upcoming' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Upcoming
@@ -165,9 +163,7 @@ export default async function EventsPage({
               <Link
                 href="/events?view=past"
                 className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
-                  view === 'past'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                  view === 'past' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Past Events

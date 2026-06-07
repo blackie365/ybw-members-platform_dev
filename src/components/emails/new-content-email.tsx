@@ -4,7 +4,7 @@ import {
   EmailText,
   EmailButton,
   EmailDivider,
-} from "./email-layout"
+} from "./email-layout";
 
 interface NewContentEmailProps {
   firstName: string

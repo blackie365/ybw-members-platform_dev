@@ -4,7 +4,7 @@
  * This script exports all active newsletter recipients from Firestore to Beehiiv.
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -17,22 +17,22 @@ const BEEHIIV_API_URL = 'https://api.beehiiv.com/v2';
 
 // Initialize Firebase Admin
 try {
-    const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+    const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+    if (fs?.existsSync(serviceAccountPath)) {
+        const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
+        admin?.initializeApp({
+            credential: admin?.credential?.cert(serviceAccount),
         });
         console.log('✅ Loaded credentials from serviceAccountKey.json');
     } else {
         throw new Error('serviceAccountKey.json not found');
     }
 } catch (e) {
-    console.error('❌ Failed to initialize Firebase Admin:', e.message);
+    console.error('❌ Failed to initialize Firebase Admin:', e?.message);
     process.exit(1);
 }
 
-const db = admin.firestore();
+const db = admin?.firestore();
 
 async function syncToBeehiiv() {
     if (!BEEHIIV_API_KEY || !BEEHIIV_PUBLICATION_ID) {
@@ -42,16 +42,13 @@ async function syncToBeehiiv() {
 
     console.log(`\n🐝 Starting Beehiiv Sync (STRICT Final List Authorized Members Only)...`);
 
-    const snapshot = await db.collection('newMemberCollection')
-        .where('isNewsletterAuthorized', '==', true)
-        .where('userInactive', '==', false)
-        .get();
+    const snapshot = await db?.collection('newMemberCollection')?.where('isNewsletterAuthorized', '==', true)?.where('userInactive', '==', false)?.get();
 
-    const validSubscribers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const validSubscribers = snapshot?.docs?.map(doc => ({ id: doc?.id, ...doc?.data() }));
 
-    console.log(`Found ${validSubscribers.length} members flagged as isNewsletterAuthorized in Firestore.`);
+    console.log(`Found ${validSubscribers?.length} members flagged as isNewsletterAuthorized in Firestore.`);
 
-    if (validSubscribers.length === 0) {
+    if (validSubscribers?.length === 0) {
         console.log('⚠️ No authorized members found. Please run scripts/isolate-88.js first.');
         return;
     }
@@ -60,7 +57,7 @@ async function syncToBeehiiv() {
     let failCount = 0;
 
     for (const m of validSubscribers) {
-        const email = m.email;
+        const email = m?.email;
 
         if (!email) continue;
 
@@ -77,25 +74,25 @@ async function syncToBeehiiv() {
                     send_welcome_email: false, // Don't spam them during migration
                     utm_source: 'firestore-migration',
                     custom_fields: [
-                        { name: 'first_name', value: m.firstName || '' },
-                        { name: 'last_name', value: m.lastName || '' },
-                        { name: 'industry', value: m.industrySector || '' },
-                        { name: 'membership_tier', value: m.membershipTier || 'free' }
+                        { name: 'first_name', value: m?.firstName || '' },
+                        { name: 'last_name', value: m?.lastName || '' },
+                        { name: 'industry', value: m?.industrySector || '' },
+                        { name: 'membership_tier', value: m?.membershipTier || 'free' }
                     ]
                 })
             });
 
-            if (response.ok) {
+            if (response?.ok) {
                 successCount++;
-                process.stdout.write('.');
-                await doc.ref.update({ beehiivSync: true });
+                process.stdout?.write('.');
+                await doc?.ref?.update({ beehiivSync: true });
             } else {
-                const err = await response.json();
-                console.error(`\n❌ Failed for ${email}:`, err.errors?.[0]?.message || response.statusText);
+                const err = await response?.json();
+                console.error(`\n❌ Failed for ${email}:`, err?.errors?.[0]?.message || response?.statusText);
                 failCount++;
             }
         } catch (error) {
-            console.error(`\n❌ Error for ${email}:`, error.message);
+            console.error(`\n❌ Error for ${email}:`, error?.message);
             failCount++;
         }
 
@@ -108,4 +105,4 @@ async function syncToBeehiiv() {
     console.log(`Failed: ${failCount}`);
 }
 
-syncToBeehiiv().catch(console.error);
+syncToBeehiiv()?.catch(console.error);

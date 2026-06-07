@@ -1,11 +1,11 @@
-import * as React from "react"
+import * as React from "react";
 import {
   EmailLayout,
   EmailHeading,
   EmailText,
   EmailButton,
   EmailHighlightBox,
-} from "./email-layout"
+} from "./email-layout";
 
 export function PasswordResetEmail({ firstName, resetLink }: { firstName: string, resetLink: string }) {
   return (

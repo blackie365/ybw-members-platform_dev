@@ -1,11 +1,10 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, TrendingUp, Calendar, MessageSquare, Building, MapPin, Loader2, Mail } from "lucide-react"
-import { getAnalyticsData, getBeehiivPostStatsAction } from "@/app/actions/adminActions"
+"use client";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users, TrendingUp, Calendar, MapPin, Loader2, Mail } from "lucide-react";
+import { getAnalyticsData, getBeehiivPostStatsAction } from "@/app/actions/adminActions";
 import { 
   BarChart, 
   Bar, 
@@ -18,7 +17,7 @@ import {
   Pie, 
   Cell,
   Legend
-} from "recharts"
+} from "recharts";
 
 interface AnalyticsData {
   membersByMonth: { name: string; platform: number; ghost: number; total: number }[]
