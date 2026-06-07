@@ -104,7 +104,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   };
 
   return (
-    <div className="fixed inset-0 h-[100dvh] bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
+    <div className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#050505] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
       
       {/* Top Control Bar */}
       <header className="h-14 sm:h-16 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-6 bg-zinc-900/50 backdrop-blur-md z-50 shrink-0">
@@ -1099,7 +1099,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   return (
-    <div ref={ref} className="bg-[#2A0A18] py-16 lg:py-24 relative overflow-hidden min-h-full text-white">
+    <div ref={ref} className="bg-primary py-16 lg:py-24 relative overflow-hidden min-h-full text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="blob-accent absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" />
         <div className="blob-primary absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10" />

@@ -63,6 +63,43 @@
   --sidebar-ring: #a3413a;
 }
 
+.magazine-rocket-theme {
+  --background: #faf8f3;
+  --foreground: #1c1410;
+  --primary: #8b1f3f;
+  --primary-foreground: #ffffff;
+  --secondary: #f0ebe3;
+  --secondary-foreground: #3d2b1f;
+  --accent: #a3413a;
+  --accent-foreground: #ffffff;
+  --muted: #f0ebe3;
+  --muted-foreground: #7a6e65;
+  --card: #ffffff;
+  --card-foreground: #1c1410;
+  --border: #e8e0d5;
+  --input: #e8e0d5;
+  --ring: #8b1f3f;
+  --radius: 0.5rem;
+}
+
+.dark .magazine-rocket-theme {
+  --background: #1a1210;
+  --foreground: #f5efe8;
+  --primary: #c8596a;
+  --primary-foreground: #ffffff;
+  --secondary: #2d2018;
+  --secondary-foreground: #e8d8c8;
+  --accent: #a3413a;
+  --accent-foreground: #ffffff;
+  --muted: #2d2018;
+  --muted-foreground: #a89888;
+  --card: #231810;
+  --card-foreground: #f5efe8;
+  --border: #3d2d20;
+  --input: #3d2d20;
+  --ring: #c8596a;
+}
+
 /* Force Clerk to drop shadows and backgrounds */
 .cl-card, 
 .cl-cardBox,
@@ -288,25 +325,48 @@
     line-height: 0.8;
     padding-right: 0.12em;
     padding-top: 0.08em;
-    color: var(--accent);
+    color: var(--primary);
     font-weight: 600;
   }
 
   .blob-primary {
-    background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
+    background: radial-gradient(ellipse at center, var(--primary), transparent 70%);
     filter: blur(60px);
-    opacity: 0.12;
+    opacity: 0.15;
   }
 
   .blob-accent {
-    background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent), white 35%), transparent 70%);
+    background: radial-gradient(ellipse at center, var(--accent), transparent 70%);
     filter: blur(80px);
-    opacity: 0.1;
+    opacity: 0.12;
   }
 
   .grain-overlay {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
     pointer-events: none;
+  }
+
+  .magazine-page-active {
+    display: block;
+  }
+
+  .magazine-page-hidden {
+    display: none;
+  }
+
+  .page-enter {
+    animation: pageEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .ticker-track {
+    display: flex;
+    gap: 3rem;
+    animation: tickerScroll 40s linear infinite;
+    white-space: nowrap;
+  }
+
+  .ticker-track:hover {
+    animation-play-state: paused;
   }
 
   .card-hover {
@@ -404,6 +464,61 @@
   .scroll-reveal-delay-2 { transition-delay: 0.2s; }
   .scroll-reveal-delay-3 { transition-delay: 0.3s; }
   .scroll-reveal-delay-4 { transition-delay: 0.4s; }
+
+  .nav-link {
+    position: relative;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    transition: color 0.2s ease;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1.5px;
+    background-color: var(--primary);
+    transition: width 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .nav-link:hover {
+    color: var(--foreground);
+  }
+
+  .nav-link:hover::after {
+    width: 100%;
+  }
+
+  .page-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .page-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--secondary);
+  }
+
+  .page-btn.active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
 }
 
 @keyframes slideInBlur {
@@ -435,6 +550,22 @@
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-12px); }
+}
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tickerScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 @layer utilities {
