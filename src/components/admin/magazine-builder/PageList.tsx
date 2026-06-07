@@ -3,10 +3,17 @@
 import { 
   Trash2, 
   Layout, 
-  ChevronRight
+  ChevronRight,
+  Ellipsis
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PAGE_TYPES, MagazinePage } from './types';
 
 interface PageListProps {
@@ -14,6 +21,7 @@ interface PageListProps {
   selectedPageId: string | null;
   onSelectPage: (id: string) => void;
   onDeletePage: (id: string) => void;
+  onChangeType?: (pageDocId: string, type: string) => void;
   onMovePage: (id: string, direction: 'up' | 'down') => void;
   isSaving: boolean;
 }
@@ -23,6 +31,7 @@ export function PageList({
   selectedPageId, 
   onSelectPage, 
   onDeletePage, 
+  onChangeType,
   onMovePage,
   isSaving 
 }: PageListProps) {
@@ -99,6 +108,39 @@ export function PageList({
                       <ChevronRight className="h-2 w-2 rotate-90" />
                     </Button>
                   </div>
+                  {!!onChangeType && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-accent"
+                          disabled={isSaving}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                        >
+                          <Ellipsis className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {PAGE_TYPES.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            disabled={isSaving || t.id === page.type}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              if (t.id === page.type) return;
+                              if (!confirm('Change layout for this spread?')) return;
+                              onChangeType(page.docId, t.id);
+                            }}
+                          >
+                            {t.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                   <Button 
                     variant="ghost" 
                     size="icon" 
