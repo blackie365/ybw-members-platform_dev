@@ -544,22 +544,27 @@ const PageEditorial = ({ data, imageVersion }: any) => {
     <div className={`min-h-full w-full ${PAGE_PAD} bg-[#FAF9F6] overflow-visible`}>
       <div className={`${GRID_CONTENT} ${GRID_12} items-start`}>
         <div className="col-span-12 lg:col-span-4">
-          <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.5em] text-accent/70 font-semibold mb-6">
-            Editor&apos;s Note
-          </p>
-          <div className="w-full max-w-[360px] mx-auto lg:mx-0">
-            <div className="relative aspect-[3/4] rounded-md overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] bg-black/5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={fixMagazineImageUrl(data.image, imageVersion)}
-                alt={data.author}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
+          <div className="lg:sticky lg:top-24">
+            <div className="divider-ornament mb-10 max-w-xs">
+              <span className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.5em] text-accent/70 font-semibold whitespace-nowrap">
+                Editor&apos;s Note
+              </span>
             </div>
-            <div className="mt-4 rounded-md bg-white/60 border border-zinc-200/60 px-5 py-4">
-              <p className="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-semibold mb-2">Editor</p>
-              <p className="font-serif text-[clamp(1rem,2.2vh,1.35rem)] text-zinc-900 leading-tight">{data.author}</p>
-              <p className="text-[11px] text-zinc-500 mt-1">Yorkshire BusinessWoman Magazine</p>
+
+            <div className="w-full max-w-[360px] mx-auto lg:mx-0">
+              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] bg-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.author}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              </div>
+              <div className="mt-5 rounded-xl bg-white/60 border border-zinc-200/60 px-5 py-4">
+                <p className="text-[10px] uppercase tracking-[0.4em] text-accent font-semibold mb-1">Editor</p>
+                <p className="font-serif text-[clamp(1rem,2.2vh,1.35rem)] text-zinc-900 leading-tight">{data.author}</p>
+                <p className="text-[11px] text-zinc-500 mt-1">Yorkshire BusinessWoman Magazine</p>
+              </div>
             </div>
           </div>
         </div>
@@ -571,18 +576,19 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             </h2>
 
             {data.quote && (
-              <blockquote className="mb-8 text-accent italic font-serif text-[clamp(1.05rem,2.3vh,1.55rem)] leading-[1.4]">
+              <div className="pull-quote mb-8 text-[clamp(1.05rem,2.3vh,1.55rem)]">
                 &quot;{data.quote}&quot;
-              </blockquote>
-            )}
-
-            {introHtml && (
-              <div className="text-[clamp(0.95rem,2vh,1.1rem)] text-zinc-700 leading-[1.6] font-light mb-6">
-                <SafeText html={introHtml} className="[&_p]:mb-0" />
               </div>
             )}
 
-            <SafeText html={bodyHtml} className="text-[clamp(0.95rem,2vh,1.1rem)] text-zinc-700 leading-[1.7] font-light" />
+            <div className="editorial-prose">
+              {introHtml && (
+                <div className="mb-6">
+                  <SafeText html={introHtml} className="[&_p]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2" />
+                </div>
+              )}
+              <SafeText html={bodyHtml} className="[&_p]:mb-4 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2" />
+            </div>
 
             {signature && (
               <div className="mt-10 flex items-center gap-3">

@@ -255,4 +255,45 @@
     background-color: var(--muted);
     border-radius: 3px;
   }
+
+  .divider-ornament {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: '';
+    height: 1px;
+    flex: 1;
+    background-color: rgb(from var(--accent) r g b / 0.25);
+  }
+
+  .pull-quote {
+    border-left: 4px solid rgb(from var(--accent) r g b / 0.35);
+    padding-left: 1.25rem;
+    font-style: italic;
+    font-family: var(--font-serif);
+    color: var(--accent);
+    line-height: 1.35;
+  }
+
+  .editorial-prose {
+    color: rgb(63 63 70);
+    font-size: clamp(0.95rem, 2vh, 1.1rem);
+    line-height: 1.75;
+    font-weight: 300;
+  }
+
+  .editorial-prose p:first-of-type::first-letter {
+    float: left;
+    font-family: var(--font-serif);
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 3.4em;
+    line-height: 0.9;
+    padding-right: 0.14em;
+    padding-top: 0.06em;
+  }
 }
