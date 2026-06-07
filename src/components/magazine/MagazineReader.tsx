@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { 
@@ -403,6 +403,15 @@ function getHtmlBlocks(html: string): string[] {
   return parts;
 }
 
+function addClassToFirstParagraph(html: string, className: string) {
+  if (!html) return html;
+  return html.replace(/<p(\s[^>]*)?>/i, (full, attrs = '') => {
+    const hasClass = /\sclass=/.test(attrs);
+    if (!hasClass) return `<p${attrs} class="${className}">`;
+    return full.replace(/class=(['"])(.*?)\1/i, (_m, q, existing) => `class=${q}${existing} ${className}${q}`);
+  });
+}
+
 function splitBlocksByWeight(blocks: string[]) {
   const weights = blocks.map((b) => b.replace(/<[^>]*>/g, '').length);
   const total = weights.reduce((sum, w) => sum + w, 0);
@@ -445,6 +454,25 @@ function splitBlocksByWeight(blocks: string[]) {
   };
 }
 
+function useScrollReveal(ref: React.RefObject<HTMLElement | null>, options?: IntersectionObserverInit) {
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add('revealed');
+        });
+      },
+      options ?? { threshold: 0.08 }
+    );
+
+    root.querySelectorAll('.scroll-reveal').forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [ref, options]);
+}
+
 function renderPage(page: any, imageVersion: string) {
   switch (page.type) {
     case 'cover':
@@ -476,124 +504,175 @@ const PAGE_PAD = 'p-[5%] pb-[15vh]';
 const GRID_12 = 'grid grid-cols-12 gap-x-[clamp(1.25rem,3vw,4rem)]';
 const GRID_CONTENT = 'w-full max-w-[min(94%,1200px)] mx-auto';
 
-const PageCover = ({ data, imageVersion }: any) => (
-  <div className="h-full w-full relative overflow-hidden bg-zinc-900">
-    {data.videoUrl ? (
-      <video 
-        src={data.videoUrl} 
-        autoPlay 
-        muted 
-        loop 
-        playsInline 
-        className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]"
-      />
-    ) : (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-95 brightness-[0.9]" />
-    )}
-    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30" />
-    
-    {/* Brand Overlay */}
-    <div className="absolute top-[8%] inset-x-0">
-      <div className={`${GRID_CONTENT} px-8`}>
-        <div className={`${GRID_12} items-start`}>
-          <div className="col-span-12 lg:col-span-7 text-left">
-            <p className="text-white/70 text-[clamp(10px,1.2vh,13px)] tracking-[0.4em] uppercase mb-[2%] font-semibold drop-shadow-md">{data.date} · {data.issue}</p>
-            <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] font-medium tracking-[-0.025em] leading-[0.9] mb-[2%] drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
-              Yorkshire <br />
-              <span className="italic">BusinessWoman</span>
-            </h2>
-            <div className="h-0.5 w-[clamp(3rem,8vw,6rem)] bg-accent shadow-lg" />
+const PageCover = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const items = el.querySelectorAll('.cover-animate');
+    items.forEach((item, i) => {
+      (item as HTMLElement).style.animationDelay = `${0.2 + i * 0.15}s`;
+      item.classList.add('animate-slide-in-blur');
+    });
+  }, []);
+
+  const dateIssue = [data.date, data.issue].filter(Boolean).join(' · ');
+
+  return (
+    <div ref={ref} className="relative min-h-full overflow-hidden">
+      {data.videoUrl ? (
+        <video
+          src={data.videoUrl}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('${fixMagazineImageUrl(data.image, imageVersion)}')` }}
+        />
+      )}
+
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/20" />
+
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="blob-primary absolute top-1/4 left-1/4 w-96 h-96 rounded-full" />
+        <div className="blob-accent absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full" />
+      </div>
+
+      <div className="grain-overlay absolute inset-0 z-10" />
+
+      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 py-12 lg:py-16 min-h-full flex items-center">
+        <div className="max-w-xl">
+          <div className="cover-animate opacity-0 mb-6">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 border border-white/20 rounded-full text-xs font-700 uppercase tracking-widest text-white/70 bg-white/5 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
+              {dateIssue || 'Digital Edition'}
+            </span>
+          </div>
+
+          <div className="cover-animate opacity-0 mb-6">
+            <h1 className="text-hero-display font-serif font-600 text-white leading-none">
+              Yorkshire
+              <br />
+              <span className="gold-shimmer">Business</span>
+              <br />
+              Woman
+            </h1>
+          </div>
+
+          {(data.headline || data.subheadline) && (
+            <div className="cover-animate opacity-0 mb-6">
+              <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
+                <div className="w-1 h-10 bg-accent rounded-full flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-700 uppercase tracking-widest text-accent mb-0.5">
+                    {data.badge || 'Special Report'}
+                  </p>
+                  {data.headline && (
+                    <p className="text-white font-600 text-sm leading-tight line-clamp-2">
+                      {data.headline}
+                    </p>
+                  )}
+                  {data.subheadline && (
+                    <div className="text-white/70 text-xs leading-snug [&_p]:m-0 [&_p]:inline">
+                      <SafeText html={data.subheadline} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="cover-animate opacity-0 flex items-center gap-4">
+            <Link
+              href="/new-edition"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white font-600 text-sm rounded-full hover:opacity-90 transition-opacity"
+            >
+              Browse Archive
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </Link>
+            <Link
+              href="/membership"
+              className="inline-flex items-center gap-2 px-6 py-3 border border-white/30 text-white/80 font-500 text-sm rounded-full hover:bg-white/10 transition-colors"
+            >
+              Join the Community
+            </Link>
           </div>
         </div>
       </div>
     </div>
-
-    {/* Main Headline */}
-    <div className="absolute bottom-[10%] inset-x-0">
-      <div className={`${GRID_CONTENT} px-[8%]`}>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className={GRID_12}
-        >
-          <div className="col-span-12 lg:col-span-9">
-            <Badge className="bg-accent text-white border-none rounded-none mb-[3%] px-[3%] py-[0.5%] tracking-widest uppercase text-[clamp(10px,1.2vh,13px)] shadow-xl">Special Report</Badge>
-            <h1 className="text-white text-[clamp(1.5rem,5vh,4rem)] font-serif font-medium tracking-[-0.025em] leading-[1.1] mb-[3%] drop-shadow-lg">
-              {data.headline}
-            </h1>
-            <div className="text-white/90 text-[clamp(0.85rem,1.8vh,1.3rem)] font-light max-w-2xl border-l-4 border-accent pl-[4%] line-clamp-3 sm:line-clamp-none leading-[1.4] drop-shadow-md [&_p]:m-0 [&_p]:inline [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2">
-              <SafeText html={data.subheadline || ''} />
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const PageEditorial = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
   const allBlocks = getHtmlBlocks(data.text || '');
 
   const introHtml = data.intro || (!data.intro && allBlocks.length > 1 ? allBlocks[0] : '');
   const bodyHtml = (introHtml ? allBlocks.slice(1) : allBlocks).join('');
   const signature = String(data.author || '').trim().split(/\s+/g).filter(Boolean)[0] || '';
+  const introWithDropcap = introHtml ? addClassToFirstParagraph(introHtml, 'editorial-dropcap') : '';
 
   return (
-    <div className={`min-h-full w-full ${PAGE_PAD} bg-[#FAF9F6] overflow-visible`}>
-      <div className={`${GRID_CONTENT} ${GRID_12} items-start`}>
-        <div className="col-span-12 lg:col-span-4">
-          <div className="lg:sticky lg:top-24">
-            <div className="divider-ornament mb-10 max-w-xs">
-              <span className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.5em] text-accent/70 font-semibold whitespace-nowrap">
-                Editor&apos;s Note
-              </span>
-            </div>
+    <div ref={ref} className="bg-background py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">
+            Editor&apos;s Note
+          </span>
+        </div>
 
-            <div className="w-full max-w-[360px] mx-auto lg:mx-0">
-              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.25)] bg-black/5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
+          <div className="lg:col-span-4 scroll-reveal scroll-reveal-delay-1">
+            <div className="lg:sticky lg:top-32 space-y-5">
+              <div className="image-frame rounded-2xl overflow-hidden aspect-[3/4]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={fixMagazineImageUrl(data.image, imageVersion)}
                   alt={data.author}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
-              <div className="mt-5 rounded-xl bg-white/60 border border-zinc-200/60 px-5 py-4">
-                <p className="text-[10px] uppercase tracking-[0.4em] text-accent font-semibold mb-1">Editor</p>
-                <p className="font-serif text-[clamp(1rem,2.2vh,1.35rem)] text-zinc-900 leading-tight">{data.author}</p>
-                <p className="text-[11px] text-zinc-500 mt-1">Yorkshire BusinessWoman Magazine</p>
+              <div className="bg-secondary rounded-xl p-5">
+                <p className="text-xs font-700 uppercase tracking-widest text-accent mb-1">Editor</p>
+                <p className="font-700 text-foreground text-lg">{data.author}</p>
+                <p className="text-sm text-muted-foreground">Yorkshire BusinessWoman Magazine</p>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="col-span-12 lg:col-span-8 flex flex-col justify-start">
-          <div className="w-full max-w-[820px]">
-            <h2 className="text-[clamp(1.9rem,5.5vh,4rem)] font-serif mb-5 tracking-[-0.025em] text-zinc-900 leading-[1]">
-              {data.title}
-            </h2>
+          <div className="lg:col-span-8 space-y-6">
+            <div className="scroll-reveal scroll-reveal-delay-2">
+              <h2 className="text-feature-xl font-serif font-600 text-foreground mb-2">{data.title}</h2>
+            </div>
 
             {data.quote && (
-              <div className="pull-quote mb-8 text-[clamp(1.05rem,2.3vh,1.55rem)]">
-                &quot;{data.quote}&quot;
+              <div className="scroll-reveal scroll-reveal-delay-3 pull-quote">
+                &ldquo;{data.quote}&rdquo;
               </div>
             )}
 
-            <div className="editorial-prose">
-              {introHtml && (
-                <div className="mb-6">
-                  <SafeText html={introHtml} className="[&_p]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2" />
-                </div>
-              )}
-              <SafeText html={bodyHtml} className="[&_p]:mb-4 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2" />
+            <div className="scroll-reveal scroll-reveal-delay-4 space-y-4 text-foreground/80 leading-relaxed">
+              {introWithDropcap && <SafeText html={introWithDropcap} />}
+              {bodyHtml && <SafeText html={bodyHtml} />}
             </div>
 
             {signature && (
-              <div className="mt-10 flex items-center gap-3">
-                <div className="h-px w-12 bg-accent/30" />
-                <p className="font-serif italic text-accent">{signature}</p>
+              <div className="scroll-reveal pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-px bg-accent" />
+                  <p className="font-serif italic text-foreground font-500 text-lg">With warmth and ambition,</p>
+                </div>
+                <p className="font-700 text-primary mt-3 text-lg">{signature}</p>
               </div>
             )}
           </div>
@@ -603,285 +682,527 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   );
 };
 
-const PageContents = ({ data }: any) => (
-  <div className={`min-h-full w-full ${PAGE_PAD} bg-white pt-[10%] lg:pt-[5%]`}>
-    <div className={`${GRID_CONTENT} ${GRID_12} items-start`}>
-    <div className="col-span-12 lg:col-span-7 flex flex-col justify-center max-w-[560px] mx-auto lg:mx-0 w-full">
-      <h2 className="text-[clamp(2.2rem,7vh,5rem)] font-serif mb-[8%] tracking-[-0.025em] text-zinc-900 leading-none">In This <span className="italic text-accent">Issue</span></h2>
-      <div className="space-y-[4%]">
-        {data.items?.map((item: any, i: number) => (
-          <div key={i} className="group cursor-pointer flex items-end gap-[5%] border-b border-zinc-100 pb-[4%] hover:border-accent/60 transition-all duration-500">
-            <span className="text-accent font-mono text-[clamp(1.1rem,2.5vh,2rem)] opacity-30 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-110">0{item.page}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[clamp(9px,0.9vh,11px)] uppercase tracking-[0.3em] text-accent/60 mb-[1%] font-bold">{item.category}</p>
-              <p className="text-[clamp(1rem,2.2vh,1.6rem)] font-serif group-hover:text-accent transition-colors truncate text-zinc-900">{item.title}</p>
-            </div>
-            <ArrowRight className="h-[clamp(0.9rem,2.2vh,1.6rem)] w-[clamp(0.9rem,2.2vh,1.6rem)] text-zinc-200 group-hover:text-accent group-hover:translate-x-[20%] transition-all duration-500 shrink-0" />
-          </div>
-        ))}
-      </div>
-    </div>
-    <div className="col-span-12 lg:col-span-5 bg-zinc-50 p-[8%] rounded-[2rem] flex flex-col justify-center shadow-inner border border-zinc-100 h-fit lg:h-full max-w-[500px] mx-auto lg:mx-0 w-full">
-      <Badge className="bg-accent text-white mb-[8%] w-fit tracking-[0.3em] uppercase text-[clamp(9px,1.1vh,12px)] px-[5%] py-[1.5%] shadow-lg">Regional News</Badge>
-      <div className="space-y-[6%]">
-        {data.news?.map((n: any, i: number) => (
-          <div key={i} className="flex gap-[5%] items-start group">
-            <div className="h-[clamp(5px,0.7vh,8px)] w-[clamp(5px,0.7vh,8px)] rounded-full bg-accent mt-[1.2vh] shrink-0 shadow-[0_0_10px_rgba(163,65,58,0.5)] group-hover:scale-150 transition-transform duration-500" />
-            <p className="text-[clamp(0.9rem,2.2vh,1.4rem)] font-light text-zinc-800 leading-tight group-hover:text-zinc-900 transition-colors">{n}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-auto pt-[8%] border-t-2 border-zinc-200/50">
-        <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.5em] font-black text-zinc-400 mb-[5%]">Stay Connected</p>
-        <div className="flex gap-[10%]">
-          <Star className="h-[clamp(1.2rem,3.5vh,2.5rem)] w-[clamp(1.2rem,3.5vh,2.5rem)] text-accent fill-current drop-shadow-md hover:scale-110 transition-transform" />
-          <Award className="h-[clamp(1.2rem,3.5vh,2.5rem)] w-[clamp(1.2rem,3.5vh,2.5rem)] text-accent drop-shadow-md hover:scale-110 transition-transform" />
-          <Users className="h-[clamp(1.2rem,3.5vh,2.5rem)] w-[clamp(1.2rem,3.5vh,2.5rem)] text-accent drop-shadow-md hover:scale-110 transition-transform" />
-        </div>
-      </div>
-    </div>
-    </div>
-  </div>
-);
+const PageContents = ({ data }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref, { threshold: 0.1 });
 
-const PageFeatureLeft = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-[#FAF9F6] pb-[15vh]">
-    <div className="h-full w-full lg:grid lg:grid-cols-12">
-    <div className="relative h-[40vh] lg:h-full overflow-hidden group shrink-0 shadow-2xl lg:col-span-7">
-      {data.videoUrl ? (
-        <video 
-          src={data.videoUrl} 
-          autoPlay 
-          muted 
-          loop 
-          playsInline 
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] brightness-100"
-        />
-      ) : (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110 brightness-100" />
-      )}
-      <div className="absolute inset-0 bg-accent/5 mix-blend-overlay" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent" />
-    </div>
-    <div className="p-[8%] flex flex-col justify-center bg-[#FAF9F6] lg:col-span-5">
-      <div className="max-w-[min(100%,700px)]">
-        <Badge variant="outline" className="mb-[6%] w-fit border-accent text-accent tracking-[0.4em] uppercase text-[clamp(9px,1.1vh,12px)] px-[4%] py-[1%] border-2">Feature</Badge>
-        <h2 className="text-[clamp(2.2rem,8vh,4.5rem)] font-serif font-medium mb-[4%] leading-[0.9] tracking-[-0.025em] text-zinc-900">{data.title}</h2>
-        <div className="flex items-center gap-[4%] mb-[10%] mt-[2%]">
-          <div className="h-[1px] w-[clamp(1.5rem,4vw,3rem)] bg-accent/30" />
-          <h3 className="text-[clamp(0.8rem,1.8vh,1.3rem)] uppercase tracking-[0.3em] text-zinc-500 font-medium leading-none">{data.name}</h3>
-        </div>
-        <div className="relative">
-          <Quote className="absolute -left-[8%] -top-[15%] h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] text-accent/5 hidden sm:block" />
-          <SafeText html={data.intro} className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-800 font-light leading-[1.4] border-l-[6px] border-accent pl-[8%] italic relative z-10 bg-white/40 py-[5%] pr-[5%] shadow-sm" />
-        </div>
-      </div>
-    </div>
-    </div>
-  </div>
-);
+  const items = Array.isArray(data.items) ? data.items : [];
+  const news = Array.isArray(data.news) ? data.news : [];
 
-const PageFeatureRight = ({ data, imageVersion }: any) => (
-  <div className={`min-h-full w-full relative ${PAGE_PAD} flex flex-col justify-start bg-white pt-[10%] lg:pt-[5%] overflow-visible`}>
-    {data.image && (
-      <div className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Background" className="absolute inset-0 w-full h-full object-cover opacity-10 sm:opacity-15" />
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
-      </div>
-    )}
-    <div className={`relative z-10 ${GRID_CONTENT} max-w-[min(94%,1000px)] min-h-0`}>
-      <div className="flex items-center gap-[2%] mb-[4%]">
-        <Quote className="h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/10" />
-        {data.name && <p className="text-[clamp(8px,0.9vh,10px)] uppercase tracking-[0.3em] text-accent/50 font-medium">{data.name}</p>}
-      </div>
-      <div className="pr-[4%]">
-        <h2 className="text-[clamp(1.3rem,4vh,3rem)] font-serif italic text-black tracking-[-0.025em] leading-tight mb-[6%] max-w-[800px]">
-          &quot;{data.quote}&quot;
-        </h2>
-        <div className={`${GRID_12} items-start gap-y-[8%]`}>
-          <div className="col-span-12 lg:col-span-7">
-            <SafeText html={data.text} className="text-[clamp(0.9rem,2vh,1.2rem)] text-zinc-600 leading-[1.4] font-light" />
+  return (
+    <div ref={ref} className="bg-secondary py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className="feature-tag mb-2">Contents</p>
+            <h2 className="text-section-lg font-serif font-600 text-foreground">In This Issue</h2>
           </div>
-          <div className="col-span-12 lg:col-span-5 bg-zinc-50 p-[8%] rounded-[2rem] shadow-sm border border-zinc-100 mt-[5%] lg:mt-0">
-            <p className="text-[clamp(9px,1vh,11px)] uppercase tracking-[0.3em] font-bold text-accent mb-[8%]">Snapshot</p>
-            <div className="space-y-[6%]">
-              {data.stats?.map((stat: any, i: number) => (
-                <div key={i} className="flex justify-between items-end border-b border-zinc-200 pb-[3%]">
-                  <span className="text-zinc-400 uppercase tracking-widest text-[clamp(8px,0.9vh,10px)] font-medium">{stat.label}</span>
-                  <span className="text-[clamp(1.2rem,3.5vh,2.5rem)] font-serif text-accent leading-none">{stat.value}</span>
+          <div className="flex items-center gap-4">
+            <Link href="https://www.instagram.com/yorkshire_businesswoman" target="_blank" className="text-muted-foreground hover:text-accent transition-colors text-sm font-500">
+              Instagram
+            </Link>
+            <Link href="https://www.linkedin.com/company/yorkshire-businesswoman" target="_blank" className="text-muted-foreground hover:text-accent transition-colors text-sm font-500">
+              LinkedIn
+            </Link>
+            <Link href="https://x.com/YorksBizWoman" target="_blank" className="text-muted-foreground hover:text-accent transition-colors text-sm font-500">
+              X
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+          {items.map((item: any, i: number) => {
+            const pageLabel = String(item?.page ?? '').padStart(3, '0');
+            return (
+              <div
+                key={`${pageLabel}-${item?.title ?? i}`}
+                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} card-hover bg-card rounded-2xl overflow-hidden border border-border cursor-pointer`}
+              >
+                <div className="p-6 flex flex-col h-full min-h-[140px]">
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="feature-tag">{item?.category}</span>
+                    <span className="text-3xl font-800 text-border/60 font-serif leading-none">{pageLabel}</span>
+                  </div>
+                  <p className="font-serif font-600 text-foreground text-lg leading-snug flex-1">{item?.title}</p>
+                  <div className="mt-4 h-0.5 w-12 rounded-full bg-accent" />
                 </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {news.length > 0 && (
+          <div className="scroll-reveal bg-card rounded-2xl border border-border p-6">
+            <p className="feature-tag mb-4">Regional News</p>
+            <ul className="space-y-3">
+              {news.map((item: any, i: number) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-foreground/80">
+                  <span className="text-accent mt-0.5 flex-shrink-0">◆</span>
+                  {item}
+                </li>
               ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PageFeatureLeft = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  const stats = Array.isArray(data.stats) ? data.stats : [];
+
+  return (
+    <div ref={ref} className="bg-background py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">
+            {data.category || 'Feature'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12">
+          <div className="lg:col-span-7 scroll-reveal">
+            <div className="image-frame rounded-2xl overflow-hidden aspect-[16/10]">
+              {data.videoUrl ? (
+                <video
+                  src={data.videoUrl}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.title || data.name || 'Feature'}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
+          </div>
+
+          <div className="lg:col-span-5 flex flex-col justify-center space-y-5 scroll-reveal scroll-reveal-delay-2">
+            <div>
+              <p className="feature-tag mb-2">{data.tag || 'Feature'}</p>
+              <h2 className="text-section-lg font-serif font-600 text-foreground mb-3">{data.title}</h2>
+              {data.name && (
+                <p className="text-sm text-muted-foreground font-500 uppercase tracking-wider">{data.name}</p>
+              )}
+            </div>
+
+            {data.text && <SafeText html={data.text} className="text-foreground/80 leading-relaxed text-sm" />}
+
+            {data.intro && (
+              <div className="pull-quote text-base">
+                <SafeText html={data.intro} className="[&_p]:m-0" />
+              </div>
+            )}
+
+            {stats.length > 0 && (
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                {stats.slice(0, 3).map((stat: any) => (
+                  <div key={stat?.label} className="bg-secondary rounded-xl p-3 text-center">
+                    <p className="font-serif font-700 text-accent text-xl">{stat?.value}</p>
+                    <p className="text-xs text-muted-foreground font-500 mt-0.5">{stat?.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const PageColumn = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-zinc-900 text-white flex flex-col justify-start pb-[15vh] pt-[10%] lg:pt-[8%] overflow-visible">
-    {data.image && (
-      <div className="absolute inset-0 shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title} className="absolute inset-0 w-full h-full object-cover opacity-25 sm:opacity-40" />
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/80 to-transparent" />
-      </div>
-    )}
-    <div className={`relative z-10 p-[8%] ${GRID_CONTENT} min-h-0`}>
-      <Badge className="bg-accent text-white rounded-none mb-[5%] tracking-widest uppercase px-[4%] py-[1%] text-[clamp(9px,1.1vh,12px)] shadow-lg">
-        {data.category}
-      </Badge>
-      <h2 className="text-[clamp(1.8rem,7vh,4.5rem)] font-serif mb-[6%] tracking-[-0.025em] leading-[0.9] text-white">
-        {data.title}
-      </h2>
-      <div className="pr-[4%]">
-        <div className={`${GRID_12} items-start gap-y-[8%]`}>
-          <div className="col-span-12 lg:col-span-8 text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-300 leading-[1.4] font-light">
-            <SafeText html={data.text} className="text-zinc-300" />
-            <div className="h-[2px] w-[clamp(3rem,6vw,8rem)] bg-accent mt-[12%]" />
-            <p className="font-serif italic text-[clamp(1rem,3vh,1.7rem)] text-white mt-[3%]">{data.author}</p>
+const PageFeatureRight = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  const stats = Array.isArray(data.stats) ? data.stats : [];
+
+  return (
+    <div ref={ref} className="bg-secondary py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">
+            {data.category || 'Feature'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          <div className="lg:col-span-6 space-y-6 scroll-reveal">
+            <div>
+              <p className="feature-tag mb-2">{data.name || 'Feature'}</p>
+              <h2 className="text-section-lg font-serif font-600 text-foreground">{data.title || data.name}</h2>
+            </div>
+
+            {data.quote && (
+              <div className="pull-quote">
+                &ldquo;{data.quote}&rdquo;
+              </div>
+            )}
+
+            {data.text && <SafeText html={data.text} className="text-foreground/80 leading-relaxed" />}
           </div>
-          {data.tips && data.tips.length > 0 && (
-            <div className="col-span-12 lg:col-span-4 bg-white/5 p-[6%] rounded-xl backdrop-blur-md border border-white/10 w-full shadow-2xl mt-[8%] lg:mt-0">
-              <p className="text-[clamp(9px,1vh,12px)] uppercase tracking-[0.3em] text-accent mb-[6%] font-bold">Key Takeaways</p>
-              <ul className="space-y-[4%]">
-                {data.tips?.map((tip: any, i: number) => (
-                  <li key={i} className="flex gap-[5%] items-start">
-                    <div className="h-[clamp(4px,0.7vh,7px)] w-[clamp(4px,0.7vh,7px)] rounded-full bg-accent mt-[1.2vh] shrink-0" />
-                    <p className="text-[clamp(0.8rem,1.7vh,1rem)] font-light text-zinc-400 leading-tight">{tip}</p>
-                  </li>
-                ))}
-              </ul>
+
+          <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">
+            {data.image && (
+              <div className="image-frame rounded-2xl overflow-hidden aspect-[4/3]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.title || data.name || 'Feature'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {stats.length > 0 && (
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <p className="feature-tag mb-3">Snapshot</p>
+                <div className="space-y-3">
+                  {stats.map((stat: any, i: number) => (
+                    <div key={`${stat?.label ?? 'stat'}-${i}`} className="bg-secondary rounded-xl border border-border p-4 flex items-start gap-4">
+                      <span className="font-serif font-700 text-accent text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
+                      <p className="text-sm text-foreground/80 leading-relaxed">{stat?.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PageColumn = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  const tips = Array.isArray(data.tips) ? data.tips : [];
+
+  return (
+    <div ref={ref} className="bg-background py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">
+            {data.category || 'Column'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {data.image && (
+            <div className="lg:col-span-5 scroll-reveal">
+              <div className="image-frame rounded-2xl overflow-hidden aspect-[4/5]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.title || data.category || 'Column'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+
+          <div
+            className={[
+              data.image ? 'lg:col-span-7' : 'lg:col-span-12',
+              'space-y-6',
+              data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal',
+            ].join(' ')}
+          >
+            <div>
+              <p className="feature-tag mb-2">{data.category || 'Column'}</p>
+              <h2 className="text-section-lg font-serif font-600 text-foreground">{data.title}</h2>
+              {data.author && <p className="text-sm text-muted-foreground font-500 uppercase tracking-wider mt-1">{data.author}</p>}
+            </div>
+
+            {data.text && <SafeText html={data.text} className="text-foreground/80 leading-relaxed" />}
+
+            {tips.length > 0 && (
+              <div className="bg-secondary rounded-2xl border border-border p-6">
+                <p className="feature-tag mb-3">Key Takeaways</p>
+                <ul className="space-y-2">
+                  {tips.map((tip: any, i: number) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-foreground/80">
+                      <span className="w-5 h-5 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-700 flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PageLifestyle = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  const title = String(data.title || '').trim();
+  const highlights = Array.isArray(data.highlights) ? data.highlights : [];
+  const extraImages: string[] = Array.isArray(data.images)
+    ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
+    : [];
+  const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return (
+    <div ref={ref} className="bg-background py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">Lifestyle</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="md:col-span-2 scroll-reveal">
+            <div className="image-frame rounded-2xl overflow-hidden aspect-[16/9] relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fixMagazineImageUrl(data.image, imageVersion)}
+                alt={title || 'Lifestyle'}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <p className="feature-tag mb-2 text-white/80">Lifestyle</p>
+                <h3 className="font-serif font-600 text-white text-2xl">{title}</h3>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 scroll-reveal scroll-reveal-delay-2">
+            <div className="bg-secondary rounded-2xl p-6 border border-border h-full flex flex-col justify-between min-h-[200px]">
+              <div>
+                <p className="feature-tag mb-3">Highlights</p>
+                {highlights.length > 0 ? (
+                  <ul className="space-y-2">
+                    {highlights.slice(0, 6).map((h: any, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                        <span className="text-accent mt-0.5">◆</span>
+                        {h}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Lifestyle highlights appear here.</p>
+                )}
+              </div>
+
+              {data.logo && (
+                <div className="pt-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fixMagazineImageUrl(data.logo, imageVersion)}
+                    alt="Logo"
+                    className="h-10 w-auto object-contain opacity-90"
+                  />
+                </div>
+              )}
+            </div>
+
+            {textPreview && (
+              <div className="bg-secondary rounded-2xl p-6 border border-border flex flex-col justify-between min-h-[160px]">
+                <div>
+                  <p className="feature-tag mb-3">Editor&apos;s Pick</p>
+                  <p className="font-serif font-600 text-foreground text-xl leading-snug">{title || 'Lifestyle Edit'}</p>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3 line-clamp-3">{textPreview}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {data.text && (
+          <div className="scroll-reveal bg-card rounded-2xl border border-border p-6 md:p-10">
+            <SafeText html={data.text} className="text-foreground/80 leading-relaxed" />
+          </div>
+        )}
+
+        {extraImages.length > 0 && (
+          <div className="scroll-reveal mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {extraImages.slice(0, 8).map((src: string, i: number) => (
+              <div key={`${src}-${i}`} className="image-frame rounded-2xl overflow-hidden aspect-[4/3] bg-card border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={fixMagazineImageUrl(src, imageVersion)} alt={`Lifestyle image ${i + 1}`} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PageSpotlight = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  return (
+    <div ref={ref} className="bg-secondary py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="lg:col-span-5 scroll-reveal">
+            <div className="relative">
+              <div className="image-frame rounded-2xl overflow-hidden aspect-[4/5]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg">
+                <p className="text-xs font-700 uppercase tracking-widest text-accent mb-0.5">Member Spotlight</p>
+                <p className="font-700 text-foreground">{data.name}</p>
+                {data.role && <p className="text-xs text-muted-foreground">{data.role}</p>}
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 space-y-6 scroll-reveal scroll-reveal-delay-2">
+            <div>
+              <p className="feature-tag mb-2">Member Spotlight</p>
+              <h2 className="text-section-lg font-serif font-600 text-foreground">{data.name}</h2>
+            </div>
+
+            {data.message && (
+              <div className="pull-quote">
+                <SafeText html={data.message} className="[&_p]:m-0" />
+              </div>
+            )}
+
+            {data.bio && <SafeText html={data.bio} className="text-foreground/80 leading-relaxed text-sm" />}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PagePartner = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  return (
+    <div ref={ref} className="bg-[#2A0A18] py-16 lg:py-24 relative overflow-hidden min-h-full text-white">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="blob-accent absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" />
+        <div className="blob-primary absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="space-y-6 scroll-reveal">
+            <div>
+              <p className="text-xs font-700 uppercase tracking-widest text-accent mb-2">Partner Feature</p>
+              <h2 className="text-section-lg font-serif font-600 text-white">{data.brand}</h2>
+              {data.headline && <p className="text-white/70 font-500 mt-1 text-lg">{data.headline}</p>}
+            </div>
+
+            {data.text ? (
+              <SafeText html={data.text} className="text-white/80 leading-relaxed" />
+            ) : (
+              data.offer && <p className="text-white/80 leading-relaxed">{data.offer}</p>
+            )}
+
+            {data.offer && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-px bg-accent" />
+                <p className="text-white/60 text-sm font-500">{data.offer}</p>
+              </div>
+            )}
+          </div>
+
+          {data.image && (
+            <div className="scroll-reveal scroll-reveal-delay-2">
+              <div className="image-frame rounded-2xl overflow-hidden aspect-[3/4]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.brand}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const PageLifestyle = ({ data, imageVersion }: any) => {
-  const title = (data.title || '').trim();
-  const titleLines = title ? title.split('\n').map((l: string) => l.trim()).filter(Boolean) : [];
-  const extraImages: string[] = Array.isArray(data.images)
-    ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
-    : [];
+const PageBackCover = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
 
-  const renderStyledTitleLine = (line: string) => {
-    const parts: React.ReactNode[] = [];
-    const re = /\*([^*]+)\*/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = re.exec(line)) !== null) {
-      const start = match.index;
-      const full = match[0];
-      const inner = match[1] || '';
-
-      if (start > lastIndex) {
-        parts.push(line.slice(lastIndex, start));
-      }
-      parts.push(
-        <span key={`${start}-${inner}`} className="italic text-accent">
-          {inner}
-        </span>
-      );
-      lastIndex = start + full.length;
-    }
-
-    if (lastIndex < line.length) {
-      parts.push(line.slice(lastIndex));
-    }
-    return parts.length > 0 ? parts : line;
-  };
+  const socials = Array.isArray(data.socials) ? data.socials : [];
 
   return (
-    <div className={`min-h-full w-full ${PAGE_PAD} bg-[#FAF9F6] overflow-visible`}>
-      <div className={`${GRID_CONTENT} ${GRID_12} items-start gap-y-[clamp(1.25rem,3vw,2.5rem)]`}>
-        <div className="col-span-12 lg:col-span-7 lg:order-2 relative h-[40vh] min-h-[320px] lg:h-auto lg:min-h-[70vh] overflow-hidden shadow-2xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={title || 'Lifestyle'}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-[#FAF9F6] to-transparent lg:from-30%" />
+    <div ref={ref} className="bg-background py-16 lg:py-24 min-h-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="scroll-reveal divider-ornament mb-10 max-w-xs">
+          <span className="text-xs font-700 uppercase tracking-widest text-accent whitespace-nowrap">Next Edition</span>
         </div>
 
-        <div className="col-span-12 lg:col-span-5 lg:order-1 flex flex-col justify-start lg:justify-center min-h-0">
-          <div className="max-w-[min(100%,500px)]">
-            <Badge
-              variant="outline"
-              className="mb-[5%] border-zinc-300 text-zinc-500 tracking-widest uppercase text-[clamp(9px,1vh,11px)] px-[4%] py-[1%]"
-            >
-              Lifestyle
-            </Badge>
+        <div className="scroll-reveal bg-secondary rounded-3xl border border-border overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+            <div className="p-10 lg:p-14 flex flex-col justify-center space-y-5">
+              <div>
+                <p className="feature-tag mb-2">Coming Soon</p>
+                <h2 className="text-section-lg font-serif font-600 text-foreground">Next Edition</h2>
+                {data.nextIssue && <p className="text-muted-foreground font-500 mt-1 text-lg">{data.nextIssue}</p>}
+              </div>
 
-            {data.logo && (
-              <div className="mb-[4%]">
+              <p className="text-foreground/80 leading-relaxed">
+                Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.
+              </p>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  href="/membership"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white font-600 text-sm rounded-full hover:opacity-90 transition-opacity"
+                >
+                  {data.cta || 'Join the Community'}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M13 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                {socials.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {socials.slice(0, 6).map((label: any, i: number) => (
+                      <span key={`${label}-${i}`} className="text-muted-foreground text-sm font-500">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {data.image && (
+              <div className="image-frame aspect-[4/3] lg:aspect-auto overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={fixMagazineImageUrl(data.logo, imageVersion)}
-                  alt="Logo"
-                  className="h-14 sm:h-16 lg:h-20 w-auto max-w-[min(100%,320px)] object-contain opacity-90"
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt="Next edition"
+                  className="w-full h-full object-cover"
                 />
-              </div>
-            )}
-
-            <h2 className="text-[clamp(2rem,8vh,4.5rem)] font-serif mb-[4%] tracking-[-0.025em] leading-[0.85]">
-              {titleLines.length > 0 ? (
-                titleLines.map((line: string, i: number) => (
-                  <React.Fragment key={`${line}-${i}`}>
-                    {i > 0 && <br />}
-                    {renderStyledTitleLine(line)}
-                  </React.Fragment>
-                ))
-              ) : (
-                <>
-                  The <span className="italic text-accent">Art</span> of <br />
-                  Balance
-                </>
-              )}
-            </h2>
-
-            {data.highlights?.length > 0 && (
-              <div className="mb-[6%] space-y-[3%]">
-                {data.highlights?.map((h: any, i: number) => (
-                  <div key={i} className="flex items-center gap-[5%] group cursor-pointer">
-                    <div className="h-px w-[clamp(1.5rem,4vw,3rem)] bg-zinc-300 group-hover:w-[clamp(2.5rem,6vw,4.5rem)] group-hover:bg-accent transition-all duration-500" />
-                    <p className="text-[clamp(9px,1.1vh,12px)] uppercase tracking-[0.3em] font-medium group-hover:text-accent transition-colors">
-                      {h}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <SafeText
-              html={data.text}
-              className="text-[clamp(0.9rem,2vh,1.3rem)] text-zinc-600 leading-[1.4] font-light mb-[6%] max-w-lg"
-            />
-
-            {extraImages.length > 0 && (
-              <div className={`${GRID_12} gap-y-4`}>
-                {extraImages.slice(0, 8).map((src: string, i: number) => (
-                  <div
-                    key={`${src}-${i}`}
-                    className={`relative aspect-[4/3] overflow-hidden rounded-lg shadow-sm ring-1 ring-black/5 bg-white ${
-                      extraImages.length === 1 ? 'col-span-12' : 'col-span-6'
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={fixMagazineImageUrl(src, imageVersion)}
-                      alt={`Lifestyle image ${i + 1}`}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -890,107 +1211,3 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
     </div>
   );
 };
-
-const PageSpotlight = ({ data, imageVersion }: any) => (
-  <div className={`min-h-full w-full ${PAGE_PAD} bg-white flex flex-col justify-start pt-[10%] lg:pt-[5%] overflow-visible`}>
-    <div className={`${GRID_CONTENT} ${GRID_12} items-center gap-y-[8%] min-h-0`}>
-      <div className="col-span-12 lg:col-span-5 relative h-[30vh] lg:h-[60vh] aspect-[3/4] shrink-0 mx-auto lg:mx-0">
-        <div className="absolute -inset-[3%] border-2 border-accent/20 rounded-2xl -rotate-3" />
-        <div className="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl rotate-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
-        </div>
-      </div>
-      <div className="col-span-12 lg:col-span-7 text-center lg:text-left py-[4%] pr-[4%]">
-        <Badge className="bg-accent text-white mb-[6%] tracking-widest uppercase text-[clamp(9px,1.1vh,12px)] px-[5%] py-[1.5%] shadow-lg">Member Spotlight</Badge>
-        <h2 className="text-[clamp(1.8rem,6vh,4rem)] font-serif mb-[1%] tracking-[-0.025em] text-zinc-900 leading-none">{data.name}</h2>
-        <p className="text-[clamp(1rem,2.2vh,1.5rem)] text-accent font-medium mb-[8%] tracking-wide">{data.role}</p>
-        <div className="relative mb-[6%]">
-           <Quote className="absolute -left-[5%] -top-[10%] h-[clamp(1.5rem,5vh,3rem)] w-[clamp(1.5rem,5vh,3rem)] text-accent/5 hidden lg:block" />
-          <div className="text-[clamp(1rem,2.5vh,1.8rem)] text-zinc-600 leading-[1.4] font-light italic border-l-4 border-accent/20 pl-[5%] relative z-10 [&_p]:m-0 [&_p]:inline [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 before:content-['“'] after:content-['”']">
-            <SafeText html={data.message || ''} />
-          </div>
-        </div>
-        <SafeText html={data.bio} className="text-[clamp(0.85rem,1.8vh,1.1rem)] text-zinc-500 leading-[1.4] max-w-xl mx-auto lg:mx-0" />
-        <Button className="mt-[8%] rounded-none px-[8%] py-[3%] h-auto bg-black text-white hover:bg-accent transition-all duration-300 tracking-widest uppercase text-[clamp(9px,1vh,11px)] shadow-xl border-none">Read Full Profile</Button>
-      </div>
-    </div>
-  </div>
-);
-
-const PagePartner = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-black pb-[15vh]">
-    {data.videoUrl ? (
-      <video 
-        src={data.videoUrl} 
-        autoPlay 
-        muted 
-        loop 
-        playsInline 
-        className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]"
-      />
-    ) : (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover opacity-80 brightness-[0.85]" />
-    )}
-    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-    
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-[8%]">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        whileInView={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.5 }}
-        className={`${GRID_CONTENT} max-w-[min(90%,1000px)]`}
-      >
-        <div className={`${GRID_12} justify-items-center`}>
-          <div className="col-span-12">
-            <p className="text-accent text-[clamp(9px,1.1vh,12px)] tracking-[0.6em] uppercase mb-[4%] font-bold drop-shadow-md">Partner Feature</p>
-            <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[2%] tracking-[-0.025em] leading-none drop-shadow-2xl">{data.brand}</h2>
-            <p className="text-white/70 text-[clamp(1rem,2.5vh,2.2rem)] font-light mb-[8%] tracking-wide leading-tight drop-shadow-lg">{data.headline}</p>
-            <div className="bg-accent text-white px-[8%] py-[3%] text-[clamp(1rem,3vh,2.5rem)] font-serif italic shadow-[0_20px_50px_rgba(163,65,58,0.4)] inline-block">
-              {data.offer}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  </div>
-);
-
-const PageBackCover = ({ data, imageVersion }: any) => (
-  <div className="min-h-full w-full relative bg-[#050505] flex flex-col items-center justify-start text-center p-[8%] pt-[15vh] pb-[15vh]">
-    {data.image && (
-      <div className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Back Cover" className="absolute inset-0 w-full h-full object-cover opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/60" />
-      </div>
-    )}
-    <div className={`relative z-10 ${GRID_CONTENT} max-w-[min(90%,800px)]`}>
-      <div className={`${GRID_12} justify-items-center`}>
-      <div className="col-span-12 flex flex-col items-center">
-      <h2 className="text-white font-serif text-[clamp(2.2rem,8vh,6rem)] mb-[6%] tracking-[-0.025em] leading-[0.85] drop-shadow-2xl">
-        Yorkshire <br />
-        <span className="italic text-accent">BusinessWoman</span>
-      </h2>
-      <div className="h-0.5 w-[clamp(3rem,8vw,10rem)] bg-white/20 mx-auto mb-[12%]" />
-      
-      <div className="space-y-[2vh] mb-[10%]">
-        <p className="text-white/60 text-[clamp(9px,1vh,12px)] tracking-[0.4em] uppercase font-bold">Next Edition</p>
-        <h3 className="text-white text-[clamp(1.3rem,3.5vh,3rem)] font-serif tracking-[-0.025em] leading-tight drop-shadow-lg">{data.nextIssue}</h3>
-      </div>
-      
-      <Button className="rounded-full px-[8%] py-[3%] h-auto text-[clamp(0.9rem,2vh,1.3rem)] bg-accent hover:bg-white hover:text-accent transition-all duration-500 mb-[10%] shadow-2xl border-none" asChild>
-        <Link href="/membership">{data.cta}</Link>
-      </Button>
-
-      <div className="flex justify-center gap-[8%] pt-[10%] border-t border-white/10 w-full">
-        {data.socials?.map((s: any, i: number) => (
-          <span key={i} className="text-white/40 text-[clamp(8px,0.9vh,10px)] tracking-widest uppercase hover:text-white transition-colors cursor-pointer">{s}</span>
-        ))}
-      </div>
-      </div>
-      </div>
-    </div>
-  </div>
-);
