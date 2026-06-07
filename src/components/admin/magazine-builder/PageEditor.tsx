@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Save, Loader2, Edit2, Bold, Italic, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +18,20 @@ interface PageEditorProps {
 export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
+  const lastLoadedDocIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (page?.content) {
-      setContent(page.content);
-      if (page.type === 'lifestyle') {
-        const initial = Array.isArray((page.content as any)?.images) ? (page.content as any).images : [];
-        setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
-      }
+    if (!page?.docId) return;
+    if (lastLoadedDocIdRef.current === page.docId) return;
+    lastLoadedDocIdRef.current = page.docId;
+
+    const nextContent = page.content || {};
+    setContent(nextContent);
+
+    if (page.type === 'lifestyle') {
+      const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
+      setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
     } else {
-      setContent({});
       setLifestyleImagesDraft('[]');
     }
   }, [page?.docId, page?.content, page?.type]);
@@ -337,20 +341,41 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Additional Images (JSON Array of URLs)</Label>
+              <Label>Additional Images (One URL per line or JSON Array)</Label>
               <Textarea
                 rows={4}
                 value={lifestyleImagesDraft}
                 onChange={(e) => {
                   const next = e.target.value;
                   setLifestyleImagesDraft(next);
+                  const normalized = next.trim();
+                  if (!normalized) {
+                    updateContent('images', []);
+                    return;
+                  }
+
                   try {
-                    const parsed = JSON.parse(next);
-                    if (Array.isArray(parsed)) updateContent('images', parsed);
+                    const parsed = JSON.parse(normalized);
+                    if (Array.isArray(parsed)) {
+                      const urls = parsed.map((x: any) => String(x || '').trim()).filter(Boolean);
+                      updateContent('images', urls);
+                      return;
+                    }
+                    if (typeof parsed === 'string') {
+                      const url = parsed.trim();
+                      updateContent('images', url ? [url] : []);
+                      return;
+                    }
                   } catch (err) {}
+
+                  const urls = normalized
+                    .split(/[\n,]+/g)
+                    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+                    .filter(Boolean);
+                  updateContent('images', urls);
                 }}
               />
-              <p className="text-[10px] text-muted-foreground">Format: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
+              <p className="text-[10px] text-muted-foreground">Paste one image URL per line (recommended) or use JSON: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
             </div>
             <div className="space-y-2">
               <Label>Main Text</Label>
