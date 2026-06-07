@@ -452,6 +452,27 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  const handleChangePageType = async (pageDocId: string, type: string) => {
+    setPages(prev => prev.map(p => (p.docId === pageDocId ? { ...p, type } : p)));
+
+    setSaving(true);
+    try {
+      const res = await updateMagazinePageAction(id, pageDocId, { type });
+      if (res.success) {
+        toast.success('Layout updated');
+        await loadData(false);
+      } else {
+        toast.error(res.error || 'Failed to update layout');
+        await loadData(true);
+      }
+    } catch (error) {
+      toast.error('Failed to update layout');
+      await loadData(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
     const currentIndex = pages.findIndex(p => p.docId === pageDocId);
     if (currentIndex === -1) return;
@@ -689,6 +710,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 onSave={(content) => {
                   if (selectedPageId) {
                     handleSavePageContent(selectedPageId, content);
+                  }
+                }}
+                onChangeType={(type) => {
+                  if (selectedPageId) {
+                    handleChangePageType(selectedPageId, type);
                   }
                 }}
                 isSaving={saving}

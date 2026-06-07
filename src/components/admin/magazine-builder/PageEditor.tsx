@@ -3,8 +3,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { Save, Loader2, Edit2, Bold, Italic, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PAGE_TYPES, MagazinePage } from './types';
@@ -12,13 +29,16 @@ import { PAGE_TYPES, MagazinePage } from './types';
 interface PageEditorProps {
   page: MagazinePage | undefined;
   onSave: (content: any) => void;
+  onChangeType?: (type: string) => void;
   isSaving: boolean;
 }
 
-export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
+export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
   const lastLoadedDocIdRef = useRef<string | null>(null);
+  const [pendingType, setPendingType] = useState<string | null>(null);
+  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!page?.docId) return;
@@ -34,6 +54,9 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
     } else {
       setLifestyleImagesDraft('[]');
     }
+
+    setPendingType(null);
+    setIsTypeDialogOpen(false);
   }, [page?.docId, page?.content, page?.type]);
 
   if (!page) {
@@ -508,15 +531,39 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
 
   return (
     <Card className="border-accent/30 shadow-lg">
-      <CardHeader className="bg-accent/5 flex flex-row items-center justify-between">
+      <CardHeader className="bg-accent/5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="text-xl">Page Settings: {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}</CardTitle>
           <CardDescription>Edit the visual elements and text for this spread.</CardDescription>
         </div>
-        <Button onClick={() => onSave(content)} disabled={isSaving} className="bg-accent text-white">
-          {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-          Save Page
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          {!!onChangeType && (
+            <Select
+              value={page.type}
+              onValueChange={(nextType) => {
+                if (nextType === page.type) return;
+                setPendingType(nextType);
+                setIsTypeDialogOpen(true);
+              }}
+              disabled={isSaving}
+            >
+              <SelectTrigger className="h-9 w-[220px] bg-white">
+                <SelectValue placeholder="Layout" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_TYPES.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button onClick={() => onSave(content)} disabled={isSaving} className="bg-accent text-white">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Save Page
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="pt-6 max-h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar">
         {renderEditorFields()}
@@ -540,6 +587,35 @@ export function PageEditor({ page, onSave, isSaving }: PageEditorProps) {
           />
         </div>
       </CardContent>
+
+      <AlertDialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change layout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This updates how the reader renders the spread. Existing content is kept, but some fields may not show up in the new template.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setPendingType(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingType) return;
+                onChangeType?.(pendingType);
+                setPendingType(null);
+              }}
+            >
+              Change Layout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
