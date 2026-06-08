@@ -1,12 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export function MagazineExperienceSkeleton() {
+  const [fading, setFading] = useState(false);
+
+  // When this component is about to be unmounted (parent swaps it out),
+  // we can't intercept that directly — but we expose a CSS class so the
+  // parent can trigger the fade via the `data-fading` attribute pattern.
+  // The actual fade-out is driven by the parent's opacity transition.
+  useEffect(() => {
+    return () => {
+      setFading(true);
+    };
+  }, []);
+
   return (
     <section
       className="relative overflow-hidden py-24 md:py-32"
-      style={{ background: 'linear-gradient(160deg, #0c0a09 0%, #1a0d14 45%, #0f0a0d 100%)' }}
+      style={{
+        background: 'linear-gradient(160deg, #0c0a09 0%, #1a0d14 45%, #0f0a0d 100%)',
+        opacity: fading ? 0 : 1,
+        transition: 'opacity 0.4s ease',
+      }}
     >
       {/* Ambient blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -54,6 +70,7 @@ export function MagazineExperienceSkeleton() {
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="magazine-skeleton h-14 w-56 rounded-none" />
               <div className="magazine-skeleton h-14 w-36 rounded-none opacity-60" />
+              <div className="magazine-skeleton h-14 w-36 rounded-none opacity-40" />
             </div>
           </div>
 

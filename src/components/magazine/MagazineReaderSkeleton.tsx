@@ -1,10 +1,24 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function MagazineReaderSkeleton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Fade in immediately on mount
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden">
+    <div
+      className="fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden"
+      style={{
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.5s ease',
+      }}
+    >
       {/* ── Top Control Bar Skeleton ── */}
       <header className="h-14 sm:h-16 border-b border-white/[0.06] flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex items-center gap-2 sm:gap-4">
@@ -27,6 +41,7 @@ export default function MagazineReaderSkeleton() {
           <div className="magazine-skeleton h-8 w-8 rounded-md lg:hidden" />
         </div>
       </header>
+
       {/* ── Main Reader Stage Skeleton ── */}
       <main className="flex-1 relative flex items-center justify-center overflow-hidden bg-[#0c0a09]">
 
@@ -70,6 +85,7 @@ export default function MagazineReaderSkeleton() {
           </div>
         </div>
       </main>
+
       {/* ── Bottom Progress Bar & Navigation Skeleton ── */}
       <footer className="h-16 sm:h-20 border-t border-white/[0.06] bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl flex flex-col justify-center px-4 sm:px-6 shrink-0 gap-2.5">
         {/* Progress bar skeleton */}
