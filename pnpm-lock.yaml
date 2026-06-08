@@ -26,9 +26,6 @@ importers:
       '@mux/mux-player-react':
         specifier: ^3.13.0
         version: 3.13.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@next/swc-linux-x64-gnu':
-        specifier: 15.5.19
-        version: 15.5.19
       '@radix-ui/react-accordion':
         specifier: 1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -8365,7 +8362,8 @@ snapshots:
   '@next/swc-linux-arm64-musl@15.5.19':
     optional: true
 
-  '@next/swc-linux-x64-gnu@15.5.19': {}
+  '@next/swc-linux-x64-gnu@15.5.19':
+    optional: true
 
   '@next/swc-linux-x64-musl@15.5.19':
     optional: true
