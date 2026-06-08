@@ -274,6 +274,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Person/Feature Name</Label>
               <Input value={safeContent.name || ''} onChange={(e) => updateContent('name', e.target.value)} />
             </div>
@@ -284,6 +288,17 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+            </div>
+            <div className="space-y-2">
+              <Label>Main Text</Label>
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={8}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Introduction Text</Label>
