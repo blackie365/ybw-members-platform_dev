@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 // Full-width hero carousel with latest articles overlay
 import Image from "next/image";
 import Link from "next/link";
