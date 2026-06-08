@@ -684,7 +684,7 @@ const PageContents = ({ data }: any) => {
         <div className="scroll-reveal mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">Contents</p>
-            <h2 className="text-section-lg font-serif font-600 text-white">In This Issue</h2>
+            <h2 className="text-section-lg font-serif font-600 text-white">{data.title || 'In This Issue'}</h2>
           </div>
           <div className="flex items-center gap-5">
             {['Instagram','LinkedIn','X'].map((s) => (
@@ -692,6 +692,12 @@ const PageContents = ({ data }: any) => {
             ))}
           </div>
         </div>
+
+        {data.text && (
+          <div className="scroll-reveal -mt-6 mb-10 max-w-3xl">
+            <SafeText html={data.text} className="text-white/70 leading-relaxed" />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           {items.map((item: any, i: number) => {
@@ -1100,7 +1106,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
           <div className="space-y-6 scroll-reveal">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">Partner Feature</p>
-              <h2 className="text-section-lg font-serif font-600 text-white">{data.brand}</h2>
+              <h2 className="text-section-lg font-serif font-600 text-white">{data.title || data.brand}</h2>
               {data.headline && <p className="text-white/65 font-medium mt-1 text-lg">{data.headline}</p>}
             </div>
 
@@ -1156,13 +1162,17 @@ const PageBackCover = ({ data, imageVersion }: any) => {
             <div className="p-10 lg:p-14 flex flex-col justify-center space-y-5 bg-white">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">Coming Soon</p>
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">Next Edition</h2>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title || 'Next Edition'}</h2>
                 {data.nextIssue && <p className="text-[#7a6e65] font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
-              <p className="text-[#3d2b1f]/70 leading-relaxed">
-                Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.
-              </p>
+              {data.text ? (
+                <SafeText html={data.text} className="text-[#3d2b1f]/70 leading-relaxed" />
+              ) : (
+                <p className="text-[#3d2b1f]/70 leading-relaxed">
+                  Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.
+                </p>
+              )}
 
               <div className="flex items-center gap-3 flex-wrap">
                 <Link

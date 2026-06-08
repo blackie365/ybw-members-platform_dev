@@ -233,6 +233,21 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-6">
             <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Add Text</Label>
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={4}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Contents Items (JSON Array)</Label>
               <Textarea 
                 rows={6} 
@@ -464,12 +479,27 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Partner Brand</Label>
               <Input value={safeContent.brand || ''} onChange={(e) => updateContent('brand', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Headline</Label>
               <Input value={safeContent.headline || ''} onChange={(e) => updateContent('headline', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Add Text</Label>
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={6}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Feature Image</Label>
@@ -488,6 +518,21 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'back-cover':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Add Text</Label>
+              <FormattingToolbar field="text" />
+              <Textarea
+                id="editor-text"
+                className="rounded-t-none"
+                rows={6}
+                value={safeContent.text || ''}
+                onChange={(e) => updateContent('text', e.target.value)}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Next Issue Date/Text</Label>
               <Input value={safeContent.nextIssue || ''} onChange={(e) => updateContent('nextIssue', e.target.value)} />
