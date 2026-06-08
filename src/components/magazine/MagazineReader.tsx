@@ -1081,22 +1081,17 @@ const PageColumn = ({ data, imageVersion }: any) => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
                 <div className="lg:col-span-7 scroll-reveal scroll-reveal-delay-2">
                   <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-9 space-y-6">
-                    {kicker && (
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-px bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[320px]">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
+                      {kicker && (
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[220px]">
                           {kicker}
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     <div>
-                      <h2
-                        className="text-section-lg font-serif font-600 text-white leading-tight"
-                        style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 15px)' }}
-                      >
-                        {renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}
-                      </h2>
+                      <h2 className="text-section-lg font-serif font-600 text-white leading-tight">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
                       {data.author && <p className="text-sm text-white/75 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
                     </div>
 
@@ -1180,12 +1175,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
             <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
               <div>
-                <h2
-                  className="text-section-lg font-serif font-600 text-[#1c1410]"
-                  style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 15px)' }}
-                >
-                  {renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}
-                </h2>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
               </div>
 
@@ -1351,59 +1341,148 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const sectionLabel = String(data.title || '').trim();
 
   return (
-    <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          <div className="lg:col-span-5 scroll-reveal">
-            <div className="relative">
-              <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_16px_60px_rgba(139,31,63,0.18)] ring-1 ring-[#8b1f3f]/20">
-                {data.videoUrl ? (
-                  <>
-                    {data.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : null}
-                    <video
-                      src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="relative w-full h-full object-cover"
-                    />
-                  </>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="w-full h-full object-cover" />
-                )}
-              </div>
-              {/* Name card overlay */}
-              <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#e8d5c0]">
-                {sectionLabel && (
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{renderTitleArt(sectionLabel, 'font-serif italic text-[#8b1f3f]')}</p>
-                )}
-                <p className="font-bold text-[#1c1410]">{data.name}</p>
-                {data.role && <p className="text-xs text-[#7a6e65]">{data.role}</p>}
-              </div>
+    <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0e0b09]">
+
+      {/* ── Grain texture overlay ── */}
+      <div
+        className="pointer-events-none absolute inset-0 z-10 opacity-[0.035]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '128px 128px',
+        }}
+      />
+
+      {/* ── Full-bleed two-column grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[42%_58%] min-h-full">
+
+        {/* ── LEFT: Portrait column ── */}
+        <div className="relative overflow-hidden min-h-[50vh] lg:min-h-full">
+          {/* Photo */}
+          {data.videoUrl ? (
+            <>
+              {data.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  alt={data.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+              <video
+                src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                autoPlay muted loop playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </>
+          ) : data.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={fixMagazineImageUrl(data.image, imageVersion)}
+              alt={data.name}
+              className="absolute inset-0 w-full h-full object-cover object-top"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a0d14] to-[#0e0b09]" />
+          )}
+
+          {/* Gradient fade into right column */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0e0b09]/80 hidden lg:block" />
+          {/* Bottom fade */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b09]/90 via-transparent to-transparent" />
+
+          {/* Section label — top left badge */}
+          <div className="absolute top-6 left-6 z-20 scroll-reveal">
+            <div className="flex items-center gap-2">
+              <div className="h-px w-6 bg-[#8b1f3f]" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#8b1f3f]">
+                {sectionLabel || 'The Big Interview'}
+              </span>
             </div>
           </div>
 
-          <div className="lg:col-span-7 space-y-6 scroll-reveal scroll-reveal-delay-2">
-            <div>
-              {sectionLabel && (
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{renderTitleArt(sectionLabel, 'font-serif italic text-[#8b1f3f]')}</p>
+          {/* Name card — bottom left */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-8 z-20">
+            <div className="scroll-reveal">
+              <h2
+                className="font-serif text-white leading-[0.95] tracking-tight"
+                style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700 }}
+              >
+                {data.name}
+              </h2>
+              {data.role && (
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b1f3f]">
+                  {data.role}
+                </p>
               )}
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.name}</h2>
             </div>
+          </div>
+        </div>
 
-            {data.message && (
-              <div className="border-l-[3px] border-[#8b1f3f] pl-5 py-1">
-                <SafeText html={data.message} className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#8b1f3f] [&_p]:m-0" />
+        {/* ── RIGHT: Content column ── */}
+        <div className="relative flex flex-col justify-center px-8 py-12 lg:px-12 lg:py-16 xl:px-16 bg-[#0e0b09] overflow-y-auto">
+
+          {/* Decorative accent blob */}
+          <div
+            className="pointer-events-none absolute top-0 right-0 w-72 h-72 rounded-full opacity-10"
+            style={{ background: 'radial-gradient(ellipse, #8b1f3f 0%, transparent 70%)', filter: 'blur(80px)' }}
+          />
+
+          {/* Pull-quote / message */}
+          {data.message && (
+            <div className="scroll-reveal mb-8 lg:mb-10">
+              {/* Oversized decorative quote mark */}
+              <div
+                className="font-serif text-[#8b1f3f] leading-none select-none mb-2"
+                style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1, opacity: 0.35 }}
+                aria-hidden="true"
+              >
+                &ldquo;
               </div>
-            )}
+              <SafeText
+                html={data.message}
+                className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p+p]:mt-3"
+                style={{ fontSize: 'clamp(1.15rem, 2.4vw, 1.65rem)' } as React.CSSProperties}
+              />
+              {/* Closing accent line */}
+              <div className="mt-6 flex items-center gap-3">
+                <div className="h-px w-10 bg-[#8b1f3f]" />
+                <div className="h-px flex-1 bg-white/[0.06]" />
+              </div>
+            </div>
+          )}
 
-            {data.bio && <SafeText html={data.bio} className="text-[#3d2b1f]/75 leading-relaxed text-sm" />}
+          {/* Bio / body copy */}
+          {data.bio && (
+            <div className="scroll-reveal scroll-reveal-delay-2">
+              <SafeText
+                html={data.bio}
+                className="text-white/55 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
+              />
+            </div>
+          )}
+
+          {/* Keyword tags */}
+          {Array.isArray(data.tags) && data.tags.length > 0 && (
+            <div className="mt-8 flex flex-wrap gap-2 scroll-reveal scroll-reveal-delay-2">
+              {data.tags.slice(0, 5).map((tag: string, i: number) => (
+                <span
+                  key={i}
+                  className="text-[9px] font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#8b1f3f]/30 text-[#8b1f3f]/80"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Page number / issue label — bottom right */}
+          <div className="mt-auto pt-12 flex items-center justify-between scroll-reveal">
+            <div className="h-px flex-1 bg-white/[0.06]" />
+            <span className="ml-4 text-[9px] font-mono text-white/20 uppercase tracking-widest">
+              Member Spotlight
+            </span>
           </div>
         </div>
       </div>
