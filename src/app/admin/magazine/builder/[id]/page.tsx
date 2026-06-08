@@ -548,11 +548,15 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'contents': 
         return { 
+          kicker: 'Contents',
+          title: 'In This Issue',
+          text: '',
           items: [
             { page: 2, category: 'EDITORIAL', title: 'Editor\'s Note' },
             { page: 4, category: 'FEATURE', title: 'Main Interview' }
           ], 
-          news: ['Upcoming YBW Networking Event', 'New Member Benefits Launched'] 
+          news: ['Upcoming YBW Networking Event', 'New Member Benefits Launched'],
+          newsLabel: 'Regional News'
         };
       case 'feature-left':
         return { 
@@ -571,21 +575,28 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'column': 
         return { 
+          kicker: 'Column',
           title: 'Expert Insights', 
           category: 'Finance & Growth', 
           author: 'Expert Name', 
           image: '', 
           text: 'In today\'s climate...', 
-          tips: ['Plan ahead', 'Network often'] 
+          tips: ['Plan ahead', 'Network often'],
+          tipsLabel: 'Key Takeaways'
         };
       case 'lifestyle': 
         return { 
+          kicker: 'Lifestyle',
+          title: 'Lifestyle Edit',
+          highlightsLabel: 'Highlights',
+          editorsPickLabel: 'Editor\'s Pick',
           text: 'Discover the balance between work and wellness...', 
           image: '', 
           highlights: ['Summer Style', 'Local Retreats'] 
         };
       case 'spotlight': 
         return { 
+          title: 'Meet',
           name: 'Member Name', 
           role: 'CEO, Company Ltd', 
           image: '', 
@@ -594,6 +605,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'partner': 
         return { 
+          kicker: 'Partner Feature',
           brand: 'Partner Name', 
           headline: 'Premium Services for Members', 
           image: '', 
@@ -601,8 +613,12 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'back-cover': 
         return { 
+          kicker: 'Next Edition',
+          comingSoonLabel: 'Coming Soon',
+          title: 'Next Edition',
           nextIssue: 'Coming Summer 2026', 
-          cta: 'Become a Member Today', 
+          cta: 'Become a Member Today',
+          text: 'Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.',
           socials: ['Instagram', 'LinkedIn', 'X'], 
           image: '' 
         };
