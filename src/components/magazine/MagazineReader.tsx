@@ -890,7 +890,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {/* Title */}
         {(data.title || data.name) && (
           <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
-            style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.8rem)' }}>
+            style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
             {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
           </h2>
         )}
@@ -911,9 +911,15 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           </div>
         )}
 
+        {data.text && (
+          <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
+            <SafeText html={data.text} className="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3" />
+          </div>
+        )}
+
         {/* Stats row */}
         {stats.length > 0 && (
-          <div className="scroll-reveal scroll-reveal-delay-3 grid grid-cols-3 gap-2 mt-2 mb-4">
+          <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-2 mb-4">
             {stats.slice(0, 3).map((stat: any, i: number) => (
               <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(139,31,63,0.18)' }}>
                 <p className="font-serif font-bold text-xl" style={{ color: '#8b1f3f' }}>{stat?.value}</p>
