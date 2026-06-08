@@ -282,6 +282,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Mini Text</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
             </div>

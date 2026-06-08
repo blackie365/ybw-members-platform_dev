@@ -560,6 +560,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'feature-left':
         return { 
+          kicker: 'Feature',
           name: 'Featured Guest', 
           title: 'Article Headline', 
           image: '', 
@@ -567,6 +568,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         };
       case 'feature-right': 
         return { 
+          kicker: 'Feature',
           name: 'Featured Guest',
           quote: 'Success is not final, failure is not fatal...', 
           text: 'The journey of building a brand in Yorkshire...', 
