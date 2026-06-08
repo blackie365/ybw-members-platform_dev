@@ -13,6 +13,7 @@ import { MagazineIssue, MagazinePage } from './types';
 import { toast } from 'sonner';
 import { fetchIssuuMetadataAction } from '@/app/actions/magazineActions';
 import { useState } from 'react';
+import Link from 'next/link';
 
 interface IssueMetadataProps {
   issue: MagazineIssue;
@@ -138,6 +139,22 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                   </Label>
                 </div>
               </RadioGroup>
+
+              {issue.readerType === 'issuu' && (
+                <Alert className="mt-4">
+                  <AlertTitle>Issuu uses an embedded reader</AlertTitle>
+                  <AlertDescription className="flex flex-col gap-3">
+                    <span>
+                      The Rocket-style custom reader (backgrounds, shimmer, page nav) only applies to <strong>Digital Builder</strong> editions.
+                    </span>
+                    <Button variant="outline" className="w-fit" asChild>
+                      <Link href="/magazine/issue/demo" target="_blank">
+                        Open Design Preview
+                      </Link>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
 
