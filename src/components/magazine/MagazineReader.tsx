@@ -864,7 +864,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
       </div>
 
       {/* Right: Content Panel */}
-      <div className="relative flex flex-col justify-center flex-1 px-6 sm:px-10 lg:px-12 py-8 lg:py-12 overflow-y-auto">
+      <div className="relative flex flex-col justify-start flex-1 px-6 sm:px-10 lg:px-12 pt-10 pb-12 lg:pt-12 lg:pb-14 overflow-y-auto">
         {/* Brick-red top accent bar */}
         <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#8b1f3f' }} />
         {/* Brick-red left accent bar (desktop) */}
@@ -930,7 +930,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         )}
 
         {/* Decorative bottom rule */}
-        <div className="scroll-reveal mt-auto pt-6 flex items-center gap-3">
+        <div className="scroll-reveal mt-8 pt-6 flex items-center gap-3">
           <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #8b1f3f, transparent)' }} />
           <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#8b1f3f' }}>YBW</span>
         </div>
