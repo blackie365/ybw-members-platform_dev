@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Search, ExternalLink, Trash2, Edit2, Loader2, Calendar } from "lucide-react";
+import { Plus, Search, ExternalLink, Trash2, Edit2, Loader2, Calendar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,12 @@ export default function AdminMagazinePage() {
                     <a href={`/magazine/issue/${liveIssue.id}`} target="_blank">
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Preview Reader
+                    </a>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href="/magazine/issue/demo" target="_blank">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Design Preview
                     </a>
                   </Button>
                 </div>
