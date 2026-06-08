@@ -1094,6 +1094,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
 
+  const sectionLabel = data.title || 'Meet';
+
   return (
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -1106,7 +1108,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               </div>
               {/* Name card overlay */}
               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#e8d5c0]">
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">Member Spotlight</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{sectionLabel}</p>
                 <p className="font-bold text-[#1c1410]">{data.name}</p>
                 {data.role && <p className="text-xs text-[#7a6e65]">{data.role}</p>}
               </div>
@@ -1115,7 +1117,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
 
           <div className="lg:col-span-7 space-y-6 scroll-reveal scroll-reveal-delay-2">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">Member Spotlight</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{sectionLabel}</p>
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.name}</h2>
             </div>
 
