@@ -233,6 +233,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-6">
             <div className="space-y-2">
+              <Label>Kicker</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
             </div>
@@ -267,6 +271,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                   try { updateContent('news', JSON.parse(e.target.value)); } catch (err) {}
                 }} 
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Regional News Label</Label>
+              <Input value={safeContent.newsLabel || ''} onChange={(e) => updateContent('newsLabel', e.target.value)} />
             </div>
           </div>
         );
@@ -331,6 +339,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label>Kicker</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label>Column Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
             </div>
@@ -375,11 +387,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 }} 
               />
             </div>
+            <div className="space-y-2">
+              <Label>Tips Label</Label>
+              <Input value={safeContent.tipsLabel || safeContent.tipsTitle || ''} onChange={(e) => updateContent('tipsLabel', e.target.value)} />
+            </div>
           </div>
         );
       case 'lifestyle':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Kicker</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
@@ -450,11 +470,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 }} 
               />
             </div>
+            <div className="space-y-2">
+              <Label>Highlights Label</Label>
+              <Input value={safeContent.highlightsLabel || ''} onChange={(e) => updateContent('highlightsLabel', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Editor&apos;s Pick Label</Label>
+              <Input value={safeContent.editorsPickLabel || ''} onChange={(e) => updateContent('editorsPickLabel', e.target.value)} />
+            </div>
           </div>
         );
       case 'spotlight':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
             <div className="space-y-2">
               <Label>Member Name</Label>
               <Input value={safeContent.name || ''} onChange={(e) => updateContent('name', e.target.value)} />
@@ -493,6 +525,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'partner':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Kicker</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
@@ -533,6 +569,14 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'back-cover':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Kicker</Label>
+              <Input value={safeContent.kicker || ''} onChange={(e) => updateContent('kicker', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Coming Soon Label</Label>
+              <Input value={safeContent.comingSoonLabel || ''} onChange={(e) => updateContent('comingSoonLabel', e.target.value)} />
+            </div>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
