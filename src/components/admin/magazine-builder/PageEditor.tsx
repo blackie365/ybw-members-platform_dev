@@ -367,6 +367,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Column Text</Label>
               <FormattingToolbar field="text" />
               <Textarea
@@ -411,6 +423,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Lifestyle Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
               <Label>Additional Images (One URL per line or JSON Array)</Label>
@@ -498,6 +514,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Spotlight Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
               <Label>Member Quote/Message</Label>
