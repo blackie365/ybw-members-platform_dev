@@ -1,23 +1,22 @@
-"use client"
-
-import { useState, useEffect, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+"use client";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Search, Download, Loader2, UserCog, Calendar, Tag } from "lucide-react"
-import { db } from "@/lib/firebase"
-import { doc, updateDoc } from "firebase/firestore"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getPosts } from "@/lib/ghost"
-import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions"
+} from "@/components/ui/select";
+import { Search, Download, Loader2, UserCog, Calendar, Tag } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getPosts } from "@/lib/ghost";
+import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions";
 
 // Import domain-specific actions
 import { 
@@ -29,12 +28,12 @@ import {
   deactivateOfferAction, 
   updateOfferStatusAction, 
   toggleOfferVisibilityAction 
-} from "@/app/actions/adminActions"
+} from "@/app/actions/adminActions";
 
 // Import modular sub-components
-import { MemberTable, type Member } from "./MemberTable"
-import { EventManager, type EventMetadata } from "./EventManager"
-import { OfferManager, type Offer } from "./OfferManager"
+import { MemberTable, type Member } from "./MemberTable";
+import { EventManager, type EventMetadata } from "./EventManager";
+import { OfferManager, type Offer } from "./OfferManager";
 
 function AdminMembersContent() {
   const router = useRouter()

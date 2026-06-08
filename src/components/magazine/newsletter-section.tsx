@@ -1,8 +1,7 @@
-"use client"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Check, Loader2 } from "lucide-react"
+"use client";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 
 export function NewsletterSection() {
   const [email, setEmail] = useState("")

@@ -10,10 +10,15 @@ import { siteContent } from '@/lib/site-content';
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const issue = await getMagazineIssueServer(id);
+  const fallbackIssue: any =
+    id === 'demo'
+      ? (siteContent.magazine.issues.find((i) => i.isLatest) ?? siteContent.magazine.issues[0] ?? null)
+      : null;
+  const resolvedIssue: any = issue ?? fallbackIssue;
   
   return {
-    title: issue ? `${issue.title} | Yorkshire BusinessWoman` : 'Magazine Edition',
-    description: issue?.description || 'Read the latest edition of Yorkshire BusinessWoman magazine.',
+    title: resolvedIssue ? `${resolvedIssue.title} | Yorkshire BusinessWoman` : 'Magazine Edition',
+    description: resolvedIssue?.description || 'Read the latest edition of Yorkshire BusinessWoman magazine.',
   };
 }
 
@@ -26,7 +31,14 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
     getMagazinePagesServer(id)
   ]);
 
-  if (!issue) {
+  const fallbackIssue: any =
+    id === 'demo'
+      ? (siteContent.magazine.issues.find((i) => i.isLatest) ?? siteContent.magazine.issues[0] ?? null)
+      : null;
+
+  const resolvedIssue: any = issue ?? fallbackIssue;
+
+  if (!resolvedIssue) {
     return (
       <div className="fixed inset-0 bg-[#050505] flex items-center justify-center text-white p-8 text-center">
         <div className="max-w-md">
@@ -43,8 +55,8 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
   }
 
   // Handle Issuu Reader Type
-  if (issue.readerType === 'issuu' && issue.pdfUrl) {
-    return <IssuuReader url={issue.pdfUrl} title={issue.title} />;
+  if (resolvedIssue.readerType === 'issuu' && resolvedIssue.pdfUrl) {
+    return <IssuuReader url={resolvedIssue.pdfUrl} title={resolvedIssue.title} />;
   }
 
   // Fallback to static content ONLY if we are looking at the "demo" ID 
@@ -77,11 +89,11 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "PublicationIssue",
-            "name": issue.title,
-            "description": issue.description,
+            "name": resolvedIssue.title,
+            "description": resolvedIssue.description,
             "issueNumber": id,
-            "datePublished": issue.publishDate,
-            "image": issue.coverImage,
+            "datePublished": resolvedIssue.publishDate,
+            "image": resolvedIssue.coverImage,
             "isPartOf": {
               "@type": "Periodical",
               "name": "Yorkshire BusinessWoman Magazine",
@@ -91,7 +103,7 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
           })
         }}
       />
-      <MagazineReader issue={issue} pages={displayPages as any} id={id} />
+      <MagazineReader issue={resolvedIssue as any} pages={displayPages as any} id={id} />
     </>
   );
 }

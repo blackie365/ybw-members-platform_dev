@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useUser, useClerk } from '@clerk/nextjs';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase';
+
+
 import { getProfile } from '@/app/actions/profile';
 
 export type MembershipTier = 'free' | 'premium' | 'founder';

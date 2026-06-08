@@ -100,8 +100,7 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
             disabled={processing}
             className={`shrink-0 inline-flex justify-center items-center rounded-xl px-6 py-3 text-sm font-semibold transition-all shadow-sm ${
               isAttending 
-                ? 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 ring-1 ring-inset ring-zinc-300 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 dark:ring-zinc-700' 
-                : 'bg-accent text-white hover:bg-accent/90'
+                ? 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 ring-1 ring-inset ring-zinc-300 dark:bg-zinc-800 dark:text-white dark:hover:bg-zinc-700 dark:ring-zinc-700' :'bg-accent text-white hover:bg-accent/90'
             } disabled:opacity-50`}
           >
             {processing ? 'Updating...' : (isAttending ? 'Cancel RSVP' : 'RSVP Now')}

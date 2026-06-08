@@ -1,9 +1,8 @@
-'use client'
-
-import { ThemeProvider, useTheme } from 'next-themes'
-import { useEffect } from 'react'
-import { AuthProvider } from '@/lib/AuthContext'
-import { Toaster } from 'sonner'
+'use client';
+import { ThemeProvider, useTheme } from 'next-themes';
+import { useEffect } from 'react';
+import { AuthProvider } from '@/lib/AuthContext';
+import { Toaster } from 'sonner';
 
 function ThemeWatcher() {
   let { resolvedTheme, setTheme } = useTheme()

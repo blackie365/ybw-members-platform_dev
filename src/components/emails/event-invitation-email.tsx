@@ -5,7 +5,7 @@ import {
   EmailButton,
   EmailHighlightBox,
   EmailDivider,
-} from "./email-layout"
+} from "./email-layout";
 
 interface EventInvitationEmailProps {
   firstName: string

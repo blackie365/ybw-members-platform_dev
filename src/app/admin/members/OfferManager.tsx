@@ -5,17 +5,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { ExternalLink, Loader2, Trash2 } from "lucide-react"
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { ExternalLink, Loader2, Trash2 } from "lucide-react";
 
 export interface Offer {
   id: string

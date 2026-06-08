@@ -21,11 +21,10 @@ export async function QuickStats() {
           </svg>
         </div>
       </div>
-
       <div className="bg-white border border-border rounded-none p-6 shadow-sm dark:bg-zinc-950 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-accent">Upcoming Events</p>
-          <p className="mt-2 font-serif text-4xl font-medium tracking-tight text-foreground">{events.length}</p>
+          <p className="mt-2 font-serif text-4xl font-medium tracking-tight text-foreground">{events?.length}</p>
         </div>
         <div className="p-3 bg-muted rounded-none border border-border">
           <svg className="w-8 h-8 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -33,11 +32,10 @@ export async function QuickStats() {
           </svg>
         </div>
       </div>
-
       <div className="bg-white border border-border rounded-none p-6 shadow-sm dark:bg-zinc-950 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-accent">Latest News</p>
-          <p className="mt-2 font-serif text-3xl font-medium tracking-tight text-foreground">{news.length > 0 ? 'Updated' : 'Empty'}</p>
+          <p className="mt-2 font-serif text-3xl font-medium tracking-tight text-foreground">{news?.length > 0 ? 'Updated' : 'Empty'}</p>
         </div>
         <div className="p-3 bg-muted rounded-none border border-border">
           <svg className="w-8 h-8 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">

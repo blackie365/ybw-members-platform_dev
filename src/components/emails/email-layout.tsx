@@ -1,21 +1,21 @@
 /* eslint-disable @next/next/no-img-element */
-import * as React from "react"
-import { ReactNode } from "react"
+import * as React from "react";
+import { ReactNode } from "react";
 
 interface EmailLayoutProps {
-  children: ReactNode
-  previewText?: string
+  children: ReactNode;
+  previewText?: string;
 }
 
 export function EmailLayout({ children, previewText }: EmailLayoutProps) {
   return (
     <div style={{ backgroundColor: "#f8f6f2", padding: "40px 20px", minHeight: "100%" }}>
       {/* Preview text for email clients */}
-      {previewText && (
-        <div style={{ display: "none", maxHeight: 0, overflow: "hidden" }}>
+      {previewText &&
+      <div style={{ display: "none", maxHeight: 0, overflow: "hidden" }}>
           {previewText}
         </div>
-      )}
+      }
       
       <table
         cellPadding="0"
@@ -26,10 +26,10 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
           backgroundColor: "#fffefb",
           borderRadius: "8px",
           overflow: "hidden",
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)"
         }}
-        width="100%"
-      >
+        width="100%">
+        
         <tbody>
           {/* Header */}
           <tr>
@@ -37,11 +37,11 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
               style={{
                 backgroundColor: "#ffffff",
                 padding: "32px 40px",
-                textAlign: "center",
-              }}
-            >
+                textAlign: "center"
+              }}>
+              
               <img
-                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
+                src="https://img.rocket.new/generatedImages/rocket_gen_img_1545cfed3-1772247582674.png"
                 alt="Yorkshire Businesswoman"
                 width="200"
                 style={{
@@ -49,8 +49,8 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                   margin: "0 auto",
                   maxWidth: "100%",
                   height: "auto"
-                }}
-              />
+                }} />
+              
             </td>
           </tr>
 
@@ -67,9 +67,9 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
               style={{
                 backgroundColor: "#f8f6f2",
                 padding: "32px 40px",
-                borderTop: "1px solid #e5e2db",
-              }}
-            >
+                borderTop: "1px solid #e5e2db"
+              }}>
+              
               <table cellPadding="0" cellSpacing="0" width="100%">
                 <tbody>
                   <tr>
@@ -80,9 +80,9 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                           fontSize: "12px",
                           color: "#78716c",
                           margin: "0 0 16px 0",
-                          lineHeight: 1.6,
-                        }}
-                      >
+                          lineHeight: 1.6
+                        }}>
+                        
                         Ghost Publishing Ltd<br />
                         10 Shetland Drive, Congleton, England, CW12 4FN
                       </p>
@@ -91,53 +91,53 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
                           fontFamily: "'Inter', Arial, sans-serif",
                           fontSize: "12px",
                           color: "#78716c",
-                          margin: "0 0 16px 0",
-                        }}
-                      >
+                          margin: "0 0 16px 0"
+                        }}>
+                        
                         <a
                           href="https://www.linkedin.com/company/yorkshire-businesswoman"
-                          style={{ color: "#78716c", textDecoration: "none" }}
-                        >LinkedIn</a>
+                          style={{ color: "#78716c", textDecoration: "none" }}>
+                          LinkedIn</a>
                         <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
                         <a
                           href="https://x.com/YorksBizWoman"
-                          style={{ color: "#78716c", textDecoration: "none" }}
-                        >Twitter</a>
+                          style={{ color: "#78716c", textDecoration: "none" }}>
+                          Twitter</a>
                         <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
                         <a
                           href="https://www.facebook.com/YorkshireBusinesswoman"
-                          style={{ color: "#78716c", textDecoration: "none" }}
-                        >Facebook</a>
+                          style={{ color: "#78716c", textDecoration: "none" }}>
+                          Facebook</a>
                         <span style={{ color: "#e7e5e4", margin: "0 8px" }}>&middot;</span>
                         <a
                           href="https://www.instagram.com/yorkshire_businesswoman"
-                          style={{ color: "#78716c", textDecoration: "none" }}
-                        >Instagram</a>
+                          style={{ color: "#78716c", textDecoration: "none" }}>
+                          Instagram</a>
                       </p>
                       <p
                         style={{
                           fontFamily: "'Inter', Arial, sans-serif",
                           fontSize: "12px",
                           color: "#78716c",
-                          margin: 0,
-                        }}
-                      >
+                          margin: 0
+                        }}>
+                        
                         <a
                           href="https://yorkshirebusinesswoman.co.uk/unsubscribe"
-                          style={{ color: "#b5604a", textDecoration: "none" }}
-                        >Unsubscribe</a>
+                          style={{ color: "#b5604a", textDecoration: "none" }}>
+                          Unsubscribe</a>
                         {" · "}
                         <a
                           href="https://yorkshirebusinesswoman.co.uk/privacy"
-                          style={{ color: "#b5604a", textDecoration: "none" }}
-                        >
+                          style={{ color: "#b5604a", textDecoration: "none" }}>
+                          
                           Privacy Policy
                         </a>
                         {" · "}
                         <a
                           href="https://yorkshirebusinesswoman.co.uk/contact"
-                          style={{ color: "#b5604a", textDecoration: "none" }}
-                        >
+                          style={{ color: "#b5604a", textDecoration: "none" }}>
+                          
                           Contact Us
                         </a>
                       </p>
@@ -149,12 +149,12 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
           </tr>
         </tbody>
       </table>
-    </div>
-  )
+    </div>);
+
 }
 
 // Reusable email components
-export function EmailHeading({ children }: { children: ReactNode }) {
+export function EmailHeading({ children }: {children: ReactNode;}) {
   return (
     <h2
       style={{
@@ -163,15 +163,15 @@ export function EmailHeading({ children }: { children: ReactNode }) {
         fontWeight: 500,
         color: "#1c1917",
         margin: "0 0 16px 0",
-        lineHeight: 1.3,
-      }}
-    >
+        lineHeight: 1.3
+      }}>
+      
       {children}
-    </h2>
-  )
+    </h2>);
+
 }
 
-export function EmailSubheading({ children }: { children: ReactNode }) {
+export function EmailSubheading({ children }: {children: ReactNode;}) {
   return (
     <h3
       style={{
@@ -180,15 +180,15 @@ export function EmailSubheading({ children }: { children: ReactNode }) {
         fontWeight: 500,
         color: "#1c1917",
         margin: "24px 0 12px 0",
-        lineHeight: 1.3,
-      }}
-    >
+        lineHeight: 1.3
+      }}>
+      
       {children}
-    </h3>
-  )
+    </h3>);
+
 }
 
-export function EmailText({ children }: { children: ReactNode }) {
+export function EmailText({ children }: {children: ReactNode;}) {
   return (
     <p
       style={{
@@ -196,15 +196,15 @@ export function EmailText({ children }: { children: ReactNode }) {
         fontSize: "15px",
         color: "#78716c",
         margin: "0 0 16px 0",
-        lineHeight: 1.7,
-      }}
-    >
+        lineHeight: 1.7
+      }}>
+      
       {children}
-    </p>
-  )
+    </p>);
+
 }
 
-export function EmailButton({ href, children }: { href: string; children: ReactNode }) {
+export function EmailButton({ href, children }: {href: string;children: ReactNode;}) {
   return (
     <table cellPadding="0" cellSpacing="0" style={{ margin: "24px 0" }}>
       <tbody>
@@ -221,16 +221,16 @@ export function EmailButton({ href, children }: { href: string; children: ReactN
                 fontWeight: 500,
                 padding: "14px 28px",
                 borderRadius: "6px",
-                textDecoration: "none",
-              }}
-            >
+                textDecoration: "none"
+              }}>
+              
               {children}
             </a>
           </td>
         </tr>
       </tbody>
-    </table>
-  )
+    </table>);
+
 }
 
 export function EmailDivider() {
@@ -239,13 +239,13 @@ export function EmailDivider() {
       style={{
         border: "none",
         borderTop: "1px solid #e5e2db",
-        margin: "24px 0",
-      }}
-    />
-  )
+        margin: "24px 0"
+      }} />);
+
+
 }
 
-export function EmailHighlightBox({ children }: { children: ReactNode }) {
+export function EmailHighlightBox({ children }: {children: ReactNode;}) {
   return (
     <div
       style={{
@@ -253,30 +253,30 @@ export function EmailHighlightBox({ children }: { children: ReactNode }) {
         borderLeft: "4px solid #b5604a",
         padding: "20px 24px",
         margin: "24px 0",
-        borderRadius: "0 6px 6px 0",
-      }}
-    >
+        borderRadius: "0 6px 6px 0"
+      }}>
+      
       {children}
-    </div>
-  )
+    </div>);
+
 }
 
-export function EmailInfoCard({ 
-  label, 
-  value 
-}: { 
-  label: string
-  value: string 
-}) {
+export function EmailInfoCard({
+  label,
+  value
+
+
+
+}: {label: string;value: string;}) {
   return (
     <div
       style={{
         backgroundColor: "#f8f6f2",
         padding: "16px 20px",
         borderRadius: "6px",
-        marginBottom: "12px",
-      }}
-    >
+        marginBottom: "12px"
+      }}>
+      
       <p
         style={{
           fontFamily: "'Inter', Arial, sans-serif",
@@ -285,9 +285,9 @@ export function EmailInfoCard({
           textTransform: "uppercase",
           letterSpacing: "0.05em",
           color: "#b5604a",
-          margin: "0 0 4px 0",
-        }}
-      >
+          margin: "0 0 4px 0"
+        }}>
+        
         {label}
       </p>
       <p
@@ -296,11 +296,11 @@ export function EmailInfoCard({
           fontSize: "16px",
           fontWeight: 500,
           color: "#1c1917",
-          margin: 0,
-        }}
-      >
+          margin: 0
+        }}>
+        
         {value}
       </p>
-    </div>
-  )
+    </div>);
+
 }

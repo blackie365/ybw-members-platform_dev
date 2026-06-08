@@ -22,10 +22,10 @@ export default function NewsletterAdminPage() {
   const fetchPreview = useCallback(async () => {
     setIsLoadingPreview(true);
     const result = await previewNewsletterAction(editorNote);
-    if (result.success && result.html) {
-      setPreviewHtml(result.html);
+    if (result?.success && result?.html) {
+      setPreviewHtml(result?.html);
     } else {
-      toast.error("Failed to load newsletter preview");
+      toast?.error("Failed to load newsletter preview");
     }
     setIsLoadingPreview(false);
   }, [editorNote]);
@@ -36,26 +36,26 @@ export default function NewsletterAdminPage() {
 
   const handleCopyHtml = () => {
     if (previewHtml) {
-      navigator.clipboard.writeText(previewHtml);
+      navigator.clipboard?.writeText(previewHtml);
       setCopySuccess(true);
-      toast.success("HTML copied to clipboard");
+      toast?.success("HTML copied to clipboard");
       setTimeout(() => setCopySuccess(false), 2000);
     }
   };
 
   const handleSendTest = async () => {
-    if (!testEmail || !testEmail.includes("@")) {
-      toast.error("Please enter a valid email address");
+    if (!testEmail || !testEmail?.includes("@")) {
+      toast?.error("Please enter a valid email address");
       return;
     }
 
     setIsSendingTest(true);
     const result = await sendTestNewsletterAction(testEmail, editorNote, subject);
     
-    if (result.success) {
-      toast.success(`Test email sent successfully to ${testEmail}!`);
+    if (result?.success) {
+      toast?.success(`Test email sent successfully to ${testEmail}!`);
     } else {
-      toast.error(`Failed to send test email: ${result.error}`);
+      toast?.error(`Failed to send test email: ${result?.error}`);
     }
     setIsSendingTest(false);
   };
@@ -68,10 +68,10 @@ export default function NewsletterAdminPage() {
     setIsSending(true);
     const result = await sendBulkNewsletterAction(editorNote, subject);
     
-    if (result.success) {
-      toast.success(`Newsletter sent successfully to ${result.count} members!`);
+    if (result?.success) {
+      toast?.success(`Newsletter sent successfully to ${result?.count} members!`);
     } else {
-      toast.error(`Failed to send newsletter: ${result.error}`);
+      toast?.error(`Failed to send newsletter: ${result?.error}`);
     }
     setIsSending(false);
   };
@@ -94,7 +94,6 @@ export default function NewsletterAdminPage() {
           </Button>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Controls */}
         <div className="space-y-6 lg:col-span-1">
@@ -108,7 +107,7 @@ export default function NewsletterAdminPage() {
                 <label className="text-sm font-medium">Email Subject</label>
                 <Input 
                   value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
+                  onChange={(e) => setSubject(e?.target?.value)}
                   placeholder="Subject line..."
                 />
               </div>
@@ -116,7 +115,7 @@ export default function NewsletterAdminPage() {
                 <label className="text-sm font-medium">Editor&apos;s Note (Optional)</label>
                 <Textarea 
                   value={editorNote}
-                  onChange={(e) => setEditorNote(e.target.value)}
+                  onChange={(e) => setEditorNote(e?.target?.value)}
                   placeholder="Write a personal note from the editor..."
                   className="min-h-[150px] text-sm"
                 />
@@ -140,7 +139,7 @@ export default function NewsletterAdminPage() {
                   <Input 
                     type="email"
                     value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
+                    onChange={(e) => setTestEmail(e?.target?.value)}
                     placeholder="test@example.com"
                     className="flex-1"
                   />

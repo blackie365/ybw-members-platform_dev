@@ -360,9 +360,7 @@ export default function DashboardProfile() {
       {/* Messages */}
       {message.text && (
         <div className={`p-4 rounded-lg text-sm ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-destructive/10 text-destructive border border-destructive/20'
+          message.type === 'success' ?'bg-green-50 text-green-800 border border-green-200' :'bg-destructive/10 text-destructive border border-destructive/20'
         }`}>
           <div className="flex items-center gap-2">
             {message.type === 'success' ? (
@@ -487,8 +485,7 @@ export default function DashboardProfile() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    ? 'border-accent text-accent' :'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }`}
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">

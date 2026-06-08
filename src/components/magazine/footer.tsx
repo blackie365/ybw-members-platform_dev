@@ -1,5 +1,5 @@
-import Link from "next/link"
-import { Instagram, Linkedin, Twitter, Facebook, Mail, MapPin } from "lucide-react"
+import Link from "next/link";
+import { Instagram, Linkedin, Twitter, Facebook, Mail, MapPin } from "lucide-react";
 
 const footerLinks = {
   magazine: [
@@ -63,12 +63,12 @@ export function Footer() {
               </div>
             </div>
             <div className="mt-8 flex gap-3">
-              {socialLinks.map((social) => (
+              {socialLinks?.map((social) => (
                 <Link
-                  key={social.name}
-                  href={social.href}
+                  key={social?.name}
+                  href={social?.href}
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-primary-foreground/20 transition-all hover:border-accent hover:bg-accent hover:text-accent-foreground"
-                  aria-label={social.name}
+                  aria-label={social?.name}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -85,13 +85,13 @@ export function Footer() {
                 Magazine
               </h3>
               <ul className="space-y-3">
-                {footerLinks.magazine.map((link) => (
-                  <li key={link.name}>
+                {footerLinks?.magazine?.map((link) => (
+                  <li key={link?.name}>
                     <Link
-                      href={link.href}
+                      href={link?.href}
                       className="text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                     >
-                      {link.name}
+                      {link?.name}
                     </Link>
                   </li>
                 ))}
@@ -102,13 +102,13 @@ export function Footer() {
                 Categories
               </h3>
               <ul className="space-y-3">
-                {footerLinks.categories.map((link) => (
-                  <li key={link.name}>
+                {footerLinks?.categories?.map((link) => (
+                  <li key={link?.name}>
                     <Link
-                      href={link.href}
+                      href={link?.href}
                       className="text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                     >
-                      {link.name}
+                      {link?.name}
                     </Link>
                   </li>
                 ))}
@@ -119,13 +119,13 @@ export function Footer() {
                 Resources
               </h3>
               <ul className="space-y-3">
-                {footerLinks.resources.map((link) => (
-                  <li key={link.name}>
+                {footerLinks?.resources?.map((link) => (
+                  <li key={link?.name}>
                     <Link
-                      href={link.href}
+                      href={link?.href}
                       className="text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                     >
-                      {link.name}
+                      {link?.name}
                     </Link>
                   </li>
                 ))}
@@ -136,13 +136,13 @@ export function Footer() {
                 Legal
               </h3>
               <ul className="space-y-3">
-                {footerLinks.legal.map((link) => (
-                  <li key={link.name}>
+                {footerLinks?.legal?.map((link) => (
+                  <li key={link?.name}>
                     <Link
-                      href={link.href}
+                      href={link?.href}
                       className="text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                     >
-                      {link.name}
+                      {link?.name}
                     </Link>
                   </li>
                 ))}
@@ -154,7 +154,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-primary-foreground/10 pt-8 sm:flex-row">
           <p className="text-xs text-primary-foreground/40">
-            © {new Date().getFullYear()} Yorkshire Businesswoman. All rights reserved.
+            © {new Date()?.getFullYear()} Yorkshire Businesswoman. All rights reserved.
           </p>
           <p className="text-xs text-primary-foreground/40">
             Designed for leaders. Built for impact.
@@ -162,5 +162,5 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

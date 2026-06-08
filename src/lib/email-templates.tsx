@@ -4,7 +4,7 @@ import { WelcomeEmail } from '@/components/emails/welcome-email';
 import { PasswordResetEmail } from '@/components/emails/password-reset-email';
 import { MembershipExpiringEmail } from '@/components/emails/membership-expiring-email';
 import { RenewalReminderEmail } from '@/components/emails/renewal-reminder-email';
-import { EventInvitationEmail } from '@/components/emails/event-invitation-email';
+
 import { PaymentReceiptEmail } from '@/components/emails/payment-receipt-email';
 import { AccountUpdateEmail } from '@/components/emails/account-update-email';
 import { NewsletterWelcomeEmail } from '@/components/emails/newsletter-welcome-email';

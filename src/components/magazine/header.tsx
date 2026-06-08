@@ -1,19 +1,18 @@
-"use client"
-
-import { useState } from "react"
-import Link from "next/link"
-import { Menu, User, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, User, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { Logo } from "@/components/Logo"
-import { ThemeToggle } from "@/components/ThemeToggle"
-import { useAuth } from "@/lib/AuthContext"
-import { useRouter } from "next/navigation"
-import { Shield } from "lucide-react"
+} from "@/components/ui/sheet";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
+import { Shield } from "lucide-react";
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -34,7 +33,7 @@ export function Header() {
     try {
       await signOut();
       setIsOpen(false);
-      router.push('/');
+      router?.push('/');
     } catch (error) {
       console.error("Error signing out:", error);
     }
@@ -50,7 +49,6 @@ export function Header() {
           </div>
         </div>
       </div>
-
       {/* Sticky Navigation */}
       <div className="sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/85">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
@@ -69,14 +67,14 @@ export function Header() {
                   </div>
                   <nav className="flex-1 overflow-y-auto px-6 py-8">
                     <div className="space-y-1">
-                      {navigation.map((item) => (
+                      {navigation?.map((item) => (
                         <Link
-                          key={item.name}
-                          href={item.href}
+                          key={item?.name}
+                          href={item?.href}
                           onClick={() => setIsOpen(false)}
                           className="block py-3 font-serif text-lg text-foreground transition-colors hover:text-accent"
                         >
-                          {item.name}
+                          {item?.name}
                         </Link>
                       ))}
                       <div className="my-4 h-px bg-border" />
@@ -145,13 +143,13 @@ export function Header() {
 
           {/* Desktop navigation */}
           <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-10 lg:flex-[2]">
-            {navigation.map((item) => (
+            {navigation?.map((item) => (
               <Link
-                key={item.name}
-                href={item.href}
+                key={item?.name}
+                href={item?.href}
                 className="relative text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground transition-colors hover:text-accent after:absolute after:-bottom-1 after:left-0 after:h-px after:w-0 after:bg-accent after:transition-all hover:after:w-full"
               >
-                {item.name}
+                {item?.name}
               </Link>
             ))}
           </div>
@@ -218,5 +216,5 @@ export function Header() {
         </nav>
       </div>
     </header>
-  )
+  );
 }

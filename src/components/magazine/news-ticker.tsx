@@ -1,6 +1,5 @@
-"use client"
-
-import Link from "next/link"
+"use client";
+import Link from"next/link";
 
 interface Post {
   id: string

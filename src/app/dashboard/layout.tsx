@@ -4,19 +4,7 @@ import { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { 
-  LayoutDashboard, 
-  User, 
-  Mail, 
-  Calendar, 
-  Gift, 
-  Users, 
-  Briefcase, 
-  Video,
-  FileText,
-  LogOut,
-  ChevronRight
-} from 'lucide-react';
+import { LayoutDashboard, User, Mail, Calendar, Gift, Users, Briefcase, Video, LogOut, ChevronRight } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard Home', href: '/dashboard', icon: LayoutDashboard },
@@ -121,8 +109,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         href={item.href} 
                         className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
                           isActive 
-                            ? 'bg-accent/10 text-accent font-medium' 
-                            : 'text-foreground hover:bg-muted hover:text-accent'
+                            ? 'bg-accent/10 text-accent font-medium' :'text-foreground hover:bg-muted hover:text-accent'
                         }`}
                       >
                         <item.icon className={`h-4 w-4 ${isActive ? 'text-accent' : 'text-muted-foreground'}`} />
@@ -139,8 +126,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       href="/admin/members" 
                       className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
                         pathname.startsWith('/admin') 
-                          ? 'bg-accent/10 text-accent font-medium' 
-                          : 'text-foreground hover:bg-muted hover:text-accent border border-accent/20'
+                          ? 'bg-accent/10 text-accent font-medium' :'text-foreground hover:bg-muted hover:text-accent border border-accent/20'
                       }`}
                     >
                       <Users className={`h-4 w-4 ${pathname.startsWith('/admin') ? 'text-accent' : 'text-accent'}`} />

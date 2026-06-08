@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 import {
   EmailLayout,
   EmailHeading,
@@ -6,7 +6,7 @@ import {
   EmailButton,
   EmailHighlightBox,
   EmailSubheading,
-} from "./email-layout"
+} from "./email-layout";
 
 interface WelcomeEmailProps {
   firstName: string

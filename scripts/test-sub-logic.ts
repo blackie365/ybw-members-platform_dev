@@ -1,6 +1,6 @@
 
 import * as dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv?.config({ path: '.env.local' });
 
 import { addBeehiivSubscriber } from '../src/lib/beehiiv';
 import { addGhostMember } from '../src/lib/ghost-admin';

@@ -7,7 +7,7 @@
  * Usage: node scripts/upload-magazine-images.js
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
@@ -18,7 +18,7 @@ const sharp = require('sharp');
 const DROPBOX_BASE = "/Volumes/Data/Dropbox/CurrentYBW/april2026";
 const STORAGE_PATH = "magazine/apr-may-2026";
 const BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "newmembersdirectory130325.firebasestorage.app";
-const TEMP_DIR = path.join(process.cwd(), 'temp_conversion');
+const TEMP_DIR = path?.join(process.cwd(), 'temp_conversion');
 
 // Mapping of Dropbox files to their Storage names
 const FILE_MAPPINGS = [
@@ -58,62 +58,62 @@ const FILE_MAPPINGS = [
 ];
 
 // Ensure temp directory exists
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR);
+if (!fs?.existsSync(TEMP_DIR)) {
+  fs?.mkdirSync(TEMP_DIR);
 }
 
 // --- INITIALIZE FIREBASE ADMIN ---
 try {
-  const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-  if (!fs.existsSync(serviceAccountPath)) {
+  const serviceAccountPath = path?.join(process.cwd(), 'serviceAccountKey.json');
+  if (!fs?.existsSync(serviceAccountPath)) {
     console.error('❌ ERROR: serviceAccountKey.json not found in root directory.');
     process.exit(1);
   }
 
-  const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  const serviceAccount = JSON.parse(fs?.readFileSync(serviceAccountPath, 'utf8'));
   
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+  if (!admin?.apps?.length) {
+    admin?.initializeApp({
+      credential: admin?.credential?.cert(serviceAccount),
       storageBucket: BUCKET_NAME
     });
   }
   
   console.log('✅ Firebase Admin initialized.');
 } catch (e) {
-  console.error('❌ Failed to initialize Firebase Admin:', e.message);
+  console.error('❌ Failed to initialize Firebase Admin:', e?.message);
   process.exit(1);
 }
 
-const bucket = admin.storage().bucket();
+const bucket = admin?.storage()?.bucket();
 
 /**
  * Checks if a file is a PSD by reading the magic bytes (8BPS)
  */
 function isPSD(filePath) {
   const buffer = Buffer.alloc(4);
-  const fd = fs.openSync(filePath, 'r');
-  fs.readSync(fd, buffer, 0, 4, 0);
-  fs.closeSync(fd);
-  return buffer.toString() === '8BPS';
+  const fd = fs?.openSync(filePath, 'r');
+  fs?.readSync(fd, buffer, 0, 4, 0);
+  fs?.closeSync(fd);
+  return buffer?.toString() === '8BPS';
 }
 
 /**
  * Converts PSD to high-quality JPEG
  */
 async function convertPSD(localPath, destName) {
-  const tempJpegPath = path.join(TEMP_DIR, destName);
+  const tempJpegPath = path?.join(TEMP_DIR, destName);
   console.log(`🎨 Converting PSD: ${destName}...`);
   
   try {
-    const psd = PSD.fromFile(localPath);
-    psd.parse();
+    const psd = PSD?.fromFile(localPath);
+    psd?.parse();
     
     // Get the flattened preview image (Pixel Data)
-    const image = psd.image;
-    const pixelData = image.pixelData;
-    const width = image.width();
-    const height = image.height();
+    const image = psd?.image;
+    const pixelData = image?.pixelData;
+    const width = image?.width();
+    const height = image?.height();
     
     // Create a buffer from the raw RGBA pixel data
     // Sharp can handle raw pixel data if we provide the dimensions
@@ -123,9 +123,7 @@ async function convertPSD(localPath, destName) {
         height: height,
         channels: 4
       }
-    })
-      .jpeg({ quality: 90, progressive: true })
-      .toFile(tempJpegPath);
+    })?.jpeg({ quality: 90, progressive: true })?.toFile(tempJpegPath);
       
     return tempJpegPath;
   } catch (error) {
@@ -139,12 +137,12 @@ async function uploadImages() {
   console.log(`📂 Destination path: ${STORAGE_PATH}\n`);
 
   for (const mapping of FILE_MAPPINGS) {
-    const localPath = mapping.absolute ? mapping.src : path.join(DROPBOX_BASE, mapping.src);
-    const destination = `${STORAGE_PATH}/${mapping.dest}`;
+    const localPath = mapping?.absolute ? mapping?.src : path?.join(DROPBOX_BASE, mapping?.src);
+    const destination = `${STORAGE_PATH}/${mapping?.dest}`;
     let uploadPath = localPath;
     let isConverted = false;
 
-    if (!fs.existsSync(localPath)) {
+    if (!fs?.existsSync(localPath)) {
       console.warn(`⚠️  SKIP: Local file not found: ${localPath}`);
       continue;
     }
@@ -152,13 +150,13 @@ async function uploadImages() {
     try {
       // Check if it's actually a PSD disguised as a JPG
       if (isPSD(localPath)) {
-        console.log(`🔍 PSD detected: ${mapping.dest}`);
-        uploadPath = await convertPSD(localPath, mapping.dest);
+        console.log(`🔍 PSD detected: ${mapping?.dest}`);
+        uploadPath = await convertPSD(localPath, mapping?.dest);
         isConverted = true;
       }
 
-      console.log(`⬆️  Uploading: ${mapping.dest}${isConverted ? ' (Converted)' : ''}...`);
-      await bucket.upload(uploadPath, {
+      console.log(`⬆️  Uploading: ${mapping?.dest}${isConverted ? ' (Converted)' : ''}...`);
+      await bucket?.upload(uploadPath, {
         destination: destination,
         public: true,
         metadata: {
@@ -169,20 +167,20 @@ async function uploadImages() {
       console.log(`✅ SUCCESS: ${destination}`);
 
       // Clean up temp file if we created one
-      if (isConverted && fs.existsSync(uploadPath)) {
-        fs.unlinkSync(uploadPath);
+      if (isConverted && fs?.existsSync(uploadPath)) {
+        fs?.unlinkSync(uploadPath);
       }
     } catch (error) {
-      console.error(`❌ FAILED: ${destination}`, error.message);
+      console.error(`❌ FAILED: ${destination}`, error?.message);
     }
   }
 
   // Cleanup temp dir
-  if (fs.existsSync(TEMP_DIR) && fs.readdirSync(TEMP_DIR).length === 0) {
-    fs.rmdirSync(TEMP_DIR);
+  if (fs?.existsSync(TEMP_DIR) && fs?.readdirSync(TEMP_DIR)?.length === 0) {
+    fs?.rmdirSync(TEMP_DIR);
   }
 
   console.log('\n✨ Migration complete!');
 }
 
-uploadImages().catch(console.error);
+uploadImages()?.catch(console.error);

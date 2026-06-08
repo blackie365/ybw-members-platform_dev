@@ -4,7 +4,7 @@
  * This script uses the API key to find the Publication ID.
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv')?.config({ path: '.env.local' });
 const fetch = require('node-fetch');
 
 const API_KEY = process.env.BEEHIIV_API_KEY;
@@ -25,26 +25,26 @@ async function getPublication() {
             }
         });
 
-        const data = await response.json();
+        const data = await response?.json();
 
-        if (!response.ok) {
+        if (!response?.ok) {
             console.error('❌ Beehiiv API Error:', data);
             return;
         }
 
-        if (data.data && data.data.length > 0) {
+        if (data?.data && data?.data?.length > 0) {
             console.log('\n✅ Found Publications:');
-            data.data.forEach(pub => {
-                console.log(`- Name: ${pub.name}`);
-                console.log(`  ID: ${pub.id}`);
-                console.log(`  Organization: ${pub.organization_name}`);
+            data?.data?.forEach(pub => {
+                console.log(`- Name: ${pub?.name}`);
+                console.log(`  ID: ${pub?.id}`);
+                console.log(`  Organization: ${pub?.organization_name}`);
                 console.log('---');
             });
         } else {
             console.log('❌ No publications found for this API key.');
         }
     } catch (error) {
-        console.error('❌ Network Error:', error.message);
+        console.error('❌ Network Error:', error?.message);
     }
 }
 

@@ -1,5 +1,5 @@
-import { SignUp } from '@clerk/nextjs'
-import { Suspense } from 'react'
+import { SignUp } from '@clerk/nextjs';
+import { Suspense } from 'react';
 
 function SignUpContent() {
   return (

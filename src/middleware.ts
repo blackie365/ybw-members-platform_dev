@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
@@ -8,7 +8,7 @@ export default clerkMiddleware(async (auth, req) => {
     // Just ensure the user is logged in. 
     // We handle strict role-based access in the /admin layout (Server Component)
     // to avoid JWT session claim synchronization issues.
-    await auth.protect();
+    await auth?.protect();
   }
 });
 

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BookOpen, Calendar, Star, Sparkles, Download } from 'lucide-react';
+import { ArrowRight, BookOpen, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';

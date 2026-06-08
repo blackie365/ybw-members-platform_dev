@@ -11,24 +11,22 @@ async function getAllActiveOffers() {
     if (!adminDb) return [];
     
     // 1. Fetch ALL ACTIVE offers from Firestore
-    const snapshot = await adminDb.collection('offer_requests')
-      .where('status', '==', 'active')
-      .get();
+    const snapshot = await adminDb?.collection('offer_requests')?.where('status', '==', 'active')?.get();
     
-    const firestoreOffers = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const firestoreOffers = snapshot?.docs?.map(doc => {
+      const data = doc?.data();
       return {
-        id: doc.id,
-        title: data.title || 'Untitled Offer',
-        feature_image: data.imageUrl || null,
-        slug: data.link ? '' : `internal-${doc.id}`, 
-        excerpt: data.description || '',
-        primary_author: { name: data.userName || 'Member' },
+        id: doc?.id,
+        title: data?.title || 'Untitled Offer',
+        feature_image: data?.imageUrl || null,
+        slug: data?.link ? '' : `internal-${doc?.id}`, 
+        excerpt: data?.description || '',
+        primary_author: { name: data?.userName || 'Member' },
         isFirestoreOffer: true,
-        link: data.link || '',
-        isMembersOnly: data.isMembersOnly ?? true,
-        published_at: data.createdAt || new Date().toISOString(),
-        status: data.status
+        link: data?.link || '',
+        isMembersOnly: data?.isMembersOnly ?? true,
+        published_at: data?.createdAt || new Date()?.toISOString(),
+        status: data?.status
       };
     });
 

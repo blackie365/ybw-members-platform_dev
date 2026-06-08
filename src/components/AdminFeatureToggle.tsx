@@ -39,8 +39,7 @@ export function AdminFeatureToggle({ memberId, isCurrentlyFeatured }: { memberId
         </Label>
         <p className="text-xs text-muted-foreground truncate">
           {isCurrentlyFeatured 
-            ? 'Currently featured on the homepage' 
-            : 'Toggle to feature this member on the homepage'}
+            ? 'Currently featured on the homepage' :'Toggle to feature this member on the homepage'}
         </p>
       </div>
       <Switch

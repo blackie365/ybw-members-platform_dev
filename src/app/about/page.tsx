@@ -80,25 +80,23 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
-
       {/* Stats Section */}
       <section className="relative -mt-12 z-10">
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {stats.map((stat) => (
+            {stats?.map((stat) => (
               <div 
-                key={stat.label}
+                key={stat?.label}
                 className="bg-card border border-border rounded-lg p-6 text-center hover:border-accent/30 transition-colors"
               >
                 <stat.icon className="w-6 h-6 text-accent mx-auto mb-3" />
-                <p className="font-serif text-3xl font-medium text-foreground">{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+                <p className="font-serif text-3xl font-medium text-foreground">{stat?.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat?.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
-
       {/* Story Section */}
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -144,11 +142,11 @@ export default async function AboutPage() {
               </div>
             </div>
             <div className="relative">
-              {page.feature_image ? (
+              {page?.feature_image ? (
                 <div className="relative aspect-[4/5] rounded-lg overflow-hidden">
                   <Image
-                    src={page.feature_image}
-                    alt={page.title}
+                    src={page?.feature_image}
+                    alt={page?.title}
                     fill
                     className="object-cover"
                     priority
@@ -167,7 +165,6 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
-
       {/* Values Section */}
       <section className="py-24 sm:py-32 bg-secondary/50">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -180,26 +177,25 @@ export default async function AboutPage() {
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            {values.map((value) => (
+            {values?.map((value) => (
               <div 
-                key={value.title}
+                key={value?.title}
                 className="bg-card border border-border rounded-lg p-8 text-center hover:border-accent/30 transition-all hover:-translate-y-1"
               >
                 <div className="w-14 h-14 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
                   <value.icon className="w-7 h-7 text-accent" />
                 </div>
                 <h3 className="font-serif text-xl font-medium text-foreground mb-3">
-                  {value.title}
+                  {value?.title}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {value.description}
+                  {value?.description}
                 </p>
               </div>
             ))}
           </div>
         </div>
       </section>
-
       {/* Testimonials Section */}
       <section className="py-24 sm:py-32 bg-primary text-primary-foreground overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
@@ -213,24 +209,24 @@ export default async function AboutPage() {
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {testimonials?.map((testimonial, index) => (
               <div 
                 key={index}
                 className="relative bg-primary-foreground/5 backdrop-blur-sm border border-primary-foreground/10 rounded-lg p-8"
               >
                 <Quote className="w-10 h-10 text-accent/40 mb-6" />
                 <blockquote className="text-primary-foreground/90 leading-relaxed mb-8">
-                  {testimonial.quote}
+                  {testimonial?.quote}
                 </blockquote>
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
                     <span className="font-serif text-lg font-medium text-accent">
-                      {testimonial.author.split(' ').map(n => n[0]).join('')}
+                      {testimonial?.author?.split(' ')?.map(n => n?.[0])?.join('')}
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium text-primary-foreground">{testimonial.author}</p>
-                    <p className="text-sm text-primary-foreground/60">{testimonial.role}</p>
+                    <p className="font-medium text-primary-foreground">{testimonial?.author}</p>
+                    <p className="text-sm text-primary-foreground/60">{testimonial?.role}</p>
                   </div>
                 </div>
               </div>
@@ -238,9 +234,8 @@ export default async function AboutPage() {
           </div>
         </div>
       </section>
-
       {/* Ghost CMS Content (if any additional content) */}
-      {page.html && page.html.trim() !== '' && (
+      {page?.html && page?.html?.trim() !== '' && (
         <section className="py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <div className="mx-auto max-w-3xl">
@@ -253,13 +248,12 @@ export default async function AboutPage() {
                   prose-ul:text-muted-foreground prose-ol:text-muted-foreground
                   prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
                   prose-img:rounded-lg"
-                dangerouslySetInnerHTML={{ __html: page.html }}
+                dangerouslySetInnerHTML={{ __html: page?.html }}
               />
             </div>
           </div>
         </section>
       )}
-
       {/* CTA Section */}
       <section className="py-24 sm:py-32 bg-secondary/50">
         <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
