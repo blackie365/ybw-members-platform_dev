@@ -217,9 +217,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
         <div
           className={[
             'relative w-full h-full mx-auto overflow-hidden bg-white text-zinc-900 self-center shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)]',
-            isCover
-              ? 'max-w-none aspect-auto lg:h-[min(92vh,980px)]'
-              : 'max-w-[min(94vw,1200px)] aspect-[3/4] lg:aspect-auto lg:h-[min(90vh,850px)] xl:h-[min(80vh,950px)]',
+            'max-w-none aspect-auto',
           ].join(' ')}
         >
           <AnimatePresence initial={false} custom={direction}>
