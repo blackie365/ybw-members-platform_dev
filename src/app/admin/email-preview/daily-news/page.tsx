@@ -45,7 +45,7 @@ const sampleStories = [
 },
 {
   id: "4",
-  title: "From Side Hustle to Success: The Rise of Yorkshire's E-Commerce Queens",
+  title: "From Side Hustle to Success: The Rise of Yorkshire\'s E-Commerce Queens",
   slug: "ecommerce-success-stories",
   custom_excerpt:
   "Meet the women turning their passion projects into thriving online businesses.",

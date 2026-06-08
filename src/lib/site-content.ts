@@ -88,7 +88,7 @@ export const siteContent = {
         quote: "I joined whilst we were in Lock Down and it was the community and support network that inspired me to join.",
         author: "Fiona Ibbetson",
         role: "Member for five years, Yorkshire BusinessWoman",
-        avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_119fb7c68-1763298430043.png"
+        avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1b2f19393-1780850815956.png"
       },
       {
         quote: "The support and mentorship from fellow members helped me scale my business beyond what I thought possible.",
@@ -400,7 +400,7 @@ export const siteContent = {
     {
       id: "ybw_aug_2025",
       title: "August / September 2025",
-      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1e1669734-1780874732236.png",
+      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_169feaf2a-1780850816875.png",
       publishDate: "2025-08-01",
       description: "The Summer Edition: Highlights from the Great Yorkshire Show and seasonal business trends.",
       pdfUrl: "https://e.issuu.com/embed.html?d=ybw_aug_2025&u=blackie365",
@@ -422,7 +422,7 @@ export const siteContent = {
     {
       id: "ybw_apr_2025",
       title: "April / May 2025",
-      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1f059a314-1772202292362.png",
+      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1e8b8c01d-1780874733746.png",
       publishDate: "2025-04-01",
       description: "Spring Awakening: New beginnings and fresh perspectives for Yorkshire's entrepreneurs.",
       pdfUrl: "https://e.issuu.com/embed.html?d=ybw_apr_2025&u=blackie365",
@@ -433,7 +433,7 @@ export const siteContent = {
     {
       id: "ybw_feb_2025",
       title: "February / March 2025",
-      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_12074c773-1780874732220.png",
+      coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1dc07485a-1780916292519.png",
       publishDate: "2025-02-01",
       description: "The Resilience Issue: Overcoming challenges and building robust business models.",
       pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2025&u=blackie365",
@@ -543,7 +543,7 @@ export const siteContent = {
     type: 'lifestyle',
     content: {
       title: "Heritage Meets Modern Elegance",
-      image: "https://img.rocket.new/generatedImages/rocket_gen_img_1d6f08a15-1780874732238.png",
+      image: "https://img.rocket.new/generatedImages/rocket_gen_img_1d4e4a0a8-1780916292433.png",
       text: "Set within the stately surroundings of the historic Cedar Court Hotel in Harrogate, Ambers Restaurant is a polished addition to Harrogate’s dining scene...",
       highlights: ["Locally sourced Yorkshire produce", "Heritage meets modern elegance", "Lady Amber Fitzwilliam inspiration"]
     }
@@ -567,7 +567,7 @@ export const siteContent = {
     content: {
       brand: "Rebecca Rhoades",
       headline: "Bespoke Fashion for the Modern Woman",
-      image: "https://img.rocket.new/generatedImages/rocket_gen_img_168e069e8-1768215034919.png",
+      image: "https://img.rocket.new/generatedImages/rocket_gen_img_16d039b67-1768322447208.png",
       offer: "Exclusive Member Styling Session"
     }
   },

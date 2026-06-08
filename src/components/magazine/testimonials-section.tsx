@@ -52,9 +52,9 @@ export function TestimonialsSection() {
 
         {/* Testimonials Grid */}
         <div className="grid gap-8 md:grid-cols-3">
-          {testimonials.map((testimonial, index) =>
+          {testimonials?.map((testimonial, index) =>
           <motion.div
-            key={testimonial.name}
+            key={testimonial?.name}
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -67,13 +67,13 @@ export function TestimonialsSection() {
               {/* Quote Text */}
               <blockquote className="flex-1">
                 <p className="font-serif text-lg italic leading-relaxed text-foreground">
-                  &ldquo;{testimonial.quote}&rdquo;
+                  &ldquo;{testimonial?.quote}&rdquo;
                 </p>
               </blockquote>
 
               {/* Keywords */}
               <div className="mt-6 flex flex-wrap gap-2">
-                {testimonial.keywords.map((keyword) =>
+                {testimonial?.keywords?.map((keyword) =>
               <span
                 key={keyword}
                 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -87,18 +87,18 @@ export function TestimonialsSection() {
               <div className="mt-6 flex items-center gap-4 pt-6 border-t border-border">
                 <div className="relative h-12 w-12 flex-shrink-0">
                   <Image
-                  src={testimonial.avatar}
-                  alt={testimonial.name}
+                  src={testimonial?.avatar}
+                  alt={testimonial?.name}
                   fill
                   className="rounded-full object-cover" />
                 
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground">
-                    {testimonial.name}
+                    {testimonial?.name}
                   </h4>
                   <p className="text-sm text-muted-foreground">
-                    {testimonial.role}, {testimonial.company}
+                    {testimonial?.role}, {testimonial?.company}
                   </p>
                 </div>
               </div>
@@ -113,6 +113,8 @@ export function TestimonialsSection() {
           </p>
         </div>
       </div>
-    </section>);
+    </section>
+  );
+
 
 }

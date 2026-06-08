@@ -21,7 +21,7 @@ const mockPosts = [
   title: 'Supporting Women in Business Across the Region',
   slug: 'supporting-women-in-business',
   custom_excerpt: 'Discover how we are working to empower female entrepreneurs and professionals in Yorkshire.',
-  feature_image: "https://img.rocket.new/generatedImages/rocket_gen_img_1c8414f45-1767740608691.png",
+  feature_image: "https://img.rocket.new/generatedImages/rocket_gen_img_170351519-1780874732339.png",
   published_at: new Date().toISOString(),
   primary_tag: { name: 'Empowerment', slug: 'empowerment' }
 },
