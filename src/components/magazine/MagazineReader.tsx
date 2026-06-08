@@ -1041,18 +1041,28 @@ const PageColumn = ({ data, imageVersion }: any) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          {data.image && (
+          {(data.videoUrl || data.image) && (
             <div className="lg:col-span-5 scroll-reveal">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.category || 'Column'} className="w-full h-full object-cover" />
+                {data.videoUrl ? (
+                  <video
+                    src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.category || 'Column'} className="w-full h-full object-cover" />
+                )}
               </div>
             </div>
           )}
 
-          <div className={[data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
+          <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
             <div>
-              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{kicker}</p>}
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
               {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
             </div>

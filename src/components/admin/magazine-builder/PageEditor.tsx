@@ -367,10 +367,6 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
-              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
-              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
-            </div>
-            <div className="space-y-2">
               <Label>Column Text</Label>
               <FormattingToolbar field="text" />
               <Textarea
