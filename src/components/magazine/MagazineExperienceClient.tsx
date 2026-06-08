@@ -3,14 +3,26 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { MagazineIssue } from "@/lib/magazine-service";
+import { useState, useEffect } from "react";
+import { MagazineExperienceSkeleton } from "./MagazineExperienceSkeleton";
 
 interface MagazineExperienceClientProps {
   latestIssue: MagazineIssue;
 }
 
 export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClientProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <MagazineExperienceSkeleton />;
+  }
+
   const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const imageVersion = typeof window !== 'undefined' ? Date.now().toString() : '';
+  const imageVersion = Date.now().toString();
 
   return (
     <section className="relative overflow-hidden py-24 md:py-32"
