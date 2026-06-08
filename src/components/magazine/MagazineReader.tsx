@@ -574,14 +574,24 @@ const PageCover = ({ data, imageVersion }: any) => {
 
   return (
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-      {data.videoUrl ? (
-        <video src={data.videoUrl} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
-      ) : (
+      {data.image ? (
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url('${fixMagazineImageUrl(data.image, imageVersion)}')` }}
         />
-      )}
+      ) : null}
+
+      {data.videoUrl ? (
+        <video
+          src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+          poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : null}
 
       {/* Multi-layer gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/15" />
@@ -847,16 +857,26 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
     <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
       {/* Left: Image Panel — full height, half width on desktop */}
       <div className="relative w-full lg:w-1/2 h-56 sm:h-72 lg:h-full flex-shrink-0 overflow-hidden">
-        {data.videoUrl ? (
-          <video src={data.videoUrl} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
-        ) : (
+        {data.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
             alt={data.title || data.name || kicker}
             className="absolute inset-0 w-full h-full object-cover"
           />
-        )}
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
         {/* Subtle right-edge fade into the warm background */}
         <div className="absolute inset-y-0 right-0 w-16 hidden lg:block" style={{ background: 'linear-gradient(to right, transparent, #e8e0d5)' }} />
         {/* Bottom fade for mobile */}
@@ -955,10 +975,10 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs">
+          <div className="flex items-center gap-4 max-w-xs min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
                 {kicker}
               </span>
             )}
@@ -1025,71 +1045,157 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const tips = Array.isArray(data.tips) ? data.tips : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const tipsLabel = String(data.tipsLabel || data.tipsTitle || '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
 
   return (
-    <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
-            {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
-                {kicker}
-              </span>
-            )}
-          </div>
-        </div>
+    <div ref={ref} className={isFullBackground ? 'relative min-h-full overflow-hidden bg-[#0c0a09]' : 'bg-[#faf7f2] py-16 lg:py-24 min-h-full'}>
+      {isFullBackground ? (
+        <>
+          {data.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={fixMagazineImageUrl(data.image, imageVersion)}
+              alt={data.title || data.category || 'Column'}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          {(data.videoUrl || data.image) && (
-            <div className="lg:col-span-5 scroll-reveal">
-              <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15">
-                {data.videoUrl ? (
-                  <video
-                    src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.category || 'Column'} className="w-full h-full object-cover" />
-                )}
+          {data.videoUrl ? (
+            <video
+              src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+              poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : null}
+
+          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-black/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+
+          <div className="relative z-10 py-16 lg:py-24">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+              <div className="scroll-reveal mb-10">
+                <div className="flex items-center gap-4 max-w-xs min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
+                  {kicker && (
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+                      {kicker}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                <div className="lg:col-span-8 space-y-6 scroll-reveal scroll-reveal-delay-2">
+                  <div>
+                    <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                    {data.author && <p className="text-sm text-white/70 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
+                  </div>
+
+                  {data.text && <SafeText html={data.text} className="text-white/80 leading-relaxed" />}
+
+                  {tips.length > 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm shadow-sm p-6">
+                      {tipsLabel && (
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                      )}
+                      <ul className="space-y-2.5">
+                        {tips.map((tip: any, i: number) => (
+                          <li key={i} className="flex items-start gap-3 text-sm text-white/80">
+                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
+                              style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}>
+                              {i + 1}
+                            </span>
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-
-          <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
-            <div>
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
-              {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
+          </div>
+        </>
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="scroll-reveal mb-10">
+            <div className="flex items-center gap-4 max-w-xs min-w-0">
+              <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+              {kicker && (
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+                  {kicker}
+                </span>
+              )}
             </div>
+          </div>
 
-            {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
-
-            {tips.length > 0 && (
-              <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
-                {tipsLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
-                )}
-                <ul className="space-y-2.5">
-                  {tips.map((tip: any, i: number) => (
-                    <li key={i} className="flex items-start gap-3 text-sm text-[#3d2b1f]/75">
-                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
-                        style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}>
-                        {i + 1}
-                      </span>
-                      {tip}
-                    </li>
-                  ))}
-                </ul>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {(data.videoUrl || data.image) && (
+              <div className="lg:col-span-5 scroll-reveal">
+                <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15 relative">
+                  {data.videoUrl ? (
+                    <>
+                      {data.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={fixMagazineImageUrl(data.image, imageVersion)}
+                          alt={data.title || data.category || 'Column'}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      ) : null}
+                      <video
+                        src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                        poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="relative w-full h-full object-cover"
+                      />
+                    </>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.category || 'Column'} className="w-full h-full object-cover" />
+                  )}
+                </div>
               </div>
             )}
+
+            <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
+              <div>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
+              </div>
+
+              {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
+
+              {tips.length > 0 && (
+                <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
+                  {tipsLabel && (
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                  )}
+                  <ul className="space-y-2.5">
+                    {tips.map((tip: any, i: number) => (
+                      <li key={i} className="flex items-start gap-3 text-sm text-[#3d2b1f]/75">
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
+                          style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}>
+                          {i + 1}
+                        </span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -1115,10 +1221,12 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs">
+          <div className="flex items-center gap-4 max-w-xs min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">{kicker}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+                {kicker}
+              </span>
             )}
           </div>
         </div>
@@ -1126,8 +1234,26 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
           <div className="md:col-span-2 scroll-reveal">
             <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-[0_12px_50px_rgba(139,31,63,0.12)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="w-full h-full object-cover" />
+              {data.videoUrl ? (
+                <>
+                  {data.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : null}
+                  <video
+                    src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                    poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="relative w-full h-full object-cover"
+                  />
+                </>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="w-full h-full object-cover" />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-1.5">{kicker}</p>}
@@ -1214,8 +1340,26 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           <div className="lg:col-span-5 scroll-reveal">
             <div className="relative">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_16px_60px_rgba(139,31,63,0.18)] ring-1 ring-[#8b1f3f]/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="w-full h-full object-cover" />
+                {data.videoUrl ? (
+                  <>
+                    {data.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : null}
+                    <video
+                      src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="relative w-full h-full object-cover"
+                    />
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.name} className="w-full h-full object-cover" />
+                )}
               </div>
               {/* Name card overlay */}
               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#e8d5c0]">
@@ -1296,11 +1440,29 @@ const PagePartner = ({ data, imageVersion }: any) => {
             )}
           </div>
 
-          {data.image && (
+          {(data.videoUrl || data.image) && (
             <div className="scroll-reveal scroll-reveal-delay-2">
-              <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_20px_80px_rgba(0,0,0,0.5)] ring-1 ring-white/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="w-full h-full object-cover" />
+              <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_20px_80px_rgba(0,0,0,0.5)] ring-1 ring-white/10 relative">
+                {data.videoUrl ? (
+                  <>
+                    {data.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : null}
+                    <video
+                      src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="relative w-full h-full object-cover"
+                    />
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="w-full h-full object-cover" />
+                )}
               </div>
             </div>
           )}
@@ -1325,10 +1487,12 @@ const PageBackCover = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs">
+          <div className="flex items-center gap-4 max-w-xs min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">{kicker}</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+                {kicker}
+              </span>
             )}
           </div>
         </div>
@@ -1368,10 +1532,28 @@ const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
             </div>
 
-            {data.image && (
-              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="w-full h-full object-cover" />
+            {(data.videoUrl || data.image) && (
+              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative">
+                {data.videoUrl ? (
+                  <>
+                    {data.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : null}
+                    <video
+                      src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="relative w-full h-full object-cover"
+                    />
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="w-full h-full object-cover" />
+                )}
               </div>
             )}
           </div>
