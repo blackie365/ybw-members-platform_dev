@@ -1078,44 +1078,51 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
           <div className="relative z-10 py-16 lg:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
-              <div className="scroll-reveal mb-10">
-                <div className="flex items-center gap-4 max-w-xs min-w-0">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                  {kicker && (
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
-                      {kicker}
-                    </span>
-                  )}
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-                <div className="lg:col-span-8 space-y-6 scroll-reveal scroll-reveal-delay-2">
-                  <div>
-                    <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
-                    {data.author && <p className="text-sm text-white/70 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
-                  </div>
-
-                  {data.text && <SafeText html={data.text} className="text-white/80 leading-relaxed" />}
-
-                  {tips.length > 0 && (
-                    <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm shadow-sm p-6">
-                      {tipsLabel && (
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                <div className="lg:col-span-7 scroll-reveal scroll-reveal-delay-2">
+                  <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-9 space-y-6">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
+                      {kicker && (
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[220px]">
+                          {kicker}
+                        </span>
                       )}
-                      <ul className="space-y-2.5">
-                        {tips.map((tip: any, i: number) => (
-                          <li key={i} className="flex items-start gap-3 text-sm text-white/80">
-                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
-                              style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}>
-                              {i + 1}
-                            </span>
-                            {tip}
-                          </li>
-                        ))}
-                      </ul>
                     </div>
-                  )}
+
+                    <div>
+                      <h2 className="text-section-lg font-serif font-600 text-white leading-tight">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                      {data.author && <p className="text-sm text-white/75 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
+                    </div>
+
+                    {data.text && (
+                      <SafeText
+                        html={data.text}
+                        className="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
+                      />
+                    )}
+
+                    {tips.length > 0 && (
+                      <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm p-6">
+                        {tipsLabel && (
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                        )}
+                        <ul className="space-y-2.5">
+                          {tips.map((tip: any, i: number) => (
+                            <li key={i} className="flex items-start gap-3 text-sm text-white/85">
+                              <span
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
+                                style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}
+                              >
+                                {i + 1}
+                              </span>
+                              {tip}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
