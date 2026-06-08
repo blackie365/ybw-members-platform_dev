@@ -10,7 +10,7 @@ import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience";
 import { getPosts, getTags } from "@/lib/ghost";
 import { adminDb } from "@/lib/firebase-admin";
- import Link from"next/link";
+import Link from "next/link";
 
 // Homepage - Yorkshire BusinessWoman Magazine
 

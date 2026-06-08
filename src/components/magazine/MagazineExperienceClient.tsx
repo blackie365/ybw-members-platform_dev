@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { ArrowRight, BookOpen, Eye, X, Layers, Palette, Sparkles, Monitor } from "lucide-react";
+import { ArrowRight, BookOpen, Eye, X, Layers, Palette, Sparkles, Monitor, ChevronDown } from "lucide-react";
 import { MagazineIssue } from "@/lib/magazine-service";
 import { useState, useEffect } from "react";
 import { MagazineExperienceSkeleton } from "./MagazineExperienceSkeleton";
@@ -14,25 +14,27 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>('palette');
+  const [displayDate, setDisplayDate] = useState('');
+  const [imageVersion, setImageVersion] = useState('');
 
   useEffect(() => {
     setMounted(true);
+    setDisplayDate(new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }));
+    setImageVersion(Date.now().toString());
     // Small delay so the fade-in feels intentional
     const t = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(t);
-  }, []);
+  }, [latestIssue.publishDate]);
 
   if (!mounted) {
     return <MagazineExperienceSkeleton />;
   }
 
-  const displayDate = new Date(latestIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  const imageVersion = Date.now().toString();
-
   return (
     <>
       <section
-        className="relative overflow-hidden py-24 md:py-32"
+        className="relative overflow-hidden py-16 sm:py-24 md:py-32"
         style={{
           background: 'linear-gradient(160deg, #0c0a09 0%, #1a0d14 45%, #0f0a0d 100%)',
           opacity: visible ? 1 : 0,
@@ -56,10 +58,10 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
           style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #8b1f3f 70%, transparent)' }} />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
+          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
 
             {/* Left: copy */}
-            <div className="lg:w-1/2">
+            <div className="lg:w-1/2 w-full">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#c9956a]/30 bg-[#c9956a]/[0.08] text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-7">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
                 New Digital Experience
@@ -75,7 +77,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                 Experience Yorkshire BusinessWoman online. Our interactive digital reader brings the physical magazine experience to your screen with smooth page-turning and high-resolution spreads.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Link
                   href={`/magazine/issue/${latestIssue.id}`}
                   className="inline-flex items-center justify-center gap-2 h-14 px-8 font-semibold text-sm text-[#0c0a09] rounded-none hover:opacity-90 transition-opacity"
@@ -87,13 +89,13 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                 </Link>
                 <Link
                   href="/new-edition"
-                  className="inline-flex items-center justify-center gap-2 h-14 px-8 font-medium text-sm text-white/80 border border-white/15 rounded-none hover:bg-white/[0.06] hover:border-white/25 transition-all"
+                  className="inline-flex items-center justify-center gap-2 h-12 sm:h-14 px-8 font-medium text-sm text-white/80 border border-white/15 rounded-none hover:bg-white/[0.06] hover:border-white/25 transition-all"
                 >
                   View Archive
                 </Link>
                 <button
                   onClick={() => setPreviewMode(true)}
-                  className="inline-flex items-center justify-center gap-2 h-14 px-6 font-medium text-sm text-[#c9956a] border border-[#c9956a]/30 rounded-none hover:bg-[#c9956a]/[0.08] hover:border-[#c9956a]/50 transition-all"
+                  className="inline-flex items-center justify-center gap-2 h-12 sm:h-14 px-6 font-medium text-sm text-[#c9956a] border border-[#c9956a]/30 rounded-none hover:bg-[#c9956a]/[0.08] hover:border-[#c9956a]/50 transition-all"
                 >
                   <Eye className="h-4 w-4" />
                   Design Preview
@@ -141,25 +143,25 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
       {/* ── Design Preview Mode Overlay ── */}
       {previewMode && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8"
-          style={{ background: 'rgba(12,10,9,0.92)', backdropFilter: 'blur(20px)' }}
+          className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto"
+          style={{ background: 'rgba(12,10,9,0.95)', backdropFilter: 'blur(20px)' }}
         >
-          {/* Close button */}
+          {/* Close button — sticky on mobile */}
           <button
             onClick={() => setPreviewMode(false)}
-            className="absolute top-5 right-5 flex items-center justify-center h-10 w-10 rounded-full border border-white/15 text-white/60 hover:text-white hover:border-white/30 transition-all"
+            className="fixed top-4 right-4 z-[210] flex items-center justify-center h-11 w-11 rounded-full border border-white/15 bg-[#0c0a09]/80 text-white/60 hover:text-white hover:border-white/30 transition-all"
           >
             <X className="h-5 w-5" />
           </button>
 
-          <div className="w-full max-w-5xl">
+          <div className="w-full max-w-5xl px-4 py-16 sm:py-20">
             {/* Header */}
-            <div className="text-center mb-10">
+            <div className="text-center mb-8 sm:mb-10">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#c9956a]/30 bg-[#c9956a]/[0.08] text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-4">
                 <Sparkles className="h-3 w-3" />
                 Design Preview Mode
               </div>
-              <h3 className="font-serif text-3xl md:text-4xl text-white mb-3">
+              <h3 className="font-serif text-2xl sm:text-3xl md:text-4xl text-white mb-3">
                 Digital Edition <span className="italic cover-gold-shimmer">Design System</span>
               </h3>
               <p className="text-white/50 text-sm max-w-lg mx-auto">
@@ -167,8 +169,123 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
               </p>
             </div>
 
-            {/* Design tokens grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+            {/* Mobile: collapsible accordion sections */}
+            <div className="flex flex-col gap-3 md:hidden mb-6">
+              {[
+                {
+                  id: 'palette',
+                  icon: <Palette className="h-4 w-4 text-[#c9956a]" />,
+                  label: 'Colour Palette',
+                  content: (
+                    <div className="flex flex-col gap-2.5 pt-3">
+                      {[
+                        { hex: '#0c0a09', label: 'Obsidian' },
+                        { hex: '#8b1f3f', label: 'Crimson' },
+                        { hex: '#a3413a', label: 'Garnet' },
+                        { hex: '#c9956a', label: 'Gold' },
+                        { hex: '#e8c49a', label: 'Champagne' },
+                      ].map(({ hex, label }) => (
+                        <div key={hex} className="flex items-center gap-3">
+                          <div className="h-7 w-7 rounded-sm ring-1 ring-white/10 shrink-0" style={{ background: hex }} />
+                          <div>
+                            <p className="text-xs font-medium text-white/80">{label}</p>
+                            <p className="text-[10px] text-white/30 font-mono">{hex}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                },
+                {
+                  id: 'typography',
+                  icon: <Layers className="h-4 w-4 text-[#c9956a]" />,
+                  label: 'Typography',
+                  content: (
+                    <div className="flex flex-col gap-4 pt-3">
+                      <div>
+                        <p className="font-serif text-2xl text-white leading-tight">The Digital</p>
+                        <p className="font-serif text-2xl italic cover-gold-shimmer leading-tight">Edition</p>
+                        <p className="text-[10px] text-white/30 mt-1 font-mono">Serif / Italic shimmer</p>
+                      </div>
+                      <div className="h-px bg-white/[0.06]" />
+                      <div>
+                        <p className="text-sm font-semibold text-white">Primary CTA</p>
+                        <p className="text-xs text-white/50 mt-0.5">Semi-bold · 14px</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a]">Badge Label</p>
+                        <p className="text-[10px] text-white/30 mt-0.5 font-mono">10px · 0.2em tracking</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-white/60 leading-relaxed">Body copy — white/60 for readability on dark backgrounds.</p>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  id: 'components',
+                  icon: <Monitor className="h-4 w-4 text-[#c9956a]" />,
+                  label: 'UI Components',
+                  content: (
+                    <div className="flex flex-col gap-3 pt-3">
+                      <div
+                        className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs font-semibold text-[#0c0a09] rounded-none w-full"
+                        style={{ background: 'linear-gradient(135deg, #c9956a 0%, #a3413a 100%)' }}
+                      >
+                        <BookOpen className="h-3.5 w-3.5" />
+                        Primary Action
+                      </div>
+                      <div className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs font-medium text-white/80 border border-white/15 rounded-none w-full">
+                        Secondary Action
+                      </div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#c9956a]/30 bg-[#c9956a]/[0.08] text-[9px] font-bold uppercase tracking-[0.2em] text-[#c9956a] w-fit">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
+                        Live Badge
+                      </div>
+                      <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #8b1f3f, transparent)' }} />
+                      <div>
+                        <p className="text-[10px] text-white/30 mb-1.5 font-mono">Skeleton shimmer</p>
+                        <div className="magazine-skeleton h-3 w-full rounded-sm mb-1.5" />
+                        <div className="magazine-skeleton h-3 w-4/5 rounded-sm mb-1.5" />
+                        <div className="magazine-skeleton h-3 w-3/5 rounded-sm" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-white/30 mb-1.5 font-mono">Progress bar</p>
+                        <div className="w-full h-0.5 bg-white/[0.06] rounded-full overflow-hidden">
+                          <div className="magazine-skeleton-progress h-full w-2/5 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                },
+              ].map((section) => (
+                <div key={section.id} className="bg-white/[0.04] border border-white/[0.08] rounded-none overflow-hidden">
+                  <button
+                    className="w-full flex items-center justify-between p-4 text-left"
+                    onClick={() => setOpenSection(openSection === section.id ? null : section.id)}
+                    aria-expanded={openSection === section.id}
+                  >
+                    <div className="flex items-center gap-2">
+                      {section.icon}
+                      <span className="text-xs font-bold uppercase tracking-widest text-white/60">{section.label}</span>
+                    </div>
+                    <ChevronDown
+                      className="h-4 w-4 text-[#c9956a] transition-transform duration-300"
+                      style={{ transform: openSection === section.id ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    />
+                  </button>
+                  <div
+                    className="overflow-hidden transition-all duration-400"
+                    style={{ maxHeight: openSection === section.id ? '600px' : '0px' }}
+                  >
+                    <div className="px-4 pb-4">{section.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: 3-column grid */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
 
               {/* Colour palette */}
               <div className="bg-white/[0.04] border border-white/[0.08] p-5 rounded-none">
@@ -229,7 +346,6 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                   <span className="text-xs font-bold uppercase tracking-widest text-white/60">UI Components</span>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {/* Primary button */}
                   <div
                     className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs font-semibold text-[#0c0a09] rounded-none w-full"
                     style={{ background: 'linear-gradient(135deg, #c9956a 0%, #a3413a 100%)' }}
@@ -237,25 +353,20 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                     <BookOpen className="h-3.5 w-3.5" />
                     Primary Action
                   </div>
-                  {/* Ghost button */}
                   <div className="inline-flex items-center justify-center gap-2 h-10 px-5 text-xs font-medium text-white/80 border border-white/15 rounded-none w-full">
                     Secondary Action
                   </div>
-                  {/* Badge */}
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#c9956a]/30 bg-[#c9956a]/[0.08] text-[9px] font-bold uppercase tracking-[0.2em] text-[#c9956a] w-fit">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
                     Live Badge
                   </div>
-                  {/* Accent line */}
                   <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #8b1f3f, transparent)' }} />
-                  {/* Shimmer skeleton */}
                   <div>
                     <p className="text-[10px] text-white/30 mb-1.5 font-mono">Skeleton shimmer</p>
                     <div className="magazine-skeleton h-3 w-full rounded-sm mb-1.5" />
                     <div className="magazine-skeleton h-3 w-4/5 rounded-sm mb-1.5" />
                     <div className="magazine-skeleton h-3 w-3/5 rounded-sm" />
                   </div>
-                  {/* Progress bar */}
                   <div>
                     <p className="text-[10px] text-white/30 mb-1.5 font-mono">Progress bar</p>
                     <div className="w-full h-0.5 bg-white/[0.06] rounded-full overflow-hidden">
