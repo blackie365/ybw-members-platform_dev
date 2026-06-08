@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, X, Menu, Download, Share2, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Menu, Download, Share2, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
 
 
 import { Logo } from '@/components/Logo';
@@ -17,10 +17,12 @@ interface MagazineReaderProps {
 }
 
 export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [direction, setDirection] = useState(0);
   const [imageVersion, setImageVersion] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const isCover = pages[currentPage]?.type === 'cover';
 
   useEffect(() => {
@@ -56,6 +58,46 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextPage, prevPage]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const anyDoc = document as any;
+      setIsFullscreen(Boolean(document.fullscreenElement || anyDoc.webkitFullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+    handleFullscreenChange();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+    };
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      const anyDoc = document as any;
+      if (!(document.fullscreenElement || anyDoc.webkitFullscreenElement)) {
+        const el = rootRef.current;
+        if (!el) return;
+        const anyEl = el as any;
+        const request =
+          (anyEl.requestFullscreen as undefined | (() => Promise<void>)) ??
+          (anyEl.webkitRequestFullscreen as undefined | (() => Promise<void>));
+        if (!request) return;
+        await request.call(el);
+      } else {
+        const exit =
+          (document.exitFullscreen as undefined | (() => Promise<void>)) ??
+          (anyDoc.webkitExitFullscreen as undefined | (() => Promise<void>));
+        if (!exit) return;
+        await exit.call(document);
+      }
+    } catch {
+      return;
+    }
+  }, []);
 
   const variants: any = {
     enter: (direction: number) => ({
@@ -93,7 +135,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   const progress = ((currentPage + 1) / pages.length) * 100;
 
   return (
-    <div className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
+    <div ref={rootRef} className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
 
       {/* ── Top Control Bar ── */}
       <header className="h-14 sm:h-16 border-b border-white/[0.06] flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
@@ -124,6 +166,18 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
           </button>
           <button className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors">
             <Download className="h-4 w-4 sm:h-4 sm:w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4 sm:h-4 sm:w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4 sm:h-4 sm:w-4" />
+            )}
           </button>
           <button
             className="text-zinc-500 hover:text-white lg:hidden h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
