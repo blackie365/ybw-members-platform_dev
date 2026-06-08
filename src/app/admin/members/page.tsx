@@ -176,7 +176,7 @@ function AdminMembersContent() {
         const initialPrices: Record<string, string> = {}
         ghostEvents.forEach((event: any) => {
           const meta = metadataRes.data?.[event.slug]
-          if (meta) {
+          if (typeof meta?.price === 'number') {
             initialPrices[event.slug] = meta.price.toString()
           } else {
             const priceTag = event.tags?.find((t: any) => t.slug.includes('ticket-price'))
@@ -243,6 +243,37 @@ function AdminMembersContent() {
         }))
       } else {
         alert("Failed to update access: " + res.error)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleToggleTicketCard = async (slug: string, currentEnabled?: boolean) => {
+    const nextEnabled = currentEnabled === false
+    setUpdating(slug)
+    try {
+      const currentMeta = eventsMetadata[slug] || {}
+      const derivedPrice = (() => {
+        const parsed = parseInt(editingPrice[slug] || '', 10)
+        return Number.isFinite(parsed) ? parsed : 50
+      })()
+
+      const res = await updateEventMetadata(slug, {
+        ticketCardEnabled: nextEnabled,
+        price: currentMeta.price !== undefined ? currentMeta.price : derivedPrice,
+        accessLevel: currentMeta.accessLevel || 'public',
+      } as any)
+
+      if (res.success) {
+        setEventsMetadata(prev => ({
+          ...prev,
+          [slug]: { ...prev[slug], id: slug, ticketCardEnabled: nextEnabled }
+        }))
+      } else {
+        alert("Failed to update Stripe card visibility: " + res.error)
       }
     } catch (err) {
       console.error(err)
@@ -477,6 +508,7 @@ function AdminMembersContent() {
                   setEditingPrice={setEditingPrice}
                   handleUpdatePrice={handleUpdatePrice}
                   handleToggleAccess={handleToggleAccess}
+                  handleToggleTicketCard={handleToggleTicketCard}
                 />
               )}
             </CardContent>

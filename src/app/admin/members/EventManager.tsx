@@ -14,8 +14,9 @@ import { Loader2, Save } from "lucide-react"
 
 export interface EventMetadata {
   id: string
-  price: number
+  price?: number
   accessLevel?: 'public' | 'members-only'
+  ticketCardEnabled?: boolean
   capacity?: number
   updatedAt?: string
 }
@@ -28,6 +29,7 @@ interface EventManagerProps {
   setEditingPrice: React.Dispatch<React.SetStateAction<Record<string, string>>>
   handleUpdatePrice: (slug: string) => void
   handleToggleAccess: (slug: string, currentAccess?: string) => void
+  handleToggleTicketCard: (slug: string, currentEnabled?: boolean) => void
 }
 
 export function EventManager({
@@ -38,6 +40,7 @@ export function EventManager({
   setEditingPrice,
   handleUpdatePrice,
   handleToggleAccess,
+  handleToggleTicketCard,
 }: EventManagerProps) {
   return (
     <Table>
@@ -47,6 +50,7 @@ export function EventManager({
           <TableHead>Current Price</TableHead>
           <TableHead>New Price (£)</TableHead>
           <TableHead className="text-center">Members Only</TableHead>
+          <TableHead className="text-center">Stripe Card</TableHead>
           <TableHead className="w-[100px]"></TableHead>
         </TableRow>
       </TableHeader>
@@ -55,6 +59,7 @@ export function EventManager({
           const meta = eventsMetadata[event.slug]
           const isUpdating = updating === event.slug
           const isMembersOnly = meta?.accessLevel === 'members-only'
+          const isTicketCardEnabled = meta?.ticketCardEnabled !== false
           return (
             <TableRow key={event.id}>
               <TableCell>
@@ -64,7 +69,7 @@ export function EventManager({
                 </div>
               </TableCell>
               <TableCell>
-                {meta ? (
+                {typeof meta?.price === 'number' ? (
                   <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
                     £{meta.price} (Live)
                   </Badge>
@@ -92,6 +97,18 @@ export function EventManager({
                   />
                   <span className="text-[10px] text-muted-foreground uppercase font-medium">
                     {isMembersOnly ? 'Private' : 'Public'}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <Switch
+                    checked={isTicketCardEnabled}
+                    onCheckedChange={() => handleToggleTicketCard(event.slug, meta?.ticketCardEnabled)}
+                    disabled={isUpdating}
+                  />
+                  <span className="text-[10px] text-muted-foreground uppercase font-medium">
+                    {isTicketCardEnabled ? 'Shown' : 'Hidden'}
                   </span>
                 </div>
               </TableCell>
