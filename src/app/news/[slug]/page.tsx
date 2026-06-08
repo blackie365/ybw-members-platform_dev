@@ -68,17 +68,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   // Check event access level if it's an event
   let accessLevel = 'public';
+  let ticketCardEnabled = true;
   if (isEvent) {
-    const metadata = await getEventMetadata(post.slug);
-    if (metadata.success && metadata.data?.accessLevel === 'members-only') {
-      accessLevel = 'members-only';
-      const session = await auth();
-      if (!session.userId) {
-        // Option 1: Redirect to login
-        // redirect(`/login?redirect=/news/${post.slug}`);
-        
-        // Option 2: Show a "Members Only" gate instead of redirecting
-        // We'll proceed to render the page but hide the content if it's members-only
+    const metadataRes = await getEventMetadata(post.slug);
+    if (metadataRes.success && metadataRes.data) {
+      ticketCardEnabled = metadataRes.data.ticketCardEnabled !== false;
+      if (metadataRes.data.accessLevel === 'members-only') {
+        accessLevel = 'members-only';
       }
     }
   }
@@ -264,7 +260,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           {/* Sidebar */}
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
             <div className="sticky top-24 flex flex-col gap-8">
-              {isEvent && !isLocked && <EventTicketCard post={post} />}
+              {isEvent && !isLocked && ticketCardEnabled && <EventTicketCard post={post} />}
               <AdSlot type="sidebar-mpu" />
             </div>
           </aside>
