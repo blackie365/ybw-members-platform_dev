@@ -61,7 +61,7 @@ export default function AdminOverviewPage() {
       change: `+${stats.newMembersThisMonth} this month`,
       trend: "up",
       icon: Users,
-      href: "/admin/members",
+      href: "/admin/members?tab=members",
     },
     {
       title: "Upcoming Events",
@@ -69,7 +69,7 @@ export default function AdminOverviewPage() {
       change: `${stats.totalEvents} total`,
       trend: "neutral",
       icon: Calendar,
-      href: "/admin/members",
+      href: "/admin/members?tab=events",
     },
     {
       title: "Member Growth",
@@ -158,7 +158,7 @@ export default function AdminOverviewPage() {
             <p className="text-sm text-muted-foreground mt-1">Newest members to join the community</p>
           </div>
           <Link 
-            href="/admin/members" 
+            href="/admin/members?tab=members"
             className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors"
           >
             View all
