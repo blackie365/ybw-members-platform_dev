@@ -728,6 +728,8 @@ const PageContents = ({ data }: any) => {
 
   const items = Array.isArray(data.items) ? data.items : [];
   const news = Array.isArray(data.news) ? data.news : [];
+  const kicker = String(data.kicker || '').trim();
+  const newsLabel = String(data.newsLabel || '').trim();
 
   return (
     <div ref={ref} className="bg-[#1a1210] py-16 lg:py-24 min-h-full text-white">
@@ -737,8 +739,10 @@ const PageContents = ({ data }: any) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10">
         <div className="scroll-reveal mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">Contents</p>
-            <h2 className="text-section-lg font-serif font-600 text-white">{data.title || 'In This Issue'}</h2>
+            {kicker && (
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">{kicker}</p>
+            )}
+            <h2 className="text-section-lg font-serif font-600 text-white">{data.title}</h2>
           </div>
           <div className="flex items-center gap-5">
             {['Instagram','LinkedIn','X'].map((s) => (
@@ -781,7 +785,9 @@ const PageContents = ({ data }: any) => {
 
         {news.length > 0 && (
           <div className="scroll-reveal rounded-xl border border-white/[0.07] bg-white/[0.03] p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9956a] mb-4">Regional News</p>
+            {newsLabel && (
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9956a] mb-4">{newsLabel}</p>
+            )}
             <ul className="space-y-2.5">
               {news.map((item: any, i: number) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-white/70">
@@ -805,6 +811,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
+  const kicker = String((data.kicker || data.category) ?? '').trim();
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -812,9 +819,11 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 max-w-xs">
             <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
-              {data.category || 'Feature'}
-            </span>
+            {kicker && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
+                {kicker}
+              </span>
+            )}
           </div>
         </div>
 
@@ -870,6 +879,9 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
+  const kicker = String((data.kicker || data.category) ?? '').trim();
+  const nameLabel = String(data.name || '').trim();
+  const snapshotLabel = String(data.snapshotLabel || '').trim();
 
   return (
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
@@ -877,16 +889,20 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 max-w-xs">
             <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
-              {data.category || 'Feature'}
-            </span>
+            {kicker && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
+                {kicker}
+              </span>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           <div className="lg:col-span-6 space-y-6 scroll-reveal">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{data.name || 'Feature'}</p>
+              {nameLabel && (
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{nameLabel}</p>
+              )}
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title || data.name}</h2>
             </div>
 
@@ -911,7 +927,9 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
 
             {stats.length > 0 && (
               <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">Snapshot</p>
+                {snapshotLabel && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{snapshotLabel}</p>
+                )}
                 <div className="space-y-2.5">
                   {stats.map((stat: any, i: number) => (
                     <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl border border-[#f0e8da] bg-[#faf7f2] p-4 flex items-start gap-4">
@@ -937,6 +955,8 @@ const PageColumn = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const tips = Array.isArray(data.tips) ? data.tips : [];
+  const kicker = String((data.kicker || data.category) ?? '').trim();
+  const tipsLabel = String(data.tipsLabel || data.tipsTitle || '').trim();
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -944,9 +964,11 @@ const PageColumn = ({ data, imageVersion }: any) => {
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 max-w-xs">
             <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
-              {data.category || 'Column'}
-            </span>
+            {kicker && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
+                {kicker}
+              </span>
+            )}
           </div>
         </div>
 
@@ -962,7 +984,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
           <div className={[data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{data.category || 'Column'}</p>
+              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{kicker}</p>}
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title}</h2>
               {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
             </div>
@@ -971,7 +993,9 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
             {tips.length > 0 && (
               <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">Key Takeaways</p>
+                {tipsLabel && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                )}
                 <ul className="space-y-2.5">
                   {tips.map((tip: any, i: number) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-[#3d2b1f]/75">
@@ -1000,6 +1024,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const title = String(data.title || '').trim();
+  const kicker = String(data.kicker || '').trim();
+  const highlightsLabel = String(data.highlightsLabel || '').trim();
+  const editorsPickLabel = String(data.editorsPickLabel || '').trim();
   const highlights = Array.isArray(data.highlights) ? data.highlights : [];
   const extraImages: string[] = Array.isArray(data.images)
     ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
@@ -1012,7 +1039,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 max-w-xs">
             <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">Lifestyle</span>
+            {kicker && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">{kicker}</span>
+            )}
           </div>
         </div>
 
@@ -1020,10 +1049,10 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           <div className="md:col-span-2 scroll-reveal">
             <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-[0_12px_50px_rgba(139,31,63,0.12)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || 'Lifestyle'} className="w-full h-full object-cover" />
+              <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9956a] mb-1.5">Lifestyle</p>
+                {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9956a] mb-1.5">{kicker}</p>}
                 <h3 className="font-serif font-semibold text-white text-2xl">{title}</h3>
               </div>
             </div>
@@ -1032,7 +1061,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           <div className="space-y-4 scroll-reveal scroll-reveal-delay-2">
             <div className="rounded-2xl p-5 border border-[#e8d5c0] bg-white shadow-sm h-full flex flex-col justify-between min-h-[200px]">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">Highlights</p>
+                {highlightsLabel && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{highlightsLabel}</p>
+                )}
                 {highlights.length > 0 ? (
                   <ul className="space-y-2">
                     {highlights.slice(0, 6).map((h: any, i: number) => (
@@ -1057,8 +1088,10 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
             {textPreview && (
               <div className="rounded-2xl p-5 border border-[#e8d5c0] bg-white shadow-sm flex flex-col justify-between min-h-[160px]">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">Editor&apos;s Pick</p>
-                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{title || 'Lifestyle Edit'}</p>
+                  {editorsPickLabel && (
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{editorsPickLabel}</p>
+                  )}
+                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{title}</p>
                 </div>
                 <p className="text-sm text-[#7a6e65] mt-3 line-clamp-3">{textPreview}</p>
               </div>
@@ -1094,7 +1127,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
 
-  const sectionLabel = data.title || 'Meet';
+  const sectionLabel = String(data.title || '').trim();
 
   return (
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
@@ -1108,7 +1141,9 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               </div>
               {/* Name card overlay */}
               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#e8d5c0]">
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{sectionLabel}</p>
+                {sectionLabel && (
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{sectionLabel}</p>
+                )}
                 <p className="font-bold text-[#1c1410]">{data.name}</p>
                 {data.role && <p className="text-xs text-[#7a6e65]">{data.role}</p>}
               </div>
@@ -1117,7 +1152,9 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
 
           <div className="lg:col-span-7 space-y-6 scroll-reveal scroll-reveal-delay-2">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{sectionLabel}</p>
+              {sectionLabel && (
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{sectionLabel}</p>
+              )}
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.name}</h2>
             </div>
 
@@ -1141,6 +1178,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
 const PagePartner = ({ data, imageVersion }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
+  const kicker = String(data.kicker || '').trim();
 
   return (
     <div ref={ref} className="relative py-16 lg:py-24 min-h-full overflow-hidden text-white"
@@ -1161,7 +1199,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           <div className="space-y-6 scroll-reveal">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">Partner Feature</p>
+              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">{kicker}</p>}
               <h2 className="text-section-lg font-serif font-600 text-white">{data.title || data.brand}</h2>
               {data.headline && <p className="text-white/65 font-medium mt-1 text-lg">{data.headline}</p>}
             </div>
@@ -1202,6 +1240,8 @@ const PageBackCover = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const socials = Array.isArray(data.socials) ? data.socials : [];
+  const kicker = String(data.kicker || '').trim();
+  const comingSoonLabel = String(data.comingSoonLabel || '').trim();
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -1209,7 +1249,9 @@ const PageBackCover = ({ data, imageVersion }: any) => {
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 max-w-xs">
             <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">Next Edition</span>
+            {kicker && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">{kicker}</span>
+            )}
           </div>
         </div>
 
@@ -1217,18 +1259,14 @@ const PageBackCover = ({ data, imageVersion }: any) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             <div className="p-10 lg:p-14 flex flex-col justify-center space-y-5 bg-white">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">Coming Soon</p>
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title || 'Next Edition'}</h2>
+                {comingSoonLabel && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{comingSoonLabel}</p>
+                )}
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title}</h2>
                 {data.nextIssue && <p className="text-[#7a6e65] font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
-              {data.text ? (
-                <SafeText html={data.text} className="text-[#3d2b1f]/70 leading-relaxed" />
-              ) : (
-                <p className="text-[#3d2b1f]/70 leading-relaxed">
-                  Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.
-                </p>
-              )}
+              {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/70 leading-relaxed" />}
 
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
@@ -1236,7 +1274,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                   className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-sm rounded-full text-white hover:opacity-90 transition-opacity"
                   style={{ background: 'linear-gradient(135deg, #8b1f3f 0%, #c9956a 100%)' }}
                 >
-                  {data.cta || 'Join the Community'}
+                  {data.cta}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M13 5l7 7-7 7" />
                   </svg>
@@ -1255,7 +1293,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
             {data.image && (
               <div className="overflow-hidden aspect-[4/3] lg:aspect-auto">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt="Next edition" className="w-full h-full object-cover" />
+                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="w-full h-full object-cover" />
               </div>
             )}
           </div>
