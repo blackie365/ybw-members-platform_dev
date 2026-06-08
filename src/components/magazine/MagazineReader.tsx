@@ -814,57 +814,89 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? '').trim();
 
   return (
-    <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#c9956a]/60 to-transparent" />
-            {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap">
-                {kicker}
-              </span>
-            )}
-          </div>
+    <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
+      {/* Left: Image Panel — full height, half width on desktop */}
+      <div className="relative w-full lg:w-1/2 h-56 sm:h-72 lg:h-full flex-shrink-0 overflow-hidden">
+        {data.videoUrl ? (
+          <video src={data.videoUrl} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.name || kicker}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        {/* Subtle right-edge fade into the warm background */}
+        <div className="absolute inset-y-0 right-0 w-16 hidden lg:block" style={{ background: 'linear-gradient(to right, transparent, #e8e0d5)' }} />
+        {/* Bottom fade for mobile */}
+        <div className="absolute inset-x-0 bottom-0 h-16 lg:hidden" style={{ background: 'linear-gradient(to bottom, transparent, #e8e0d5)' }} />
+      </div>
+
+      {/* Right: Content Panel */}
+      <div className="relative flex flex-col justify-center flex-1 px-6 sm:px-10 lg:px-12 py-8 lg:py-12 overflow-y-auto">
+        {/* Brick-red top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#b5341b' }} />
+        {/* Brick-red left accent bar (desktop) */}
+        <div className="absolute top-0 left-0 bottom-0 w-1 hidden lg:block" style={{ background: 'linear-gradient(to bottom, transparent, #b5341b 20%, #b5341b 80%, transparent)' }} />
+
+        {/* Category label */}
+        <div className="scroll-reveal mb-4 flex items-center gap-3">
+          <div className="w-6 h-px" style={{ background: '#b5341b' }} />
+          {kicker && (
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: '#b5341b' }}>
+              {kicker}
+            </span>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-12">
-          <div className="lg:col-span-7 scroll-reveal">
-            <div className="rounded-2xl overflow-hidden aspect-[16/10] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#c9956a]/15">
-              {data.videoUrl ? (
-                <video src={data.videoUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="w-full h-full object-cover" />
-              )}
-            </div>
+        {/* Name / tag */}
+        {data.name && (
+          <p className="scroll-reveal text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#7a5c4e' }}>
+            {data.name}
+          </p>
+        )}
+
+        {/* Title */}
+        {(data.title || data.name) && (
+          <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
+            style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.8rem)' }}>
+            {data.title || data.name}
+          </h2>
+        )}
+
+        {/* Pull quote */}
+        {data.quote && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#b5341b' }}>
+            <p className="font-serif italic leading-snug" style={{ color: '#b5341b', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
+              &ldquo;{data.quote}&rdquo;
+            </p>
           </div>
+        )}
 
-          <div className="lg:col-span-5 flex flex-col justify-center space-y-5 scroll-reveal scroll-reveal-delay-2">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{data.tag || 'Feature'}</p>
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410] mb-3">{data.title}</h2>
-              {data.name && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider">{data.name}</p>}
-            </div>
-
-            {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed text-sm" />}
-
-            {data.intro && (
-              <div className="border-l-[3px] border-[#c9956a] pl-4 py-1">
-                <SafeText html={data.intro} className="font-serif italic text-[#8b1f3f] text-base [&_p]:m-0" />
-              </div>
-            )}
-
-            {stats.length > 0 && (
-              <div className="grid grid-cols-3 gap-2.5 pt-2">
-                {stats.slice(0, 3).map((stat: any) => (
-                  <div key={stat?.label} className="rounded-xl p-3 text-center border border-[#e8d5c0] bg-white shadow-sm">
-                    <p className="font-serif font-bold text-[#8b1f3f] text-xl">{stat?.value}</p>
-                    <p className="text-[10px] text-[#7a6e65] font-medium mt-0.5">{stat?.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Intro / body text */}
+        {data.intro && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
+            <SafeText html={data.intro} className="text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
           </div>
+        )}
+
+        {/* Stats row */}
+        {stats.length > 0 && (
+          <div className="scroll-reveal scroll-reveal-delay-3 grid grid-cols-3 gap-2 mt-2 mb-4">
+            {stats.slice(0, 3).map((stat: any, i: number) => (
+              <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(181,52,27,0.18)' }}>
+                <p className="font-serif font-bold text-xl" style={{ color: '#b5341b' }}>{stat?.value}</p>
+                <p className="text-[10px] font-medium mt-0.5" style={{ color: '#7a5c4e' }}>{stat?.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Decorative bottom rule */}
+        <div className="scroll-reveal mt-auto pt-6 flex items-center gap-3">
+          <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #b5341b, transparent)' }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#b5341b' }}>YBW</span>
         </div>
       </div>
     </div>
