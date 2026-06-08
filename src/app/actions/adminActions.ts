@@ -26,20 +26,6 @@ function getBeehiivPostStatsAction(...args: any[]): any {
 }
 
 export { getBeehiivPostStatsAction };
-function getMagazineIssuesAction(...args: any[]): any {
-  // eslint-disable-next-line no-console
-  console.warn('Placeholder: getMagazineIssuesAction is not implemented yet.', args);
-  return null;
-}
-
-export { getMagazineIssuesAction };
-function deleteMagazineIssueAction(...args: any[]): any {
-  // eslint-disable-next-line no-console
-  console.warn('Placeholder: deleteMagazineIssueAction is not implemented yet.', args);
-  return null;
-}
-
-export { deleteMagazineIssueAction };
 function getMembersAction(...args: any[]): any {
   // eslint-disable-next-line no-console
   console.warn('Placeholder: getMembersAction is not implemented yet.', args);
