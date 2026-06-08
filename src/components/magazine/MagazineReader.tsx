@@ -975,10 +975,10 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs min-w-0">
+          <div className="flex items-center gap-4 w-full min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
@@ -1084,7 +1084,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                     {kicker && (
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-px bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[320px]">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem]">
                           {kicker}
                         </span>
                       </div>
@@ -1136,10 +1136,10 @@ const PageColumn = ({ data, imageVersion }: any) => {
       ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="scroll-reveal mb-10">
-            <div className="flex items-center gap-4 max-w-xs min-w-0">
+            <div className="flex items-center gap-4 w-full min-w-0">
               <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
               {kicker && (
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                   {kicker}
                 </span>
               )}
@@ -1238,10 +1238,10 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs min-w-0">
+          <div className="flex items-center gap-4 w-full min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
@@ -1504,10 +1504,10 @@ const PageBackCover = ({ data, imageVersion }: any) => {
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
-          <div className="flex items-center gap-4 max-w-xs min-w-0">
+          <div className="flex items-center gap-4 w-full min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[180px]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
