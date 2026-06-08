@@ -418,6 +418,38 @@ function SafeText({ html, className }: { html: string; className?: string }) {
   );
 }
 
+function renderTitleArt(text: unknown, emphasisClassName?: string): React.ReactNode {
+  const raw = String(text ?? '').trim();
+  if (!raw) return null;
+
+  const re = /\*([^*]+)\*/g;
+  if (!re.test(raw)) return raw;
+
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  re.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+
+  while ((m = re.exec(raw)) !== null) {
+    if (m.index > lastIndex) {
+      nodes.push(raw.slice(lastIndex, m.index));
+    }
+    nodes.push(
+      <span key={`ta-${key++}`} className={emphasisClassName || 'font-serif italic text-[#c9956a]'}>
+        {m[1]}
+      </span>
+    );
+    lastIndex = m.index + m[0].length;
+  }
+
+  if (lastIndex < raw.length) {
+    nodes.push(raw.slice(lastIndex));
+  }
+
+  return <>{nodes}</>;
+}
+
 function getHtmlBlocks(html: string): string[] {
   if (!html) return [];
   const hasTags = html.includes('<');
@@ -685,7 +717,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
 
           <div className="lg:col-span-8 space-y-6">
             <div className="scroll-reveal scroll-reveal-delay-2">
-              <h2 className="text-feature-xl font-serif font-600 text-[#1c1410] mb-2">{data.title}</h2>
+              <h2 className="text-feature-xl font-serif font-600 text-[#1c1410] mb-2">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
             </div>
 
             {data.quote && (
@@ -740,7 +772,7 @@ const PageContents = ({ data }: any) => {
             {kicker && (
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">{kicker}</p>
             )}
-            <h2 className="text-section-lg font-serif font-600 text-white">{data.title}</h2>
+            <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title)}</h2>
           </div>
           <div className="flex items-center gap-5">
             {['Instagram','LinkedIn','X'].map((s) => (
@@ -859,7 +891,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {(data.title || data.name) && (
           <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
             style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.8rem)' }}>
-            {data.title || data.name}
+            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#b5341b]')}
           </h2>
         )}
 
@@ -933,7 +965,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
               {nameLabel && (
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{nameLabel}</p>
               )}
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title || data.name}</h2>
+              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}</h2>
             </div>
 
             {data.quote && (
@@ -1015,7 +1047,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
           <div className={[data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
             <div>
               {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{kicker}</p>}
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title}</h2>
+              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
               {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
             </div>
 
@@ -1083,7 +1115,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c9956a] mb-1.5">{kicker}</p>}
-                <h3 className="font-serif font-semibold text-white text-2xl">{title}</h3>
+                <h3 className="font-serif font-semibold text-white text-2xl">{renderTitleArt(title)}</h3>
               </div>
             </div>
           </div>
@@ -1121,7 +1153,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                   {editorsPickLabel && (
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{editorsPickLabel}</p>
                   )}
-                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{title}</p>
+                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#8b1f3f]')}</p>
                 </div>
                 <p className="text-sm text-[#7a6e65] mt-3 line-clamp-3">{textPreview}</p>
               </div>
@@ -1172,7 +1204,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               {/* Name card overlay */}
               <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-[#e8d5c0]">
                 {sectionLabel && (
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{sectionLabel}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-0.5">{renderTitleArt(sectionLabel, 'font-serif italic text-[#8b1f3f]')}</p>
                 )}
                 <p className="font-bold text-[#1c1410]">{data.name}</p>
                 {data.role && <p className="text-xs text-[#7a6e65]">{data.role}</p>}
@@ -1183,7 +1215,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           <div className="lg:col-span-7 space-y-6 scroll-reveal scroll-reveal-delay-2">
             <div>
               {sectionLabel && (
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{sectionLabel}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{renderTitleArt(sectionLabel, 'font-serif italic text-[#8b1f3f]')}</p>
               )}
               <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.name}</h2>
             </div>
@@ -1230,7 +1262,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
           <div className="space-y-6 scroll-reveal">
             <div>
               {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-2">{kicker}</p>}
-              <h2 className="text-section-lg font-serif font-600 text-white">{data.title || data.brand}</h2>
+              <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title || data.brand)}</h2>
               {data.headline && <p className="text-white/65 font-medium mt-1 text-lg">{data.headline}</p>}
             </div>
 
@@ -1292,7 +1324,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                 {comingSoonLabel && (
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{comingSoonLabel}</p>
                 )}
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{data.title}</h2>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
                 {data.nextIssue && <p className="text-[#7a6e65] font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
