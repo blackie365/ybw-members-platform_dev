@@ -1081,17 +1081,22 @@ const PageColumn = ({ data, imageVersion }: any) => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
                 <div className="lg:col-span-7 scroll-reveal scroll-reveal-delay-2">
                   <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-9 space-y-6">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                      {kicker && (
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[220px]">
+                    {kicker && (
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-px bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap truncate max-w-[320px]">
                           {kicker}
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     <div>
-                      <h2 className="text-section-lg font-serif font-600 text-white leading-tight">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                      <h2
+                        className="text-section-lg font-serif font-600 text-white leading-tight"
+                        style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 15px)' }}
+                      >
+                        {renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}
+                      </h2>
                       {data.author && <p className="text-sm text-white/75 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
                     </div>
 
@@ -1175,7 +1180,12 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
             <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
               <div>
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                <h2
+                  className="text-section-lg font-serif font-600 text-[#1c1410]"
+                  style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 15px)' }}
+                >
+                  {renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}
+                </h2>
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
               </div>
 
