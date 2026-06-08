@@ -1,9 +1,7 @@
+'use client';
 
- import Link from"next/link";
-import { ArrowRight } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { MagazineIssue } from "@/lib/magazine-service";
 
 interface MagazineExperienceClientProps {
@@ -15,61 +13,97 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
   const imageVersion = typeof window !== 'undefined' ? Date.now().toString() : '';
 
   return (
-    <section className="bg-primary py-24 md:py-32 text-primary-foreground overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 lg:px-8">
+    <section className="relative overflow-hidden py-24 md:py-32"
+      style={{ background: 'linear-gradient(160deg, #0c0a09 0%, #1a0d14 45%, #0f0a0d 100%)' }}>
+
+      {/* Ambient blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[40rem] h-[40rem] rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(139,31,63,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }} />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full"
+          style={{ background: 'radial-gradient(ellipse, rgba(201,149,106,0.14) 0%, transparent 65%)', filter: 'blur(80px)' }} />
+      </div>
+
+      {/* Grain overlay */}
+      <div className="grain-overlay absolute inset-0 z-0" />
+
+      {/* Vertical accent line */}
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 z-10"
+        style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #8b1f3f 70%, transparent)' }} />
+
+      <div className="relative z-10 mx-auto max-w-7xl px-4 lg:px-8">
         <div className="flex flex-col lg:flex-row items-center gap-16">
+
+          {/* Left: copy */}
           <div className="lg:w-1/2">
-            <div>
-              <Badge variant="outline" className="text-accent border-accent/30 mb-6 px-4 py-1 uppercase tracking-widest text-[10px]">
-                New Digital Experience
-              </Badge>
-              <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium mb-8 leading-tight">
-                The <span className="italic text-accent">Digital</span> Edition
-              </h2>
-              <p className="text-primary-foreground/70 text-lg mb-10 leading-relaxed max-w-xl">
-                Experience Yorkshire BusinessWoman online. Our interactive digital reader brings the physical magazine experience to your screen with smooth page-turning and high-resolution spreads.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-none h-14 px-8" asChild>
-                  <Link href={`/magazine/issue/${latestIssue.id}`}>
-                    Launch Digital Edition
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 rounded-none h-14 px-8" asChild>
-                  <Link href="/new-edition">
-                    View Archive
-                  </Link>
-                </Button>
-              </div>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#c9956a]/30 bg-[#c9956a]/[0.08] text-[10px] font-bold uppercase tracking-[0.2em] text-[#c9956a] mb-7">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
+              New Digital Experience
+            </div>
+
+            <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-medium mb-8 leading-tight text-white">
+              The{' '}
+              <span className="italic cover-gold-shimmer">Digital</span>
+              {' '}Edition
+            </h2>
+
+            <p className="text-white/60 text-lg mb-10 leading-relaxed max-w-xl">
+              Experience Yorkshire BusinessWoman online. Our interactive digital reader brings the physical magazine experience to your screen with smooth page-turning and high-resolution spreads.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link
+                href={`/magazine/issue/${latestIssue.id}`}
+                className="inline-flex items-center justify-center gap-2 h-14 px-8 font-semibold text-sm text-[#0c0a09] rounded-none hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #c9956a 0%, #a3413a 100%)' }}
+              >
+                <BookOpen className="h-4 w-4" />
+                Launch Digital Edition
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/new-edition"
+                className="inline-flex items-center justify-center gap-2 h-14 px-8 font-medium text-sm text-white/80 border border-white/15 rounded-none hover:bg-white/[0.06] hover:border-white/25 transition-all"
+              >
+                View Archive
+              </Link>
             </div>
           </div>
 
+          {/* Right: cover image */}
           <div className="lg:w-1/2 relative">
-            <div className="relative z-10 aspect-[3/4] max-w-[400px] mx-auto rounded-none overflow-hidden shadow-2xl shadow-black/50 border border-white/10">
+            {/* Glow behind cover */}
+            <div className="absolute inset-0 rounded-none"
+              style={{ background: 'radial-gradient(ellipse at center, rgba(201,149,106,0.25) 0%, transparent 70%)', filter: 'blur(40px)', transform: 'scale(1.2)' }} />
+
+            <div className="relative z-10 aspect-[3/4] max-w-[380px] mx-auto overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.7)] ring-1 ring-white/[0.08]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
+              <img
                 src={`${latestIssue.coverImage}${imageVersion ? `?v=${imageVersion}` : ''}`}
                 alt={latestIssue.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+              {/* Shimmer sweep */}
+              <div className="absolute inset-0 cover-shimmer-sweep pointer-events-none" />
             </div>
-            
-            {/* Decorative Elements */}
-            <div className="absolute -top-12 -right-12 w-64 h-64 bg-accent/20 blur-3xl rounded-full" />
-            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-accent/10 blur-3xl rounded-full" />
-            
-            <div className="absolute top-1/2 -right-8 -translate-y-1/2 hidden xl:block">
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-none">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                  <span className="text-[10px] uppercase tracking-widest text-accent font-bold">Interactive Edition</span>
+
+            {/* Floating info card */}
+            <div className="absolute top-1/2 -right-6 xl:-right-10 -translate-y-1/2 hidden xl:block">
+              <div className="bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] p-5 rounded-none shadow-2xl">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#c9956a] animate-pulse" />
+                  <span className="text-[9px] uppercase tracking-[0.2em] text-[#c9956a] font-bold">Interactive Edition</span>
                 </div>
-                <p className="text-sm font-medium">Real Spreads Sync</p>
-                <p className="text-xs text-primary-foreground/50 mt-1">{displayDate}</p>
+                <p className="text-sm font-semibold text-white">Real Spreads Sync</p>
+                <p className="text-xs text-white/40 mt-1">{displayDate}</p>
               </div>
             </div>
+
+            {/* Decorative corner accent */}
+            <div className="absolute -bottom-4 -left-4 w-20 h-20 border-l-2 border-b-2 border-[#c9956a]/30" />
+            <div className="absolute -top-4 -right-4 w-20 h-20 border-r-2 border-t-2 border-[#c9956a]/30" />
           </div>
         </div>
       </div>
