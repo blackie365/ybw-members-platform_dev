@@ -538,38 +538,171 @@ function FeaturePage({ data, imageVersion, flip }: { data: any; imageVersion: st
   const stats = Array.isArray(data.stats) ? data.stats : [];
 
   const textCol = (
-    <div style={{ padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20 }}>
+    <div style={{
+      padding: 'clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 3vw, 3rem)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 0,
+      background: '#0d0b0a',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Subtle corner accent */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: 3,
+        height: '100%',
+        background: 'linear-gradient(to bottom, transparent 0%, #8b1f3f 20%, #8b1f3f 80%, transparent 100%)',
+        opacity: 0.6,
+      }} />
+
+      {/* Kicker */}
       {kicker && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ height: 1, width: 32, background: '#8b1f3f' }} />
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8b1f3f' }}>{kicker}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingLeft: 16 }}>
+          <div style={{ height: 1, width: 28, background: '#8b1f3f', flexShrink: 0 }} />
+          <span style={{
+            fontSize: 9,
+            fontWeight: 800,
+            letterSpacing: '0.28em',
+            textTransform: 'uppercase',
+            color: '#8b1f3f',
+            whiteSpace: 'nowrap',
+          }}>{kicker}</span>
         </div>
       )}
-      {data.name && <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', margin: 0 }}>{data.name}</p>}
+
+      {/* Subject name (e.g. interviewee) */}
+      {data.name && (
+        <p style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.4)',
+          margin: '0 0 10px',
+          paddingLeft: 16,
+        }}>{data.name}</p>
+      )}
+
+      {/* Main headline */}
       {data.title && (
-        <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.6rem)', fontWeight: 600, color: '#fff', margin: 0, lineHeight: 1.15 }}>
+        <h2 style={{
+          fontFamily: 'Georgia, "Times New Roman", serif',
+          fontSize: 'clamp(1.7rem, 3.2vw, 2.8rem)',
+          fontWeight: 600,
+          color: '#fff',
+          margin: '0 0 24px',
+          lineHeight: 1.12,
+          letterSpacing: '-0.01em',
+          paddingLeft: 16,
+        }}>
           {data.title}
         </h2>
       )}
+
+      {/* Pull quote */}
       {data.quote && (
-        <blockquote style={{ borderLeft: '3px solid #8b1f3f', paddingLeft: 18, margin: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.55 }}>
-          &ldquo;{data.quote}&rdquo;
-        </blockquote>
+        <div style={{
+          display: 'flex',
+          gap: 0,
+          marginBottom: 24,
+          paddingLeft: 16,
+        }}>
+          <div style={{
+            width: 3,
+            background: '#8b1f3f',
+            borderRadius: 2,
+            flexShrink: 0,
+            marginRight: 16,
+            alignSelf: 'stretch',
+          }} />
+          <blockquote style={{
+            margin: 0,
+            padding: '4px 0',
+            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontStyle: 'italic',
+            fontSize: 'clamp(0.95rem, 1.8vw, 1.2rem)',
+            color: 'rgba(255,255,255,0.78)',
+            lineHeight: 1.6,
+          }}>
+            &ldquo;{data.quote}&rdquo;
+          </blockquote>
+        </div>
       )}
+
+      {/* Body text */}
       {(data.text || data.body) && (
         <div
-          style={{ fontSize: 14, lineHeight: 1.8, color: 'rgba(232,224,216,0.75)' }}
+          style={{
+            fontSize: 13.5,
+            lineHeight: 1.85,
+            color: 'rgba(232,224,216,0.68)',
+            marginBottom: 24,
+            paddingLeft: 16,
+            display: '-webkit-box',
+            WebkitLineClamp: 8,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
           dangerouslySetInnerHTML={{ __html: data.text || data.body || '' }}
         />
       )}
+
+      {/* Stats row */}
       {stats.length > 0 && (
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{
+          display: 'flex',
+          gap: 28,
+          flexWrap: 'wrap',
+          paddingTop: 20,
+          paddingLeft: 16,
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          marginBottom: 24,
+        }}>
           {stats.map((s: any, i: number) => (
             <div key={i}>
-              <p style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)', fontWeight: 800, color: '#8b1f3f', margin: 0, lineHeight: 1 }}>{s.value}</p>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', margin: '4px 0 0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{s.label}</p>
+              <p style={{
+                fontSize: 'clamp(1.3rem, 2.8vw, 1.9rem)',
+                fontWeight: 800,
+                color: '#8b1f3f',
+                margin: 0,
+                lineHeight: 1,
+                fontFamily: 'Georgia, serif',
+              }}>{s.value}</p>
+              <p style={{
+                fontSize: 9,
+                color: 'rgba(255,255,255,0.38)',
+                margin: '5px 0 0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                fontWeight: 600,
+              }}>{s.label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Author byline */}
+      {data.author && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          paddingLeft: 16,
+          marginTop: stats.length > 0 ? 0 : 4,
+        }}>
+          <div style={{ width: 24, height: 1, background: 'rgba(139,31,63,0.6)', flexShrink: 0 }} />
+          <p style={{
+            fontFamily: 'Georgia, serif',
+            fontStyle: 'italic',
+            color: 'rgba(255,255,255,0.38)',
+            fontSize: 12,
+            margin: 0,
+            letterSpacing: '0.02em',
+          }}>{data.author}</p>
         </div>
       )}
     </div>
@@ -579,16 +712,84 @@ function FeaturePage({ data, imageVersion, flip }: { data: any; imageVersion: st
     <div style={{ position: 'relative', overflow: 'hidden', minHeight: 400 }}>
       {imgUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imgUrl} alt={data.title || data.name || kicker || 'Feature'} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', position: 'absolute', inset: 0 }} />
+        <img
+          src={imgUrl}
+          alt={data.title || data.name || kicker || 'Feature'}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center top',
+            position: 'absolute',
+            inset: 0,
+          }}
+        />
       ) : (
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 100%)' }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 50%, #1a0d12 100%)',
+        }} />
       )}
-      <div style={{ position: 'absolute', inset: 0, background: flip ? 'linear-gradient(to right, rgba(13,11,10,0.4) 0%, transparent 60%)' : 'linear-gradient(to left, rgba(13,11,10,0.4) 0%, transparent 60%)' }} />
+
+      {/* Gradient fade toward text column */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: flip
+          ? 'linear-gradient(to right, rgba(13,11,10,0.55) 0%, transparent 45%)'
+          : 'linear-gradient(to left, rgba(13,11,10,0.55) 0%, transparent 45%)',
+      }} />
+
+      {/* Bottom gradient for caption */}
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '40%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+      }} />
+
+      {/* Caption badge */}
+      {(data.name || kicker) && (
+        <div style={{
+          position: 'absolute',
+          bottom: 24,
+          left: flip ? 'auto' : 24,
+          right: flip ? 24 : 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 8,
+          padding: '8px 14px',
+          maxWidth: 220,
+        }}>
+          <div style={{ width: 2, height: 28, background: '#8b1f3f', borderRadius: 2, flexShrink: 0 }} />
+          <div>
+            {data.name && (
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.3 }}>{data.name}</p>
+            )}
+            {kicker && (
+              <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', margin: '2px 0 0' }}>{kicker}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
   return (
-    <div style={{ background: '#0d0b0a', minHeight: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', overflow: 'auto' }}>
+    <div style={{
+      background: '#0d0b0a',
+      minHeight: '100%',
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      overflow: 'auto',
+    }}>
       {flip ? <>{imageCol}{textCol}</> : <>{textCol}{imageCol}</>}
     </div>
   );
