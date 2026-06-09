@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type } from 'lucide-react';
+import { Save, Loader2, Edit2, Bold, Italic, Type, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -113,6 +113,25 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       >
         <Italic className="h-4 w-4" />
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0"
+        onClick={() => {
+          const input = document.getElementById(`editor-color-${field}`) as HTMLInputElement | null;
+          input?.click();
+        }}
+        title="Text color"
+      >
+        <Palette className="h-4 w-4" />
+      </Button>
+      <input
+        id={`editor-color-${field}`}
+        type="color"
+        defaultValue="#8b1f3f"
+        className="hidden"
+        onChange={(e) => insertTextAtCursor(field, `<span style="color: ${e.target.value};">`, '</span>')}
+      />
       {allowParagraph && (
         <>
           <div className="w-px h-4 bg-border mx-1" />
