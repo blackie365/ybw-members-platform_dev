@@ -900,7 +900,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
               </div>
             )}
             {data.intro && <SafeText html={data.intro} className="text-sm leading-relaxed [&_p]:mb-2 text-white/75" />}
-            {data.text && !data.intro && <SafeText html={data.text} className="text-sm leading-relaxed [&_p]:mb-2 text-white/70" />}
+            {(data.text || data.body) && !data.intro && <SafeText html={data.text || data.body} className="text-sm leading-relaxed [&_p]:mb-2 text-white/70" />}
             {stats.length > 0 && (
               <div
                 className="grid gap-2.5 mt-5"
@@ -993,10 +993,10 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
             />
           </div>
         )}
-        {data.text && !data.intro && (
+        {(data.text || data.body) && !data.intro && (
           <div className="scroll-reveal mb-3.5">
             <SafeText
-              html={data.text}
+              html={data.text || data.body}
               className="text-sm leading-[1.75] text-white/60 [&_p]:mb-3 [&_p:last-child]:mb-0"
             />
           </div>
