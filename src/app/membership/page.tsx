@@ -299,6 +299,18 @@ function MembershipPageClient() {
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   )
+                ) : !user ? (
+                  <Link
+                    href={`/sign-up?returnUrl=${encodeURIComponent(`/membership?upgrade=1&cycle=${billingCycle}`)}`}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Create account to upgrade
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 ) : (
                   <button
                     type="button"
@@ -320,7 +332,7 @@ function MembershipPageClient() {
                       'Processing...'
                     ) : (
                       <>
-                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Sign in or create an account'}
+                        {isPaidMember ? 'Manage Billing' : 'Upgrade Now'}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
