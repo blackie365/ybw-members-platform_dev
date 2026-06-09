@@ -857,57 +857,62 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
 
   if (isFullBackground) {
     return (
-      <div ref={ref} className="relative min-h-full overflow-hidden" style={{ background: '#0c0a09' }}>
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
         {data.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
             alt={data.title || data.name || kicker || 'Feature'}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: 'center top' }}
+            className="absolute inset-0 w-full h-full object-cover object-top"
           />
         ) : (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 50%, #0d0b09 100%)' }} />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1a0d12] via-[#2d1520] to-[#0d0b09]" />
         )}
-        {data.videoUrl ? (
+        {data.videoUrl && (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
             poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
             autoPlay muted loop playsInline
             className="absolute inset-0 w-full h-full object-cover"
           />
-        ) : null}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(120deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.18) 100%)' }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 55%)' }} />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         <div className="relative z-10 flex flex-col justify-end h-full min-h-full px-8 sm:px-14 pb-14 pt-20">
           <div className="max-w-2xl">
             {kicker && (
               <div className="flex items-center gap-3 mb-5">
-                <div style={{ width: 32, height: 2, background: '#8b1f3f', borderRadius: 2 }} />
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.26em', textTransform: 'uppercase', color: '#c9485e' }}>{kicker}</span>
+                <div className="w-8 h-0.5 bg-[#8b1f3f] rounded-sm" />
+                <span className="text-[10px] font-extrabold tracking-[0.26em] uppercase text-[#c9485e]">{kicker}</span>
               </div>
             )}
             {data.name && (
-              <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>{data.name}</p>
+              <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/50 mb-2.5">{data.name}</p>
             )}
             {(data.title || data.name) && (
-              <h2 className="font-serif" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.5rem)', fontWeight: 900, lineHeight: 1.05, color: '#fff', marginBottom: 20, letterSpacing: '-0.01em' }}>
+              <h2 className="font-serif font-black leading-[1.05] text-white mb-5 tracking-tight text-[clamp(2rem,4.5vw,3.5rem)]">
                 {renderTitleArt(data.title || data.name, 'font-serif italic')}
               </h2>
             )}
             {data.quote && (
-              <div style={{ borderLeft: '3px solid #8b1f3f', paddingLeft: 18, marginBottom: 20 }}>
-                <p className="font-serif" style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>&ldquo;{data.quote}&rdquo;</p>
+              <div className="border-l-[3px] border-[#8b1f3f] pl-4 mb-5">
+                <p className="font-serif italic text-white/85 leading-snug text-[clamp(1rem,2vw,1.25rem)]">&ldquo;{data.quote}&rdquo;</p>
               </div>
             )}
-            {data.intro && <SafeText html={data.intro} className="text-sm leading-relaxed [&_p]:mb-2" style={{ color: 'rgba(255,255,255,0.75)' } as React.CSSProperties} />}
-            {data.text && !data.intro && <SafeText html={data.text} className="text-sm leading-relaxed [&_p]:mb-2" style={{ color: 'rgba(255,255,255,0.7)' } as React.CSSProperties} />}
+            {data.intro && <SafeText html={data.intro} className="text-sm leading-relaxed [&_p]:mb-2 text-white/75" />}
+            {data.text && !data.intro && <SafeText html={data.text} className="text-sm leading-relaxed [&_p]:mb-2 text-white/70" />}
             {stats.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)`, gap: 10, marginTop: 20 }}>
+              <div
+                className="grid gap-2.5 mt-5"
+                style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)` }}
+              >
                 {stats.slice(0, 3).map((stat: any, i: number) => (
-                  <div key={`${stat?.label ?? 'stat'}-${i}`} style={{ background: 'rgba(139,31,63,0.18)', border: '1px solid rgba(139,31,63,0.3)', borderRadius: 12, padding: '12px 10px', textAlign: 'center' }}>
-                    <p className="font-serif" style={{ fontSize: 22, fontWeight: 900, color: '#c9485e', lineHeight: 1 }}>{stat?.value}</p>
-                    <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>{stat?.label}</p>
+                  <div
+                    key={`${stat?.label ?? 'stat'}-${i}`}
+                    className="bg-[#8b1f3f]/20 border border-[#8b1f3f]/30 rounded-xl px-2.5 py-3 text-center"
+                  >
+                    <p className="font-serif font-black text-[22px] text-[#c9485e] leading-none">{stat?.value}</p>
+                    <p className="text-[9px] font-bold tracking-[0.18em] uppercase text-white/45 mt-1">{stat?.label}</p>
                   </div>
                 ))}
               </div>
@@ -918,292 +923,147 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
     );
   }
 
-  // ── REDESIGNED: Editorial Split — image left, cream editorial right ──
+  // ── Standard split: text LEFT, image RIGHT ──
   return (
-    <div
-      ref={ref}
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        height: '100%',
-        minHeight: '100%',
-        overflow: 'hidden',
-        background: '#f5f0e8',
-        position: 'relative',
-      }}
-    >
-      {/* ── LEFT: Full-bleed Image Panel (48%) ── */}
-      <div
-        style={{
-          position: 'relative',
-          width: '48%',
-          flexShrink: 0,
-          overflow: 'hidden',
-        }}
-      >
-        {data.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker || 'Feature'}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center top',
-            }}
-          />
-        ) : (
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #2a1020 0%, #8b1f3f 60%, #1a0a10 100%)' }} />
-        )}
-        {data.videoUrl ? (
-          <video
-            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-            autoPlay muted loop playsInline
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : null}
+    <div ref={ref} className="flex flex-row h-full min-h-full overflow-hidden bg-[#0d0b09]">
 
-        {/* Subtle dark vignette on top */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 35%, transparent 65%, rgba(0,0,0,0.5) 100%)', pointerEvents: 'none' }} />
+      {/* ── LEFT: Editorial text panel (50%) ── */}
+      <div className="relative flex flex-col justify-center w-1/2 flex-shrink-0 px-10 xl:px-14 py-12 overflow-y-auto bg-[#0d0b09]">
 
-        {/* Diagonal colour slash at right edge — bridges into cream panel */}
+        {/* Decorative watermark letter */}
         <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: -1,
-            bottom: 0,
-            width: 80,
-            background: 'linear-gradient(to right, transparent 0%, #f5f0e8 100%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Kicker badge pinned to top-left of image */}
-        {kicker && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 28,
-              left: 28,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              zIndex: 10,
-            }}
-          >
-            <div style={{ width: 3, height: 28, background: '#8b1f3f', borderRadius: 2 }} />
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 800,
-                letterSpacing: '0.28em',
-                textTransform: 'uppercase',
-                color: '#fff',
-                textShadow: '0 1px 6px rgba(0,0,0,0.7)',
-              }}
-            >
-              {kicker}
-            </span>
-          </div>
-        )}
-
-        {/* Bottom caption strip */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '32px 28px 24px',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
-            zIndex: 10,
-          }}
-        >
-          {data.name && (
-            <p
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.6)',
-                marginBottom: 4,
-              }}
-            >
-              {data.name}
-            </p>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 20, height: 2, background: '#8b1f3f' }} />
-            <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>YBW Digital Edition</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── RIGHT: Cream Editorial Content Panel (52%) ── */}
-      <div
-        style={{
-          position: 'relative',
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '48px 52px 48px 44px',
-          background: '#f5f0e8',
-          overflowY: 'auto',
-        }}
-      >
-        {/* Decorative large watermark letter */}
-        <div
-          style={{
-            position: 'absolute',
-            top: -20,
-            right: 20,
-            fontFamily: 'Georgia, serif',
-            fontSize: 'clamp(8rem, 18vw, 14rem)',
-            fontWeight: 900,
-            color: 'rgba(139,31,63,0.055)',
-            lineHeight: 1,
-            userSelect: 'none',
-            pointerEvents: 'none',
-            letterSpacing: '-0.04em',
-          }}
+          className="absolute top-0 left-4 font-serif font-black leading-none select-none pointer-events-none text-white/[0.03]"
+          style={{ fontSize: 'clamp(8rem,18vw,14rem)', letterSpacing: '-0.04em' }}
+          aria-hidden="true"
         >
           {(data.name || data.title || 'F').charAt(0).toUpperCase()}
         </div>
 
-        {/* Thin crimson top rule */}
-        <div style={{ width: 48, height: 3, background: '#8b1f3f', borderRadius: 2, marginBottom: 28 }} />
+        {/* Kicker */}
+        {kicker && (
+          <div className="scroll-reveal flex items-center gap-3 mb-6">
+            <div className="w-8 h-0.5 bg-[#8b1f3f] rounded-sm flex-shrink-0" />
+            <span className="text-[10px] font-extrabold tracking-[0.28em] uppercase text-[#c9485e]">{kicker}</span>
+          </div>
+        )}
+
+        {/* Person / subject name label */}
+        {data.name && (
+          <p className="scroll-reveal text-[11px] font-semibold tracking-[0.2em] uppercase text-white/40 mb-3">{data.name}</p>
+        )}
 
         {/* Main headline */}
         {(data.title || data.name) && (
-          <h2
-            className="scroll-reveal font-serif"
-            style={{
-              fontSize: 'clamp(1.8rem, 3.2vw, 3rem)',
-              fontWeight: 900,
-              lineHeight: 1.08,
-              color: '#1a0a10',
-              marginBottom: 22,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {renderTitleArt(data.title || data.name, 'font-serif italic')}
+          <h2 className="scroll-reveal font-serif font-black leading-[1.06] text-white mb-5 tracking-tight text-[clamp(1.75rem,3vw,2.75rem)]">
+            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#c9485e]')}
           </h2>
         )}
 
-        {/* Pull quote — large, prominent */}
+        {/* Pull quote */}
         {data.quote && (
-          <div
-            className="scroll-reveal"
-            style={{
-              position: 'relative',
-              marginBottom: 24,
-              paddingLeft: 20,
-              borderLeft: '4px solid #8b1f3f',
-            }}
-          >
-            {/* Big decorative quote mark */}
+          <div className="scroll-reveal relative border-l-[3px] border-[#8b1f3f] pl-5 mb-6">
             <span
-              className="font-serif"
-              style={{
-                position: 'absolute',
-                top: -18,
-                left: -6,
-                fontSize: '4rem',
-                color: 'rgba(139,31,63,0.22)',
-                lineHeight: 1,
-                userSelect: 'none',
-              }}
+              className="font-serif absolute -top-4 -left-1.5 text-[3.5rem] leading-none text-[#8b1f3f]/25 select-none"
+              aria-hidden="true"
             >
               &ldquo;
             </span>
-            <p
-              className="font-serif"
-              style={{
-                fontSize: 'clamp(1rem, 1.7vw, 1.2rem)',
-                fontStyle: 'italic',
-                lineHeight: 1.5,
-                color: '#3d1020',
-                position: 'relative',
-                zIndex: 1,
-              }}
-            >
+            <p className="font-serif italic text-white/80 leading-snug relative z-10 text-[clamp(0.9rem,1.5vw,1.1rem)]">
               {data.quote}
             </p>
             {data.quoteAuthor && (
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#8b1f3f', marginTop: 8 }}>
-                — {data.quoteAuthor}
-              </p>
+              <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-[#8b1f3f] mt-2">— {data.quoteAuthor}</p>
             )}
           </div>
         )}
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(139,31,63,0.18)' }} />
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#8b1f3f' }} />
-          <div style={{ width: 24, height: 1, background: 'rgba(139,31,63,0.18)' }} />
+        {/* Ornamental divider */}
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="flex-1 h-px bg-white/10" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#8b1f3f]" />
+          <div className="w-6 h-px bg-white/10" />
         </div>
 
         {/* Body text */}
         {data.intro && (
-          <div className="scroll-reveal" style={{ marginBottom: 14 }}>
+          <div className="scroll-reveal mb-3.5">
             <SafeText
               html={data.intro}
-              className="leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
-              style={{ fontSize: 14, color: '#3a2030', lineHeight: 1.75 } as React.CSSProperties}
+              className="text-sm leading-[1.75] text-white/65 [&_p]:mb-3 [&_p:last-child]:mb-0"
             />
           </div>
         )}
         {data.text && !data.intro && (
-          <div className="scroll-reveal" style={{ marginBottom: 14 }}>
+          <div className="scroll-reveal mb-3.5">
             <SafeText
               html={data.text}
-              className="leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
-              style={{ fontSize: 13.5, color: '#4a2a35', lineHeight: 1.75 } as React.CSSProperties}
+              className="text-sm leading-[1.75] text-white/60 [&_p]:mb-3 [&_p:last-child]:mb-0"
             />
           </div>
         )}
 
-        {/* Stats row — dark cards on cream */}
+        {/* Stats row */}
         {stats.length > 0 && (
           <div
-            className="scroll-reveal"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)`,
-              gap: 10,
-              marginTop: 20,
-            }}
+            className="scroll-reveal grid gap-2.5 mt-5"
+            style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)` }}
           >
             {stats.slice(0, 3).map((stat: any, i: number) => (
               <div
                 key={`${stat?.label ?? 'stat'}-${i}`}
-                style={{
-                  background: '#1a0a10',
-                  borderRadius: 10,
-                  padding: '14px 12px',
-                  textAlign: 'center',
-                }}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-3.5 text-center"
               >
-                <p className="font-serif" style={{ fontSize: 22, fontWeight: 900, color: '#c9485e', lineHeight: 1 }}>{stat?.value}</p>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginTop: 5 }}>{stat?.label}</p>
+                <p className="font-serif font-black text-[22px] text-[#c9485e] leading-none">{stat?.value}</p>
+                <p className="text-[9px] font-bold tracking-[0.18em] uppercase text-white/40 mt-1.5">{stat?.label}</p>
               </div>
             ))}
           </div>
         )}
 
         {/* Bottom masthead signature */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 28 }}>
-          <div style={{ width: 28, height: 2, background: '#8b1f3f', borderRadius: 2 }} />
-          <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.32em', textTransform: 'uppercase', color: 'rgba(139,31,63,0.5)' }}>YBW</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(139,31,63,0.12)' }} />
+        <div className="flex items-center gap-2.5 mt-7">
+          <div className="w-7 h-0.5 bg-[#8b1f3f] rounded-sm" />
+          <span className="text-[8px] font-extrabold tracking-[0.32em] uppercase text-[#8b1f3f]/50">YBW</span>
+          <div className="flex-1 h-px bg-white/8" />
+        </div>
+      </div>
+
+      {/* ── RIGHT: Full-bleed image panel (50%) ── */}
+      <div className="relative flex-1 overflow-hidden">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.name || kicker || 'Feature'}
+            className="absolute inset-0 w-full h-full object-cover object-top"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2a1020] via-[#8b1f3f] to-[#1a0a10]" />
+        )}
+        {data.videoUrl && (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+
+        {/* Left-edge fade into the dark text panel */}
+        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#0d0b09] to-transparent pointer-events-none" />
+
+        {/* Subtle vignette */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/45 pointer-events-none" />
+
+        {/* Bottom caption strip */}
+        <div className="absolute bottom-0 left-0 right-0 px-7 pb-6 pt-8 bg-gradient-to-t from-black/65 to-transparent z-10">
+          {data.name && (
+            <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-white/55 mb-1">{data.name}</p>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-0.5 bg-[#8b1f3f]" />
+            <span className="text-[8px] font-bold tracking-[0.3em] uppercase text-white/30">YBW Digital Edition</span>
+          </div>
         </div>
       </div>
     </div>
