@@ -42,7 +42,7 @@ const MAGAZINE_ISSUES = [
 {
   id: "ybw_dec_2025",
   title: "December 2025 / January 2026",
-  coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1aaff6a30-1769329332640.png",
+  coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1173ff800-1781033914087.png",
   publishDate: "2025-12-01",
   description: "The Christmas Edition: Celebrating a year of excellence and looking forward to 2026.",
   pdfUrl: "https://e.issuu.com/embed.html?d=ybw_dec_2025&u=blackie365",
@@ -97,7 +97,7 @@ const MAGAZINE_ISSUES = [
 {
   id: "ybw_feb_2025",
   title: "February / March 2025",
-  coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1dc07485a-1780916292519.png",
+  coverImage: "https://img.rocket.new/generatedImages/rocket_gen_img_1598a2220-1781033914741.png",
   publishDate: "2025-02-01",
   description: "The Resilience Issue: Overcoming challenges and building robust business models.",
   pdfUrl: "https://e.issuu.com/embed.html?d=ybw_feb_2025&u=blackie365",
@@ -165,7 +165,7 @@ const MAGAZINE_PAGES = [
   content: {
     quote: "I am absolutely delighted to be joining Leeds Heritage Theatres at such an exciting time in its journey.",
     text: "Dame Linda brings exceptional experience in leadership, governance, and public service. Vicky Cheetham, who is married with three daughters, brings a wealth of experience from the Barbican, Southbank Centre, and Tate.",
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_151fe3a29-1767765639452.png",
+    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1dc0caeba-1776981971306.png",
     stats: [
     { label: "Turnover", value: "£1.9B" },
     { label: "Staff", value: "22k" },
@@ -194,7 +194,7 @@ const MAGAZINE_PAGES = [
   type: 'lifestyle',
   content: {
     title: "Heritage Meets Modern Elegance",
-    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1d4e4a0a8-1780916292433.png",
+    image: "https://img.rocket.new/generatedImages/rocket_gen_img_1cb05be92-1781033913184.png",
     text: "Set within the stately surroundings of the historic Cedar Court Hotel in Harrogate, Ambers Restaurant is a polished addition to Harrogate’s dining scene...",
     highlights: ["Locally sourced Yorkshire produce", "Heritage meets modern elegance", "Lady Amber Fitzwilliam inspiration"]
   }

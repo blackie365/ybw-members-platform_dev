@@ -7,12 +7,7 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import { getProfile } from '@/app/actions/profile';
 
 export type MembershipTier =
-  | 'free'
-  | 'complimentary'
-  | 'paid_monthly'
-  | 'paid_annual'
-  | 'premium'
-  | 'founder';
+  | 'free' |'complimentary' |'paid_monthly' |'paid_annual' |'premium' |'founder';
 export type UserRole = 'member' | 'admin' | 'super_admin';
 
 export interface AuthUser {
