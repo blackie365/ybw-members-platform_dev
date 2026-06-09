@@ -7,9 +7,40 @@ import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
 
+async function getAdminRecipients(): Promise<string[]> {
+  const fallback = ['editor@yorkshirebusinesswoman.co.uk'];
+  try {
+    const db = adminDb;
+    if (!db) return fallback;
+
+    const byRoleSnap = await db
+      .collection('newMemberCollection')
+      .where('role', 'in', ['admin', 'super_admin'])
+      .get();
+
+    const byFlagSnap = await db
+      .collection('newMemberCollection')
+      .where('isAdmin', '==', true)
+      .get();
+
+    const emails = new Set<string>();
+    for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
+      const e = (doc.data() as any)?.email;
+      if (typeof e === 'string' && e.includes('@')) emails.add(e);
+    }
+    return emails.size > 0 ? Array.from(emails) : fallback;
+  } catch (err) {
+    console.error('Failed to fetch admin recipients:', err);
+    return fallback;
+  }
+}
+
 export async function POST(req: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Stripe keys missing' }, { status: 500 });
+  }
+  if (!adminDb) {
+    return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -69,6 +100,25 @@ export async function POST(req: Request) {
                 html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
               }).catch(err => console.error('Failed to send welcome email:', err));
           }
+
+          // Notify all admins about the upgrade
+          const adminRecipients = await getAdminRecipients();
+          sendEmail({
+            to: adminRecipients,
+            subject: `Membership Upgrade: ${userEmail || userId}`,
+            html: `
+              <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #4f46e5;">Membership Upgrade</h2>
+                <p>A member has upgraded successfully.</p>
+                <ul>
+                  <li><strong>Email:</strong> ${userEmail || 'N/A'}</li>
+                  <li><strong>User ID:</strong> ${userId}</li>
+                  <li><strong>Tier:</strong> ${membershipTier}</li>
+                  <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+                </ul>
+              </div>
+            `,
+          }).catch(err => console.error('Failed to send admin upgrade notification:', err));
         }
       }
       
@@ -161,6 +211,24 @@ export async function POST(req: Request) {
               isNewsletterAuthorized: true,
             });
             console.log(`Updated user ${customerEmail} to ${tier} Member`);
+
+            const adminRecipients = await getAdminRecipients();
+            sendEmail({
+              to: adminRecipients,
+              subject: `Payment Succeeded: ${customerEmail}`,
+              html: `
+                <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #4f46e5;">Subscription Payment Succeeded</h2>
+                  <p>A subscription payment has succeeded.</p>
+                  <ul>
+                    <li><strong>Email:</strong> ${customerEmail}</li>
+                    <li><strong>Tier:</strong> ${tier}</li>
+                    <li><strong>Interval:</strong> ${interval}</li>
+                    <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+                  </ul>
+                </div>
+              `,
+            }).catch(err => console.error('Failed to send admin payment notification:', err));
           }
         }
       }

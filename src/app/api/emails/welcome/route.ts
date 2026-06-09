@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -9,10 +10,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Send notification to the admins
-    const adminEmail = 'editor@yorkshirebusinesswoman.co.uk';
+    // Send notification to all admins
+    let adminRecipients: string[] = ['editor@yorkshirebusinesswoman.co.uk'];
+    try {
+      if (adminDb) {
+        const byRoleSnap = await adminDb
+          .collection('newMemberCollection')
+          .where('role', 'in', ['admin', 'super_admin'])
+          .get();
+
+        const byFlagSnap = await adminDb
+          .collection('newMemberCollection')
+          .where('isAdmin', '==', true)
+          .get();
+
+        const emails = new Set<string>();
+        for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
+          const e = (doc.data() as any)?.email;
+          if (typeof e === 'string' && e.includes('@')) emails.add(e);
+        }
+        if (emails.size > 0) adminRecipients = Array.from(emails);
+      }
+    } catch (err) {
+      console.error('Failed to fetch admin recipients:', err);
+    }
+
     await sendEmail({
-      to: adminEmail,
+      to: adminRecipients,
       subject: `New Member Registration: ${firstName || 'Someone'}`,
       html: `
         <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
