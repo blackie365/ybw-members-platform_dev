@@ -302,6 +302,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Main Text</Label>
               <FormattingToolbar field="text" />
               <Textarea
@@ -429,6 +441,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Additional Images (One URL per line or JSON Array)</Label>
               <Textarea
                 rows={4}
@@ -520,6 +544,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Member Quote/Message</Label>
               <FormattingToolbar field="message" allowParagraph={false} />
               <Textarea
@@ -581,6 +617,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
             <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Exclusive Offer Text</Label>
               <Input value={safeContent.offer || ''} onChange={(e) => updateContent('offer', e.target.value)} />
             </div>
@@ -627,6 +675,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+            </div>
+            <div className="space-y-2">
+              <Label>Media Layout</Label>
+              <Select value={safeContent.mediaLayout || 'side'} onValueChange={(v) => updateContent('mediaLayout', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="side">Side media panel</SelectItem>
+                  <SelectItem value="background">Full-page background</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Social Platforms (JSON Array of Strings)</Label>

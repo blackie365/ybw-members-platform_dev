@@ -852,6 +852,95 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.name || kicker}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="max-w-3xl rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
+              {kicker && (
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                    {kicker}
+                  </span>
+                </div>
+              )}
+
+              {data.name && (
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                  {data.name}
+                </p>
+              )}
+
+              {(data.title || data.name) && (
+                <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
+                  {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+                </h2>
+              )}
+
+              {data.quote && (
+                <div className="pl-4 py-1 border-l-[3px] border-[#8b1f3f]">
+                  <p className="font-serif italic leading-snug text-[#8b1f3f]" style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+                    &ldquo;{data.quote}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {data.intro && (
+                <SafeText html={data.intro} className="text-white/85 leading-relaxed font-medium [&_p]:mb-2 [&_p:last-child]:mb-0" />
+              )}
+
+              {data.text && (
+                <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0" />
+              )}
+
+              {stats.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {stats.slice(0, 3).map((stat: any, i: number) => (
+                    <div
+                      key={`${stat?.label ?? 'stat'}-${i}`}
+                      className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm"
+                    >
+                      <p className="font-serif font-bold text-2xl text-[#8b1f3f]">{stat?.value}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 mt-1">{stat?.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
@@ -970,6 +1059,96 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const nameLabel = String(data.name || '').trim();
   const snapshotLabel = String(data.snapshotLabel || '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.name || 'Feature'}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            {kicker && (
+              <div className="scroll-reveal mb-10">
+                <div className="flex items-center gap-4 w-full min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                    {kicker}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
+              <div className="lg:col-span-7 scroll-reveal">
+                <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
+                  <div>
+                    {nameLabel && (
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{nameLabel}</p>
+                    )}
+                    <h2 className="text-section-lg font-serif font-600 text-white">
+                      {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+                    </h2>
+                  </div>
+
+                  {data.quote && (
+                    <div className="border-l-[3px] border-[#8b1f3f] pl-5 py-1">
+                      <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#8b1f3f]">
+                        &ldquo;{data.quote}&rdquo;
+                      </p>
+                    </div>
+                  )}
+
+                  {data.text && <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />}
+                </div>
+              </div>
+
+              {stats.length > 0 && (
+                <div className="lg:col-span-5 scroll-reveal scroll-reveal-delay-2">
+                  <div className="rounded-3xl border border-white/10 bg-black/45 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.4)] p-7 sm:p-9">
+                    {snapshotLabel && (
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{snapshotLabel}</p>
+                    )}
+                    <div className="space-y-3">
+                      {stats.map((stat: any, i: number) => (
+                        <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-2xl border border-white/10 bg-white/10 p-5 flex items-start gap-4">
+                          <span className="font-serif font-bold text-[#8b1f3f] text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
+                          <p className="text-sm text-white/75 leading-relaxed">{stat?.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="bg-[#f5f0e8] py-16 lg:py-24 min-h-full">
@@ -1006,10 +1185,28 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
           </div>
 
           <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">
-            {data.image && (
-              <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="w-full h-full object-cover" />
+            {(data.videoUrl || data.image) && (
+              <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15 relative">
+                {data.videoUrl ? (
+                  <>
+                    {data.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : null}
+                    <video
+                      src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="relative w-full h-full object-cover"
+                    />
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="w-full h-full object-cover" />
+                )}
               </div>
             )}
 
@@ -1223,6 +1420,107 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
     ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
     : [];
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={title || kicker || 'Lifestyle'}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="max-w-4xl rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-8">
+              {kicker && (
+                <div className="flex items-center gap-4 w-full min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                    {kicker}
+                  </span>
+                </div>
+              )}
+
+              {title && (
+                <h3 className="font-serif font-semibold text-white text-[clamp(1.75rem,3vw,2.5rem)]">
+                  {renderTitleArt(title)}
+                </h3>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="lg:col-span-2 space-y-5">
+                  {data.text && (
+                    <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />
+                  )}
+                  {extraImages.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {extraImages.slice(0, 8).map((src: string, i: number) => (
+                        <div key={`${src}-${i}`} className="rounded-xl overflow-hidden aspect-[4/3] bg-white/5 border border-white/10">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={fixMagazineImageUrl(src, imageVersion)} alt={`Lifestyle image ${i + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl p-5 border border-white/10 bg-white/10 backdrop-blur-sm">
+                    {highlightsLabel && (
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{highlightsLabel}</p>
+                    )}
+                    {highlights.length > 0 ? (
+                      <ul className="space-y-2">
+                        {highlights.slice(0, 8).map((h: any, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-white/80">
+                            <span className="text-[#8b1f3f] mt-0.5 text-[10px]">◆</span>
+                            {h}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-white/60">Lifestyle highlights appear here.</p>
+                    )}
+                  </div>
+
+                  {textPreview && (
+                    <div className="rounded-2xl p-5 border border-white/10 bg-white/10 backdrop-blur-sm">
+                      {editorsPickLabel && (
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{editorsPickLabel}</p>
+                      )}
+                      <p className="font-serif font-semibold text-white text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#8b1f3f]')}</p>
+                      <p className="text-sm text-white/70 mt-3 line-clamp-3">{textPreview}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -1339,6 +1637,85 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   useScrollReveal(ref);
 
   const sectionLabel = String(data.title || '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0e0b09]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10">
+              <div className="mb-8">
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-6 bg-[#8b1f3f]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#8b1f3f]">
+                    {sectionLabel || 'Member Spotlight'}
+                  </span>
+                </div>
+              </div>
+
+              {data.name && (
+                <h2 className="font-serif text-white leading-[0.95] tracking-tight" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700 }}>
+                  {data.name}
+                </h2>
+              )}
+              {data.role && (
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b1f3f]">
+                  {data.role}
+                </p>
+              )}
+
+              {data.message && (
+                <div className="mt-8">
+                  <div className="font-serif text-[#8b1f3f] leading-none select-none mb-2" style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1, opacity: 0.35 }} aria-hidden="true">
+                    &ldquo;
+                  </div>
+                  <div style={{ fontSize: 'clamp(1.15rem, 2.4vw, 1.65rem)' } as React.CSSProperties}>
+                    <SafeText html={data.message} className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p+p]:mt-3" />
+                  </div>
+                  <div className="mt-6 flex items-center gap-3">
+                    <div className="h-px w-10 bg-[#8b1f3f]" />
+                    <div className="h-px flex-1 bg-white/[0.06]" />
+                  </div>
+                </div>
+              )}
+
+              {data.bio && (
+                <div className="mt-8">
+                  <SafeText html={data.bio} className="text-white/70 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0e0b09]">
@@ -1498,6 +1875,63 @@ const PagePartner = ({ data, imageVersion }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
   const kicker = String(data.kicker || '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden text-white bg-[#0f0a0d]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.brand || data.title || 'Partner'}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
+              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f]">{kicker}</p>}
+              <div>
+                <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title || data.brand)}</h2>
+                {data.headline && <p className="text-white/70 font-medium mt-1 text-lg">{data.headline}</p>}
+              </div>
+
+              {data.text ? (
+                <SafeText html={data.text} className="text-white/80 leading-relaxed" />
+              ) : (
+                data.offer && <p className="text-white/80 leading-relaxed">{data.offer}</p>
+              )}
+
+              {data.offer && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-px bg-[#8b1f3f]" />
+                  <p className="text-white/70 text-sm font-medium">{data.offer}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative py-16 lg:py-24 min-h-full overflow-hidden text-white"
@@ -1579,6 +2013,84 @@ const PageBackCover = ({ data, imageVersion }: any) => {
   const socials = Array.isArray(data.socials) ? data.socials : [];
   const kicker = String(data.kicker || '').trim();
   const comingSoonLabel = String(data.comingSoonLabel || '').trim();
+  const mediaLayout = String(data.mediaLayout || '').trim();
+  const isFullBackground = mediaLayout === 'background';
+
+  if (isFullBackground) {
+    return (
+      <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.nextIssue || kicker}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
+              {kicker && (
+                <div className="flex items-center gap-4 w-full min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                    {kicker}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                {comingSoonLabel && (
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{comingSoonLabel}</p>
+                )}
+                <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                {data.nextIssue && <p className="text-white/70 font-medium mt-1 text-lg">{data.nextIssue}</p>}
+              </div>
+
+              {data.text && <SafeText html={data.text} className="text-white/75 leading-relaxed" />}
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  href="/membership"
+                  className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-sm rounded-full text-white hover:opacity-90 transition-opacity"
+                  style={{ background: 'linear-gradient(135deg, #8b1f3f 0%, #7a1b36 100%)' }}
+                >
+                  {data.cta}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M13 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                {socials.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {socials.slice(0, 6).map((label: any, i: number) => (
+                      <span key={`${label}-${i}`} className="text-white/70 text-sm font-medium">{label}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
