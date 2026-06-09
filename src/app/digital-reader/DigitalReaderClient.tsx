@@ -556,12 +556,6 @@ function FeaturePage({ data, imageVersion, flip }: { data: any; imageVersion: st
           &ldquo;{data.quote}&rdquo;
         </blockquote>
       )}
-      {data.intro && (
-        <div
-          style={{ fontSize: 15, lineHeight: 1.8, color: 'rgba(232,224,216,0.85)', fontStyle: 'italic' }}
-          dangerouslySetInnerHTML={{ __html: data.intro }}
-        />
-      )}
       {(data.text || data.body) && (
         <div
           style={{ fontSize: 14, lineHeight: 1.8, color: 'rgba(232,224,216,0.75)' }}
