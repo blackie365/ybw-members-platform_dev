@@ -862,19 +862,19 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker}
+            alt={data.title || data.name || kicker || 'Feature'}
             className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: 'center top' }}
           />
-        ) : null}
+        ) : (
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 50%, #0d0b09 100%)' }} />
+        )}
 
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
             poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-            autoPlay
-            muted
-            loop
-            playsInline
+            autoPlay muted loop playsInline
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : null}

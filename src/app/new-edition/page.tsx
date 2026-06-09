@@ -72,6 +72,12 @@ export default async function NewEditionPage() {
                     Launch Digital Reader
                   </Link>
                 </Button>
+                <Button asChild size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 px-8 py-6 h-auto text-lg rounded-none transition-all duration-300">
+                  <Link href={`/digital-reader?id=${latestIssue.id}`}>
+                    <BookOpen className="mr-2 h-5 w-5" />
+                    New Design
+                  </Link>
+                </Button>
               </div>
 
               <div className="mt-12 flex items-center gap-4 text-sm text-zinc-500">
