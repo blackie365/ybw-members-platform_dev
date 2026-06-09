@@ -106,6 +106,9 @@ export function WithAuth({ children, options = {}, fallback }: WithAuthProps) {
     const tiers = Array.isArray(requiredTier) ? requiredTier : [requiredTier];
     const tierHierarchy: Record<MembershipTier, number> = {
       free: 0,
+      complimentary: 1,
+      paid_monthly: 1,
+      paid_annual: 1,
       premium: 1,
       founder: 2,
     };
@@ -166,6 +169,9 @@ export function useRequireAuth(options: WithAuthOptions = {}) {
       const tiers = Array.isArray(requiredTier) ? requiredTier : [requiredTier];
       const tierHierarchy: Record<MembershipTier, number> = {
         free: 0,
+        complimentary: 1,
+        paid_monthly: 1,
+        paid_annual: 1,
         premium: 1,
         founder: 2,
       };

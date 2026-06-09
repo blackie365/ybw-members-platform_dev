@@ -4,6 +4,8 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import slugify from '@sindresorhus/slugify';
 import { addGhostMember } from '@/lib/ghost-admin';
+import { sendEmail } from '@/lib/email';
+import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -73,27 +75,37 @@ export async function POST(req: Request) {
         return new Response('Error: DB not initialized', { status: 500 });
       }
 
-      // Sync to Firestore using standardized schema
-      await adminDb.collection('newMemberCollection').doc(id).set({
+      const memberRef = adminDb.collection('newMemberCollection').doc(id);
+      const existingSnap = await memberRef.get();
+      const nowIso = new Date().toISOString();
+      const emailLower = email.toLowerCase();
+
+      const baseUpdate: Record<string, any> = {
         firstName,
         lastName,
         displayName: fullName,
         email,
+        emailLower,
         memberSlug: slug,
         avatarUrl: image_url,
         profileImage: image_url,
         status: 'active',
-        membershipTier: 'free',
-        // AUTHORIZATION LOGIC:
-        // 1. If it's an update, we preserve existing authorization unless explicitly changed
-        // 2. If it's a new user, they are authorized ONLY if they explicitly accepted during signup
-        isNewsletterAuthorized: acceptsNewsletter, 
-        role: 'member',
-        isAdmin: false,
-        isFeatured: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }, { merge: true })
+        updatedAt: nowIso,
+      };
+
+      if (acceptsNewsletter === true) {
+        baseUpdate.isNewsletterAuthorized = true;
+      }
+
+      if (!existingSnap.exists) {
+        baseUpdate.membershipTier = 'free';
+        baseUpdate.role = 'member';
+        baseUpdate.isAdmin = false;
+        baseUpdate.isFeatured = false;
+        baseUpdate.createdAt = nowIso;
+      }
+
+      await memberRef.set(baseUpdate, { merge: true })
 
       console.log(`Successfully synced Clerk user ${id} to Firestore. Newsletter Auth: ${acceptsNewsletter}`)
     } catch (error) {
@@ -101,14 +113,126 @@ export async function POST(req: Request) {
       return new Response('Error: Firestore sync failed', { status: 500 })
     }
 
-    // 2. Sync to Ghost CMS (Non-critical, don't fail the whole webhook)
+    // 2. Sync to Ghost CMS + send emails (Non-critical, don't fail the whole webhook)
     if (eventType === 'user.created') {
+      const nowIso = new Date().toISOString();
+
       try {
-        await addGhostMember({
+        if (adminDb) {
+          const dupSnap = await adminDb
+            .collection('newMemberCollection')
+            .where('email', '==', email)
+            .get();
+
+          const primaryRef = adminDb.collection('newMemberCollection').doc(id);
+          const primarySnap = await primaryRef.get();
+          const primaryData = primarySnap.data() || {};
+
+          for (const doc of dupSnap.docs) {
+            if (doc.id === id) continue;
+
+            const dupData = doc.data() || {};
+            const mergeIntoPrimary: Record<string, any> = {};
+
+            const fieldsToCarry = [
+              'newsletterSubscribed',
+              'isNewsletterRecipient',
+              'industrySector',
+              'industry',
+            ];
+
+            for (const field of fieldsToCarry) {
+              if (primaryData[field] === undefined && dupData[field] !== undefined) {
+                mergeIntoPrimary[field] = dupData[field];
+              }
+            }
+
+            if (primaryData.isNewsletterAuthorized !== true && dupData.isNewsletterAuthorized === true) {
+              mergeIntoPrimary.isNewsletterAuthorized = true;
+            }
+
+            if (Object.keys(mergeIntoPrimary).length > 0) {
+              await primaryRef.set(mergeIntoPrimary, { merge: true });
+            }
+
+            await doc.ref.delete();
+          }
+        }
+      } catch (err) {
+        console.warn('Duplicate cleanup failed (non-critical):', err);
+      }
+
+      // 2a. Admin notification email (all admins)
+      try {
+        let adminRecipients: string[] = ['editor@yorkshirebusinesswoman.co.uk'];
+        try {
+          if (adminDb) {
+            const byRoleSnap = await adminDb
+              .collection('newMemberCollection')
+              .where('role', 'in', ['admin', 'super_admin'])
+              .get();
+
+            const byFlagSnap = await adminDb
+              .collection('newMemberCollection')
+              .where('isAdmin', '==', true)
+              .get();
+
+            const emails = new Set<string>();
+            for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
+              const e = (doc.data() as any)?.email;
+              if (typeof e === 'string' && e.includes('@')) emails.add(e);
+            }
+            if (emails.size > 0) adminRecipients = Array.from(emails);
+          }
+        } catch (err) {
+          console.error('Failed to fetch admin recipients:', err);
+        }
+
+        await sendEmail({
+          to: adminRecipients,
+          subject: `New Member Registration: ${firstName || 'Someone'}`,
+          html: `
+            <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #4f46e5;">New Member Registration</h2>
+              <p>A new member has just registered on the platform.</p>
+              <ul>
+                <li><strong>Name:</strong> ${fullName || 'N/A'}</li>
+                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Plan:</strong> Free</li>
+                <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+              </ul>
+            </div>
+          `,
+        });
+
+        await adminDb?.collection('newMemberCollection').doc(id).set({ adminNotifiedAt: nowIso }, { merge: true });
+      } catch (emailErr) {
+        console.warn('Admin notification email failed (non-critical):', emailErr);
+      }
+
+      // 2b. Free welcome email
+      try {
+        await sendEmail({
+          to: email,
+          subject: 'Welcome to Yorkshire Businesswoman!',
+          html: await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
+        });
+
+        await adminDb?.collection('newMemberCollection').doc(id).set({ welcomeEmailSentAt: nowIso }, { merge: true });
+      } catch (emailErr) {
+        console.warn('Free welcome email failed (non-critical):', emailErr);
+      }
+
+      // 2c. Ghost CMS sync
+      try {
+        const ghostRes = await addGhostMember({
           email,
           name: fullName,
           labels: ['clerk-signup', 'free-member']
         });
+        if (ghostRes) {
+          await adminDb?.collection('newMemberCollection').doc(id).set({ ghostSyncedAt: nowIso }, { merge: true });
+        }
         console.log(`Successfully synced Clerk user ${id} to Ghost CMS.`);
       } catch (ghostError) {
         console.warn('Ghost CMS sync failed (non-critical):', ghostError);

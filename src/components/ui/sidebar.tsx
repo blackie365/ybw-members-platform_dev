@@ -2,7 +2,6 @@
 
 
 import React, { useContext, useState, useCallback, useEffect, useMemo } from 'react';
-import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, VariantProps } from 'class-variance-authority';
 import { PanelLeftIcon } from 'lucide-react';
@@ -162,7 +161,8 @@ function Sidebar({
   ...props
 }: React.ComponentProps<'div'> & {
   side?: 'left' | 'right'
-  variant?: 'sidebar'| 'floating' | 'inset' collapsible?:'offcanvas' | 'icon' | 'none'
+  variant?: 'sidebar' | 'floating' | 'inset'
+  collapsible?: 'offcanvas' | 'icon' | 'none'
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
