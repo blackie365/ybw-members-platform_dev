@@ -308,7 +308,7 @@ function MembershipPageClient() {
                         : 'border border-border bg-card text-foreground hover:bg-muted'
                     }`}
                   >
-                    Create account to upgrade
+                    Join Premium
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
