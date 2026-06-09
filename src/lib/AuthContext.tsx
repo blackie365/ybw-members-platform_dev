@@ -54,6 +54,7 @@ export interface MemberProfile {
   role: UserRole;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  subscriptionId?: string;
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
   isFeatured?: boolean;
   isAdmin?: boolean;
@@ -194,6 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           role: data.role || 'member',
           stripeCustomerId: data.stripeCustomerId,
           stripeSubscriptionId: data.stripeSubscriptionId,
+          subscriptionId: (data as any)?.subscriptionId,
           subscriptionStatus: data.subscriptionStatus,
           isFeatured: data.isFeatured || false,
           isAdmin: data.isAdmin || false,
