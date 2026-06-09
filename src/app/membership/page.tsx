@@ -320,7 +320,7 @@ function MembershipPageClient() {
                       'Processing...'
                     ) : (
                       <>
-                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Sign in to upgrade'}
+                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Sign in or create account'}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
