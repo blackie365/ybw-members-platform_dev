@@ -8,6 +8,8 @@ interface EmailLayoutProps {
 }
 
 export function EmailLayout({ children, previewText }: EmailLayoutProps) {
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://yorkshirebusinesswoman.co.uk").replace(/\/$/, "");
+
   return (
     <div style={{ backgroundColor: "#f8f6f2", padding: "40px 20px", minHeight: "100%" }}>
       {/* Preview text for email clients */}
@@ -41,7 +43,7 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
               }}>
               
               <img
-                src="https://img.rocket.new/generatedImages/rocket_gen_img_1545cfed3-1772247582674.png"
+                src={`${baseUrl}/images/logo-nav-v3.png`}
                 alt="Yorkshire Businesswoman"
                 width="200"
                 style={{
