@@ -94,7 +94,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
   };
 
   const FormattingToolbar = ({ field, allowParagraph = true }: { field: string; allowParagraph?: boolean }) => (
-    <div className="flex items-center gap-1 p-1 bg-muted/20 rounded-t-lg border border-b-0">
+    <div className="flex flex-wrap items-center gap-1 p-1 bg-muted/20 rounded-t-lg border border-b-0">
       <Button 
         variant="ghost" 
         size="sm" 
@@ -117,6 +117,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0"
+        onClick={() => insertTextAtCursor(field, '<span style="text-decoration: underline;">', '</span>')}
+        title="Underline"
+      >
+        <span className="text-[10px] font-bold">U</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0"
         onClick={() => {
           const input = document.getElementById(`editor-color-${field}`) as HTMLInputElement | null;
           input?.click();
@@ -132,6 +141,25 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         className="hidden"
         onChange={(e) => insertTextAtCursor(field, `<span style="color: ${e.target.value};">`, '</span>')}
       />
+      <Select
+        value=""
+        onValueChange={(v) => {
+          if (!v) return;
+          insertTextAtCursor(field, `<span style="font-size: ${v};">`, '</span>');
+        }}
+      >
+        <SelectTrigger className="h-8 px-2 py-0 w-[88px]">
+          <SelectValue placeholder="Size" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="0.85rem">XS</SelectItem>
+          <SelectItem value="1rem">SM</SelectItem>
+          <SelectItem value="1.15rem">MD</SelectItem>
+          <SelectItem value="1.35rem">LG</SelectItem>
+          <SelectItem value="1.6rem">XL</SelectItem>
+          <SelectItem value="2rem">2XL</SelectItem>
+        </SelectContent>
+      </Select>
       {allowParagraph && (
         <>
           <div className="w-px h-4 bg-border mx-1" />
@@ -154,6 +182,56 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         title="Line Break"
       >
         <span className="text-[10px] font-bold">BR</span>
+      </Button>
+      <div className="w-px h-4 bg-border mx-1" />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => insertTextAtCursor(field, '<h2>', '</h2>')}
+        title="Heading"
+      >
+        <span className="text-[10px] font-bold">H2</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => insertTextAtCursor(field, '<h3>', '</h3>')}
+        title="Subheading"
+      >
+        <span className="text-[10px] font-bold">H3</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => insertTextAtCursor(field, '<ul><li>', '</li></ul>')}
+        title="Bulleted list"
+      >
+        <span className="text-[10px] font-bold">UL</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => insertTextAtCursor(field, '<ol><li>', '</li></ol>')}
+        title="Numbered list"
+      >
+        <span className="text-[10px] font-bold">OL</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => {
+          const url = window.prompt('Link URL');
+          if (!url) return;
+          insertTextAtCursor(field, `<a href="${url}" target="_blank" rel="noreferrer">`, '</a>');
+        }}
+        title="Link"
+      >
+        <span className="text-[10px] font-bold">LINK</span>
       </Button>
     </div>
   );
