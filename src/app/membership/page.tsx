@@ -65,17 +65,18 @@ const tiers = [
 export default function MembershipPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, membershipTier, profile } = useAuth();
   const router = useRouter();
 
-  const handleTierClick = async (e: React.MouseEvent<HTMLAnchorElement>, tierId: string, href: string) => {
-    if (tierId !== 'tier-premium' || !user) {
+  const isPaidMember = membershipTier !== 'free';
+
+  const startPremiumCheckout = async () => {
+    if (!user?.uid || !user.email) {
+      router.push(`/sign-up?plan=premium&cycle=${billingCycle}`);
       return;
     }
 
-    e.preventDefault();
-    setLoadingTier(tierId);
-
+    setLoadingTier('tier-premium');
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -90,12 +91,32 @@ export default function MembershipPage() {
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        router.push(href);
       }
     } catch (err) {
       console.error('Failed to initiate checkout:', err);
-      router.push(href);
+    } finally {
+      setLoadingTier(null);
+    }
+  };
+
+  const openBillingPortal = async () => {
+    if (!user?.email) return;
+    setLoadingTier('tier-premium');
+    try {
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: profile?.stripeCustomerId,
+          userEmail: user.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Failed to open billing portal:', err);
     } finally {
       setLoadingTier(null);
     }
@@ -214,24 +235,63 @@ export default function MembershipPage() {
                   ))}
                 </ul>
 
-                <Link
-                  href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
-                  onClick={(e) => handleTierClick(e, tier.id, `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`)}
-                  className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
-                    tier.mostPopular
-                      ? 'bg-accent text-accent-foreground hover:bg-accent/90'
-                      : 'border border-border bg-card text-foreground hover:bg-muted'
-                  }`}
-                >
-                  {loadingTier === tier.id ? (
-                    'Processing...'
+                {tier.id === 'tier-corporate' ? (
+                  <Link
+                    href={tier.href}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Contact Us
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : tier.id === 'tier-free' ? (
+                  user ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-muted text-muted-foreground cursor-not-allowed"
+                    >
+                      Current Plan
+                    </button>
                   ) : (
-                    <>
-                      {tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
+                    <Link
+                      href={`/sign-up?cycle=${billingCycle}`}
+                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-card text-foreground hover:bg-muted transition-all"
+                    >
+                      Get Started
                       <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Link>
+                    </Link>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPaidMember) {
+                        void openBillingPortal();
+                        return;
+                      }
+                      void startPremiumCheckout();
+                    }}
+                    disabled={loadingTier === 'tier-premium'}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    } ${loadingTier === 'tier-premium' ? 'opacity-80 cursor-wait' : ''}`}
+                  >
+                    {loadingTier === 'tier-premium' ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Get Started'}
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}
