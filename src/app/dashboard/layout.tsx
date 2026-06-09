@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
@@ -26,9 +26,10 @@ const quickActions = [
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, isAdmin, signOut, membershipTier, profile } = useAuth();
+  const { user, loading, isAdmin, signOut, membershipTier, profile, refreshProfile } = useAuth();
   const [billingLoading, setBillingLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [activatingMembership, setActivatingMembership] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -51,6 +52,46 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   
   const pageTitle = currentPage?.name || 'Member Dashboard';
   const isPaidMember = membershipTier !== 'free';
+  const hasBillingIdentity = useMemo(() => {
+    return Boolean(profile?.stripeCustomerId || profile?.subscriptionId || (profile as any)?.subscriptionId);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!user || loading) return;
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('success');
+    const shouldActivate =
+      success === 'subscription_active' ||
+      success === 'mock_stripe_checkout_complete';
+
+    if (!shouldActivate) return;
+
+    if (membershipTier !== 'free') {
+      params.delete('success');
+      const next = params.toString();
+      router.replace(next ? `/dashboard?${next}` : '/dashboard');
+      return;
+    }
+
+    let attempts = 0;
+    setActivatingMembership(true);
+
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      void refreshProfile();
+
+      if (attempts >= 12) {
+        window.clearInterval(interval);
+        setActivatingMembership(false);
+      }
+    }, 2000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [loading, membershipTier, refreshProfile, router, user]);
 
   const startUpgrade = async () => {
     if (!user?.uid || !user.email) return;
@@ -132,20 +173,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="hidden sm:flex items-center gap-3 pt-2">
-              {membershipTier === 'free' ? (
+              {membershipTier === 'free' && !hasBillingIdentity ? (
                 <button
                   type="button"
                   onClick={() => void startUpgrade()}
-                  disabled={upgradeLoading}
+                  disabled={upgradeLoading || activatingMembership}
                   className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-accent text-accent-foreground font-semibold text-sm hover:bg-accent/90 transition-colors disabled:opacity-80 disabled:cursor-wait"
                 >
-                  {upgradeLoading ? 'Processing…' : 'Upgrade to Premium'}
+                  {activatingMembership ? 'Activating…' : upgradeLoading ? 'Processing…' : 'Upgrade to Premium'}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => void openBillingPortal()}
-                  disabled={billingLoading || !isPaidMember}
+                  disabled={billingLoading || (!isPaidMember && !hasBillingIdentity)}
                   className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg border border-primary-foreground/20 text-primary-foreground/90 font-semibold text-sm hover:bg-white/[0.06] transition-colors disabled:opacity-80 disabled:cursor-wait"
                 >
                   {billingLoading ? 'Opening…' : 'Manage Billing'}
