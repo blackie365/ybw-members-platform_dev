@@ -862,12 +862,11 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker || 'Feature'}
-            className="absolute inset-0 w-full h-full object-cover object-top"
+            alt={data.title || data.name || kicker}
+            className="absolute inset-0 w-full h-full object-cover"
           />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1a0d12] via-[#2d1520] to-[#0d0b09]" />
-        )}
+        ) : null}
+
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
@@ -879,195 +878,170 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : null}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-black/15" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        <div className="relative z-10 flex flex-col justify-end h-full min-h-full px-8 sm:px-14 pb-14 pt-20">
-          <div className="max-w-2xl">
-            {kicker && (
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-8 h-0.5 bg-[#a3413a] rounded-sm" />
-                <span className="text-[10px] font-extrabold tracking-[0.26em] uppercase text-[#a3413a]">{kicker}</span>
-              </div>
-            )}
-            {data.name && (
-              <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/50 mb-2.5">{data.name}</p>
-            )}
-            {(data.title || data.name) && (
-              <h2 className="font-serif font-black leading-[1.05] text-white mb-5 tracking-tight text-[clamp(2rem,4.5vw,3.5rem)]">
-                {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
-              </h2>
-            )}
-            {data.quote && (
-              <div className="border-l-[3px] border-[#a3413a] pl-4 mb-5">
-                <p className="font-serif italic text-white/85 leading-snug text-[clamp(1rem,2vw,1.25rem)]">
-                  &ldquo;{data.quote}&rdquo;
+
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="max-w-3xl rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
+              {kicker && (
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/70 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                    {kicker}
+                  </span>
+                </div>
+              )}
+
+              {data.name && (
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                  {data.name}
                 </p>
-              </div>
-            )}
-            {data.intro && <SafeText html={data.intro} className="text-sm leading-relaxed [&_p]:mb-2 text-white/75" />}
-            {data.text && <SafeText html={data.text} className="text-sm leading-relaxed [&_p]:mb-2 text-white/70" />}
-            {stats.length > 0 && (
-              <div
-                className="grid gap-2.5 mt-5"
-                style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)` }}
-              >
-                {stats.slice(0, 3).map((stat: any, i: number) => (
-                  <div
-                    key={`${stat?.label ?? 'stat'}-${i}`}
-                    className="bg-[#a3413a]/20 border border-[#a3413a]/30 rounded-xl px-2.5 py-3 text-center"
-                  >
-                    <p className="font-serif font-black text-[22px] text-[#a3413a] leading-none">{stat?.value}</p>
-                    <p className="text-[9px] font-bold tracking-[0.18em] uppercase text-white/45 mt-1">{stat?.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+              )}
+
+              {(data.title || data.name) && (
+                <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
+                  {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
+                </h2>
+              )}
+
+              {data.quote && (
+                <div className="pl-4 py-1 border-l-[3px] border-[#a3413a]">
+                  <p className="font-serif italic leading-snug text-[#a3413a]" style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+                    &ldquo;{data.quote}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {data.intro && (
+                <SafeText html={data.intro} className="text-white/85 leading-relaxed font-medium [&_p]:mb-2 [&_p:last-child]:mb-0" />
+              )}
+
+              {data.text && (
+                <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0" />
+              )}
+
+              {stats.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {stats.slice(0, 3).map((stat: any, i: number) => (
+                    <div
+                      key={`${stat?.label ?? 'stat'}-${i}`}
+                      className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm"
+                    >
+                      <p className="font-serif font-bold text-2xl text-[#a3413a]">{stat?.value}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 mt-1">{stat?.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Standard split: text LEFT, image RIGHT ──
   return (
-    <div ref={ref} className="flex flex-row h-full min-h-full overflow-hidden bg-[#0d0b09]">
+    <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
+      {/* Left: Image Panel — full height, half width on desktop */}
+      <div className="relative w-full lg:w-1/2 h-56 sm:h-72 lg:h-full flex-shrink-0 overflow-hidden">
+        {data.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fixMagazineImageUrl(data.image, imageVersion)}
+            alt={data.title || data.name || kicker}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
 
-      {/* ── LEFT: Editorial text panel (50%) ── */}
-      <div className="relative flex flex-col justify-center w-1/2 flex-shrink-0 px-10 xl:px-14 py-12 overflow-y-auto bg-[#0d0b09]">
-        {/* Decorative watermark letter */}
-        <div
-          className="absolute top-0 left-4 font-serif font-black leading-none select-none pointer-events-none text-white/[0.03]"
-          style={{ fontSize: 'clamp(8rem,18vw,14rem)', letterSpacing: '-0.04em' }}
-          aria-hidden="true"
-        >
-          {(data.name || data.title || 'F').charAt(0).toUpperCase()}
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+        {/* Subtle right-edge fade into the warm background */}
+        <div className="absolute inset-y-0 right-0 w-16 hidden lg:block" style={{ background: 'linear-gradient(to right, transparent, #e8e0d5)' }} />
+        {/* Bottom fade for mobile */}
+        <div className="absolute inset-x-0 bottom-0 h-16 lg:hidden" style={{ background: 'linear-gradient(to bottom, transparent, #e8e0d5)' }} />
+      </div>
+
+      {/* Right: Content Panel */}
+      <div className="relative flex flex-col justify-start flex-1 px-6 sm:px-10 lg:px-12 pt-10 pb-12 lg:pt-12 lg:pb-14 overflow-y-auto">
+        {/* Brick-red top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#a3413a' }} />
+        {/* Brick-red left accent bar (desktop) */}
+        <div className="absolute top-0 left-0 bottom-0 w-1 hidden lg:block" style={{ background: 'linear-gradient(to bottom, transparent, #a3413a 20%, #a3413a 80%, transparent)' }} />
+
+        {/* Category label */}
+        <div className="scroll-reveal mb-4 flex items-center gap-3">
+          <div className="w-6 h-px" style={{ background: '#a3413a' }} />
+          {kicker && (
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: '#a3413a' }}>
+              {kicker}
+            </span>
+          )}
         </div>
 
-        {/* Kicker */}
-        {kicker && (
-          <div className="scroll-reveal flex items-center gap-3 mb-6">
-            <div className="w-8 h-0.5 bg-[#a3413a] rounded-sm flex-shrink-0" />
-            <span className="text-[10px] font-extrabold tracking-[0.28em] uppercase text-[#a3413a]">{kicker}</span>
-          </div>
-        )}
-
-        {/* Person / subject name label */}
+        {/* Name / tag */}
         {data.name && (
-          <p className="scroll-reveal text-[11px] font-semibold tracking-[0.2em] uppercase text-white/40 mb-3">{data.name}</p>
+          <p className="scroll-reveal text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#7a5c4e' }}>
+            {data.name}
+          </p>
         )}
 
-        {/* Main headline */}
+        {/* Title */}
         {(data.title || data.name) && (
-          <h2 className="scroll-reveal font-serif font-black leading-[1.06] text-white mb-5 tracking-tight text-[clamp(1.75rem,3vw,2.75rem)]">
+          <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
+            style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
             {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
           </h2>
         )}
 
         {/* Pull quote */}
         {data.quote && (
-          <div className="scroll-reveal relative border-l-[3px] border-[#a3413a] pl-5 mb-6">
-            <span
-              className="font-serif absolute -top-4 -left-1.5 text-[3.5rem] leading-none text-[#a3413a]/25 select-none"
-              aria-hidden="true"
-            >
-              &ldquo;
-            </span>
-            <p className="font-serif italic text-white/80 leading-snug relative z-10 text-[clamp(0.9rem,1.5vw,1.1rem)]">
-              {data.quote}
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#a3413a' }}>
+            <p className="font-serif italic leading-snug" style={{ color: '#a3413a', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
+              &ldquo;{data.quote}&rdquo;
             </p>
-            {data.quoteAuthor && (
-              <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-[#a3413a] mt-2">— {data.quoteAuthor}</p>
-            )}
           </div>
         )}
 
-        {/* Ornamental divider */}
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex-1 h-px bg-white/10" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#a3413a]" />
-          <div className="w-6 h-px bg-white/10" />
-        </div>
-
-        {/* Body text */}
+        {/* Intro / body text */}
         {data.intro && (
-          <div className="scroll-reveal mb-3.5">
-            <SafeText
-              html={data.intro}
-              className="text-sm leading-[1.75] text-white/65 [&_p]:mb-3 [&_p:last-child]:mb-0"
-            />
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
+            <SafeText html={data.intro} className="text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
           </div>
         )}
+
         {data.text && (
-          <div className="scroll-reveal mb-3.5">
-            <SafeText
-              html={data.text}
-              className="text-sm leading-[1.75] text-white/60 [&_p]:mb-3 [&_p:last-child]:mb-0"
-            />
+          <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
+            <SafeText html={data.text} className="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3" />
           </div>
         )}
 
         {/* Stats row */}
         {stats.length > 0 && (
-          <div
-            className="scroll-reveal grid gap-2.5 mt-5"
-            style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 3)}, 1fr)` }}
-          >
+          <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-2 mb-4">
             {stats.slice(0, 3).map((stat: any, i: number) => (
-              <div
-                key={`${stat?.label ?? 'stat'}-${i}`}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-3.5 text-center"
-              >
-                <p className="font-serif font-black text-[22px] text-[#a3413a] leading-none">{stat?.value}</p>
-                <p className="text-[9px] font-bold tracking-[0.18em] uppercase text-white/40 mt-1.5">{stat?.label}</p>
+              <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(163,65,58,0.18)' }}>
+                <p className="font-serif font-bold text-xl" style={{ color: '#a3413a' }}>{stat?.value}</p>
+                <p className="text-[10px] font-medium mt-0.5" style={{ color: '#7a5c4e' }}>{stat?.label}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Bottom masthead signature */}
-        <div className="flex items-center gap-2.5 mt-7">
-          <div className="w-7 h-0.5 bg-[#a3413a] rounded-sm" />
-          <span className="text-[8px] font-extrabold tracking-[0.32em] uppercase text-[#a3413a]/60">YBW</span>
-          <div className="flex-1 h-px bg-white/8" />
-        </div>
-      </div>
-
-      {/* ── RIGHT: Full-bleed image panel (50%) ── */}
-      <div className="relative flex-1 overflow-hidden">
-        {data.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker || 'Feature'}
-            className="absolute inset-0 w-full h-full object-cover object-top"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#2a1020] via-[#a3413a] to-[#1a0a10]" />
-        )}
-        {data.videoUrl && (
-          <video
-            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-            autoPlay muted loop playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-
-        {/* Left-edge fade into the dark text panel */}
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#0d0b09] to-transparent pointer-events-none" />
-
-        {/* Subtle vignette */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/45 pointer-events-none" />
-
-        {/* Bottom caption strip */}
-        <div className="absolute bottom-0 left-0 right-0 px-7 pb-6 pt-8 bg-gradient-to-t from-black/65 to-transparent z-10">
-          {data.name && (
-            <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-white/55 mb-1">{data.name}</p>
-          )}
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-0.5 bg-[#a3413a]" />
-            <span className="text-[8px] font-bold tracking-[0.3em] uppercase text-white/30">YBW Digital Edition</span>
-          </div>
+        {/* Decorative bottom rule */}
+        <div className="scroll-reveal mt-8 pt-6 flex items-center gap-3">
+          <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #a3413a, transparent)' }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#a3413a' }}>YBW</span>
         </div>
       </div>
     </div>

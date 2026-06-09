@@ -1,7 +1,14 @@
 import { SignUp } from '@clerk/nextjs';
 import { Suspense } from 'react';
 
-function SignUpContent() {
+function normalizeReturnUrl(value: unknown): string {
+  if (typeof value !== 'string') return '/dashboard';
+  if (!value.startsWith('/')) return '/dashboard';
+  if (value.startsWith('//')) return '/dashboard';
+  return value;
+}
+
+function SignUpContent({ returnUrl }: { returnUrl: string }) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left side - Decorative (Matches Contact Page) */}
@@ -71,7 +78,7 @@ function SignUpContent() {
             path="/sign-up"
             routing="path"
             signInUrl="/sign-in"
-            forceRedirectUrl="/dashboard"
+            forceRedirectUrl={returnUrl}
             appearance={{
               variables: {
                 colorPrimary: '#8b3e2f', // Brick Color
@@ -111,10 +118,12 @@ function SignUpContent() {
   )
 }
 
-export default function Page() {
+export default function Page({ searchParams }: { searchParams?: { returnUrl?: string | string[] } }) {
+  const rawReturnUrl = Array.isArray(searchParams?.returnUrl) ? searchParams?.returnUrl[0] : searchParams?.returnUrl;
+  const returnUrl = normalizeReturnUrl(rawReturnUrl);
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background">Loading...</div>}>
-      <SignUpContent />
+      <SignUpContent returnUrl={returnUrl} />
     </Suspense>
   )
 }

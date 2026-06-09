@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Check, ArrowRight, Sparkles, Users, Building2 } from 'lucide-react';
 
@@ -26,7 +26,7 @@ const tiers = [
   {
     name: 'Premium Member',
     id: 'tier-premium',
-    href: '/sign-up?plan=premium',
+    href: '/sign-in',
     priceMonthly: '£25',
     priceAnnually: '£275',
     icon: Sparkles,
@@ -63,26 +63,39 @@ const tiers = [
 ];
 
 export default function MembershipPage() {
+  return (
+    <Suspense fallback={<div className="bg-background" />}>
+      <MembershipPageClient />
+    </Suspense>
+  );
+}
+
+function MembershipPageClient() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, membershipTier, profile } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const hasAutoUpgradedRef = useRef(false);
 
-  const handleTierClick = async (e: React.MouseEvent<HTMLAnchorElement>, tierId: string, href: string) => {
-    if (tierId !== 'tier-premium' || !user) {
+  const isPaidMember = membershipTier !== 'free';
+
+  const startPremiumCheckout = async (cycleOverride?: 'monthly' | 'annually') => {
+    const cycle = cycleOverride || billingCycle;
+    if (!user?.uid || !user.email) {
+      const returnUrl = `/membership?upgrade=1&cycle=${cycle}`;
+      router.push(`/sign-in?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
 
-    e.preventDefault();
-    setLoadingTier(tierId);
-
+    setLoadingTier('tier-premium');
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: 'premium',
-          cycle: billingCycle,
+          cycle,
           userEmail: user.email,
           userId: user.uid,
         }),
@@ -90,12 +103,54 @@ export default function MembershipPage() {
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        router.push(href);
       }
     } catch (err) {
       console.error('Failed to initiate checkout:', err);
-      router.push(href);
+    } finally {
+      setLoadingTier(null);
+    }
+  };
+
+  useEffect(() => {
+    const cycleParam = searchParams.get('cycle');
+    if (cycleParam === 'monthly' || cycleParam === 'annually') {
+      setBillingCycle(cycleParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (hasAutoUpgradedRef.current) return;
+
+    const wantsUpgrade = searchParams.get('upgrade') === '1';
+    if (!wantsUpgrade) return;
+    if (!user?.uid || !user.email) return;
+    if (membershipTier !== 'free') return;
+
+    const cycleParam = searchParams.get('cycle');
+    const cycleOverride = cycleParam === 'monthly' || cycleParam === 'annually' ? cycleParam : undefined;
+
+    hasAutoUpgradedRef.current = true;
+    void startPremiumCheckout(cycleOverride);
+  }, [membershipTier, searchParams, user?.email, user?.uid]);
+
+  const openBillingPortal = async () => {
+    if (!user?.email) return;
+    setLoadingTier('tier-premium');
+    try {
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: profile?.stripeCustomerId,
+          userEmail: user.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Failed to open billing portal:', err);
     } finally {
       setLoadingTier(null);
     }
@@ -214,24 +269,75 @@ export default function MembershipPage() {
                   ))}
                 </ul>
 
-                <Link
-                  href={tier.id === 'tier-corporate' ? tier.href : `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`}
-                  onClick={(e) => handleTierClick(e, tier.id, `${tier.href}${tier.href.includes('?') ? '&' : '?'}cycle=${billingCycle}`)}
-                  className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
-                    tier.mostPopular
-                      ? 'bg-accent text-accent-foreground hover:bg-accent/90'
-                      : 'border border-border bg-card text-foreground hover:bg-muted'
-                  }`}
-                >
-                  {loadingTier === tier.id ? (
-                    'Processing...'
+                {tier.id === 'tier-corporate' ? (
+                  <Link
+                    href={tier.href}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Contact Us
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : tier.id === 'tier-free' ? (
+                  user ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-muted text-muted-foreground cursor-not-allowed"
+                    >
+                      Current Plan
+                    </button>
                   ) : (
-                    <>
-                      {tier.id === 'tier-corporate' ? 'Contact Us' : 'Get Started'}
+                    <Link
+                      href={`/sign-up?cycle=${billingCycle}`}
+                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-card text-foreground hover:bg-muted transition-all"
+                    >
+                      Get Started
                       <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Link>
+                    </Link>
+                  )
+                ) : !user ? (
+                  <Link
+                    href={`/sign-up?returnUrl=${encodeURIComponent(`/membership?upgrade=1&cycle=${billingCycle}`)}`}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Join Premium
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isPaidMember) {
+                        void openBillingPortal();
+                        return;
+                      }
+                      void startPremiumCheckout();
+                    }}
+                    disabled={loadingTier === 'tier-premium'}
+                    className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
+                      tier.mostPopular
+                        ? 'bg-accent text-accent-foreground hover:bg-accent/90'
+                        : 'border border-border bg-card text-foreground hover:bg-muted'
+                    } ${loadingTier === 'tier-premium' ? 'opacity-80 cursor-wait' : ''}`}
+                  >
+                    {loadingTier === 'tier-premium' ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        {isPaidMember ? 'Manage Billing' : 'Upgrade Now'}
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}
