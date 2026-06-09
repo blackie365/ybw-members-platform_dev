@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { Check, ArrowRight, Sparkles, Users, Building2 } from 'lucide-react';
 
@@ -26,7 +26,7 @@ const tiers = [
   {
     name: 'Premium Member',
     id: 'tier-premium',
-    href: '/sign-up?plan=premium',
+    href: '/sign-in',
     priceMonthly: '£25',
     priceAnnually: '£275',
     icon: Sparkles,
@@ -63,16 +63,28 @@ const tiers = [
 ];
 
 export default function MembershipPage() {
+  return (
+    <Suspense fallback={<div className="bg-background" />}>
+      <MembershipPageClient />
+    </Suspense>
+  );
+}
+
+function MembershipPageClient() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const { user, membershipTier, profile } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const hasAutoUpgradedRef = useRef(false);
 
   const isPaidMember = membershipTier !== 'free';
 
-  const startPremiumCheckout = async () => {
+  const startPremiumCheckout = async (cycleOverride?: 'monthly' | 'annually') => {
+    const cycle = cycleOverride || billingCycle;
     if (!user?.uid || !user.email) {
-      router.push(`/sign-up?plan=premium&cycle=${billingCycle}`);
+      const returnUrl = `/membership?upgrade=1&cycle=${cycle}`;
+      router.push(`/sign-in?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
 
@@ -83,7 +95,7 @@ export default function MembershipPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: 'premium',
-          cycle: billingCycle,
+          cycle,
           userEmail: user.email,
           userId: user.uid,
         }),
@@ -98,6 +110,28 @@ export default function MembershipPage() {
       setLoadingTier(null);
     }
   };
+
+  useEffect(() => {
+    const cycleParam = searchParams.get('cycle');
+    if (cycleParam === 'monthly' || cycleParam === 'annually') {
+      setBillingCycle(cycleParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (hasAutoUpgradedRef.current) return;
+
+    const wantsUpgrade = searchParams.get('upgrade') === '1';
+    if (!wantsUpgrade) return;
+    if (!user?.uid || !user.email) return;
+    if (membershipTier !== 'free') return;
+
+    const cycleParam = searchParams.get('cycle');
+    const cycleOverride = cycleParam === 'monthly' || cycleParam === 'annually' ? cycleParam : undefined;
+
+    hasAutoUpgradedRef.current = true;
+    void startPremiumCheckout(cycleOverride);
+  }, [membershipTier, searchParams, user?.email, user?.uid]);
 
   const openBillingPortal = async () => {
     if (!user?.email) return;
@@ -286,7 +320,7 @@ export default function MembershipPage() {
                       'Processing...'
                     ) : (
                       <>
-                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Get Started'}
+                        {isPaidMember ? 'Manage Billing' : user ? 'Upgrade Now' : 'Sign in to upgrade'}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
