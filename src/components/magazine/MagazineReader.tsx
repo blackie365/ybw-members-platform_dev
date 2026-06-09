@@ -147,7 +147,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
           <div className="flex items-center gap-2 sm:gap-3">
             <Logo className="h-6 sm:h-8 brightness-0 invert opacity-90" />
             <span className="text-white/20 hidden sm:block">|</span>
-            <p className="text-[10px] sm:text-xs font-semibold tracking-[0.18em] uppercase text-[#8b1f3f] truncate max-w-[100px] sm:max-w-none">
+            <p className="text-[10px] sm:text-xs font-semibold tracking-[0.18em] uppercase text-[#a3413a] truncate max-w-[100px] sm:max-w-none">
               {(pages[currentPage]?.content as any)?.date || issue?.title || "Edition"}
             </p>
           </div>
@@ -193,7 +193,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
 
         {/* Ambient glow behind the page */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="w-[60vw] h-[60vh] rounded-full bg-[#8b1f3f]/8 blur-[120px]" />
+          <div className="w-[60vw] h-[60vh] rounded-full bg-[#a3413a]/8 blur-[120px]" />
         </div>
 
         {/* Navigation Arrows (Desktop) */}
@@ -272,8 +272,8 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
               style={{
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg, #8b1f3f 0%, #8b1f3f 100%)',
-                boxShadow: '0 0 8px rgba(139,31,63,0.6)',
+                background: 'linear-gradient(90deg, #a3413a 0%, #a3413a 100%)',
+                boxShadow: '0 0 8px rgba(163,65,58,0.6)',
               }}
             />
           </div>
@@ -295,13 +295,13 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                     className={[
                       'block rounded-full transition-all duration-300',
                       isActive
-                        ? 'w-4 h-1.5 bg-[#8b1f3f] shadow-[0_0_6px_rgba(139,31,63,0.8)]'
+                        ? 'w-4 h-1.5 bg-[#a3413a] shadow-[0_0_6px_rgba(163,65,58,0.8)]'
                         : isNear
                         ? 'w-1 h-1 bg-zinc-500 group-hover:bg-zinc-300' :'w-0.5 h-0.5 bg-zinc-700 group-hover:bg-zinc-500',
                     ].join(' ')}
                   />
                   {isActive && (
-                    <span className="text-[8px] font-mono font-bold text-[#8b1f3f] leading-none">
+                    <span className="text-[8px] font-mono font-bold text-[#a3413a] leading-none">
                       {i + 1}
                     </span>
                   )}
@@ -350,29 +350,29 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                     className={[
                       'w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
                       isActive
-                        ? 'bg-[#8b1f3f]/10 border border-[#8b1f3f]/20'
+                        ? 'bg-[#a3413a]/10 border border-[#a3413a]/20'
                         : 'hover:bg-white/[0.04] border border-transparent',
                     ].join(' ')}
                   >
-                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#8b1f3f]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className={`font-medium text-xs uppercase tracking-widest ${isActive ? 'text-[#8b1f3f]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                    <span className={`font-medium text-xs uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
                       {page.type.replace('-', ' ')}
                     </span>
                     {isActive && (
-                      <motion.div layoutId="activeDot" className="h-1 w-1 rounded-full bg-[#8b1f3f] ml-auto" />
+                      <motion.div layoutId="activeDot" className="h-1 w-1 rounded-full bg-[#a3413a] ml-auto" />
                     )}
                   </button>
                 );
               })}
             </nav>
-            <div className="mt-10 p-5 bg-gradient-to-br from-[#8b1f3f]/20 to-[#8b1f3f]/10 rounded-xl border border-[#8b1f3f]/20">
-              <p className="text-[10px] text-[#8b1f3f] uppercase tracking-widest mb-1 font-bold">Latest Edition</p>
+            <div className="mt-10 p-5 bg-gradient-to-br from-[#a3413a]/20 to-[#a3413a]/10 rounded-xl border border-[#a3413a]/20">
+              <p className="text-[10px] text-[#a3413a] uppercase tracking-widest mb-1 font-bold">Latest Edition</p>
               <h4 className="text-base font-serif text-white mb-4">{issue?.title || "Current Issue"}</h4>
               <Link
                 href="/membership"
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#8b1f3f] text-white font-semibold text-xs rounded-lg hover:bg-[#7a1b36] transition-colors"
+                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a3413a] text-white font-semibold text-xs rounded-lg hover:bg-[#a3413a]/90 transition-colors"
               >
                 Become a Member
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -436,7 +436,7 @@ function renderTitleArt(text: unknown, emphasisClassName?: string): React.ReactN
       nodes.push(raw.slice(lastIndex, m.index));
     }
     nodes.push(
-      <span key={`ta-${key++}`} className={emphasisClassName || 'font-serif italic text-[#8b1f3f]'}>
+      <span key={`ta-${key++}`} className={emphasisClassName || 'font-serif italic text-[#a3413a]'}>
         {m[1]}
       </span>
     );
@@ -600,9 +600,9 @@ const PageCover = ({ data, imageVersion }: any) => {
       {/* Decorative blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[28rem] h-[28rem] rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(139,31,63,0.25) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(163,65,58,0.25) 0%, transparent 70%)', filter: 'blur(60px)' }} />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(139,31,63,0.18) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(163,65,58,0.18) 0%, transparent 70%)', filter: 'blur(80px)' }} />
       </div>
 
       {/* Grain */}
@@ -610,14 +610,14 @@ const PageCover = ({ data, imageVersion }: any) => {
 
       {/* Vertical accent line */}
       <div className="absolute left-0 top-0 bottom-0 w-1 z-20"
-        style={{ background: 'linear-gradient(to bottom, transparent, #8b1f3f 30%, #8b1f3f 70%, transparent)' }} />
+        style={{ background: 'linear-gradient(to bottom, transparent, #a3413a 30%, #a3413a 70%, transparent)' }} />
 
       <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-10 py-12 lg:py-16 min-h-full flex items-center">
         <div className="max-w-xl">
           {/* Issue badge */}
           <div className="cover-animate opacity-0 mb-7">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-white/70 border border-white/15 bg-white/[0.06] backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#8b1f3f] inline-block animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a3413a] inline-block animate-pulse" />
               {dateIssue || 'Digital Edition'}
             </span>
           </div>
@@ -638,9 +638,9 @@ const PageCover = ({ data, imageVersion }: any) => {
             <div className="cover-animate opacity-0 mb-7">
               <div className="inline-flex items-start gap-3 bg-white/[0.07] backdrop-blur-md border border-white/15 rounded-xl px-4 py-3.5 max-w-sm">
                 <div className="w-0.5 h-12 rounded-full flex-shrink-0 mt-0.5"
-                  style={{ background: 'linear-gradient(to bottom, #8b1f3f, #8b1f3f)' }} />
+                  style={{ background: 'linear-gradient(to bottom, #a3413a, #a3413a)' }} />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-1">
                     {data.badge || 'Special Report'}
                   </p>
                   {data.headline && (
@@ -661,7 +661,7 @@ const PageCover = ({ data, imageVersion }: any) => {
             <Link
               href="/new-edition"
               className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-sm rounded-full text-[#0c0a09] hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #8b1f3f 0%, #7a1b36 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #a3413a 0%, #a3413a 100%)' }}
             >
               Browse Archive
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -697,28 +697,28 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
       {/* Warm top accent strip */}
-      <div className="h-1 w-full mb-0" style={{ background: 'linear-gradient(90deg, #8b1f3f 0%, #8b1f3f 100%)' }} />
+      <div className="h-1 w-full mb-0" style={{ background: 'linear-gradient(90deg, #a3413a 0%, #a3413a 100%)' }} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12">
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#8b1f3f]/40 to-transparent" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-nowrap px-2">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#a3413a]/40 to-transparent" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-nowrap px-2">
               Editor&apos;s Note
             </span>
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#8b1f3f]/40 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#a3413a]/40 to-transparent" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
           <div className="lg:col-span-4 scroll-reveal scroll-reveal-delay-1">
             <div className="lg:sticky lg:top-32 space-y-5">
-              <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_8px_40px_rgba(139,31,63,0.15)] ring-1 ring-[#8b1f3f]/20">
+              <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_8px_40px_rgba(163,65,58,0.15)] ring-1 ring-[#a3413a]/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="w-full h-full object-cover" />
               </div>
               <div className="rounded-xl p-5 border border-[#e8d5c0] bg-white shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-1">Editor</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-1">Editor</p>
                 <p className="font-bold text-[#1c1410] text-lg">{data.author}</p>
                 <p className="text-sm text-[#7a6e65]">Yorkshire BusinessWoman Magazine</p>
               </div>
@@ -727,12 +727,12 @@ const PageEditorial = ({ data, imageVersion }: any) => {
 
           <div className="lg:col-span-8 space-y-6">
             <div className="scroll-reveal scroll-reveal-delay-2">
-              <h2 className="text-feature-xl font-serif font-600 text-[#1c1410] mb-2">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+              <h2 className="text-feature-xl font-serif font-600 text-[#1c1410] mb-2">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
             </div>
 
             {data.quote && (
-              <div className="scroll-reveal scroll-reveal-delay-3 border-l-[3px] border-[#8b1f3f] pl-5 py-1">
-                <p className="font-serif italic text-[clamp(1.2rem,2.5vw,1.65rem)] leading-[1.4] text-[#8b1f3f]">
+              <div className="scroll-reveal scroll-reveal-delay-3 border-l-[3px] border-[#a3413a] pl-5 py-1">
+                <p className="font-serif italic text-[clamp(1.2rem,2.5vw,1.65rem)] leading-[1.4] text-[#a3413a]">
                   &ldquo;{data.quote}&rdquo;
                 </p>
               </div>
@@ -746,10 +746,10 @@ const PageEditorial = ({ data, imageVersion }: any) => {
             {signature && (
               <div className="scroll-reveal pt-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-px bg-[#8b1f3f]" />
+                  <div className="w-10 h-px bg-[#a3413a]" />
                   <p className="font-serif italic text-[#3d2b1f] font-medium text-lg">With warmth and ambition,</p>
                 </div>
-                <p className="font-bold text-[#8b1f3f] mt-3 text-lg">{signature}</p>
+                <p className="font-bold text-[#a3413a] mt-3 text-lg">{signature}</p>
               </div>
             )}
           </div>
@@ -774,19 +774,19 @@ const PageContents = ({ data }: any) => {
   return (
     <div ref={ref} className="bg-[#1a1210] py-16 lg:py-24 min-h-full text-white">
       {/* Top accent */}
-      <div className="h-0.5 w-full mb-0" style={{ background: 'linear-gradient(90deg, transparent, #8b1f3f 30%, #8b1f3f 70%, transparent)' }} />
+      <div className="h-0.5 w-full mb-0" style={{ background: 'linear-gradient(90deg, transparent, #a3413a 30%, #a3413a 70%, transparent)' }} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10">
         <div className="scroll-reveal mb-12 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             {kicker && (
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-2">{kicker}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] mb-2">{kicker}</p>
             )}
             <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title)}</h2>
           </div>
           <div className="flex items-center gap-5">
             {['Instagram','LinkedIn','X'].map((s) => (
-              <span key={s} className="text-zinc-500 hover:text-[#8b1f3f] transition-colors text-xs font-medium cursor-pointer">{s}</span>
+              <span key={s} className="text-zinc-500 hover:text-[#a3413a] transition-colors text-xs font-medium cursor-pointer">{s}</span>
             ))}
           </div>
         </div>
@@ -803,20 +803,20 @@ const PageContents = ({ data }: any) => {
             return (
               <div
                 key={`${pageLabel}-${item?.title ?? i}`}
-                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#8b1f3f]/30 transition-all duration-300`}
+                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300`}
               >
                 <div className="p-5 flex flex-col h-full min-h-[130px] relative">
                   {/* Accent corner */}
                   <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
                     <div className="absolute top-0 right-0 w-0 h-0"
-                      style={{ borderLeft: '48px solid transparent', borderTop: '48px solid rgba(139,31,63,0.08)' }} />
+                      style={{ borderLeft: '48px solid transparent', borderTop: '48px solid rgba(163,65,58,0.08)' }} />
                   </div>
                   <div className="flex items-start justify-between mb-3">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f]">{item?.category}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#a3413a]">{item?.category}</span>
                     <span className="text-3xl font-extrabold text-white/[0.07] font-serif leading-none group-hover:text-white/[0.12] transition-colors">{pageLabel}</span>
                   </div>
                   <p className="font-serif font-semibold text-white/90 text-base leading-snug flex-1">{item?.title}</p>
-                  <div className="mt-3 h-0.5 w-8 rounded-full bg-[#8b1f3f] group-hover:w-14 transition-all duration-300" />
+                  <div className="mt-3 h-0.5 w-8 rounded-full bg-[#a3413a] group-hover:w-14 transition-all duration-300" />
                 </div>
               </div>
             );
@@ -826,12 +826,12 @@ const PageContents = ({ data }: any) => {
         {news.length > 0 && (
           <div className="scroll-reveal rounded-xl border border-white/[0.07] bg-white/[0.03] p-6">
             {newsLabel && (
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{newsLabel}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">{newsLabel}</p>
             )}
             <ul className="space-y-2.5">
               {news.map((item: any, i: number) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-white/70">
-                  <span className="text-[#8b1f3f] mt-0.5 flex-shrink-0 text-[10px]">◆</span>
+                  <span className="text-[#a3413a] mt-0.5 flex-shrink-0 text-[10px]">◆</span>
                   {item}
                 </li>
               ))}
@@ -887,8 +887,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
             <div className="max-w-3xl rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
               {kicker && (
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/70 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -902,13 +902,13 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
 
               {(data.title || data.name) && (
                 <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
-                  {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+                  {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
                 </h2>
               )}
 
               {data.quote && (
-                <div className="pl-4 py-1 border-l-[3px] border-[#8b1f3f]">
-                  <p className="font-serif italic leading-snug text-[#8b1f3f]" style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+                <div className="pl-4 py-1 border-l-[3px] border-[#a3413a]">
+                  <p className="font-serif italic leading-snug text-[#a3413a]" style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
                     &ldquo;{data.quote}&rdquo;
                   </p>
                 </div>
@@ -929,7 +929,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
                       key={`${stat?.label ?? 'stat'}-${i}`}
                       className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm"
                     >
-                      <p className="font-serif font-bold text-2xl text-[#8b1f3f]">{stat?.value}</p>
+                      <p className="font-serif font-bold text-2xl text-[#a3413a]">{stat?.value}</p>
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 mt-1">{stat?.label}</p>
                     </div>
                   ))}
@@ -975,15 +975,15 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
       {/* Right: Content Panel */}
       <div className="relative flex flex-col justify-start flex-1 px-6 sm:px-10 lg:px-12 pt-10 pb-12 lg:pt-12 lg:pb-14 overflow-y-auto">
         {/* Brick-red top accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#8b1f3f' }} />
+        <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#a3413a' }} />
         {/* Brick-red left accent bar (desktop) */}
-        <div className="absolute top-0 left-0 bottom-0 w-1 hidden lg:block" style={{ background: 'linear-gradient(to bottom, transparent, #8b1f3f 20%, #8b1f3f 80%, transparent)' }} />
+        <div className="absolute top-0 left-0 bottom-0 w-1 hidden lg:block" style={{ background: 'linear-gradient(to bottom, transparent, #a3413a 20%, #a3413a 80%, transparent)' }} />
 
         {/* Category label */}
         <div className="scroll-reveal mb-4 flex items-center gap-3">
-          <div className="w-6 h-px" style={{ background: '#8b1f3f' }} />
+          <div className="w-6 h-px" style={{ background: '#a3413a' }} />
           {kicker && (
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: '#8b1f3f' }}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: '#a3413a' }}>
               {kicker}
             </span>
           )}
@@ -1000,14 +1000,14 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {(data.title || data.name) && (
           <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
             style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
-            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
           </h2>
         )}
 
         {/* Pull quote */}
         {data.quote && (
-          <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#8b1f3f' }}>
-            <p className="font-serif italic leading-snug" style={{ color: '#8b1f3f', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#a3413a' }}>
+            <p className="font-serif italic leading-snug" style={{ color: '#a3413a', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
               &ldquo;{data.quote}&rdquo;
             </p>
           </div>
@@ -1030,8 +1030,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {stats.length > 0 && (
           <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-2 mb-4">
             {stats.slice(0, 3).map((stat: any, i: number) => (
-              <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(139,31,63,0.18)' }}>
-                <p className="font-serif font-bold text-xl" style={{ color: '#8b1f3f' }}>{stat?.value}</p>
+              <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(163,65,58,0.18)' }}>
+                <p className="font-serif font-bold text-xl" style={{ color: '#a3413a' }}>{stat?.value}</p>
                 <p className="text-[10px] font-medium mt-0.5" style={{ color: '#7a5c4e' }}>{stat?.label}</p>
               </div>
             ))}
@@ -1040,8 +1040,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
 
         {/* Decorative bottom rule */}
         <div className="scroll-reveal mt-8 pt-6 flex items-center gap-3">
-          <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #8b1f3f, transparent)' }} />
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#8b1f3f' }}>YBW</span>
+          <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #a3413a, transparent)' }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#a3413a' }}>YBW</span>
         </div>
       </div>
     </div>
@@ -1094,8 +1094,8 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
             {kicker && (
               <div className="scroll-reveal mb-10">
                 <div className="flex items-center gap-4 w-full min-w-0">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -1107,16 +1107,16 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                 <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
                   <div>
                     {nameLabel && (
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{nameLabel}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{nameLabel}</p>
                     )}
                     <h2 className="text-section-lg font-serif font-600 text-white">
-                      {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+                      {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
                     </h2>
                   </div>
 
                   {data.quote && (
-                    <div className="border-l-[3px] border-[#8b1f3f] pl-5 py-1">
-                      <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#8b1f3f]">
+                    <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
+                      <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#a3413a]">
                         &ldquo;{data.quote}&rdquo;
                       </p>
                     </div>
@@ -1130,12 +1130,12 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                 <div className="lg:col-span-5 scroll-reveal scroll-reveal-delay-2">
                   <div className="rounded-3xl border border-white/10 bg-black/45 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.4)] p-7 sm:p-9">
                     {snapshotLabel && (
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{snapshotLabel}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">{snapshotLabel}</p>
                     )}
                     <div className="space-y-3">
                       {stats.map((stat: any, i: number) => (
                         <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-2xl border border-white/10 bg-white/10 p-5 flex items-start gap-4">
-                          <span className="font-serif font-bold text-[#8b1f3f] text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
+                          <span className="font-serif font-bold text-[#a3413a] text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
                           <p className="text-sm text-white/75 leading-relaxed">{stat?.label}</p>
                         </div>
                       ))}
@@ -1155,9 +1155,9 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 w-full min-w-0">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
@@ -1168,14 +1168,14 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
           <div className="lg:col-span-6 space-y-6 scroll-reveal">
             <div>
               {nameLabel && (
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{nameLabel}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{nameLabel}</p>
               )}
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}</h2>
+              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}</h2>
             </div>
 
             {data.quote && (
-              <div className="border-l-[3px] border-[#8b1f3f] pl-5 py-1">
-                <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#8b1f3f]">
+              <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
+                <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#a3413a]">
                   &ldquo;{data.quote}&rdquo;
                 </p>
               </div>
@@ -1186,7 +1186,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
 
           <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">
             {(data.videoUrl || data.image) && (
-              <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15 relative">
+              <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-[0_12px_50px_rgba(163,65,58,0.12)] ring-1 ring-[#a3413a]/15 relative">
                 {data.videoUrl ? (
                   <>
                     {data.image ? (
@@ -1213,12 +1213,12 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
             {stats.length > 0 && (
               <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
                 {snapshotLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{snapshotLabel}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-3">{snapshotLabel}</p>
                 )}
                 <div className="space-y-2.5">
                   {stats.map((stat: any, i: number) => (
                     <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl border border-[#f0e8da] bg-[#faf7f2] p-4 flex items-start gap-4">
-                      <span className="font-serif font-bold text-[#8b1f3f] text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
+                      <span className="font-serif font-bold text-[#a3413a] text-2xl shrink-0 w-16 text-center">{stat?.value}</span>
                       <p className="text-sm text-[#3d2b1f]/75 leading-relaxed">{stat?.label}</p>
                     </div>
                   ))}
@@ -1280,15 +1280,15 @@ const PageColumn = ({ data, imageVersion }: any) => {
                   <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-9 space-y-6">
                     {kicker && (
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/70 to-transparent" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                        <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/70 to-transparent" />
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                           {kicker}
                         </span>
                       </div>
                     )}
 
                     <div>
-                      <h2 className="text-section-lg font-serif font-600 text-white leading-tight">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                      <h2 className="text-section-lg font-serif font-600 text-white leading-tight">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
                       {data.author && <p className="text-sm text-white/75 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
                     </div>
 
@@ -1302,14 +1302,14 @@ const PageColumn = ({ data, imageVersion }: any) => {
                     {tips.length > 0 && (
                       <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-sm p-6">
                         {tipsLabel && (
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">{tipsLabel}</p>
                         )}
                         <ul className="space-y-2.5">
                           {tips.map((tip: any, i: number) => (
                             <li key={i} className="flex items-start gap-3 text-sm text-white/85">
                               <span
                                 className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
-                                style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}
+                                style={{ background: 'linear-gradient(135deg, #a3413a, #a3413a)' }}
                               >
                                 {i + 1}
                               </span>
@@ -1329,9 +1329,9 @@ const PageColumn = ({ data, imageVersion }: any) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="scroll-reveal mb-10">
             <div className="flex items-center gap-4 w-full min-w-0">
-              <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
               {kicker && (
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                   {kicker}
                 </span>
               )}
@@ -1341,7 +1341,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             {(data.videoUrl || data.image) && (
               <div className="lg:col-span-5 scroll-reveal">
-                <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(139,31,63,0.12)] ring-1 ring-[#8b1f3f]/15 relative">
+                <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(163,65,58,0.12)] ring-1 ring-[#a3413a]/15 relative">
                   {data.videoUrl ? (
                     <>
                       {data.image ? (
@@ -1364,7 +1364,11 @@ const PageColumn = ({ data, imageVersion }: any) => {
                     </>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.category || 'Column'} className="w-full h-full object-cover" />
+                    <img
+                      src={fixMagazineImageUrl(data.image, imageVersion)}
+                      alt={data.title || data.category || 'Column'}
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
               </div>
@@ -1372,7 +1376,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
             <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
               <div>
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
               </div>
 
@@ -1381,13 +1385,13 @@ const PageColumn = ({ data, imageVersion }: any) => {
               {tips.length > 0 && (
                 <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
                   {tipsLabel && (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-4">{tipsLabel}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">{tipsLabel}</p>
                   )}
                   <ul className="space-y-2.5">
                     {tips.map((tip: any, i: number) => (
                       <li key={i} className="flex items-start gap-3 text-sm text-[#3d2b1f]/75">
                         <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 text-white"
-                          style={{ background: 'linear-gradient(135deg, #8b1f3f, #8b1f3f)' }}>
+                          style={{ background: 'linear-gradient(135deg, #a3413a, #a3413a)' }}>
                           {i + 1}
                         </span>
                         {tip}
@@ -1455,8 +1459,8 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
             <div className="max-w-4xl rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-8">
               {kicker && (
                 <div className="flex items-center gap-4 w-full min-w-0">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -1488,13 +1492,13 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                 <div className="space-y-4">
                   <div className="rounded-2xl p-5 border border-white/10 bg-white/10 backdrop-blur-sm">
                     {highlightsLabel && (
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{highlightsLabel}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-3">{highlightsLabel}</p>
                     )}
                     {highlights.length > 0 ? (
                       <ul className="space-y-2">
                         {highlights.slice(0, 8).map((h: any, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-                            <span className="text-[#8b1f3f] mt-0.5 text-[10px]">◆</span>
+                            <span className="text-[#a3413a] mt-0.5 text-[10px]">◆</span>
                             {h}
                           </li>
                         ))}
@@ -1507,9 +1511,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                   {textPreview && (
                     <div className="rounded-2xl p-5 border border-white/10 bg-white/10 backdrop-blur-sm">
                       {editorsPickLabel && (
-                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{editorsPickLabel}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{editorsPickLabel}</p>
                       )}
-                      <p className="font-serif font-semibold text-white text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#8b1f3f]')}</p>
+                      <p className="font-serif font-semibold text-white text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#a3413a]')}</p>
                       <p className="text-sm text-white/70 mt-3 line-clamp-3">{textPreview}</p>
                     </div>
                   )}
@@ -1527,9 +1531,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 w-full min-w-0">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
@@ -1538,7 +1542,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
           <div className="md:col-span-2 scroll-reveal">
-            <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-[0_12px_50px_rgba(139,31,63,0.12)]">
+            <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-[0_12px_50px_rgba(163,65,58,0.12)]">
               {data.videoUrl ? (
                 <>
                   {data.image ? (
@@ -1561,7 +1565,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
-                {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-1.5">{kicker}</p>}
+                {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-1.5">{kicker}</p>}
                 <h3 className="font-serif font-semibold text-white text-2xl">{renderTitleArt(title)}</h3>
               </div>
             </div>
@@ -1571,13 +1575,13 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
             <div className="rounded-2xl p-5 border border-[#e8d5c0] bg-white shadow-sm h-full flex flex-col justify-between min-h-[200px]">
               <div>
                 {highlightsLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-3">{highlightsLabel}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-3">{highlightsLabel}</p>
                 )}
                 {highlights.length > 0 ? (
                   <ul className="space-y-2">
                     {highlights.slice(0, 6).map((h: any, i: number) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-[#3d2b1f]/75">
-                        <span className="text-[#8b1f3f] mt-0.5 text-[10px]">◆</span>
+                        <span className="text-[#a3413a] mt-0.5 text-[10px]">◆</span>
                         {h}
                       </li>
                     ))}
@@ -1598,9 +1602,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               <div className="rounded-2xl p-5 border border-[#e8d5c0] bg-white shadow-sm flex flex-col justify-between min-h-[160px]">
                 <div>
                   {editorsPickLabel && (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{editorsPickLabel}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{editorsPickLabel}</p>
                   )}
-                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#8b1f3f]')}</p>
+                  <p className="font-serif font-semibold text-[#1c1410] text-xl leading-snug">{renderTitleArt(title, 'font-serif italic text-[#a3413a]')}</p>
                 </div>
                 <p className="text-sm text-[#7a6e65] mt-3 line-clamp-3">{textPreview}</p>
               </div>
@@ -1672,8 +1676,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10">
               <div className="mb-8">
                 <div className="flex items-center gap-2">
-                  <div className="h-px w-6 bg-[#8b1f3f]" />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#8b1f3f]">
+                  <div className="h-px w-6 bg-[#a3413a]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#a3413a]">
                     {sectionLabel || 'Member Spotlight'}
                   </span>
                 </div>
@@ -1685,21 +1689,21 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
                 </h2>
               )}
               {data.role && (
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b1f3f]">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
                   {data.role}
                 </p>
               )}
 
               {data.message && (
                 <div className="mt-8">
-                  <div className="font-serif text-[#8b1f3f] leading-none select-none mb-2" style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1, opacity: 0.35 }} aria-hidden="true">
+                  <div className="font-serif text-[#a3413a] leading-none select-none mb-2" style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1, opacity: 0.35 }} aria-hidden="true">
                     &ldquo;
                   </div>
                   <div style={{ fontSize: 'clamp(1.15rem, 2.4vw, 1.65rem)' } as React.CSSProperties}>
                     <SafeText html={data.message} className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p+p]:mt-3" />
                   </div>
                   <div className="mt-6 flex items-center gap-3">
-                    <div className="h-px w-10 bg-[#8b1f3f]" />
+                    <div className="h-px w-10 bg-[#a3413a]" />
                     <div className="h-px flex-1 bg-white/[0.06]" />
                   </div>
                 </div>
@@ -1772,8 +1776,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           {/* Section label — top left badge */}
           <div className="absolute top-6 left-6 z-20 scroll-reveal">
             <div className="flex items-center gap-2">
-              <div className="h-px w-6 bg-[#8b1f3f]" />
-              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#8b1f3f]">
+              <div className="h-px w-6 bg-[#a3413a]" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#a3413a]">
                 {sectionLabel || 'The Big Interview'}
               </span>
             </div>
@@ -1789,7 +1793,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
                 {data.name}
               </h2>
               {data.role && (
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8b1f3f]">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
                   {data.role}
                 </p>
               )}
@@ -1803,7 +1807,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           {/* Decorative accent blob */}
           <div
             className="pointer-events-none absolute top-0 right-0 w-72 h-72 rounded-full opacity-10"
-            style={{ background: 'radial-gradient(ellipse, #8b1f3f 0%, transparent 70%)', filter: 'blur(80px)' }}
+            style={{ background: 'radial-gradient(ellipse, #a3413a 0%, transparent 70%)', filter: 'blur(80px)' }}
           />
 
           {/* Pull-quote / message */}
@@ -1811,7 +1815,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             <div className="scroll-reveal mb-8 lg:mb-10">
               {/* Oversized decorative quote mark */}
               <div
-                className="font-serif text-[#8b1f3f] leading-none select-none mb-2"
+                className="font-serif text-[#a3413a] leading-none select-none mb-2"
                 style={{ fontSize: 'clamp(4rem, 8vw, 7rem)', lineHeight: 1, opacity: 0.35 }}
                 aria-hidden="true"
               >
@@ -1825,7 +1829,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               </div>
               {/* Closing accent line */}
               <div className="mt-6 flex items-center gap-3">
-                <div className="h-px w-10 bg-[#8b1f3f]" />
+                <div className="h-px w-10 bg-[#a3413a]" />
                 <div className="h-px flex-1 bg-white/[0.06]" />
               </div>
             </div>
@@ -1847,7 +1851,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               {data.tags.slice(0, 5).map((tag: string, i: number) => (
                 <span
                   key={i}
-                  className="text-[9px] font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#8b1f3f]/30 text-[#8b1f3f]/80"
+                  className="text-[9px] font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full border border-[#a3413a]/30 text-[#a3413a]/80"
                 >
                   {tag}
                 </span>
@@ -1908,7 +1912,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
-              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f]">{kicker}</p>}
+              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a]">{kicker}</p>}
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title || data.brand)}</h2>
                 {data.headline && <p className="text-white/70 font-medium mt-1 text-lg">{data.headline}</p>}
@@ -1922,7 +1926,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
 
               {data.offer && (
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-px bg-[#8b1f3f]" />
+                  <div className="w-10 h-px bg-[#a3413a]" />
                   <p className="text-white/70 text-sm font-medium">{data.offer}</p>
                 </div>
               )}
@@ -1940,9 +1944,9 @@ const PagePartner = ({ data, imageVersion }: any) => {
       {/* Decorative blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20"
-          style={{ background: 'radial-gradient(ellipse, #8b1f3f 0%, transparent 70%)', filter: 'blur(80px)' }} />
+          style={{ background: 'radial-gradient(ellipse, #a3413a 0%, transparent 70%)', filter: 'blur(80px)' }} />
         <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(ellipse, #8b1f3f 0%, transparent 70%)', filter: 'blur(80px)' }} />
+          style={{ background: 'radial-gradient(ellipse, #a3413a 0%, transparent 70%)', filter: 'blur(80px)' }} />
       </div>
 
       {/* Grain */}
@@ -1952,7 +1956,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           <div className="space-y-6 scroll-reveal">
             <div>
-              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] mb-2">{kicker}</p>}
+              {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] mb-2">{kicker}</p>}
               <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title || data.brand)}</h2>
               {data.headline && <p className="text-white/65 font-medium mt-1 text-lg">{data.headline}</p>}
             </div>
@@ -1965,7 +1969,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
 
             {data.offer && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-px bg-[#8b1f3f]" />
+                <div className="w-10 h-px bg-[#a3413a]" />
                 <p className="text-white/55 text-sm font-medium">{data.offer}</p>
               </div>
             )}
@@ -2048,8 +2052,8 @@ const PageBackCover = ({ data, imageVersion }: any) => {
             <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
               {kicker && (
                 <div className="flex items-center gap-4 w-full min-w-0">
-                  <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -2057,9 +2061,9 @@ const PageBackCover = ({ data, imageVersion }: any) => {
 
               <div>
                 {comingSoonLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{comingSoonLabel}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{comingSoonLabel}</p>
                 )}
-                <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
                 {data.nextIssue && <p className="text-white/70 font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
@@ -2069,7 +2073,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                 <Link
                   href="/membership"
                   className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-sm rounded-full text-white hover:opacity-90 transition-opacity"
-                  style={{ background: 'linear-gradient(135deg, #8b1f3f 0%, #7a1b36 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #a3413a 0%, #a3413a 100%)' }}
                 >
                   {data.cta}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -2097,23 +2101,23 @@ const PageBackCover = ({ data, imageVersion }: any) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 w-full min-w-0">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#8b1f3f]/60 to-transparent" />
+            <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
             {kicker && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b1f3f] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                 {kicker}
               </span>
             )}
           </div>
         </div>
 
-        <div className="scroll-reveal rounded-3xl overflow-hidden border border-[#e8d5c0] shadow-[0_16px_60px_rgba(139,31,63,0.1)]">
+        <div className="scroll-reveal rounded-3xl overflow-hidden border border-[#e8d5c0] shadow-[0_16px_60px_rgba(163,65,58,0.1)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             <div className="p-10 lg:p-14 flex flex-col justify-center space-y-5 bg-white">
               <div>
                 {comingSoonLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8b1f3f] mb-2">{comingSoonLabel}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{comingSoonLabel}</p>
                 )}
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#8b1f3f]')}</h2>
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
                 {data.nextIssue && <p className="text-[#7a6e65] font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
@@ -2123,7 +2127,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                 <Link
                   href="/membership"
                   className="inline-flex items-center gap-2 px-6 py-3 font-semibold text-sm rounded-full text-white hover:opacity-90 transition-opacity"
-                  style={{ background: 'linear-gradient(135deg, #8b1f3f 0%, #7a1b36 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #a3413a 0%, #a3413a 100%)' }}
                 >
                   {data.cta}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

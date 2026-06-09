@@ -30,7 +30,7 @@ export function MagazineExperienceSkeleton() {
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="absolute top-0 left-1/4 w-[40rem] h-[40rem] rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(139,31,63,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }}
+          style={{ background: 'radial-gradient(ellipse, rgba(163,65,58,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }}
         />
         <div
           className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full"
@@ -44,7 +44,7 @@ export function MagazineExperienceSkeleton() {
       {/* Vertical accent line */}
       <div
         className="absolute left-0 top-0 bottom-0 w-0.5 z-10"
-        style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #8b1f3f 70%, transparent)' }}
+        style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #a3413a 70%, transparent)' }}
       />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 lg:px-8">

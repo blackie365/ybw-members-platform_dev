@@ -45,7 +45,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
         {/* Ambient blobs */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute top-0 left-1/4 w-[40rem] h-[40rem] rounded-full"
-            style={{ background: 'radial-gradient(ellipse, rgba(139,31,63,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }} />
+            style={{ background: 'radial-gradient(ellipse, rgba(163,65,58,0.18) 0%, transparent 65%)', filter: 'blur(80px)' }} />
           <div className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full"
             style={{ background: 'radial-gradient(ellipse, rgba(201,149,106,0.14) 0%, transparent 65%)', filter: 'blur(80px)' }} />
         </div>
@@ -55,7 +55,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
 
         {/* Vertical accent line */}
         <div className="absolute left-0 top-0 bottom-0 w-0.5 z-10"
-          style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #8b1f3f 70%, transparent)' }} />
+          style={{ background: 'linear-gradient(to bottom, transparent, #c9956a 30%, #a3413a 70%, transparent)' }} />
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
@@ -180,8 +180,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                     <div className="flex flex-col gap-2.5 pt-3">
                       {[
                         { hex: '#0c0a09', label: 'Obsidian' },
-                        { hex: '#8b1f3f', label: 'Crimson' },
-                        { hex: '#a3413a', label: 'Garnet' },
+                        { hex: '#a3413a', label: 'Accent' },
                         { hex: '#c9956a', label: 'Gold' },
                         { hex: '#e8c49a', label: 'Champagne' },
                       ].map(({ hex, label }) => (
@@ -242,7 +241,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                         <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
                         Live Badge
                       </div>
-                      <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #8b1f3f, transparent)' }} />
+                      <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #a3413a, transparent)' }} />
                       <div>
                         <p className="text-[10px] text-white/30 mb-1.5 font-mono">Skeleton shimmer</p>
                         <div className="magazine-skeleton h-3 w-full rounded-sm mb-1.5" />
@@ -296,7 +295,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                 <div className="flex flex-col gap-2.5">
                   {[
                     { hex: '#0c0a09', label: 'Obsidian' },
-                    { hex: '#8b1f3f', label: 'Crimson' },
+                    { hex: '#a3413a', label: 'Accent' },
                     { hex: '#a3413a', label: 'Garnet' },
                     { hex: '#c9956a', label: 'Gold' },
                     { hex: '#e8c49a', label: 'Champagne' },
@@ -360,7 +359,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
                     <span className="w-1.5 h-1.5 rounded-full bg-[#c9956a] animate-pulse" />
                     Live Badge
                   </div>
-                  <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #8b1f3f, transparent)' }} />
+                  <div className="h-px w-full" style={{ background: 'linear-gradient(to right, transparent, #c9956a, #a3413a, transparent)' }} />
                   <div>
                     <p className="text-[10px] text-white/30 mb-1.5 font-mono">Skeleton shimmer</p>
                     <div className="magazine-skeleton h-3 w-full rounded-sm mb-1.5" />

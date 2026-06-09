@@ -66,7 +66,7 @@
 .magazine-rocket-theme {
   --background: #faf8f3;
   --foreground: #1c1410;
-  --primary: #8b1f3f;
+  --primary: #a3413a;
   --primary-foreground: #ffffff;
   --secondary: #f0ebe3;
   --secondary-foreground: #3d2b1f;
@@ -78,14 +78,14 @@
   --card-foreground: #1c1410;
   --border: #e8e0d5;
   --input: #e8e0d5;
-  --ring: #8b1f3f;
+  --ring: #a3413a;
   --radius: 0.5rem;
 }
 
 .dark .magazine-rocket-theme {
   --background: #1a1210;
   --foreground: #f5efe8;
-  --primary: #c8596a;
+  --primary: #a3413a;
   --primary-foreground: #ffffff;
   --secondary: #2d2018;
   --secondary-foreground: #e8d8c8;
@@ -97,7 +97,7 @@
   --card-foreground: #f5efe8;
   --border: #3d2d20;
   --input: #3d2d20;
-  --ring: #c8596a;
+  --ring: #a3413a;
 }
 
 /* Force Clerk to drop shadows and backgrounds */
@@ -158,7 +158,7 @@
   --muted-foreground: #a8a29e;
   
   /* Accent - Warmer terracotta/brick for dark mode */
-  --accent: #c45a52;
+  --accent: #a3413a;
   --accent-foreground: #ffffff;
   
   /* Destructive */
@@ -168,10 +168,10 @@
   /* Borders - Subtle but visible */
   --border: #292524;
   --input: #262626;
-  --ring: #c45a52;
+  --ring: #a3413a;
   
   /* Charts - Vibrant for dark backgrounds */
-  --chart-1: #c45a52;
+  --chart-1: #a3413a;
   --chart-2: #22d3ee;
   --chart-3: #a78bfa;
   --chart-4: #84cc16;
@@ -180,12 +180,12 @@
   /* Sidebar */
   --sidebar: #171717;
   --sidebar-foreground: #fafaf9;
-  --sidebar-primary: #c45a52;
+  --sidebar-primary: #a3413a;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #262626;
   --sidebar-accent-foreground: #fafaf9;
   --sidebar-border: #292524;
-  --sidebar-ring: #c45a52;
+  --sidebar-ring: #a3413a;
 }
 
 @theme inline {
@@ -448,11 +448,11 @@
   .cover-gold-shimmer {
     background: linear-gradient(
       105deg,
-      #8b1f3f 0%,
+      #a3413a 0%,
       #c9956a 30%,
       #e8c49a 50%,
       #c9956a 70%,
-      #8b1f3f 100%
+      #a3413a 100%
     );
     background-size: 200% auto;
     background-clip: text;
@@ -525,9 +525,9 @@
   .magazine-skeleton-progress {
     background: linear-gradient(
       90deg,
-      #8b1f3f 0%,
+      #a3413a 0%,
       #c9956a 50%,
-      #8b1f3f 100%
+      #a3413a 100%
     );
     background-size: 200% 100%;
     animation: magazineProgressShimmer 1.8s ease-in-out infinite;
