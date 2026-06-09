@@ -561,6 +561,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'feature-left':
         return { 
           kicker: 'Feature',
+          mediaLayout: 'side',
           name: 'Featured Guest', 
           title: 'Article Headline', 
           image: '', 
@@ -569,6 +570,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'feature-right': 
         return { 
           kicker: 'Feature',
+          mediaLayout: 'side',
           name: 'Featured Guest',
           quote: 'Success is not final, failure is not fatal...', 
           text: 'The journey of building a brand in Yorkshire...', 
@@ -578,6 +580,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'column': 
         return { 
           kicker: 'Column',
+          mediaLayout: 'side',
           title: 'Expert Insights', 
           category: 'Finance & Growth', 
           author: 'Expert Name', 
@@ -589,6 +592,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'lifestyle': 
         return { 
           kicker: 'Lifestyle',
+          mediaLayout: 'side',
           title: 'Lifestyle Edit',
           highlightsLabel: 'Highlights',
           editorsPickLabel: 'Editor\'s Pick',
@@ -599,6 +603,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'spotlight': 
         return { 
           title: 'Meet',
+          mediaLayout: 'side',
           name: 'Member Name', 
           role: 'CEO, Company Ltd', 
           image: '', 
@@ -608,6 +613,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'partner': 
         return { 
           kicker: 'Partner Feature',
+          mediaLayout: 'side',
           brand: 'Partner Name', 
           headline: 'Premium Services for Members', 
           image: '', 
@@ -616,6 +622,7 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
       case 'back-cover': 
         return { 
           kicker: 'Next Edition',
+          mediaLayout: 'side',
           comingSoonLabel: 'Coming Soon',
           title: 'Next Edition',
           nextIssue: 'Coming Summer 2026', 
