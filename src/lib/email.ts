@@ -25,6 +25,7 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
   const resend = new Resend(RESEND_API_KEY);
 
   const MAIL_FROM = from || process.env.EMAIL_FROM || 'Yorkshire Businesswoman <editor@yorkshirebusinesswoman.co.uk>';
+  const MAIL_REPLY_TO = replyTo || process.env.EMAIL_REPLY_TO || 'editor@yorkshirebusinesswoman.co.uk';
 
   try {
     const { data, error } = await resend.emails.send({
@@ -34,7 +35,7 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
       subject,
       text: text || '',
       html: html || '',
-      replyTo: replyTo,
+      replyTo: MAIL_REPLY_TO,
     });
 
     if (error) {
