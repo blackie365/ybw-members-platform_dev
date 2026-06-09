@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { reconcilePostCheckout } from '@/app/actions/profile';
 import { LayoutDashboard, User, Mail, Calendar, Gift, Users, Briefcase, Video, LogOut, ChevronRight } from 'lucide-react';
 
 const navItems = [
@@ -81,6 +82,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const interval = window.setInterval(() => {
       attempts += 1;
       void refreshProfile();
+      void reconcilePostCheckout(user.uid);
 
       if (attempts >= 12) {
         window.clearInterval(interval);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
 import { adminDb } from '@/lib/firebase-admin';
+import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 
 export async function POST(request: Request) {
   try {
@@ -59,28 +60,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: 'Premium email handled by Stripe webhook' });
     }
 
-    const freeWelcomeHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #111827; line-height: 1.6; max-width: 640px; margin: 0 auto;">
-        <p style="margin: 0 0 16px 0;">Hi</p>
-        <p style="margin: 0 0 16px 0;">
-          Thank you for signing as a free member for Yorkshire Businesswoman. We are delighted you would like to be involved.
-        </p>
-        <p style="margin: 0 0 16px 0;">
-          Over the course of the year, we hold a number of events, many of which are complimentary for our paid members but as a non-paying member you will have priority over non-members on limited availability tickets.
-        </p>
-        <p style="margin: 0 0 16px 0;">
-          Paid members have a fixed profile on our website and a feature profile within the printed Yorkshire Businesswoman magazine over the course of a year as well as having their news and press releases published both online or within the magazine. There is also a WhatsApp group where news and events are posted and where members can post their own news and updates.
-        </p>
-        <p style="margin: 0 0 16px 0;">
-          If you are interested in becoming a full member which gives you access to the above, you can just click the paid member in the sign up box on the Yorkshire businesswoman website. The cost for this is just £25 per month.
-        </p>
-      </div>
-    `;
-
     await sendEmail({
       to: email,
       subject: 'Welcome to Yorkshire Businesswoman!',
-      html: freeWelcomeHtml
+      html: await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
     });
 
     return NextResponse.json({ success: true });
