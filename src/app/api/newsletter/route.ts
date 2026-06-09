@@ -23,7 +23,6 @@ export async function POST(request: Request) {
     }
 
     const email = body?.email;
-    const emailLower = typeof email === 'string' ? email.toLowerCase() : '';
     const firstName = body?.firstName || '';
     const lastName = body?.lastName || '';
     const industry = body?.industry || '';
@@ -77,7 +76,6 @@ export async function POST(request: Request) {
         
         const memberData = {
           email,
-          emailLower,
           firstName: firstName || '',
           lastName: lastName || '',
           displayName: `${firstName || ''} ${lastName || ''}`.trim(),
@@ -85,16 +83,13 @@ export async function POST(request: Request) {
           status: 'active',
           newsletterSubscribed: true,
           isNewsletterRecipient: true,
+          membershipTier: 'free',
           updatedAt: new Date().toISOString()
         };
 
         if (querySnapshot.empty) {
-          const newsletterDocId = `newsletter_${Buffer.from(emailLower).toString('base64url')}`;
-          await membersRef.doc(newsletterDocId).set(
-            { ...memberData, membershipTier: 'free', createdAt: new Date().toISOString() },
-            { merge: true }
-          );
-          console.log('✅ [API/Newsletter] Firebase record created (newsletter_*)');
+          await membersRef.add({ ...memberData, createdAt: new Date().toISOString() });
+          console.log('✅ [API/Newsletter] Firebase record created');
         } else {
           await querySnapshot.docs[0].ref.update(memberData);
           console.log('✅ [API/Newsletter] Firebase record updated');
