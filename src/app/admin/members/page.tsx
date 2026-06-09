@@ -22,6 +22,7 @@ import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventAc
 import { 
   getMembersAction,
   toggleFeaturedStatus, 
+  repairMemberDuplicatesByEmailAction,
   getFirestoreOffersAction, 
   approveOfferAction, 
   deleteOfferAction, 
@@ -333,6 +334,23 @@ function AdminMembersContent() {
     }
   }
 
+  const handleRepairDuplicates = async (memberId: string, email: string) => {
+    setUpdating(memberId)
+    try {
+      const res = await repairMemberDuplicatesByEmailAction(email)
+      if (!res?.success) {
+        alert(res?.error || "Failed to repair duplicates")
+        return
+      }
+      await fetchMembers()
+    } catch (error) {
+      console.error("Failed to repair duplicates:", error)
+      alert("Failed to repair duplicates")
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   const filteredMembers = members.filter((member) => {
     const fullName = `${member.firstName || ""} ${member.lastName || ""}`.toLowerCase()
     const displayName = (member.displayName || "").toLowerCase()
@@ -474,6 +492,7 @@ function AdminMembersContent() {
                   updateMemberTier={updateMemberTier}
                   updateMemberRole={updateMemberRole}
                   handleToggleFeatured={handleToggleFeatured}
+              handleRepairDuplicates={handleRepairDuplicates}
                   formatDate={formatDate}
                 />
               )}

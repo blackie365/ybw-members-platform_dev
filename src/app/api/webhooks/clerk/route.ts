@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import slugify from '@sindresorhus/slugify';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
+import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -74,27 +75,37 @@ export async function POST(req: Request) {
         return new Response('Error: DB not initialized', { status: 500 });
       }
 
-      // Sync to Firestore using standardized schema
-      await adminDb.collection('newMemberCollection').doc(id).set({
+      const memberRef = adminDb.collection('newMemberCollection').doc(id);
+      const existingSnap = await memberRef.get();
+      const nowIso = new Date().toISOString();
+      const emailLower = email.toLowerCase();
+
+      const baseUpdate: Record<string, any> = {
         firstName,
         lastName,
         displayName: fullName,
         email,
+        emailLower,
         memberSlug: slug,
         avatarUrl: image_url,
         profileImage: image_url,
         status: 'active',
-        membershipTier: 'free',
-        // AUTHORIZATION LOGIC:
-        // 1. If it's an update, we preserve existing authorization unless explicitly changed
-        // 2. If it's a new user, they are authorized ONLY if they explicitly accepted during signup
-        isNewsletterAuthorized: acceptsNewsletter, 
-        role: 'member',
-        isAdmin: false,
-        isFeatured: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }, { merge: true })
+        updatedAt: nowIso,
+      };
+
+      if (acceptsNewsletter === true) {
+        baseUpdate.isNewsletterAuthorized = true;
+      }
+
+      if (!existingSnap.exists) {
+        baseUpdate.membershipTier = 'free';
+        baseUpdate.role = 'member';
+        baseUpdate.isAdmin = false;
+        baseUpdate.isFeatured = false;
+        baseUpdate.createdAt = nowIso;
+      }
+
+      await memberRef.set(baseUpdate, { merge: true })
 
       console.log(`Successfully synced Clerk user ${id} to Firestore. Newsletter Auth: ${acceptsNewsletter}`)
     } catch (error) {
@@ -104,8 +115,52 @@ export async function POST(req: Request) {
 
     // 2. Sync to Ghost CMS + send emails (Non-critical, don't fail the whole webhook)
     if (eventType === 'user.created') {
-      const memberRef = adminDb?.collection('newMemberCollection').doc(id);
       const nowIso = new Date().toISOString();
+
+      try {
+        if (adminDb) {
+          const dupSnap = await adminDb
+            .collection('newMemberCollection')
+            .where('email', '==', email)
+            .get();
+
+          const primaryRef = adminDb.collection('newMemberCollection').doc(id);
+          const primarySnap = await primaryRef.get();
+          const primaryData = primarySnap.data() || {};
+
+          for (const doc of dupSnap.docs) {
+            if (doc.id === id) continue;
+
+            const dupData = doc.data() || {};
+            const mergeIntoPrimary: Record<string, any> = {};
+
+            const fieldsToCarry = [
+              'newsletterSubscribed',
+              'isNewsletterRecipient',
+              'industrySector',
+              'industry',
+            ];
+
+            for (const field of fieldsToCarry) {
+              if (primaryData[field] === undefined && dupData[field] !== undefined) {
+                mergeIntoPrimary[field] = dupData[field];
+              }
+            }
+
+            if (primaryData.isNewsletterAuthorized !== true && dupData.isNewsletterAuthorized === true) {
+              mergeIntoPrimary.isNewsletterAuthorized = true;
+            }
+
+            if (Object.keys(mergeIntoPrimary).length > 0) {
+              await primaryRef.set(mergeIntoPrimary, { merge: true });
+            }
+
+            await doc.ref.delete();
+          }
+        }
+      } catch (err) {
+        console.warn('Duplicate cleanup failed (non-critical):', err);
+      }
 
       // 2a. Admin notification email (all admins)
       try {
@@ -150,38 +205,20 @@ export async function POST(req: Request) {
           `,
         });
 
-        await memberRef?.set({ adminNotifiedAt: nowIso }, { merge: true });
+        await adminDb?.collection('newMemberCollection').doc(id).set({ adminNotifiedAt: nowIso }, { merge: true });
       } catch (emailErr) {
         console.warn('Admin notification email failed (non-critical):', emailErr);
       }
 
       // 2b. Free welcome email
       try {
-        const freeWelcomeHtml = `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #111827; line-height: 1.6; max-width: 640px; margin: 0 auto;">
-            <p style="margin: 0 0 16px 0;">Hi ${firstName || ''}</p>
-            <p style="margin: 0 0 16px 0;">
-              Thank you for signing as a free member for Yorkshire Businesswoman. We are delighted you would like to be involved.
-            </p>
-            <p style="margin: 0 0 16px 0;">
-              Over the course of the year, we hold a number of events, many of which are complimentary for our paid members but as a non-paying member you will have priority over non-members on limited availability tickets.
-            </p>
-            <p style="margin: 0 0 16px 0;">
-              Paid members have a fixed profile on our website and a feature profile within the printed Yorkshire Businesswoman magazine over the course of a year as well as having their news and press releases published both online or within the magazine. There is also a WhatsApp group where news and events are posted and where members can post their own news and updates.
-            </p>
-            <p style="margin: 0 0 16px 0;">
-              If you are interested in becoming a full member which gives you access to the above, you can just click the paid member in the sign up box on the Yorkshire businesswoman website. The cost for this is just £25 per month.
-            </p>
-          </div>
-        `;
-
         await sendEmail({
           to: email,
           subject: 'Welcome to Yorkshire Businesswoman!',
-          html: freeWelcomeHtml,
+          html: await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
         });
 
-        await memberRef?.set({ welcomeEmailSentAt: nowIso }, { merge: true });
+        await adminDb?.collection('newMemberCollection').doc(id).set({ welcomeEmailSentAt: nowIso }, { merge: true });
       } catch (emailErr) {
         console.warn('Free welcome email failed (non-critical):', emailErr);
       }
@@ -194,7 +231,7 @@ export async function POST(req: Request) {
           labels: ['clerk-signup', 'free-member']
         });
         if (ghostRes) {
-          await memberRef?.set({ ghostSyncedAt: nowIso }, { merge: true });
+          await adminDb?.collection('newMemberCollection').doc(id).set({ ghostSyncedAt: nowIso }, { merge: true });
         }
         console.log(`Successfully synced Clerk user ${id} to Ghost CMS.`);
       } catch (ghostError) {

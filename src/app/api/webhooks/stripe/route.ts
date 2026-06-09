@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
+import { addGhostMember } from '@/lib/ghost-admin';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
         if (userDoc.exists) {
           const membershipTier = plan.toLowerCase().includes('annual') || plan.toLowerCase().includes('year') ? 'paid_annual' : 'paid_monthly';
           const billingInterval = membershipTier === 'paid_annual' ? 'year' : 'month';
+          const nowIso = new Date().toISOString();
 
           await userDoc.ref.update({
             status: 'active',
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
             billingInterval: billingInterval,
             stripeCustomerId: session.customer,
             subscriptionId: session.subscription,
-            lastPaymentDate: new Date().toISOString(),
+            lastPaymentDate: nowIso,
             userInactive: false,
             isNewsletterAuthorized: true,
           });
@@ -91,14 +93,30 @@ export async function POST(req: Request) {
           const userData = userDoc.data() || {};
           const userEmail = session.customer_details?.email || session.customer_email || userData.email;
           const firstName = userData.firstName || 'there';
+          const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
 
-          if (userEmail) {
-            // We do not await this, so the webhook can respond to Stripe immediately
+          if (userEmail && !(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
+            userDoc.ref.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true }).catch(() => {});
             sendEmail({
-                to: userEmail,
-                subject: 'Welcome to Yorkshire Businesswoman!',
-                html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-              }).catch(err => console.error('Failed to send welcome email:', err));
+              to: userEmail,
+              subject: 'Welcome to Yorkshire Businesswoman!',
+              html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+            })
+              .then(() => userDoc.ref.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true }))
+              .catch(err => console.error('Failed to send welcome email:', err));
+          }
+
+          if (userEmail && !(userData as any).ghostSyncedAt && !(userData as any).ghostSyncAttemptedAt) {
+            userDoc.ref.set({ ghostSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
+            addGhostMember({
+              email: userEmail,
+              name: displayName || undefined,
+              labels: ['stripe-upgrade', 'paid-member', membershipTier],
+            })
+              .then((res) => {
+                if (res) return userDoc.ref.set({ ghostSyncedAt: nowIso }, { merge: true });
+              })
+              .catch(() => {});
           }
 
           // Notify all admins about the upgrade
