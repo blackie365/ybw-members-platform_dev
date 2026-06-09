@@ -6,13 +6,7 @@ import { useUser, useClerk } from '@clerk/nextjs';
 
 import { getProfile } from '@/app/actions/profile';
 
-export type MembershipTier =
-  | 'free'
-  | 'complimentary'
-  | 'paid_monthly'
-  | 'paid_annual'
-  | 'premium'
-  | 'founder';
+export type MembershipTier = 'free' | 'premium' | 'founder';
 export type UserRole = 'member' | 'admin' | 'super_admin';
 
 export interface AuthUser {
@@ -54,7 +48,6 @@ export interface MemberProfile {
   role: UserRole;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
-  subscriptionId?: string;
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
   isFeatured?: boolean;
   isAdmin?: boolean;
@@ -195,7 +188,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           role: data.role || 'member',
           stripeCustomerId: data.stripeCustomerId,
           stripeSubscriptionId: data.stripeSubscriptionId,
-          subscriptionId: (data as any)?.subscriptionId,
           subscriptionStatus: data.subscriptionStatus,
           isFeatured: data.isFeatured || false,
           isAdmin: data.isAdmin || false,
@@ -248,10 +240,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     clerkUser?.publicMetadata?.role === 'super_admin'
   );
   const isPremium = !!user && (
-    profile?.membershipTier === 'premium' ||
-    profile?.membershipTier === 'paid_monthly' ||
-    profile?.membershipTier === 'paid_annual' ||
-    profile?.membershipTier === 'complimentary' ||
+    profile?.membershipTier === 'premium' || 
     profile?.membershipTier === 'founder' ||
     clerkUser?.publicMetadata?.isPremium === true
   );
