@@ -103,31 +103,23 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
     enter: (direction: number) => ({
       x: direction > 0 ? '100%' : '-100%',
       opacity: 0,
-      scale: 0.9,
-      rotateY: direction > 0 ? 45 : -45,
     }),
     center: {
       zIndex: 1,
       x: 0,
       opacity: 1,
-      scale: 1,
-      rotateY: 0,
       transition: {
-        x: { type: "spring", stiffness: 200, damping: 30 },
-        opacity: { duration: 0.4 },
-        rotateY: { duration: 0.6, ease: "easeOut" }
+        x: { type: "spring", stiffness: 260, damping: 32 },
+        opacity: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
       }
     },
     exit: (direction: number) => ({
       zIndex: 0,
       x: direction < 0 ? '100%' : '-100%',
       opacity: 0,
-      scale: 1.1,
-      rotateY: direction < 0 ? 45 : -45,
       transition: {
-        x: { type: "spring", stiffness: 200, damping: 30 },
-        opacity: { duration: 0.4 },
-        rotateY: { duration: 0.6, ease: "easeIn" }
+        x: { type: "spring", stiffness: 260, damping: 32 },
+        opacity: { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] },
       }
     })
   };
@@ -135,88 +127,96 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
   const progress = ((currentPage + 1) / pages.length) * 100;
 
   return (
-    <div ref={rootRef} className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30">
+    <div ref={rootRef} className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#F5F2EE] text-[#1a1410] flex flex-col z-[100] overflow-hidden overscroll-none selection:bg-[#8b1f3f]/20">
 
-      {/* ── Top Control Bar ── */}
-      <header className="h-14 sm:h-16 border-b border-white/[0.06] flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Link href="/new-edition" className="text-zinc-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/5">
-            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+      {/* ── Top Control Bar — Luxury Editorial ── */}
+      <header className="h-14 sm:h-16 border-b border-[#1a1410]/[0.08] flex items-center justify-between px-5 sm:px-8 bg-[#F5F2EE]/95 backdrop-blur-xl z-50 shrink-0">
+        {/* Left: close + branding */}
+        <div className="flex items-center gap-3 sm:gap-5">
+          <Link
+            href="/new-edition"
+            className="text-[#1a1410]/40 hover:text-[#1a1410] transition-colors p-1"
+            aria-label="Close reader"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
           </Link>
-          <div className="h-5 w-px bg-white/10 mx-1 sm:mx-2" />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Logo className="h-6 sm:h-8 brightness-0 invert opacity-90" />
-            <span className="text-white/20 hidden sm:block">|</span>
-            <p className="text-[10px] sm:text-xs font-semibold tracking-[0.18em] uppercase text-[#8b1f3f] truncate max-w-[100px] sm:max-w-none">
+          <div className="h-4 w-px bg-[#1a1410]/10" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <Logo className="h-5 sm:h-7 opacity-80" />
+            <span className="text-[#1a1410]/20 hidden sm:block text-xs">|</span>
+            <p className="text-[9px] sm:text-[10px] font-bold tracking-[0.25em] uppercase text-[#8b1f3f] truncate max-w-[90px] sm:max-w-none hidden sm:block">
               {(pages[currentPage]?.content as any)?.date || issue?.title || "Edition"}
             </p>
           </div>
         </div>
 
+        {/* Right: controls */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Page counter pill */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-400">
-            <span className="text-white font-semibold">{currentPage + 1}</span>
-            <span className="text-zinc-600">/</span>
+          {/* Page counter */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-[#1a1410]/[0.05] border border-[#1a1410]/[0.08] text-[9px] font-mono text-[#1a1410]/50">
+            <span className="text-[#1a1410] font-bold">{currentPage + 1}</span>
+            <span className="text-[#1a1410]/25">/</span>
             <span>{pages.length}</span>
           </div>
-          <div className="h-5 w-px bg-white/10 mx-1 sm:mx-2" />
-          <button className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors">
-            <Share2 className="h-4 w-4 sm:h-4 sm:w-4" />
+          <div className="h-4 w-px bg-[#1a1410]/10 mx-1 sm:mx-2" />
+          <button className="text-[#1a1410]/35 hover:text-[#1a1410] h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center hover:bg-[#1a1410]/[0.05] transition-colors" aria-label="Share">
+            <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
-          <button className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors">
-            <Download className="h-4 w-4 sm:h-4 sm:w-4" />
+          <button className="text-[#1a1410]/35 hover:text-[#1a1410] h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center hover:bg-[#1a1410]/[0.05] transition-colors" aria-label="Download">
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+            className="text-[#1a1410]/35 hover:text-[#1a1410] h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center hover:bg-[#1a1410]/[0.05] transition-colors"
             title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
             {isFullscreen ? (
-              <Minimize2 className="h-4 w-4 sm:h-4 sm:w-4" />
+              <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             ) : (
-              <Maximize2 className="h-4 w-4 sm:h-4 sm:w-4" />
+              <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             )}
           </button>
           <button
-            className="text-zinc-500 hover:text-white lg:hidden h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+            className="text-[#1a1410]/35 hover:text-[#1a1410] lg:hidden h-8 w-8 flex items-center justify-center hover:bg-[#1a1410]/[0.05] transition-colors"
             onClick={() => setIsNavOpen(!isNavOpen)}
+            aria-label="Open contents"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </header>
 
       {/* ── Main Reader Stage ── */}
-      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-pan-y bg-[#0c0a09]">
+      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-pan-y bg-[#E8E2D9]">
 
-        {/* Ambient glow behind the page */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="w-[60vw] h-[60vh] rounded-full bg-[#8b1f3f]/8 blur-[120px]" />
-        </div>
+        {/* Subtle vignette */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(26,20,16,0.12)_100%)] z-10" />
 
-        {/* Navigation Arrows (Desktop) */}
+        {/* Navigation Arrows (Desktop) — refined */}
         <button
           onClick={prevPage}
           disabled={currentPage === 0}
-          className="absolute left-4 xl:left-8 z-40 h-11 w-11 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-xl backdrop-blur-sm"
+          className="absolute left-5 xl:left-10 z-40 h-10 w-10 flex items-center justify-center bg-white/80 border border-[#1a1410]/[0.1] hover:bg-white hover:border-[#1a1410]/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm backdrop-blur-sm"
+          aria-label="Previous page"
         >
-          <ChevronLeft className="h-5 w-5 text-zinc-300" />
+          <ChevronLeft className="h-4 w-4 text-[#1a1410]/60" />
         </button>
 
         <button
           onClick={nextPage}
           disabled={currentPage === pages.length - 1}
-          className="absolute right-4 xl:right-8 z-40 h-11 w-11 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-xl backdrop-blur-sm"
+          className="absolute right-5 xl:right-10 z-40 h-10 w-10 flex items-center justify-center bg-white/80 border border-[#1a1410]/[0.1] hover:bg-white hover:border-[#1a1410]/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-sm backdrop-blur-sm"
+          aria-label="Next page"
         >
-          <ChevronRight className="h-5 w-5 text-zinc-300" />
+          <ChevronRight className="h-4 w-4 text-[#1a1410]/60" />
         </button>
 
         {/* Page Viewport */}
         <div
           className={[
-            'relative w-full h-full mx-auto overflow-hidden bg-white text-zinc-900 self-center shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)]',
+            'relative w-full h-full mx-auto overflow-hidden bg-white text-zinc-900 self-center',
+            'shadow-[0_4px_40px_rgba(26,20,16,0.15),0_1px_0_rgba(26,20,16,0.06)]',
             'max-w-none aspect-auto',
           ].join(' ')}
         >
@@ -252,37 +252,36 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
         </div>
       </main>
 
-      {/* ── Redesigned Page-Number Footer Row ── */}
-      <footer className="h-[4.5rem] sm:h-20 bg-gradient-to-r from-[#0c0a09] via-[#111009] to-[#0c0a09] border-t border-white/[0.06] px-4 sm:px-6 flex items-center gap-4 sm:gap-5 z-50 shrink-0">
+      {/* ── Footer: Luxury Page Slider ── */}
+      <footer className="h-16 sm:h-[4.5rem] bg-[#F5F2EE] border-t border-[#1a1410]/[0.08] px-5 sm:px-8 flex items-center gap-4 sm:gap-6 z-50 shrink-0">
 
-        {/* Prev button */}
+        {/* Prev */}
         <button
           onClick={prevPage}
           disabled={currentPage === 0}
-          className="shrink-0 h-8 px-3 rounded-md bg-white/[0.06] border border-white/[0.1] text-[10px] font-semibold tracking-widest uppercase text-zinc-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all disabled:opacity-25 disabled:pointer-events-none"
+          className="shrink-0 h-7 px-3 text-[9px] font-bold tracking-[0.2em] uppercase text-[#1a1410]/40 hover:text-[#1a1410] border border-[#1a1410]/[0.12] hover:border-[#1a1410]/30 bg-transparent hover:bg-[#1a1410]/[0.04] transition-all disabled:opacity-20 disabled:pointer-events-none"
         >
-          ‹ Prev
+          ← Prev
         </button>
 
-        {/* Scrubber + page dots */}
-        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
-          {/* Progress bar */}
-          <div className="relative h-[3px] bg-white/[0.08] rounded-full overflow-hidden">
+        {/* Progress track */}
+        <div className="flex-1 flex flex-col gap-2 min-w-0">
+          {/* Thin progress line */}
+          <div className="relative h-[1px] bg-[#1a1410]/10 overflow-hidden">
             <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+              className="absolute inset-y-0 left-0 transition-all duration-500 ease-out"
               style={{
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg, #8b1f3f 0%, #8b1f3f 100%)',
-                boxShadow: '0 0 8px rgba(139,31,63,0.6)',
+                background: '#8b1f3f',
               }}
             />
           </div>
 
-          {/* Page number dots */}
+          {/* Page dots */}
           <div className="flex items-center justify-between gap-0.5 overflow-hidden">
             {pages.map((_, i) => {
               const isActive = currentPage === i;
-              const isNear = Math.abs(currentPage - i) <= 2;
+              const isNear = Math.abs(currentPage - i) <= 3;
               return (
                 <button
                   key={i}
@@ -290,18 +289,20 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                   title={`Page ${i + 1}`}
                   className="group flex flex-col items-center gap-0.5 transition-all duration-200"
                   style={{ minWidth: 0, flex: '1 1 0' }}
+                  aria-label={`Go to page ${i + 1}`}
                 >
                   <span
                     className={[
-                      'block rounded-full transition-all duration-300',
+                      'block transition-all duration-300',
                       isActive
-                        ? 'w-4 h-1.5 bg-[#8b1f3f] shadow-[0_0_6px_rgba(139,31,63,0.8)]'
+                        ? 'w-5 h-[3px] bg-[#8b1f3f]'
                         : isNear
-                        ? 'w-1 h-1 bg-zinc-500 group-hover:bg-zinc-300' :'w-0.5 h-0.5 bg-zinc-700 group-hover:bg-zinc-500',
+                        ? 'w-1 h-1 rounded-full bg-[#1a1410]/25 group-hover:bg-[#1a1410]/50'
+                        : 'w-0.5 h-0.5 rounded-full bg-[#1a1410]/12 group-hover:bg-[#1a1410]/30',
                     ].join(' ')}
                   />
                   {isActive && (
-                    <span className="text-[8px] font-mono font-bold text-[#8b1f3f] leading-none">
+                    <span className="text-[7px] font-mono font-bold text-[#8b1f3f] leading-none">
                       {i + 1}
                     </span>
                   )}
@@ -311,36 +312,46 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
           </div>
         </div>
 
-        {/* Next button */}
+        {/* Next */}
         <button
           onClick={nextPage}
           disabled={currentPage === pages.length - 1}
-          className="shrink-0 h-8 px-3 rounded-md bg-white/[0.06] border border-white/[0.1] text-[10px] font-semibold tracking-widest uppercase text-zinc-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all disabled:opacity-25 disabled:pointer-events-none"
+          className="shrink-0 h-7 px-3 text-[9px] font-bold tracking-[0.2em] uppercase text-[#1a1410]/40 hover:text-[#1a1410] border border-[#1a1410]/[0.12] hover:border-[#1a1410]/30 bg-transparent hover:bg-[#1a1410]/[0.04] transition-all disabled:opacity-20 disabled:pointer-events-none"
         >
-          Next ›
+          Next →
         </button>
       </footer>
 
-      {/* ── Sidebar Navigation ── */}
+      {/* ── Sidebar Navigation — Editorial Contents ── */}
       <AnimatePresence>
         {isNavOpen && (
           <motion.aside
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-80 bg-[#0f0d0b] z-[60] border-l border-white/[0.08] shadow-2xl p-8"
+            transition={{ type: "spring", damping: 28, stiffness: 220 }}
+            className="fixed right-0 top-0 bottom-0 w-full sm:w-72 bg-[#F5F2EE] z-[60] border-l border-[#1a1410]/[0.08] shadow-[−4px_0_40px_rgba(26,20,16,0.1)] p-8"
           >
+            {/* Header */}
             <div className="flex items-center justify-between mb-10">
-              <h3 className="text-lg font-serif text-white tracking-wide">Quick Access</h3>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#8b1f3f] mb-1">Contents</p>
+                <h3 className="font-serif text-lg font-normal text-[#1a1410]">{issue?.title || "This Edition"}</h3>
+              </div>
               <button
                 onClick={() => setIsNavOpen(false)}
-                className="text-zinc-500 hover:text-white h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+                className="text-[#1a1410]/30 hover:text-[#1a1410] h-8 w-8 flex items-center justify-center hover:bg-[#1a1410]/[0.05] transition-colors"
+                aria-label="Close contents"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <nav className="space-y-1">
+
+            {/* Divider */}
+            <div className="h-px bg-[#1a1410]/[0.08] mb-8" />
+
+            {/* Page list */}
+            <nav className="space-y-0.5">
               {pages.map((page, i) => {
                 const isActive = currentPage === i;
                 return (
@@ -348,34 +359,33 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                     key={page.id}
                     onClick={() => goToPage(i)}
                     className={[
-                      'w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+                      'w-full text-left flex items-center gap-4 px-3 py-3 transition-all group',
                       isActive
-                        ? 'bg-[#8b1f3f]/10 border border-[#8b1f3f]/20'
-                        : 'hover:bg-white/[0.04] border border-transparent',
+                        ? 'bg-[#8b1f3f]/[0.06] border-l-2 border-[#8b1f3f]'
+                        : 'border-l-2 border-transparent hover:bg-[#1a1410]/[0.04] hover:border-[#1a1410]/20',
                     ].join(' ')}
                   >
-                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#8b1f3f]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                    <span className={`text-[9px] font-mono w-5 text-right shrink-0 ${isActive ? 'text-[#8b1f3f]' : 'text-[#1a1410]/25 group-hover:text-[#1a1410]/50'}`}>
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className={`font-medium text-xs uppercase tracking-widest ${isActive ? 'text-[#8b1f3f]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                    <span className={`font-medium text-[10px] uppercase tracking-[0.18em] ${isActive ? 'text-[#8b1f3f]' : 'text-[#1a1410]/50 group-hover:text-[#1a1410]'}`}>
                       {page.type.replace('-', ' ')}
                     </span>
-                    {isActive && (
-                      <motion.div layoutId="activeDot" className="h-1 w-1 rounded-full bg-[#8b1f3f] ml-auto" />
-                    )}
                   </button>
                 );
               })}
             </nav>
-            <div className="mt-10 p-5 bg-gradient-to-br from-[#8b1f3f]/20 to-[#8b1f3f]/10 rounded-xl border border-[#8b1f3f]/20">
-              <p className="text-[10px] text-[#8b1f3f] uppercase tracking-widest mb-1 font-bold">Latest Edition</p>
-              <h4 className="text-base font-serif text-white mb-4">{issue?.title || "Current Issue"}</h4>
+
+            {/* Membership CTA */}
+            <div className="absolute bottom-8 left-8 right-8">
+              <div className="h-px bg-[#1a1410]/[0.08] mb-6" />
+              <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#1a1410]/30 mb-3">Membership</p>
               <Link
                 href="/membership"
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#8b1f3f] text-white font-semibold text-xs rounded-lg hover:bg-[#7a1b36] transition-colors"
+                className="group flex items-center justify-between w-full py-3 px-4 bg-[#8b1f3f] text-white hover:bg-[#7a1b36] transition-colors"
               >
-                Become a Member
-                <ArrowRight className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em]">Join the Community</span>
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
           </motion.aside>
@@ -862,19 +872,19 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker || 'Feature'}
+            alt={data.title || data.name || kicker}
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: 'center top' }}
           />
-        ) : (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 50%, #0d0b09 100%)' }} />
-        )}
+        ) : null}
 
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
             poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-            autoPlay muted loop playsInline
+            autoPlay
+            muted
+            loop
+            playsInline
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : null}
@@ -943,227 +953,105 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   }
 
   return (
-    <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#0d0b09' }}>
-
-      {/* ── LEFT: Full-bleed Image Panel (55%) ── */}
-      <div className="relative w-full lg:w-[55%] h-64 sm:h-80 lg:h-full flex-shrink-0 overflow-hidden">
+    <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
+      {/* Left: Image Panel — full height, half width on desktop */}
+      <div className="relative w-full lg:w-1/2 h-56 sm:h-72 lg:h-full flex-shrink-0 overflow-hidden">
         {data.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(data.image, imageVersion)}
-            alt={data.title || data.name || kicker || 'Feature'}
+            alt={data.title || data.name || kicker}
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: 'center top' }}
           />
-        ) : (
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a0d12 0%, #2d1520 50%, #0d0b09 100%)' }} />
-        )}
+        ) : null}
 
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
             poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
-            autoPlay muted loop playsInline
+            autoPlay
+            muted
+            loop
+            playsInline
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : null}
+        {/* Subtle right-edge fade into the warm background */}
+        <div className="absolute inset-y-0 right-0 w-16 hidden lg:block" style={{ background: 'linear-gradient(to right, transparent, #e8e0d5)' }} />
+        {/* Bottom fade for mobile */}
+        <div className="absolute inset-x-0 bottom-0 h-16 lg:hidden" style={{ background: 'linear-gradient(to bottom, transparent, #e8e0d5)' }} />
+      </div>
 
-        {/* Gradient: right edge bleeds into dark panel (desktop) */}
-        <div
-          className="absolute inset-y-0 right-0 w-32 hidden lg:block pointer-events-none"
-          style={{ background: 'linear-gradient(to right, transparent 0%, rgba(13,11,9,0.55) 60%, #0d0b09 100%)' }}
-        />
-        {/* Gradient: bottom fade for mobile */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-24 lg:hidden pointer-events-none"
-          style={{ background: 'linear-gradient(to bottom, transparent, #0d0b09)' }}
-        />
-        {/* Top vignette */}
-        <div
-          className="absolute inset-x-0 top-0 h-20 pointer-events-none"
-          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)' }}
-        />
+      {/* Right: Content Panel */}
+      <div className="relative flex flex-col justify-start flex-1 px-6 sm:px-10 lg:px-12 pt-10 pb-12 lg:pt-12 lg:pb-14 overflow-y-auto">
+        {/* Brick-red top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 lg:hidden" style={{ background: '#8b1f3f' }} />
+        {/* Brick-red left accent bar (desktop) */}
+        <div className="absolute top-0 left-0 bottom-0 w-1 hidden lg:block" style={{ background: 'linear-gradient(to bottom, transparent, #8b1f3f 20%, #8b1f3f 80%, transparent)' }} />
 
-        {/* Floating issue / date badge — bottom left of image */}
-        {(data.date || data.issue) && (
-          <div className="absolute bottom-5 left-5 hidden lg:flex items-center gap-2 z-10">
-            <div
-              className="h-px w-6"
-              style={{ background: '#8b1f3f' }}
-            />
-            <span
-              className="text-[9px] font-bold uppercase tracking-[0.22em]"
-              style={{ color: 'rgba(255,255,255,0.55)' }}
-            >
-              {[data.date, data.issue].filter(Boolean).join(' · ')}
+        {/* Category label */}
+        <div className="scroll-reveal mb-4 flex items-center gap-3">
+          <div className="w-6 h-px" style={{ background: '#8b1f3f' }} />
+          {kicker && (
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: '#8b1f3f' }}>
+              {kicker}
             </span>
+          )}
+        </div>
+
+        {/* Name / tag */}
+        {data.name && (
+          <p className="scroll-reveal text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#7a5c4e' }}>
+            {data.name}
+          </p>
+        )}
+
+        {/* Title */}
+        {(data.title || data.name) && (
+          <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
+            style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
+            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
+          </h2>
+        )}
+
+        {/* Pull quote */}
+        {data.quote && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#8b1f3f' }}>
+            <p className="font-serif italic leading-snug" style={{ color: '#8b1f3f', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
+              &ldquo;{data.quote}&rdquo;
+            </p>
           </div>
         )}
 
-        {/* Vertical edition watermark on left edge */}
-        <div
-          className="absolute left-4 top-1/2 -translate-y-1/2 hidden lg:flex items-center justify-center z-10"
-          style={{ writingMode: 'vertical-rl', transform: 'translateY(-50%) rotate(180deg)' }}
-        >
-          <span
-            className="text-[8px] font-bold uppercase tracking-[0.35em] select-none"
-            style={{ color: 'rgba(255,255,255,0.18)' }}
-          >
-            YBW Digital Edition
-          </span>
-        </div>
-      </div>
-
-      {/* ── RIGHT: Dark Editorial Content Panel (45%) ── */}
-      <div
-        className="relative flex flex-col justify-center flex-1 lg:w-[45%] px-7 sm:px-10 lg:px-12 xl:px-14 pt-8 pb-10 lg:pt-0 lg:pb-0 overflow-y-auto"
-        style={{ background: '#0d0b09' }}
-      >
-        {/* Subtle crimson top accent bar (mobile) */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[2px] lg:hidden"
-          style={{ background: 'linear-gradient(to right, #8b1f3f, transparent)' }}
-        />
-
-        {/* Decorative large background number / watermark */}
-        <div
-          className="absolute top-4 right-4 lg:top-8 lg:right-8 font-serif font-black select-none pointer-events-none leading-none"
-          style={{
-            fontSize: 'clamp(5rem, 14vw, 11rem)',
-            color: 'rgba(139,31,63,0.07)',
-            lineHeight: 1,
-          }}
-        >
-          {String(data.pageNumber || '01').padStart(2, '0')}
-        </div>
-
-        <div className="relative z-10 max-w-lg">
-
-          {/* Kicker / category label */}
-          {kicker && (
-            <div className="scroll-reveal flex items-center gap-3 mb-5">
-              <div className="w-8 h-[2px] rounded-full" style={{ background: '#8b1f3f' }} />
-              <span
-                className="text-[9px] font-black uppercase tracking-[0.28em]"
-                style={{ color: '#8b1f3f' }}
-              >
-                {kicker}
-              </span>
-              <div className="flex-1 h-px" style={{ background: 'rgba(139,31,63,0.2)' }} />
-            </div>
-          )}
-
-          {/* Name sub-label */}
-          {data.name && (
-            <p
-              className="scroll-reveal text-[10px] font-semibold uppercase tracking-[0.2em] mb-3"
-              style={{ color: 'rgba(255,255,255,0.45)' }}
-            >
-              {data.name}
-            </p>
-          )}
-
-          {/* Main headline — oversized serif */}
-          {(data.title || data.name) && (
-            <h2
-              className="scroll-reveal scroll-reveal-delay-1 font-serif font-black leading-[1.05] mb-6 text-white"
-              style={{ fontSize: 'clamp(1.75rem, 3.8vw, 3.2rem)', letterSpacing: '-0.01em' }}
-            >
-              {renderTitleArt(data.title || data.name, 'font-serif italic text-[#8b1f3f]')}
-            </h2>
-          )}
-
-          {/* Horizontal rule with crimson dot */}
-          <div className="scroll-reveal flex items-center gap-3 mb-6">
-            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.1)' }} />
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#8b1f3f' }} />
-            <div className="h-px w-8" style={{ background: 'rgba(255,255,255,0.1)' }} />
+        {/* Intro / body text */}
+        {data.intro && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
+            <SafeText html={data.intro} className="text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
           </div>
+        )}
 
-          {/* Pull quote — large italic serif */}
-          {data.quote && (
-            <div
-              className="scroll-reveal scroll-reveal-delay-2 mb-6 relative pl-5"
-              style={{ borderLeft: '3px solid #8b1f3f' }}
-            >
-              {/* Decorative opening quote mark */}
-              <span
-                className="absolute -top-3 -left-1 font-serif leading-none select-none"
-                style={{ fontSize: '3.5rem', color: 'rgba(139,31,63,0.35)', lineHeight: 1 }}
-              >
-                &ldquo;
-              </span>
-              <p
-                className="font-serif italic leading-[1.4] relative z-10"
-                style={{
-                  color: 'rgba(255,255,255,0.88)',
-                  fontSize: 'clamp(0.95rem, 1.8vw, 1.2rem)',
-                }}
-              >
-                {data.quote}
-              </p>
-              {data.quoteAuthor && (
-                <p
-                  className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]"
-                  style={{ color: '#8b1f3f' }}
-                >
-                  — {data.quoteAuthor}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Intro / body text */}
-          {data.intro && (
-            <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-              <SafeText
-                html={data.intro}
-                className="text-sm leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 font-medium"
-                style={{ color: 'rgba(255,255,255,0.72)' } as React.CSSProperties}
-              />
-            </div>
-          )}
-
-          {data.text && !data.intro && (
-            <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
-              <SafeText
-                html={data.text}
-                className="text-sm leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
-                style={{ color: 'rgba(255,255,255,0.62)' } as React.CSSProperties}
-              />
-            </div>
-          )}
-
-          {/* Stats row */}
-          {stats.length > 0 && (
-            <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-4 mb-4">
-              {stats.slice(0, 3).map((stat: any, i: number) => (
-                <div
-                  key={`${stat?.label ?? 'stat'}-${i}`}
-                  className="rounded-xl p-3 text-center"
-                  style={{
-                    background: 'rgba(139,31,63,0.1)',
-                    border: '1px solid rgba(139,31,63,0.22)',
-                  }}
-                >
-                  <p className="font-serif font-black text-xl" style={{ color: '#8b1f3f' }}>{stat?.value}</p>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{stat?.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Bottom editorial rule */}
-          <div className="scroll-reveal mt-8 flex items-center gap-3">
-            <div className="h-[2px] w-8 rounded-full" style={{ background: '#8b1f3f' }} />
-            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
-            <span
-              className="text-[8px] font-black uppercase tracking-[0.3em]"
-              style={{ color: 'rgba(139,31,63,0.6)' }}
-            >
-              YBW
-            </span>
+        {data.text && (
+          <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
+            <SafeText html={data.text} className="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3" />
           </div>
+        )}
+
+        {/* Stats row */}
+        {stats.length > 0 && (
+          <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-2 mb-4">
+            {stats.slice(0, 3).map((stat: any, i: number) => (
+              <div key={`${stat?.label ?? 'stat'}-${i}`} className="rounded-xl p-3 text-center border" style={{ background: 'rgba(255,255,255,0.55)', borderColor: 'rgba(139,31,63,0.18)' }}>
+                <p className="font-serif font-bold text-xl" style={{ color: '#8b1f3f' }}>{stat?.value}</p>
+                <p className="text-[10px] font-medium mt-0.5" style={{ color: '#7a5c4e' }}>{stat?.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Decorative bottom rule */}
+        <div className="scroll-reveal mt-8 pt-6 flex items-center gap-3">
+          <div className="h-px flex-1" style={{ background: 'linear-gradient(to right, #8b1f3f, transparent)' }} />
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em]" style={{ color: '#8b1f3f' }}>YBW</span>
         </div>
       </div>
     </div>

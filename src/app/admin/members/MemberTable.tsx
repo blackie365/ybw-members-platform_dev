@@ -50,6 +50,7 @@ interface MemberTableProps {
   updateMemberTier: (id: string, tier: string) => void
   updateMemberRole: (id: string, role: string) => void
   handleToggleFeatured: (id: string, status: boolean) => void
+  handleRepairDuplicates: (memberId: string, email: string) => void
   formatDate: (date: string | null) => string
 }
 
@@ -59,6 +60,7 @@ export function MemberTable({
   updateMemberTier,
   updateMemberRole,
   handleToggleFeatured,
+  handleRepairDuplicates,
   formatDate,
 }: MemberTableProps) {
   return (
@@ -166,6 +168,13 @@ export function MemberTable({
                           <UserCog className="h-4 w-4 mr-2" />
                           View profile
                         </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleRepairDuplicates(member.id, member.email)}
+                        disabled={updating === member.id}
+                      >
+                        Repair duplicates
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
