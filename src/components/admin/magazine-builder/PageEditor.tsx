@@ -128,7 +128,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       <input
         id={`editor-color-${field}`}
         type="color"
-        defaultValue="#8b1f3f"
+        defaultValue="#a3413a"
         className="hidden"
         onChange={(e) => insertTextAtCursor(field, `<span style="color: ${e.target.value};">`, '</span>')}
       />
