@@ -410,11 +410,182 @@ function SafeText({ html, className }: { html: string; className?: string }) {
   return (
     <div
       className={[
-        '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2',
+        '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70',
         className,
       ].filter(Boolean).join(' ')}
       dangerouslySetInnerHTML={{ __html: content }}
     />
+  );
+}
+
+type AdditionalMediaItem = {
+  src: string;
+  alt: string;
+  caption?: string;
+};
+
+function normalizeAdditionalMedia(input: any, fallbackAlt: string): AdditionalMediaItem[] {
+  if (!input) return [];
+
+  const looksLikeUrl = (value: string) => {
+    const v = value.trim();
+    if (!v) return false;
+    return (
+      v.startsWith('https://') ||
+      v.startsWith('http://') ||
+      v.startsWith('/') ||
+      v.startsWith('./') ||
+      v.startsWith('../') ||
+      v.startsWith('data:')
+    );
+  };
+
+  const raw: any[] = Array.isArray(input)
+    ? input
+    : typeof input === 'string'
+      ? (() => {
+        const trimmed = input.trim();
+        if (!trimmed) return [];
+
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === 'object') return [parsed];
+          } catch {}
+        }
+
+        if (trimmed.includes('\n')) {
+          return trimmed.split(/\r?\n+/g).map((s) => s.trim()).filter(Boolean);
+        }
+
+        const commaSpaceParts = trimmed.split(/,\s+/g).map((s) => s.trim()).filter(Boolean);
+        if (commaSpaceParts.length > 1 && commaSpaceParts.every(looksLikeUrl)) {
+          return commaSpaceParts;
+        }
+
+        const semicolonSpaceParts = trimmed.split(/;\s+/g).map((s) => s.trim()).filter(Boolean);
+        if (semicolonSpaceParts.length > 1 && semicolonSpaceParts.every(looksLikeUrl)) {
+          return semicolonSpaceParts;
+        }
+
+        const httpCount = (trimmed.match(/https?:\/\//g) || []).length;
+        if (httpCount >= 2) {
+          return trimmed.split(/[,;]\s*(?=https?:\/\/)/g).map((s) => s.trim()).filter(Boolean);
+        }
+
+        return [trimmed];
+      })()
+      : [];
+
+  const items: AdditionalMediaItem[] = [];
+
+  for (const entry of raw) {
+    if (!entry) continue;
+    if (typeof entry === 'string') {
+      const src = entry.trim();
+      if (!src) continue;
+      items.push({ src, alt: fallbackAlt || 'Image' });
+      continue;
+    }
+
+    if (typeof entry === 'object') {
+      const src = String((entry as any).src || (entry as any).url || (entry as any).image || '').trim();
+      if (!src) continue;
+      const alt = String((entry as any).alt || (entry as any).title || fallbackAlt || 'Image').trim();
+      const caption = String((entry as any).caption || (entry as any).credit || '').trim() || undefined;
+      items.push({ src, alt, caption });
+    }
+  }
+
+  return items;
+}
+
+function getAdditionalMedia(data: any, fallbackAlt: string): AdditionalMediaItem[] {
+  const main = String(data?.image || '').trim();
+  const sources: AdditionalMediaItem[] = [
+    ...normalizeAdditionalMedia(data?.images, fallbackAlt),
+    ...normalizeAdditionalMedia(data?.gallery, fallbackAlt),
+    ...normalizeAdditionalMedia(data?.additionalImages, fallbackAlt),
+  ];
+
+  const seen = new Set<string>();
+  const cleaned: AdditionalMediaItem[] = [];
+
+  for (const item of sources) {
+    const key = item.src.trim();
+    if (!key) continue;
+    if (main && key === main) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cleaned.push(item);
+  }
+
+  return cleaned;
+}
+
+function getMosaicClassName(index: number, count: number) {
+  if (count <= 1) return 'col-span-12 aspect-[16/9]';
+  if (count === 2) return 'col-span-12 md:col-span-6 aspect-[4/3]';
+  if (count === 3) {
+    if (index === 0) return 'col-span-12 md:col-span-7 aspect-[16/10]';
+    return 'col-span-6 md:col-span-5 aspect-[4/3]';
+  }
+  if (count === 4) {
+    if (index === 0) return 'col-span-12 md:col-span-8 aspect-[16/9]';
+    if (index === 1) return 'col-span-6 md:col-span-4 aspect-[4/5]';
+    return 'col-span-6 md:col-span-4 aspect-[4/3]';
+  }
+  if (index === 0) return 'col-span-12 md:col-span-6 aspect-[16/10]';
+  if (index === 1) return 'col-span-6 md:col-span-3 aspect-[4/5]';
+  if (index === 2) return 'col-span-6 md:col-span-3 aspect-[4/5]';
+  return 'col-span-6 md:col-span-4 aspect-[4/3]';
+}
+
+function AdditionalMediaGallery({ items, imageVersion, variant = 'light' }: { items: AdditionalMediaItem[]; imageVersion: string; variant?: 'light' | 'dark' }) {
+  const safeItems = Array.isArray(items) ? items.filter(Boolean).slice(0, 10) : [];
+  if (safeItems.length === 0) return null;
+
+  const cardClassName = variant === 'dark'
+    ? 'border border-white/10 bg-white/5'
+    : 'border border-[#e8d5c0] bg-white';
+
+  const captionClassName = variant === 'dark'
+    ? 'text-white/70'
+    : 'text-[#7a6e65]';
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-12 gap-3">
+        {safeItems.map((item, i) => (
+          <div
+            key={`${item.src}-${i}`}
+            className={[
+              'relative overflow-hidden rounded-2xl shadow-[0_14px_60px_rgba(0,0,0,0.10)]',
+              cardClassName,
+              getMosaicClassName(i, safeItems.length),
+            ].join(' ')}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fixMagazineImageUrl(item.src, imageVersion)}
+              alt={item.alt}
+              className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-[1.04]"
+              loading="lazy"
+            />
+            {item.caption ? (
+              <div className="absolute inset-x-0 bottom-0 p-3">
+                <div className={variant === 'dark' ? 'rounded-xl bg-black/45 backdrop-blur-sm border border-white/10 px-3 py-2' : 'rounded-xl bg-white/80 backdrop-blur-sm border border-[#e8d5c0] px-3 py-2'}>
+                  <p className={['text-[11px] leading-snug', captionClassName].join(' ')}>{item.caption}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -571,6 +742,7 @@ const PageCover = ({ data, imageVersion }: any) => {
   }, []);
 
   const dateIssue = [data.date, data.issue].filter(Boolean).join(' · ');
+  const additionalMedia = getAdditionalMedia(data, String(data.headline || data.title || 'Cover').trim());
 
   return (
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
@@ -675,6 +847,24 @@ const PageCover = ({ data, imageVersion }: any) => {
               Join the Community
             </Link>
           </div>
+
+          {additionalMedia.length > 0 && (
+            <div className="cover-animate opacity-0 mt-10 max-w-sm">
+              <div className="grid grid-cols-3 gap-3">
+                {additionalMedia.slice(0, 6).map((item, i) => (
+                  <div key={`${item.src}-${i}`} className="rounded-xl overflow-hidden aspect-[4/3] border border-white/10 bg-white/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={fixMagazineImageUrl(item.src, imageVersion)}
+                      alt={item.alt}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -693,6 +883,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const bodyHtml = (introHtml ? allBlocks.slice(1) : allBlocks).join('');
   const signature = String(data.author || '').trim().split(/\s+/g).filter(Boolean)[0] || '';
   const introWithDropcap = introHtml ? addClassToFirstParagraph(introHtml, 'editorial-dropcap') : '';
+  const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || 'Editorial').trim());
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -743,6 +934,12 @@ const PageEditorial = ({ data, imageVersion }: any) => {
               {bodyHtml && <SafeText html={bodyHtml} />}
             </div>
 
+            {additionalMedia.length > 0 && (
+              <div className="scroll-reveal scroll-reveal-delay-4 pt-2">
+                <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+              </div>
+            )}
+
             {signature && (
               <div className="scroll-reveal pt-4">
                 <div className="flex items-center gap-3">
@@ -762,7 +959,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
 // ─────────────────────────────────────────────
 // CONTENTS PAGE
 // ─────────────────────────────────────────────
-const PageContents = ({ data }: any) => {
+const PageContents = ({ data, imageVersion }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref, { threshold: 0.1 });
 
@@ -770,6 +967,7 @@ const PageContents = ({ data }: any) => {
   const news = Array.isArray(data.news) ? data.news : [];
   const kicker = String(data.kicker || '').trim();
   const newsLabel = String(data.newsLabel || '').trim();
+  const additionalMedia = getAdditionalMedia(data, String(data.title || 'Contents').trim());
 
   return (
     <div ref={ref} className="bg-[#1a1210] py-16 lg:py-24 min-h-full text-white">
@@ -838,6 +1036,12 @@ const PageContents = ({ data }: any) => {
             </ul>
           </div>
         )}
+
+        {additionalMedia.length > 0 && (
+          <div className="scroll-reveal mt-10">
+            <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -854,6 +1058,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
 
   if (isFullBackground) {
     return (
@@ -920,6 +1125,12 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
 
               {data.text && (
                 <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0" />
+              )}
+
+              {additionalMedia.length > 0 && (
+                <div className="scroll-reveal scroll-reveal-delay-3">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                </div>
               )}
 
               {stats.length > 0 && (
@@ -1026,6 +1237,12 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           </div>
         )}
 
+        {additionalMedia.length > 0 && (
+          <div className="scroll-reveal scroll-reveal-delay-3 mb-6">
+            <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+          </div>
+        )}
+
         {/* Stats row */}
         {stats.length > 0 && (
           <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-3 gap-2 mt-2 mb-4">
@@ -1061,6 +1278,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const snapshotLabel = String(data.snapshotLabel || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
 
   if (isFullBackground) {
     return (
@@ -1123,6 +1341,12 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                   )}
 
                   {data.text && <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />}
+
+                  {additionalMedia.length > 0 && (
+                    <div className="scroll-reveal scroll-reveal-delay-2">
+                      <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1182,6 +1406,12 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
             )}
 
             {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
+
+            {additionalMedia.length > 0 && (
+              <div className="scroll-reveal scroll-reveal-delay-2">
+                <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">
@@ -1244,6 +1474,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const tipsLabel = String(data.tipsLabel || data.tipsTitle || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || kicker || 'Column').trim());
 
   return (
     <div ref={ref} className={isFullBackground ? 'relative min-h-full overflow-hidden bg-[#0c0a09]' : 'bg-[#faf7f2] py-16 lg:py-24 min-h-full'}>
@@ -1297,6 +1528,12 @@ const PageColumn = ({ data, imageVersion }: any) => {
                         html={data.text}
                         className="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
                       />
+                    )}
+
+                    {additionalMedia.length > 0 && (
+                      <div className="scroll-reveal scroll-reveal-delay-2">
+                        <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                      </div>
                     )}
 
                     {tips.length > 0 && (
@@ -1382,6 +1619,12 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
               {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
 
+              {additionalMedia.length > 0 && (
+                <div className="scroll-reveal scroll-reveal-delay-2">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+                </div>
+              )}
+
               {tips.length > 0 && (
                 <div className="rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6">
                   {tipsLabel && (
@@ -1420,9 +1663,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const highlightsLabel = String(data.highlightsLabel || '').trim();
   const editorsPickLabel = String(data.editorsPickLabel || '').trim();
   const highlights = Array.isArray(data.highlights) ? data.highlights : [];
-  const extraImages: string[] = Array.isArray(data.images)
-    ? data.images.map((x: any) => String(x || '').trim()).filter(Boolean)
-    : [];
+  const additionalMedia = getAdditionalMedia(data, String(title || kicker || 'Lifestyle').trim());
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
@@ -1477,14 +1718,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                   {data.text && (
                     <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />
                   )}
-                  {extraImages.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {extraImages.slice(0, 8).map((src: string, i: number) => (
-                        <div key={`${src}-${i}`} className="rounded-xl overflow-hidden aspect-[4/3] bg-white/5 border border-white/10">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={fixMagazineImageUrl(src, imageVersion)} alt={`Lifestyle image ${i + 1}`} className="w-full h-full object-cover" />
-                        </div>
-                      ))}
+                  {additionalMedia.length > 0 && (
+                    <div className="scroll-reveal scroll-reveal-delay-2">
+                      <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
                     </div>
                   )}
                 </div>
@@ -1618,14 +1854,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           </div>
         )}
 
-        {extraImages.length > 0 && (
-          <div className="scroll-reveal mt-8 grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {extraImages.slice(0, 8).map((src: string, i: number) => (
-              <div key={`${src}-${i}`} className="rounded-xl overflow-hidden aspect-[4/3] bg-[#f0ebe3] border border-[#e8d5c0] shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(src, imageVersion)} alt={`Lifestyle image ${i + 1}`} className="w-full h-full object-cover" />
-              </div>
-            ))}
+        {additionalMedia.length > 0 && (
+          <div className="scroll-reveal mt-8">
+            <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
           </div>
         )}
       </div>
@@ -1643,6 +1874,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const sectionLabel = String(data.title || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.name || sectionLabel || 'Spotlight').trim());
 
   if (isFullBackground) {
     return (
@@ -1712,6 +1944,12 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               {data.bio && (
                 <div className="mt-8">
                   <SafeText html={data.bio} className="text-white/70 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0" />
+                </div>
+              )}
+
+              {additionalMedia.length > 0 && (
+                <div className="mt-10 scroll-reveal">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
                 </div>
               )}
             </div>
@@ -1845,6 +2083,12 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             </div>
           )}
 
+          {additionalMedia.length > 0 && (
+            <div className="mt-8 scroll-reveal scroll-reveal-delay-2">
+              <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+            </div>
+          )}
+
           {/* Keyword tags */}
           {Array.isArray(data.tags) && data.tags.length > 0 && (
             <div className="mt-8 flex flex-wrap gap-2 scroll-reveal scroll-reveal-delay-2">
@@ -1881,6 +2125,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
   const kicker = String(data.kicker || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.brand || data.title || 'Partner').trim());
 
   if (isFullBackground) {
     return (
@@ -1930,6 +2175,12 @@ const PagePartner = ({ data, imageVersion }: any) => {
                   <p className="text-white/70 text-sm font-medium">{data.offer}</p>
                 </div>
               )}
+
+              {additionalMedia.length > 0 && (
+                <div className="scroll-reveal">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1971,6 +2222,12 @@ const PagePartner = ({ data, imageVersion }: any) => {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-px bg-[#a3413a]" />
                 <p className="text-white/55 text-sm font-medium">{data.offer}</p>
+              </div>
+            )}
+
+            {additionalMedia.length > 0 && (
+              <div className="scroll-reveal scroll-reveal-delay-2">
+                <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
               </div>
             )}
           </div>
@@ -2019,6 +2276,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
   const comingSoonLabel = String(data.comingSoonLabel || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const additionalMedia = getAdditionalMedia(data, String(data.title || data.nextIssue || kicker || 'Back Cover').trim());
 
   if (isFullBackground) {
     return (
@@ -2068,6 +2326,12 @@ const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
 
               {data.text && <SafeText html={data.text} className="text-white/75 leading-relaxed" />}
+
+              {additionalMedia.length > 0 && (
+                <div className="scroll-reveal">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                </div>
+              )}
 
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
@@ -2122,6 +2386,12 @@ const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
 
               {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/70 leading-relaxed" />}
+
+              {additionalMedia.length > 0 && (
+                <div className="scroll-reveal scroll-reveal-delay-2">
+                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+                </div>
+              )}
 
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
