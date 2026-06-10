@@ -1242,7 +1242,7 @@ const PageContents = ({ data, imageVersion }: any) => {
                   </div>
                   <div className="flex items-start justify-between mb-3">
                     <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#a3413a]">{item?.category}</span>
-                    <span className="text-3xl font-extrabold text-white/[0.07] font-serif leading-none group-hover:text-white/[0.12] transition-colors">{pageLabel}</span>
+                    <span className="text-3xl font-extrabold text-white/80 font-serif leading-none tabular-nums drop-shadow-sm group-hover:text-white transition-colors">{pageLabel}</span>
                   </div>
                   <p className="font-serif font-semibold text-white/90 text-base leading-snug flex-1">{item?.title}</p>
                   <div className="mt-3 h-0.5 w-8 rounded-full bg-[#a3413a] group-hover:w-14 transition-all duration-300" />
