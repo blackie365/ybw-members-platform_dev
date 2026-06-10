@@ -2,12 +2,12 @@ import { getSinglePost, getPosts } from '@/lib/ghost';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft, Facebook, Linkedin, Lock, Mail, Twitter } from 'lucide-react';
 import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
 
@@ -81,6 +81,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const session = await auth();
   const isLocked = accessLevel === 'members-only' && !session.userId;
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
+  const canonicalUrl = `${baseUrl}/news/${post.slug}`;
+  const shareUrl = encodeURIComponent(canonicalUrl);
+  const shareTitle = encodeURIComponent(post.title || 'Yorkshire BusinessWoman');
+  const shareBody = encodeURIComponent(`${canonicalUrl}\n\n${post.custom_excerpt || post.excerpt || ''}`);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -255,6 +260,52 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 )}
               </>
             )}
+
+            <div className="mt-12 pt-8 border-t border-border">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Share this article</p>
+                  <p className="text-sm text-muted-foreground mt-1 break-all">{canonicalUrl}</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Share on X"
+                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                  >
+                    <Twitter className="h-4 w-4" />
+                  </a>
+                  <a
+                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Share on LinkedIn"
+                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                  </a>
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Share on Facebook"
+                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                  >
+                    <Facebook className="h-4 w-4" />
+                  </a>
+                  <a
+                    href={`mailto:?subject=${shareTitle}&body=${shareBody}`}
+                    aria-label="Share by email"
+                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
           </article>
 
           {/* Sidebar */}
