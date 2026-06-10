@@ -410,7 +410,7 @@ function SafeText({ html, className }: { html: string; className?: string }) {
   return (
     <div
       className={[
-        '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70',
+        '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0',
         className,
       ].filter(Boolean).join(' ')}
       dangerouslySetInnerHTML={{ __html: content }}
@@ -532,6 +532,85 @@ function getAdditionalMedia(data: any, fallbackAlt: string): AdditionalMediaItem
   }
 
   return cleaned;
+}
+
+function normalizePullQuotes(input: any): string[] {
+  if (!input) return [];
+
+  const clean = (value: string) => {
+    let v = String(value || '').trim();
+    if (!v) return '';
+    v = v.replace(/&ldquo;|&rdquo;|&quot;/g, '"').trim();
+    v = v.replace(/^["'“”]+/, '').replace(/["'“”]+$/, '').trim();
+    v = v.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return v;
+  };
+
+  const raw: any[] = Array.isArray(input)
+    ? input
+    : typeof input === 'string'
+      ? (() => {
+        const trimmed = input.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === 'object') return [parsed];
+          } catch {}
+        }
+        if (trimmed.includes('\n')) {
+          return trimmed.split(/\r?\n+/g).map((s) => s.trim()).filter(Boolean);
+        }
+        return [trimmed];
+      })()
+      : [input];
+
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (!entry) continue;
+    if (typeof entry === 'string') {
+      const text = clean(entry);
+      if (text) out.push(text);
+      continue;
+    }
+    if (typeof entry === 'object') {
+      const text = clean((entry as any).text || (entry as any).quote || (entry as any).value || '');
+      if (text) out.push(text);
+    }
+  }
+
+  return out.slice(0, 4);
+}
+
+function PullQuoteCard({ text, variant }: { text: string; variant: 'light' | 'dark' }) {
+  const frameClassName = variant === 'dark'
+    ? 'border border-white/10 bg-white/5'
+    : 'border border-[#e8d5c0] bg-white';
+
+  const accentClassName = variant === 'dark'
+    ? 'text-[#a3413a]'
+    : 'text-[#a3413a]';
+
+  const textClassName = variant === 'dark'
+    ? 'text-white/80'
+    : 'text-[#3d2b1f]/80';
+
+  return (
+    <blockquote className={['relative overflow-hidden rounded-3xl px-6 py-6 shadow-[0_20px_90px_rgba(0,0,0,0.10)]', frameClassName].join(' ')}>
+      <div
+        className={['absolute -top-6 -left-3 font-serif leading-none select-none', accentClassName].join(' ')}
+        style={{ fontSize: 'clamp(4rem, 8vw, 6.5rem)', opacity: 0.25 }}
+        aria-hidden="true"
+      >
+        &ldquo;
+      </div>
+      <p className={['relative font-serif italic leading-relaxed', textClassName].join(' ')} style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+        &ldquo;{text}&rdquo;
+      </p>
+      <div className="mt-5 h-px w-14 bg-[#a3413a]" style={{ opacity: variant === 'dark' ? 0.5 : 0.35 }} />
+    </blockquote>
+  );
 }
 
 function getMosaicClassName(index: number, count: number) {
@@ -667,30 +746,47 @@ function MediaFigure({
 function InterleavedTextWithMedia({
   blocks,
   inlineMedia,
+  pullQuotes,
   imageVersion,
   variant,
   textClassName,
 }: {
   blocks: string[];
   inlineMedia: AdditionalMediaItem[];
+  pullQuotes?: string[];
   imageVersion: string;
   variant: 'light' | 'dark';
   textClassName: string;
 }) {
   const safeBlocks = Array.isArray(blocks) ? blocks.filter(Boolean) : [];
   const safeMedia = Array.isArray(inlineMedia) ? inlineMedia.filter(Boolean) : [];
+  const safeQuotes = Array.isArray(pullQuotes) ? pullQuotes.map((q) => String(q || '').trim()).filter(Boolean) : [];
   if (safeBlocks.length === 0) return null;
 
   const insertionPoints = new Set<number>();
   if (safeMedia.length > 0 && safeBlocks.length >= 2) insertionPoints.add(2);
   if (safeMedia.length > 1 && safeBlocks.length >= 5) insertionPoints.add(5);
 
+  const quotePoints = new Set<number>();
+  if (safeQuotes.length > 0 && safeBlocks.length >= 3) quotePoints.add(3);
+  if (safeQuotes.length > 1 && safeBlocks.length >= 6) quotePoints.add(6);
+
   let mediaIndex = 0;
+  let quoteIndex = 0;
   const nodes: React.ReactNode[] = [];
 
   for (let i = 0; i < safeBlocks.length; i += 1) {
     const block = safeBlocks[i];
     nodes.push(<SafeText key={`tb-${i}`} html={block} className={textClassName} />);
+
+    if (quotePoints.has(i + 1) && quoteIndex < safeQuotes.length) {
+      const quote = safeQuotes[quoteIndex++];
+      nodes.push(
+        <div key={`tq-${i}`} className="py-1">
+          <PullQuoteCard text={quote} variant={variant} />
+        </div>
+      );
+    }
 
     if (insertionPoints.has(i + 1) && mediaIndex < safeMedia.length) {
       const item = safeMedia[mediaIndex++];
@@ -1046,6 +1142,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
                 <InterleavedTextWithMedia
                   blocks={textBlocks}
                   inlineMedia={inlineMedia}
+                  pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes)}
                   imageVersion={imageVersion}
                   variant="light"
                   textClassName="text-[#3d2b1f]/80 leading-relaxed"
@@ -1248,6 +1345,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
                 <InterleavedTextWithMedia
                   blocks={textBlocks}
                   inlineMedia={inlineMedia}
+                  pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes)}
                   imageVersion={imageVersion}
                   variant="dark"
                   textClassName="text-white/85 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
@@ -1657,6 +1755,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                       <InterleavedTextWithMedia
                         blocks={textBlocks}
                         inlineMedia={inlineMedia}
+                        pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                         imageVersion={imageVersion}
                         variant="dark"
                         textClassName="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
@@ -1754,6 +1853,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                 <InterleavedTextWithMedia
                   blocks={textBlocks}
                   inlineMedia={inlineMedia}
+                  pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                   imageVersion={imageVersion}
                   variant="light"
                   textClassName="text-[#3d2b1f]/75 leading-relaxed"
@@ -1863,6 +1963,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                     <InterleavedTextWithMedia
                       blocks={textBlocks}
                       inlineMedia={inlineMedia}
+                      pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                       imageVersion={imageVersion}
                       variant="dark"
                       textClassName="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
@@ -2003,6 +2104,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
             <InterleavedTextWithMedia
               blocks={textBlocks}
               inlineMedia={inlineMedia}
+              pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
               imageVersion={imageVersion}
               variant="light"
               textClassName="text-[#3d2b1f]/75 leading-relaxed"

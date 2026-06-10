@@ -228,7 +228,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                     prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
                     prose-strong:text-foreground prose-strong:font-semibold
                     prose-ul:text-muted-foreground prose-ol:text-muted-foreground
-                    prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
+                    prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:text-foreground/80 prose-blockquote:bg-accent/5 prose-blockquote:border-l-[3px] prose-blockquote:border-l-accent prose-blockquote:px-7 prose-blockquote:py-6 prose-blockquote:rounded-2xl prose-blockquote:my-10
                     prose-img:rounded-none
                     [&>p:first-of-type]:text-lg [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-relaxed [&>p:first-of-type]:text-foreground/80 [&>p:first-of-type]:mb-8" 
                   dangerouslySetInnerHTML={{ 
