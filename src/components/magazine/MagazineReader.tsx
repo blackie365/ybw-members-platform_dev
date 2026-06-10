@@ -422,6 +422,8 @@ type AdditionalMediaItem = {
   src: string;
   alt: string;
   caption?: string;
+  layout?: 'inline' | 'wide' | 'full' | 'mosaic';
+  ratio?: string;
 };
 
 function normalizeAdditionalMedia(input: any, fallbackAlt: string): AdditionalMediaItem[] {
@@ -494,7 +496,15 @@ function normalizeAdditionalMedia(input: any, fallbackAlt: string): AdditionalMe
       if (!src) continue;
       const alt = String((entry as any).alt || (entry as any).title || fallbackAlt || 'Image').trim();
       const caption = String((entry as any).caption || (entry as any).credit || '').trim() || undefined;
-      items.push({ src, alt, caption });
+      const layout = String((entry as any).layout || '').trim();
+      const ratio = String((entry as any).ratio || (entry as any).aspect || '').trim();
+      items.push({
+        src,
+        alt,
+        caption,
+        layout: (layout === 'inline' || layout === 'wide' || layout === 'full' || layout === 'mosaic') ? layout : undefined,
+        ratio: ratio || undefined,
+      });
     }
   }
 
@@ -587,6 +597,114 @@ function AdditionalMediaGallery({ items, imageVersion, variant = 'light' }: { it
       </div>
     </div>
   );
+}
+
+function getRatioClassName(ratio: string | undefined, fallback: string) {
+  const normalized = String(ratio || '').trim();
+  if (!normalized) return fallback;
+  if (normalized === '16/9' || normalized === '16:9') return 'aspect-[16/9]';
+  if (normalized === '4/3' || normalized === '4:3') return 'aspect-[4/3]';
+  if (normalized === '3/4' || normalized === '3:4') return 'aspect-[3/4]';
+  if (normalized === '4/5' || normalized === '4:5') return 'aspect-[4/5]';
+  if (normalized === '1/1' || normalized === '1:1' || normalized === 'square') return 'aspect-square';
+  return fallback;
+}
+
+function MediaFigure({
+  item,
+  imageVersion,
+  variant,
+  size,
+}: {
+  item: AdditionalMediaItem;
+  imageVersion: string;
+  variant: 'light' | 'dark';
+  size: 'inline' | 'wide' | 'full';
+}) {
+  const frameClassName = variant === 'dark'
+    ? 'border border-white/10 bg-white/5'
+    : 'border border-[#e8d5c0] bg-white';
+
+  const captionClassName = variant === 'dark'
+    ? 'text-white/70'
+    : 'text-[#7a6e65]';
+
+  const ratioClassName = getRatioClassName(
+    item.ratio,
+    size === 'inline' ? 'aspect-[4/3]' : 'aspect-[16/9]'
+  );
+
+  const outerClassName = size === 'full'
+    ? 'w-full'
+    : size === 'wide'
+      ? 'w-full'
+      : 'w-full max-w-xl';
+
+  return (
+    <figure className={['rounded-3xl overflow-hidden shadow-[0_20px_90px_rgba(0,0,0,0.14)]', frameClassName, outerClassName].join(' ')}>
+      <div className={['relative', ratioClassName].join(' ')}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fixMagazineImageUrl(item.src, imageVersion)}
+          alt={item.alt}
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div className={variant === 'dark' ? 'absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent' : 'absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent'} />
+      </div>
+      {item.caption ? (
+        <figcaption className="px-5 py-4">
+          <div className={variant === 'dark' ? 'h-px w-10 bg-[#a3413a] mb-2' : 'h-px w-10 bg-[#a3413a] mb-2'} />
+          <p className={['text-sm leading-relaxed', captionClassName].join(' ')}>
+            {item.caption}
+          </p>
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+function InterleavedTextWithMedia({
+  blocks,
+  inlineMedia,
+  imageVersion,
+  variant,
+  textClassName,
+}: {
+  blocks: string[];
+  inlineMedia: AdditionalMediaItem[];
+  imageVersion: string;
+  variant: 'light' | 'dark';
+  textClassName: string;
+}) {
+  const safeBlocks = Array.isArray(blocks) ? blocks.filter(Boolean) : [];
+  const safeMedia = Array.isArray(inlineMedia) ? inlineMedia.filter(Boolean) : [];
+  if (safeBlocks.length === 0) return null;
+
+  const insertionPoints = new Set<number>();
+  if (safeMedia.length > 0 && safeBlocks.length >= 2) insertionPoints.add(2);
+  if (safeMedia.length > 1 && safeBlocks.length >= 5) insertionPoints.add(5);
+
+  let mediaIndex = 0;
+  const nodes: React.ReactNode[] = [];
+
+  for (let i = 0; i < safeBlocks.length; i += 1) {
+    const block = safeBlocks[i];
+    nodes.push(<SafeText key={`tb-${i}`} html={block} className={textClassName} />);
+
+    if (insertionPoints.has(i + 1) && mediaIndex < safeMedia.length) {
+      const item = safeMedia[mediaIndex++];
+      const requestedLayout = item.layout === 'full' || item.layout === 'wide' || item.layout === 'inline' ? item.layout : undefined;
+      const size = requestedLayout === 'full' ? 'full' : requestedLayout === 'inline' ? 'inline' : 'wide';
+      nodes.push(
+        <div key={`tm-${i}`} className="py-1">
+          <MediaFigure item={item} imageVersion={imageVersion} variant={variant} size={size} />
+        </div>
+      );
+    }
+  }
+
+  return <div className="space-y-4">{nodes}</div>;
 }
 
 function renderTitleArt(text: unknown, emphasisClassName?: string): React.ReactNode {
@@ -849,20 +967,8 @@ const PageCover = ({ data, imageVersion }: any) => {
           </div>
 
           {additionalMedia.length > 0 && (
-            <div className="cover-animate opacity-0 mt-10 max-w-sm">
-              <div className="grid grid-cols-3 gap-3">
-                {additionalMedia.slice(0, 6).map((item, i) => (
-                  <div key={`${item.src}-${i}`} className="rounded-xl overflow-hidden aspect-[4/3] border border-white/10 bg-white/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={fixMagazineImageUrl(item.src, imageVersion)}
-                      alt={item.alt}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                ))}
-              </div>
+            <div className="cover-animate opacity-0 mt-10 max-w-md">
+              <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
             </div>
           )}
         </div>
@@ -884,6 +990,12 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const signature = String(data.author || '').trim().split(/\s+/g).filter(Boolean)[0] || '';
   const introWithDropcap = introHtml ? addClassToFirstParagraph(introHtml, 'editorial-dropcap') : '';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || 'Editorial').trim());
+  const inlineMedia = additionalMedia.slice(0, 2);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const textBlocks = [
+    ...(introWithDropcap ? [introWithDropcap] : []),
+    ...getHtmlBlocks(bodyHtml || ''),
+  ];
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -929,14 +1041,21 @@ const PageEditorial = ({ data, imageVersion }: any) => {
               </div>
             )}
 
-            <div className="scroll-reveal scroll-reveal-delay-4 space-y-4 text-[#3d2b1f]/80 leading-relaxed">
-              {introWithDropcap && <SafeText html={introWithDropcap} />}
-              {bodyHtml && <SafeText html={bodyHtml} />}
-            </div>
+            {textBlocks.length > 0 && (
+              <div className="scroll-reveal scroll-reveal-delay-4">
+                <InterleavedTextWithMedia
+                  blocks={textBlocks}
+                  inlineMedia={inlineMedia}
+                  imageVersion={imageVersion}
+                  variant="light"
+                  textClassName="text-[#3d2b1f]/80 leading-relaxed"
+                />
+              </div>
+            )}
 
-            {additionalMedia.length > 0 && (
+            {remainingMedia.length > 0 && (
               <div className="scroll-reveal scroll-reveal-delay-4 pt-2">
-                <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+                <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" />
               </div>
             )}
 
@@ -1059,6 +1178,12 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
+  const inlineMedia = additionalMedia.slice(0, 2);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const textBlocks = [
+    ...getHtmlBlocks(String(data.intro || '')),
+    ...getHtmlBlocks(String(data.text || '')),
+  ];
 
   if (isFullBackground) {
     return (
@@ -1119,17 +1244,19 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
                 </div>
               )}
 
-              {data.intro && (
-                <SafeText html={data.intro} className="text-white/85 leading-relaxed font-medium [&_p]:mb-2 [&_p:last-child]:mb-0" />
+              {textBlocks.length > 0 && (
+                <InterleavedTextWithMedia
+                  blocks={textBlocks}
+                  inlineMedia={inlineMedia}
+                  imageVersion={imageVersion}
+                  variant="dark"
+                  textClassName="text-white/85 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
+                />
               )}
 
-              {data.text && (
-                <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0" />
-              )}
-
-              {additionalMedia.length > 0 && (
+              {remainingMedia.length > 0 && (
                 <div className="scroll-reveal scroll-reveal-delay-3">
-                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                  <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" />
                 </div>
               )}
 
@@ -1475,6 +1602,9 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || kicker || 'Column').trim());
+  const inlineMedia = additionalMedia.slice(0, 2);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const textBlocks = getHtmlBlocks(String(data.text || ''));
 
   return (
     <div ref={ref} className={isFullBackground ? 'relative min-h-full overflow-hidden bg-[#0c0a09]' : 'bg-[#faf7f2] py-16 lg:py-24 min-h-full'}>
@@ -1523,16 +1653,19 @@ const PageColumn = ({ data, imageVersion }: any) => {
                       {data.author && <p className="text-sm text-white/75 font-medium uppercase tracking-wider mt-1">{data.author}</p>}
                     </div>
 
-                    {data.text && (
-                      <SafeText
-                        html={data.text}
-                        className="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
+                    {textBlocks.length > 0 && (
+                      <InterleavedTextWithMedia
+                        blocks={textBlocks}
+                        inlineMedia={inlineMedia}
+                        imageVersion={imageVersion}
+                        variant="dark"
+                        textClassName="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
                       />
                     )}
 
-                    {additionalMedia.length > 0 && (
+                    {remainingMedia.length > 0 && (
                       <div className="scroll-reveal scroll-reveal-delay-2">
-                        <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                        <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" />
                       </div>
                     )}
 
@@ -1617,11 +1750,19 @@ const PageColumn = ({ data, imageVersion }: any) => {
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
               </div>
 
-              {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
+              {textBlocks.length > 0 && (
+                <InterleavedTextWithMedia
+                  blocks={textBlocks}
+                  inlineMedia={inlineMedia}
+                  imageVersion={imageVersion}
+                  variant="light"
+                  textClassName="text-[#3d2b1f]/75 leading-relaxed"
+                />
+              )}
 
-              {additionalMedia.length > 0 && (
+              {remainingMedia.length > 0 && (
                 <div className="scroll-reveal scroll-reveal-delay-2">
-                  <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+                  <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" />
                 </div>
               )}
 
@@ -1664,6 +1805,9 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const editorsPickLabel = String(data.editorsPickLabel || '').trim();
   const highlights = Array.isArray(data.highlights) ? data.highlights : [];
   const additionalMedia = getAdditionalMedia(data, String(title || kicker || 'Lifestyle').trim());
+  const inlineMedia = additionalMedia.slice(0, 2);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const textBlocks = getHtmlBlocks(String(data.text || ''));
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
@@ -1715,12 +1859,18 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <div className="lg:col-span-2 space-y-5">
-                  {data.text && (
-                    <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />
+                  {textBlocks.length > 0 && (
+                    <InterleavedTextWithMedia
+                      blocks={textBlocks}
+                      inlineMedia={inlineMedia}
+                      imageVersion={imageVersion}
+                      variant="dark"
+                      textClassName="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
+                    />
                   )}
-                  {additionalMedia.length > 0 && (
+                  {remainingMedia.length > 0 && (
                     <div className="scroll-reveal scroll-reveal-delay-2">
-                      <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                      <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" />
                     </div>
                   )}
                 </div>
@@ -1848,15 +1998,21 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           </div>
         </div>
 
-        {data.text && (
+        {textBlocks.length > 0 && (
           <div className="scroll-reveal rounded-2xl border border-[#e8d5c0] bg-white shadow-sm p-6 md:p-10">
-            <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />
+            <InterleavedTextWithMedia
+              blocks={textBlocks}
+              inlineMedia={inlineMedia}
+              imageVersion={imageVersion}
+              variant="light"
+              textClassName="text-[#3d2b1f]/75 leading-relaxed"
+            />
           </div>
         )}
 
-        {additionalMedia.length > 0 && (
+        {remainingMedia.length > 0 && (
           <div className="scroll-reveal mt-8">
-            <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+            <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" />
           </div>
         )}
       </div>
