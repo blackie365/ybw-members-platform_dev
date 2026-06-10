@@ -35,6 +35,9 @@ interface PageEditorProps {
 
 export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
+  const [rawJsonDraft, setRawJsonDraft] = useState<string>('{}');
+  const [rawJsonError, setRawJsonError] = useState<string>('');
+  const rawJsonFocusedRef = useRef(false);
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
   const [pullQuotesDraft, setPullQuotesDraft] = useState<string>('');
   const [contentsItemsDraft, setContentsItemsDraft] = useState<string>('[]');
@@ -180,6 +183,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
 
     const nextContent = page.content || {};
     setContent(nextContent);
+    setRawJsonDraft(JSON.stringify(nextContent || {}, null, 2));
+    setRawJsonError('');
+    rawJsonFocusedRef.current = false;
 
     if (page.type === 'lifestyle') {
       const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
@@ -204,6 +210,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     setPendingType(null);
     setIsTypeDialogOpen(false);
   }, [page?.docId, page?.content, page?.type]);
+
+  useEffect(() => {
+    if (rawJsonFocusedRef.current) return;
+    if (rawJsonError) return;
+    setRawJsonDraft((prev) => {
+      const next = JSON.stringify(content || {}, null, 2);
+      return prev === next ? prev : next;
+    });
+  }, [content, rawJsonError]);
 
   if (!page) {
     return (
@@ -1089,11 +1104,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
           <Textarea 
             className="font-mono text-[10px] mt-2 bg-muted/30 focus:bg-white transition-colors" 
             rows={5}
-            value={JSON.stringify(content || {}, null, 2)}
+            value={rawJsonDraft}
+            onFocus={() => {
+              rawJsonFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              rawJsonFocusedRef.current = false;
+              if (!rawJsonError) {
+                setRawJsonDraft(JSON.stringify(content || {}, null, 2));
+              }
+            }}
             onChange={(e) => {
+              const next = e.target.value;
+              setRawJsonDraft(next);
               try {
-                const parsed = JSON.parse(e.target.value);
+                const parsed = JSON.parse(next);
                 if (typeof parsed === 'object' && parsed !== null) {
+                  setRawJsonError('');
                   setContent(parsed);
                   setPullQuotesDraft(stringifyPullQuotes((parsed as any)?.pullQuotes || (parsed as any)?.quotes || ''));
                   setContentsItemsDraft(stringifyJson((parsed as any)?.items || []));
@@ -1112,12 +1139,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                     const initial = Array.isArray((parsed as any)?.images) ? (parsed as any).images : [];
                     setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
                   }
+                  return;
                 }
-              } catch (err) {
-                // Ignore invalid JSON while typing
+                setRawJsonError('Content must be a JSON object.');
+              } catch {
+                setRawJsonError('Invalid JSON.');
               }
             }}
           />
+          {rawJsonError ? (
+            <p className="text-[10px] text-destructive mt-1">{rawJsonError}</p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground mt-1">Edits here update the other panels when valid JSON.</p>
+          )}
         </div>
       </CardContent>
 
