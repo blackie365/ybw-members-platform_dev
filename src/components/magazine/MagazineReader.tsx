@@ -584,10 +584,6 @@ function normalizePullQuotes(input: any): string[] {
 }
 
 function PullQuoteCard({ text, variant, align }: { text: string; variant: 'light' | 'dark'; align: 'left' | 'right' }) {
-  const frameClassName = variant === 'dark'
-    ? 'border border-white/12 bg-transparent'
-    : 'border border-[#a3413a]/25 bg-transparent';
-
   const accentClassName = variant === 'dark'
     ? 'text-[#a3413a]'
     : 'text-[#a3413a]';
@@ -603,15 +599,13 @@ function PullQuoteCard({ text, variant, align }: { text: string; variant: 'light
   return (
     <blockquote
       className={[
-        'relative overflow-hidden rounded-3xl px-6 py-6',
-        'shadow-[0_20px_90px_rgba(0,0,0,0.10)]',
+        'relative px-6 py-6',
         'md:w-1/3 lg:w-1/4 md:mt-1 md:mb-3',
         floatClassName,
-        frameClassName,
       ].join(' ')}
     >
       <div
-        className={['absolute -top-7 -left-3 font-serif leading-none select-none', accentClassName].join(' ')}
+        className={['absolute -top-9 -left-4 font-serif leading-none select-none', accentClassName].join(' ')}
         style={{ fontSize: 'clamp(4.25rem, 8vw, 7rem)', opacity: 0.25 }}
         aria-hidden="true"
       >
