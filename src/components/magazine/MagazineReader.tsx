@@ -1228,7 +1228,10 @@ const PageContents = ({ data, imageVersion }: any) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           {items.map((item: any, i: number) => {
-            const pageLabel = String(item?.page ?? '').padStart(3, '0');
+            const rawPage = item?.page;
+            const pageNum =
+              typeof rawPage === 'number' ? rawPage : Number.parseInt(String(rawPage ?? '').trim(), 10);
+            const pageLabel = Number.isFinite(pageNum) ? String(pageNum).padStart(2, '0') : '';
             return (
               <div
                 key={`${pageLabel}-${item?.title ?? i}`}
