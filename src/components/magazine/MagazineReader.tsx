@@ -1199,6 +1199,32 @@ const PageContents = ({ data, imageVersion }: any) => {
   const kicker = String(data.kicker || '').trim();
   const newsLabel = String(data.newsLabel || '').trim();
   const additionalMedia = getAdditionalMedia(data, String(data.title || 'Contents').trim());
+  const [liveNews, setLiveNews] = useState<any[]>([]);
+  const [liveNewsLoading, setLiveNewsLoading] = useState(false);
+  const showLiveNews = news.length === 0;
+
+  useEffect(() => {
+    if (!showLiveNews) return;
+    let cancelled = false;
+    setLiveNewsLoading(true);
+    fetch('/api/external-news?limit=6')
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        setLiveNews(Array.isArray(json?.data) ? json.data : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLiveNews([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLiveNewsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showLiveNews]);
 
   return (
     <div ref={ref} className="bg-[#1a1210] py-16 lg:py-24 min-h-full text-white">
@@ -1255,19 +1281,43 @@ const PageContents = ({ data, imageVersion }: any) => {
           })}
         </div>
 
-        {news.length > 0 && (
+        {(news.length > 0 || showLiveNews) && (
           <div className="scroll-reveal rounded-xl border border-white/[0.07] bg-white/[0.03] p-6">
-            {newsLabel && (
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">{newsLabel}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">
+              {showLiveNews ? 'Regional Women in Business News' : newsLabel || 'Regional News'}
+            </p>
+            {showLiveNews ? (
+              <ul className="space-y-3">
+                {liveNewsLoading && liveNews.length === 0 ? (
+                  <li className="text-sm text-white/60">Loading…</li>
+                ) : liveNews.length > 0 ? (
+                  liveNews.map((item: any, i: number) => (
+                    <li key={item?.id ?? item?.link ?? i} className="flex items-start gap-3 text-sm text-white/70">
+                      <span className="text-[#a3413a] mt-0.5 flex-shrink-0 text-[10px]">◆</span>
+                      <a
+                        href={String(item?.link || '#')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        {String(item?.title || '').trim()}
+                      </a>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-sm text-white/60">No news available right now.</li>
+                )}
+              </ul>
+            ) : (
+              <ul className="space-y-2.5">
+                {news.map((item: any, i: number) => (
+                  <li key={i} className="flex items-start gap-3 text-sm text-white/70">
+                    <span className="text-[#a3413a] mt-0.5 flex-shrink-0 text-[10px]">◆</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
             )}
-            <ul className="space-y-2.5">
-              {news.map((item: any, i: number) => (
-                <li key={i} className="flex items-start gap-3 text-sm text-white/70">
-                  <span className="text-[#a3413a] mt-0.5 flex-shrink-0 text-[10px]">◆</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
           </div>
         )}
 
