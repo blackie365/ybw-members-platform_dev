@@ -2355,6 +2355,29 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             style={{ background: 'radial-gradient(ellipse, #a3413a 0%, transparent 70%)', filter: 'blur(80px)' }}
           />
 
+          {(data.name || sectionLabel || data.role) && (
+            <div className="sticky top-0 z-20 -mx-8 lg:-mx-12 xl:-mx-16 px-8 lg:px-12 xl:px-16 py-5 bg-[#0e0b09]/85 backdrop-blur-md border-b border-white/[0.06]">
+              {sectionLabel && (
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-6 bg-[#a3413a]" />
+                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#a3413a]">
+                    {sectionLabel || 'Member Spotlight'}
+                  </span>
+                </div>
+              )}
+              {data.name && (
+                <h3 className="mt-3 font-serif text-white leading-tight tracking-tight text-2xl sm:text-3xl font-bold">
+                  {data.name}
+                </h3>
+              )}
+              {data.role && (
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
+                  {data.role}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Pull-quote / message */}
           {data.message && (
             <div className="scroll-reveal mb-8 lg:mb-10">
