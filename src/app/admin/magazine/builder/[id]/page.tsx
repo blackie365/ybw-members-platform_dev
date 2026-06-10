@@ -454,6 +454,9 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
         toast.success('Spread content saved');
         // Re-load data to ensure server sync, but local state is already updated
         await loadData(false); 
+      } else {
+        toast.error(res.error || 'Failed to save content');
+        await loadData(true);
       }
     } catch (error) {
       toast.error('Failed to save content');
