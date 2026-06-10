@@ -1060,6 +1060,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     }
   };
 
+  const hasJsonErrors = Boolean(
+    rawJsonError ||
+      contentsItemsError ||
+      newsError ||
+      tipsError ||
+      highlightsError ||
+      socialsError ||
+      statsError
+  );
+
   return (
     <Card className="border-accent/30 shadow-lg">
       <CardHeader className="bg-accent/5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1067,33 +1077,38 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
           <CardTitle className="text-xl">Page Settings: {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}</CardTitle>
           <CardDescription>Edit the visual elements and text for this spread.</CardDescription>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          {!!onChangeType && (
-            <Select
-              value={page.type}
-              onValueChange={(nextType) => {
-                if (nextType === page.type) return;
-                setPendingType(nextType);
-                setIsTypeDialogOpen(true);
-              }}
-              disabled={isSaving}
-            >
-              <SelectTrigger className="h-9 w-[220px] bg-white">
-                <SelectValue placeholder="Layout" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_TYPES.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Button onClick={() => onSave(content)} disabled={isSaving} className="bg-accent text-white">
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Page
-          </Button>
+        <div className="flex flex-col gap-1 sm:items-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            {!!onChangeType && (
+              <Select
+                value={page.type}
+                onValueChange={(nextType) => {
+                  if (nextType === page.type) return;
+                  setPendingType(nextType);
+                  setIsTypeDialogOpen(true);
+                }}
+                disabled={isSaving}
+              >
+                <SelectTrigger className="h-9 w-[220px] bg-white">
+                  <SelectValue placeholder="Layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_TYPES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button onClick={() => onSave(content)} disabled={isSaving || hasJsonErrors} className="bg-accent text-white">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Page
+            </Button>
+          </div>
+          {hasJsonErrors ? (
+            <p className="text-[10px] text-destructive sm:text-right">Fix JSON errors above before saving.</p>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="pt-6 max-h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar">
