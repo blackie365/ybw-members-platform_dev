@@ -36,9 +36,24 @@ interface PageEditorProps {
 export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
+  const [pullQuotesDraft, setPullQuotesDraft] = useState<string>('');
   const lastLoadedDocIdRef = useRef<string | null>(null);
   const [pendingType, setPendingType] = useState<string | null>(null);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
+
+  const stringifyPullQuotes = (value: any) => {
+    const list = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+    return list.map((q: any) => String(q || '').trim()).filter(Boolean).join('\n');
+  };
+
+  const parsePullQuotes = (raw: string) => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return [];
+    return trimmed
+      .split(/\r?\n+/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
 
   useEffect(() => {
     if (!page?.docId) return;
@@ -55,6 +70,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       setLifestyleImagesDraft('[]');
     }
 
+    setPullQuotesDraft(stringifyPullQuotes((nextContent as any)?.pullQuotes || (nextContent as any)?.quotes || ''));
     setPendingType(null);
     setIsTypeDialogOpen(false);
   }, [page?.docId, page?.content, page?.type]);
@@ -324,6 +340,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Pull Quote</Label>
               <Input value={safeContent.quote || ''} onChange={(e) => updateContent('quote', e.target.value)} />
             </div>
+
+            <div className="space-y-2">
+              <Label>Pull Quotes (One Per Line)</Label>
+              <Textarea
+                rows={3}
+                value={pullQuotesDraft}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPullQuotesDraft(next);
+                  updateContent('pullQuotes', parsePullQuotes(next));
+                }}
+              />
+            </div>
           </div>
         );
       case 'contents':
@@ -436,6 +465,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.quote || ''} onChange={(e) => updateContent('quote', e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Pull Quotes (One Per Line)</Label>
+              <Textarea
+                rows={3}
+                value={pullQuotesDraft}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPullQuotesDraft(next);
+                  updateContent('pullQuotes', parsePullQuotes(next));
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">These will be auto-inserted between paragraphs to break up long text.</p>
+            </div>
+            <div className="space-y-2">
               <Label>Stats (JSON Array)</Label>
               <Textarea 
                 rows={4} 
@@ -496,6 +538,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 rows={6}
                 value={safeContent.text || ''}
                 onChange={(e) => updateContent('text', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Pull Quotes (One Per Line)</Label>
+              <Textarea
+                rows={3}
+                value={pullQuotesDraft}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPullQuotesDraft(next);
+                  updateContent('pullQuotes', parsePullQuotes(next));
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -595,6 +649,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 rows={6}
                 value={safeContent.text || ''}
                 onChange={(e) => updateContent('text', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Pull Quotes (One Per Line)</Label>
+              <Textarea
+                rows={3}
+                value={pullQuotesDraft}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPullQuotesDraft(next);
+                  updateContent('pullQuotes', parsePullQuotes(next));
+                }}
               />
             </div>
             <div className="space-y-2">
