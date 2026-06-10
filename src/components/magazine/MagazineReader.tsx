@@ -583,29 +583,41 @@ function normalizePullQuotes(input: any): string[] {
   return out.slice(0, 4);
 }
 
-function PullQuoteCard({ text, variant }: { text: string; variant: 'light' | 'dark' }) {
+function PullQuoteCard({ text, variant, align }: { text: string; variant: 'light' | 'dark'; align: 'left' | 'right' }) {
   const frameClassName = variant === 'dark'
-    ? 'border border-white/10 bg-white/5'
-    : 'border border-[#e8d5c0] bg-white';
+    ? 'border border-white/12 bg-transparent'
+    : 'border border-[#a3413a]/25 bg-transparent';
 
   const accentClassName = variant === 'dark'
     ? 'text-[#a3413a]'
     : 'text-[#a3413a]';
 
   const textClassName = variant === 'dark'
-    ? 'text-white/80'
-    : 'text-[#3d2b1f]/80';
+    ? 'text-white/85'
+    : 'text-[#3d2b1f]/85';
+
+  const floatClassName = align === 'right'
+    ? 'md:float-right md:ml-6'
+    : 'md:float-left md:mr-6';
 
   return (
-    <blockquote className={['relative overflow-hidden rounded-3xl px-6 py-6 shadow-[0_20px_90px_rgba(0,0,0,0.10)]', frameClassName].join(' ')}>
+    <blockquote
+      className={[
+        'relative overflow-hidden rounded-3xl px-6 py-6',
+        'shadow-[0_20px_90px_rgba(0,0,0,0.10)]',
+        'md:w-1/3 lg:w-1/4 md:mt-1 md:mb-3',
+        floatClassName,
+        frameClassName,
+      ].join(' ')}
+    >
       <div
-        className={['absolute -top-6 -left-3 font-serif leading-none select-none', accentClassName].join(' ')}
-        style={{ fontSize: 'clamp(4rem, 8vw, 6.5rem)', opacity: 0.25 }}
+        className={['absolute -top-7 -left-3 font-serif leading-none select-none', accentClassName].join(' ')}
+        style={{ fontSize: 'clamp(4.25rem, 8vw, 7rem)', opacity: 0.25 }}
         aria-hidden="true"
       >
         &ldquo;
       </div>
-      <p className={['relative font-serif italic leading-relaxed', textClassName].join(' ')} style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+      <p className={['relative font-serif italic leading-relaxed', textClassName].join(' ')} style={{ fontSize: 'clamp(1.15rem, 2.2vw, 1.55rem)' }}>
         &ldquo;{text}&rdquo;
       </p>
       <div className="mt-5 h-px w-14 bg-[#a3413a]" style={{ opacity: variant === 'dark' ? 0.5 : 0.35 }} />
@@ -784,11 +796,11 @@ function InterleavedTextWithMedia({
     nodes.push(<SafeText key={`tb-${i}`} html={block} className={textClassName} />);
 
     if (quotePoints.has(i + 1) && quoteIndex < safeQuotes.length) {
-      const quote = safeQuotes[quoteIndex++];
+      const quote = safeQuotes[quoteIndex];
+      const align = quoteIndex % 2 === 0 ? 'right' : 'left';
+      quoteIndex += 1;
       nodes.push(
-        <div key={`tq-${i}`} className="py-1">
-          <PullQuoteCard text={quote} variant={variant} />
-        </div>
+        <PullQuoteCard key={`tq-${i}`} text={quote} variant={variant} align={align} />
       );
     }
 
@@ -797,14 +809,19 @@ function InterleavedTextWithMedia({
       const requestedLayout = item.layout === 'full' || item.layout === 'wide' || item.layout === 'inline' ? item.layout : undefined;
       const size = requestedLayout === 'full' ? 'full' : requestedLayout === 'inline' ? 'inline' : 'wide';
       nodes.push(
-        <div key={`tm-${i}`} className="py-1">
+        <div key={`tm-${i}`} className="py-1 clear-both">
           <MediaFigure item={item} imageVersion={imageVersion} variant={variant} size={size} />
         </div>
       );
     }
   }
 
-  return <div className="space-y-4">{nodes}</div>;
+  return (
+    <div className="space-y-4">
+      {nodes}
+      <div className="clear-both" />
+    </div>
+  );
 }
 
 function renderTitleArt(text: unknown, emphasisClassName?: string): React.ReactNode {
