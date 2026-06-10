@@ -35,13 +35,28 @@ interface PageEditorProps {
 
 export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
   const [content, setContent] = useState<any>({});
+  const [rawJsonDraft, setRawJsonDraft] = useState<string>('{}');
+  const [rawJsonError, setRawJsonError] = useState<string>('');
+  const rawJsonFocusedRef = useRef(false);
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
   const [pullQuotesDraft, setPullQuotesDraft] = useState<string>('');
+  const [contentsItemsDraft, setContentsItemsDraft] = useState<string>('[]');
+  const [contentsItemsError, setContentsItemsError] = useState<string>('');
+  const [newsDraft, setNewsDraft] = useState<string>('[]');
+  const [newsError, setNewsError] = useState<string>('');
+  const [tipsDraft, setTipsDraft] = useState<string>('[]');
+  const [tipsError, setTipsError] = useState<string>('');
+  const [highlightsDraft, setHighlightsDraft] = useState<string>('[]');
+  const [highlightsError, setHighlightsError] = useState<string>('');
+  const [socialsDraft, setSocialsDraft] = useState<string>('[]');
+  const [socialsError, setSocialsError] = useState<string>('');
   const [statsDraft, setStatsDraft] = useState<string>('[]');
   const [statsError, setStatsError] = useState<string>('');
   const lastLoadedDocIdRef = useRef<string | null>(null);
   const [pendingType, setPendingType] = useState<string | null>(null);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
+
+  const stringifyJson = (value: any) => JSON.stringify(value ?? null, null, 2);
 
   const stringifyPullQuotes = (value: any) => {
     const list = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
@@ -60,6 +75,76 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
   const stringifyStats = (value: any) => {
     const list = Array.isArray(value) ? value : [];
     return JSON.stringify(list, null, 2);
+  };
+
+  const parseStringArray = (raw: string) => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return { value: [] as string[], error: '' };
+
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return { value: parsed.map((x: any) => String(x || '').trim()).filter(Boolean), error: '' };
+        }
+        return { value: [] as string[], error: 'Must be a JSON array.' };
+      } catch {
+        return { value: [] as string[], error: 'Invalid JSON.' };
+      }
+    }
+
+    const lines = trimmed.split(/\r?\n+/g).map((s) => s.trim()).filter(Boolean);
+    return { value: lines, error: '' };
+  };
+
+  const parseContentsItems = (raw: string) => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return { items: [] as any[], error: '' };
+
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return { items: parsed, error: '' };
+        return { items: [] as any[], error: 'Items must be a JSON array.' };
+      } catch {
+        return { items: [] as any[], error: 'Invalid JSON.' };
+      }
+    }
+
+    const lines = trimmed.split(/\r?\n+/g).map((s) => s.trim()).filter(Boolean);
+    const items = lines
+      .map((line) => {
+        const parts = line.split('|').map((p) => p.trim()).filter(Boolean);
+        if (parts.length < 3) return null;
+        const page = Number(parts[0]);
+        const category = parts[1];
+        const title = parts.slice(2).join(' | ');
+        if (!Number.isFinite(page) || page <= 0 || !category || !title) return null;
+        return { page, category, title };
+      })
+      .filter(Boolean);
+
+    if (items.length === 0) {
+      return { items: [] as any[], error: 'Use JSON array or one per line: 4 | LIFESTYLE | Summer Fashion' };
+    }
+
+    return { items, error: '' };
+  };
+
+  const parseImageUrls = (raw: string) => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return [] as string[];
+
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((x: any) => String(x || '').trim()).filter(Boolean);
+        if (typeof parsed === 'string') return parsed.trim() ? [parsed.trim()] : [];
+      } catch {}
+    }
+
+    const lines = trimmed.split(/\r?\n+/g).map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    return lines;
   };
 
   const parseStats = (raw: string) => {
@@ -98,6 +183,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
 
     const nextContent = page.content || {};
     setContent(nextContent);
+    setRawJsonDraft(JSON.stringify(nextContent || {}, null, 2));
+    setRawJsonError('');
+    rawJsonFocusedRef.current = false;
 
     if (page.type === 'lifestyle') {
       const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
@@ -107,11 +195,30 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     }
 
     setPullQuotesDraft(stringifyPullQuotes((nextContent as any)?.pullQuotes || (nextContent as any)?.quotes || ''));
+    setContentsItemsDraft(stringifyJson((nextContent as any)?.items || []));
+    setContentsItemsError('');
+    setNewsDraft(stringifyJson((nextContent as any)?.news || []));
+    setNewsError('');
+    setTipsDraft(stringifyJson((nextContent as any)?.tips || []));
+    setTipsError('');
+    setHighlightsDraft(stringifyJson((nextContent as any)?.highlights || []));
+    setHighlightsError('');
+    setSocialsDraft(stringifyJson((nextContent as any)?.socials || []));
+    setSocialsError('');
     setStatsDraft(stringifyStats((nextContent as any)?.stats));
     setStatsError('');
     setPendingType(null);
     setIsTypeDialogOpen(false);
   }, [page?.docId, page?.content, page?.type]);
+
+  useEffect(() => {
+    if (rawJsonFocusedRef.current) return;
+    if (rawJsonError) return;
+    setRawJsonDraft((prev) => {
+      const next = JSON.stringify(content || {}, null, 2);
+      return prev === next ? prev : next;
+    });
+  }, [content, rawJsonError]);
 
   if (!page) {
     return (
@@ -419,22 +526,43 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Contents Items (JSON Array)</Label>
               <Textarea 
                 rows={6} 
-                value={JSON.stringify(safeContent.items || [], null, 2)} 
+                value={contentsItemsDraft}
                 onChange={(e) => {
-                  try { updateContent('items', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setContentsItemsDraft(next);
+                  const parsed = parseContentsItems(next);
+                  setContentsItemsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('items', parsed.items);
+                  }
+                }}
               />
-              <p className="text-[10px] text-muted-foreground">Format: {"[{\"page\": 4, \"category\": \"LIFESTYLE\", \"title\": \"Summer Fashion\"}]"}</p>
+              {contentsItemsError ? (
+                <p className="text-[10px] text-destructive">{contentsItemsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or use one per line: 4 | LIFESTYLE | Summer Fashion</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Regional News (JSON Array of Strings)</Label>
               <Textarea 
                 rows={4} 
-                value={JSON.stringify(safeContent.news || [], null, 2)} 
+                value={newsDraft}
                 onChange={(e) => {
-                  try { updateContent('news', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setNewsDraft(next);
+                  const parsed = parseStringArray(next);
+                  setNewsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('news', parsed.value);
+                  }
+                }}
               />
+              {newsError ? (
+                <p className="text-[10px] text-destructive">{newsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or one per line.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Regional News Label</Label>
@@ -604,11 +732,22 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Tips (JSON Array of Strings)</Label>
               <Textarea 
                 rows={4} 
-                value={JSON.stringify(safeContent.tips || [], null, 2)} 
+                value={tipsDraft}
                 onChange={(e) => {
-                  try { updateContent('tips', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setTipsDraft(next);
+                  const parsed = parseStringArray(next);
+                  setTipsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('tips', parsed.value);
+                  }
+                }}
               />
+              {tipsError ? (
+                <p className="text-[10px] text-destructive">{tipsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or one per line.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Tips Label</Label>
@@ -659,31 +798,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 onChange={(e) => {
                   const next = e.target.value;
                   setLifestyleImagesDraft(next);
-                  const normalized = next.trim();
-                  if (!normalized) {
-                    updateContent('images', []);
-                    return;
-                  }
-
-                  try {
-                    const parsed = JSON.parse(normalized);
-                    if (Array.isArray(parsed)) {
-                      const urls = parsed.map((x: any) => String(x || '').trim()).filter(Boolean);
-                      updateContent('images', urls);
-                      return;
-                    }
-                    if (typeof parsed === 'string') {
-                      const url = parsed.trim();
-                      updateContent('images', url ? [url] : []);
-                      return;
-                    }
-                  } catch (err) {}
-
-                  const urls = normalized
-                    .split(/[\n,]+/g)
-                    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-                    .filter(Boolean);
-                  updateContent('images', urls);
+                  updateContent('images', parseImageUrls(next));
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Paste one image URL per line (recommended) or use JSON: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
@@ -715,11 +830,22 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Highlights (JSON Array of Strings)</Label>
               <Textarea 
                 rows={4} 
-                value={JSON.stringify(safeContent.highlights || [], null, 2)} 
+                value={highlightsDraft}
                 onChange={(e) => {
-                  try { updateContent('highlights', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setHighlightsDraft(next);
+                  const parsed = parseStringArray(next);
+                  setHighlightsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('highlights', parsed.value);
+                  }
+                }}
               />
+              {highlightsError ? (
+                <p className="text-[10px] text-destructive">{highlightsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or one per line.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Highlights Label</Label>
@@ -903,11 +1029,22 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Social Platforms (JSON Array of Strings)</Label>
               <Textarea 
                 rows={4} 
-                value={JSON.stringify(safeContent.socials || [], null, 2)} 
+                value={socialsDraft}
                 onChange={(e) => {
-                  try { updateContent('socials', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setSocialsDraft(next);
+                  const parsed = parseStringArray(next);
+                  setSocialsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('socials', parsed.value);
+                  }
+                }}
               />
+              {socialsError ? (
+                <p className="text-[10px] text-destructive">{socialsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or one per line.</p>
+              )}
             </div>
           </div>
         );
@@ -967,18 +1104,54 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
           <Textarea 
             className="font-mono text-[10px] mt-2 bg-muted/30 focus:bg-white transition-colors" 
             rows={5}
-            value={JSON.stringify(content || {}, null, 2)}
+            value={rawJsonDraft}
+            onFocus={() => {
+              rawJsonFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              rawJsonFocusedRef.current = false;
+              if (!rawJsonError) {
+                setRawJsonDraft(JSON.stringify(content || {}, null, 2));
+              }
+            }}
             onChange={(e) => {
+              const next = e.target.value;
+              setRawJsonDraft(next);
               try {
-                const parsed = JSON.parse(e.target.value);
+                const parsed = JSON.parse(next);
                 if (typeof parsed === 'object' && parsed !== null) {
+                  setRawJsonError('');
                   setContent(parsed);
+                  setPullQuotesDraft(stringifyPullQuotes((parsed as any)?.pullQuotes || (parsed as any)?.quotes || ''));
+                  setContentsItemsDraft(stringifyJson((parsed as any)?.items || []));
+                  setContentsItemsError('');
+                  setNewsDraft(stringifyJson((parsed as any)?.news || []));
+                  setNewsError('');
+                  setTipsDraft(stringifyJson((parsed as any)?.tips || []));
+                  setTipsError('');
+                  setHighlightsDraft(stringifyJson((parsed as any)?.highlights || []));
+                  setHighlightsError('');
+                  setSocialsDraft(stringifyJson((parsed as any)?.socials || []));
+                  setSocialsError('');
+                  setStatsDraft(stringifyStats((parsed as any)?.stats));
+                  setStatsError('');
+                  if (page?.type === 'lifestyle') {
+                    const initial = Array.isArray((parsed as any)?.images) ? (parsed as any).images : [];
+                    setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
+                  }
+                  return;
                 }
-              } catch (err) {
-                // Ignore invalid JSON while typing
+                setRawJsonError('Content must be a JSON object.');
+              } catch {
+                setRawJsonError('Invalid JSON.');
               }
             }}
           />
+          {rawJsonError ? (
+            <p className="text-[10px] text-destructive mt-1">{rawJsonError}</p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground mt-1">Edits here update the other panels when valid JSON.</p>
+          )}
         </div>
       </CardContent>
 
