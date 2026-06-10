@@ -768,8 +768,12 @@ function InterleavedTextWithMedia({
   if (safeMedia.length > 1 && safeBlocks.length >= 5) insertionPoints.add(5);
 
   const quotePoints = new Set<number>();
-  if (safeQuotes.length > 0 && safeBlocks.length >= 3) quotePoints.add(3);
-  if (safeQuotes.length > 1 && safeBlocks.length >= 6) quotePoints.add(6);
+  if (safeQuotes.length > 0) {
+    quotePoints.add(safeBlocks.length >= 3 ? 3 : 1);
+  }
+  if (safeQuotes.length > 1) {
+    quotePoints.add(safeBlocks.length >= 6 ? 6 : Math.max(2, safeBlocks.length));
+  }
 
   let mediaIndex = 0;
   let quoteIndex = 0;
@@ -1281,6 +1285,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
     ...getHtmlBlocks(String(data.intro || '')),
     ...getHtmlBlocks(String(data.text || '')),
   ];
+  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
+  const bodyBlocks = getHtmlBlocks(String(data.text || ''));
 
   if (isFullBackground) {
     return (
@@ -1456,15 +1462,22 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           </div>
         )}
 
-        {data.text && (
+        {bodyBlocks.length > 0 && (
           <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
-            <SafeText html={data.text} className="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3" />
+            <InterleavedTextWithMedia
+              blocks={bodyBlocks}
+              inlineMedia={inlineMedia}
+              pullQuotes={pullQuotes}
+              imageVersion={imageVersion}
+              variant="light"
+              textClassName="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3"
+            />
           </div>
         )}
 
-        {additionalMedia.length > 0 && (
+        {remainingMedia.length > 0 && (
           <div className="scroll-reveal scroll-reveal-delay-3 mb-6">
-            <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+            <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" />
           </div>
         )}
 
@@ -1504,6 +1517,10 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
+  const inlineMedia = additionalMedia.slice(0, 2);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
+  const textBlocks = getHtmlBlocks(String(data.text || ''));
 
   if (isFullBackground) {
     return (
@@ -1565,11 +1582,20 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                     </div>
                   )}
 
-                  {data.text && <SafeText html={data.text} className="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />}
+                  {textBlocks.length > 0 && (
+                    <InterleavedTextWithMedia
+                      blocks={textBlocks}
+                      inlineMedia={inlineMedia}
+                      pullQuotes={pullQuotes}
+                      imageVersion={imageVersion}
+                      variant="dark"
+                      textClassName="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
+                    />
+                  )}
 
-                  {additionalMedia.length > 0 && (
+                  {remainingMedia.length > 0 && (
                     <div className="scroll-reveal scroll-reveal-delay-2">
-                      <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="dark" />
+                      <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" />
                     </div>
                   )}
                 </div>
@@ -1630,11 +1656,20 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
               </div>
             )}
 
-            {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/75 leading-relaxed" />}
+            {textBlocks.length > 0 && (
+              <InterleavedTextWithMedia
+                blocks={textBlocks}
+                inlineMedia={inlineMedia}
+                pullQuotes={pullQuotes}
+                imageVersion={imageVersion}
+                variant="light"
+                textClassName="text-[#3d2b1f]/75 leading-relaxed"
+              />
+            )}
 
-            {additionalMedia.length > 0 && (
+            {remainingMedia.length > 0 && (
               <div className="scroll-reveal scroll-reveal-delay-2">
-                <AdditionalMediaGallery items={additionalMedia} imageVersion={imageVersion} variant="light" />
+                <AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" />
               </div>
             )}
           </div>

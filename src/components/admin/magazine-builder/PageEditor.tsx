@@ -37,6 +37,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
   const [content, setContent] = useState<any>({});
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
   const [pullQuotesDraft, setPullQuotesDraft] = useState<string>('');
+  const [statsDraft, setStatsDraft] = useState<string>('[]');
+  const [statsError, setStatsError] = useState<string>('');
   const lastLoadedDocIdRef = useRef<string | null>(null);
   const [pendingType, setPendingType] = useState<string | null>(null);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
@@ -55,6 +57,40 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       .filter(Boolean);
   };
 
+  const stringifyStats = (value: any) => {
+    const list = Array.isArray(value) ? value : [];
+    return JSON.stringify(list, null, 2);
+  };
+
+  const parseStats = (raw: string) => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return { stats: [] as any[], error: '' };
+
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return { stats: parsed, error: '' };
+        return { stats: [], error: 'Stats must be a JSON array.' };
+      } catch {
+        return { stats: [], error: 'Invalid JSON.' };
+      }
+    }
+
+    const lines = trimmed.split(/\r?\n+/g).map((s) => s.trim()).filter(Boolean);
+    const stats = lines
+      .map((line) => {
+        const idx = line.includes('|') ? line.indexOf('|') : line.indexOf(':');
+        if (idx <= 0) return null;
+        const label = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (!label || !value) return null;
+        return { label, value };
+      })
+      .filter(Boolean);
+
+    return { stats, error: '' };
+  };
+
   useEffect(() => {
     if (!page?.docId) return;
     if (lastLoadedDocIdRef.current === page.docId) return;
@@ -71,6 +107,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     }
 
     setPullQuotesDraft(stringifyPullQuotes((nextContent as any)?.pullQuotes || (nextContent as any)?.quotes || ''));
+    setStatsDraft(stringifyStats((nextContent as any)?.stats));
+    setStatsError('');
     setPendingType(null);
     setIsTypeDialogOpen(false);
   }, [page?.docId, page?.content, page?.type]);
@@ -480,13 +518,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Stats (JSON Array)</Label>
               <Textarea 
-                rows={4} 
-                value={JSON.stringify(safeContent.stats || [], null, 2)} 
+                rows={4}
+                value={statsDraft}
                 onChange={(e) => {
-                  try { updateContent('stats', JSON.parse(e.target.value)); } catch (err) {}
-                }} 
+                  const next = e.target.value;
+                  setStatsDraft(next);
+                  const parsed = parseStats(next);
+                  setStatsError(parsed.error);
+                  if (!parsed.error) {
+                    updateContent('stats', parsed.stats);
+                  }
+                }}
               />
-              <p className="text-[10px] text-muted-foreground">Format: {"[{\"label\": \"YEARS\", \"value\": \"15\"}]"}</p>
+              {statsError ? (
+                <p className="text-[10px] text-destructive">{statsError}</p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Paste JSON array or use one per line: YEARS: 14</p>
+              )}
             </div>
           </div>
         );
