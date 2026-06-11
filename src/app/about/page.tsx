@@ -1,4 +1,5 @@
 import { getPage } from '@/lib/ghost';
+import { sanitizeHtml } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -248,7 +249,7 @@ export default async function AboutPage() {
                   prose-ul:text-muted-foreground prose-ol:text-muted-foreground
                   prose-blockquote:border-l-accent prose-blockquote:text-muted-foreground prose-blockquote:italic
                   prose-img:rounded-lg"
-                dangerouslySetInnerHTML={{ __html: page?.html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(page?.html || '') }}
               />
             </div>
           </div>

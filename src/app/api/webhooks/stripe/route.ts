@@ -87,7 +87,7 @@ export async function POST(req: Request) {
             userInactive: false,
             isNewsletterAuthorized: true,
           });
-          console.log(`Successfully activated ${membershipTier} subscription for user ${userId}`);
+          console.log(`Successfully activated ${membershipTier} subscription`);
 
           // Trigger Welcome Email Workflow non-blockingly
           const userData = userDoc.data() || {};
@@ -169,7 +169,7 @@ export async function POST(req: Request) {
               timestamp: new Date().toISOString(),
               hasTicket: true
             });
-            console.log(`Successfully added user ${userId} to RSVP list for ${postSlug}`);
+            console.log(`Successfully added attendee to RSVP list for ${postSlug}`);
 
             // Workflow: Send Event Ticket Confirmation Email
             const userEmail = session.customer_details?.email || session.customer_email || profileData.email;
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
           }
         }
         
-        console.log(`Successfully recorded ticket purchase for user ${userId} and event ${postId}`);
+        console.log(`Successfully recorded ticket purchase for event ${postId}`);
       }
     }
     
@@ -228,7 +228,7 @@ export async function POST(req: Request) {
               userInactive: false,
               isNewsletterAuthorized: true,
             });
-            console.log(`Updated user ${customerEmail} to ${tier} Member`);
+            console.log(`Updated member tier to ${tier}`);
 
             const adminRecipients = await getAdminRecipients();
             sendEmail({

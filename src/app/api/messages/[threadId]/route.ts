@@ -8,6 +8,10 @@ export async function GET(
   { params }: { params: Promise<{ threadId: string }> }
 ) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+    }
+
     const { threadId } = await params;
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -81,6 +85,10 @@ export async function POST(
   { params }: { params: Promise<{ threadId: string }> }
 ) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+    }
+
     const { threadId } = await params;
     const body = await request.json();
     const { senderId, senderName, senderImage, content } = body;

@@ -1,6 +1,13 @@
 // Ghost API configuration
 const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
-const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || '61f6041a1f00410f9ac05a60a4';
+const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY;
+
+function requireGhostContentKey() {
+  if (!GHOST_CONTENT_API_KEY) {
+    throw new Error('Missing NEXT_PUBLIC_GHOST_CONTENT_API_KEY');
+  }
+  return GHOST_CONTENT_API_KEY;
+}
 
 /**
  * Fetch posts from Ghost using native fetch for better Next.js App Router support
@@ -8,7 +15,7 @@ const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || '
 export async function getPosts(options?: { limit?: number | string; filter?: string; page?: number; order?: string }) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/`);
-    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.append('key', requireGhostContentKey());
     
     // Safety: Default to 15 posts if no limit is provided, and never exceed 100 in a single request.
     // This prevents performance issues with categories that have hundreds of articles.
@@ -64,7 +71,7 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
 export async function getPage(pageSlug: string) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/pages/slug/${pageSlug}/`);
-    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.append('key', requireGhostContentKey());
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -91,7 +98,7 @@ export async function getPage(pageSlug: string) {
 export async function getSinglePost(postSlug: string) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/posts/slug/${postSlug}/`);
-    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.append('key', requireGhostContentKey());
     url.searchParams.append('include', 'tags,authors');
     url.searchParams.append('formats', 'html,plaintext');
 
@@ -124,7 +131,7 @@ export async function getSinglePost(postSlug: string) {
 export async function getTags(options?: { limit?: number | string; include?: string; order?: string; filter?: string }) {
   try {
     const url = new URL(`${GHOST_API_URL}/ghost/api/content/tags/`);
-    url.searchParams.append('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.append('key', requireGhostContentKey());
     
     // Safety: Default to 20 tags and cap at 100
     let limit = options?.limit || 20;
@@ -163,4 +170,3 @@ export async function getTags(options?: { limit?: number | string; include?: str
     return [];
   }
 }
-

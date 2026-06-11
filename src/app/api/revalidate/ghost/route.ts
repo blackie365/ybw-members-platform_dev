@@ -16,6 +16,9 @@ export async function POST(req: Request) {
       if (!uid || !email) {
         return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
       }
+      if (!adminDb) {
+        return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+      }
 
       await adminDb.collection('newMemberCollection').doc(uid).set({
         firstName: firstName || '',

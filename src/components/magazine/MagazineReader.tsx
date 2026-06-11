@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, X, Menu, Download, Share2, ArrowRight, Maxim
 import { Logo } from '@/components/Logo';
 import { MagazinePage, MagazineIssue } from '@/lib/magazine-service';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import { sanitizeHtml } from '@/lib/utils';
 
 interface MagazineReaderProps {
   issue: MagazineIssue;
@@ -407,13 +408,15 @@ function SafeText({ html, className }: { html: string; className?: string }) {
     }
   }
 
+  const sanitized = sanitizeHtml(content);
+
   return (
     <div
       className={[
         '[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0',
         className,
       ].filter(Boolean).join(' ')}
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
 }
@@ -971,21 +974,25 @@ const PageCover = ({ data, imageVersion }: any) => {
   }, []);
 
   const dateIssue = [data.date, data.issue].filter(Boolean).join(' · ');
+  const backgroundImage = String(data.image || '').trim();
+  const featureImageExplicit = String(data.featureImage || '').trim();
+  const featureImage = featureImageExplicit || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.headline || data.title || 'Cover').trim());
 
   return (
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-      {data.image ? (
+      {backgroundMedia ? (
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('${fixMagazineImageUrl(data.image, imageVersion)}')` }}
+          style={{ backgroundImage: `url('${fixMagazineImageUrl(backgroundMedia, imageVersion)}')` }}
         />
       ) : null}
 
       {data.videoUrl ? (
         <video
           src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-          poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+          poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
           autoPlay
           muted
           loop
@@ -1013,8 +1020,8 @@ const PageCover = ({ data, imageVersion }: any) => {
       <div className="absolute left-0 top-0 bottom-0 w-1 z-20"
         style={{ background: 'linear-gradient(to bottom, transparent, #a3413a 30%, #a3413a 70%, transparent)' }} />
 
-      <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-10 py-12 lg:py-16 min-h-full flex items-center">
-        <div className="max-w-xl">
+      <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-10 py-12 lg:py-16 min-h-full grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className={['max-w-xl', featureImageExplicit ? 'lg:col-span-6' : 'lg:col-span-12'].join(' ')}>
           {/* Issue badge */}
           <div className="cover-animate opacity-0 mb-7">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-white/70 border border-white/15 bg-white/[0.06] backdrop-blur-sm">
@@ -1083,6 +1090,20 @@ const PageCover = ({ data, imageVersion }: any) => {
             </div>
           )}
         </div>
+
+        {featureImageExplicit ? (
+          <div className="hidden lg:block lg:col-span-6 cover-animate opacity-0">
+            <div className="relative mx-auto w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_28px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={fixMagazineImageUrl(featureImageExplicit, imageVersion)}
+                alt={String(data.headline || data.title || 'Cover Feature').trim()}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1107,6 +1128,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
     ...(introWithDropcap ? [introWithDropcap] : []),
     ...getHtmlBlocks(bodyHtml || ''),
   ];
+  const featureImage = String(data.featureImage || data.image || '').trim();
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -1128,8 +1150,14 @@ const PageEditorial = ({ data, imageVersion }: any) => {
           <div className="lg:col-span-4 scroll-reveal scroll-reveal-delay-1">
             <div className="lg:sticky lg:top-32 space-y-5">
               <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_8px_40px_rgba(163,65,58,0.15)] ring-1 ring-[#a3413a]/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.author} className="w-full h-full object-cover" />
+                {featureImage ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.author} className="w-full h-full object-cover" />
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#f3e6da] to-[#faf7f2]" />
+                )}
               </div>
               <div className="rounded-xl p-5 border border-[#e8d5c0] bg-white shadow-sm">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-1">Editor</p>
@@ -1342,6 +1370,9 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
@@ -1355,10 +1386,10 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.title || data.name || kicker}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -1367,7 +1398,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -1452,10 +1483,10 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
     <div ref={ref} className="relative flex flex-col lg:flex-row h-full min-h-full overflow-hidden" style={{ background: '#e8e0d5' }}>
       {/* Left: Image Panel — full height, half width on desktop */}
       <div className="relative w-full lg:w-1/2 h-56 sm:h-72 lg:h-full flex-shrink-0 overflow-hidden">
-        {data.image ? (
+        {featureImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(featureImage, imageVersion)}
             alt={data.title || data.name || kicker}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -1464,7 +1495,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -1580,6 +1611,9 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const snapshotLabel = String(data.snapshotLabel || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
@@ -1589,10 +1623,10 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.title || data.name || 'Feature'}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -1601,7 +1635,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -1739,17 +1773,17 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
           </div>
 
           <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">
-            {(data.videoUrl || data.image) && (
+            {(data.videoUrl || featureImage) && (
               <div className="rounded-2xl overflow-hidden aspect-[4/3] shadow-[0_12px_50px_rgba(163,65,58,0.12)] ring-1 ring-[#a3413a]/15 relative">
                 {data.videoUrl ? (
                   <>
-                    {data.image ? (
+                    {featureImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="absolute inset-0 w-full h-full object-cover" />
+                      <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.title || data.name || 'Feature'} className="absolute inset-0 w-full h-full object-cover" />
                     ) : null}
                     <video
                       src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                       autoPlay
                       muted
                       loop
@@ -1759,7 +1793,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                   </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.name || 'Feature'} className="w-full h-full object-cover" />
+                  <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.title || data.name || 'Feature'} className="w-full h-full object-cover" />
                 )}
               </div>
             )}
@@ -1798,6 +1832,9 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const tipsLabel = String(data.tipsLabel || data.tipsTitle || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || kicker || 'Column').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
@@ -1807,10 +1844,10 @@ const PageColumn = ({ data, imageVersion }: any) => {
     <div ref={ref} className={isFullBackground ? 'relative min-h-full overflow-hidden bg-[#0c0a09]' : 'bg-[#faf7f2] py-16 lg:py-24 min-h-full'}>
       {isFullBackground ? (
         <>
-          {data.image ? (
+          {backgroundMedia ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={fixMagazineImageUrl(data.image, imageVersion)}
+              src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
               alt={data.title || data.category || 'Column'}
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -1819,7 +1856,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
           {data.videoUrl ? (
             <video
               src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-              poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+              poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
               autoPlay
               muted
               loop
@@ -1907,22 +1944,22 @@ const PageColumn = ({ data, imageVersion }: any) => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {(data.videoUrl || data.image) && (
+            {(data.videoUrl || featureImage) && (
               <div className="lg:col-span-5 scroll-reveal">
                 <div className="rounded-2xl overflow-hidden aspect-[4/5] shadow-[0_12px_50px_rgba(163,65,58,0.12)] ring-1 ring-[#a3413a]/15 relative">
                   {data.videoUrl ? (
                     <>
-                      {data.image ? (
+                      {featureImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={fixMagazineImageUrl(data.image, imageVersion)}
+                          src={fixMagazineImageUrl(featureImage, imageVersion)}
                           alt={data.title || data.category || 'Column'}
                           className="absolute inset-0 w-full h-full object-cover"
                         />
                       ) : null}
                       <video
                         src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                        poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                        poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                         autoPlay
                         muted
                         loop
@@ -1933,7 +1970,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={fixMagazineImageUrl(data.image, imageVersion)}
+                      src={fixMagazineImageUrl(featureImage, imageVersion)}
                       alt={data.title || data.category || 'Column'}
                       className="w-full h-full object-cover"
                     />
@@ -1942,7 +1979,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
               </div>
             )}
 
-            <div className={[data.videoUrl || data.image ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || data.image ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
+            <div className={[data.videoUrl || featureImage ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || featureImage ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
@@ -2010,14 +2047,17 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={title || kicker || 'Lifestyle'}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -2026,7 +2066,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -2131,13 +2171,13 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
             <div className="rounded-2xl overflow-hidden aspect-[16/9] relative shadow-[0_12px_50px_rgba(163,65,58,0.12)]">
               {data.videoUrl ? (
                 <>
-                  {data.image ? (
+                  {featureImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={title || kicker} className="absolute inset-0 w-full h-full object-cover" />
                   ) : null}
                   <video
                     src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                    poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                    poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                     autoPlay
                     muted
                     loop
@@ -2145,9 +2185,11 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                     className="relative w-full h-full object-cover"
                   />
                 </>
-              ) : (
+              ) : featureImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={title || kicker} className="w-full h-full object-cover" />
+                <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={title || kicker} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-[#1a0d14] to-[#0e0b09]" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -2232,14 +2274,17 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.name || sectionLabel || 'Spotlight').trim());
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0e0b09]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -2248,7 +2293,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -2337,25 +2382,25 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           {/* Photo */}
           {data.videoUrl ? (
             <>
-              {data.image && (
+              {featureImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={fixMagazineImageUrl(data.image, imageVersion)}
+                  src={fixMagazineImageUrl(featureImage, imageVersion)}
                   alt={data.name}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
               <video
                 src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                 autoPlay muted loop playsInline
                 className="absolute inset-0 w-full h-full object-cover"
               />
             </>
-          ) : data.image ? (
+          ) : featureImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={fixMagazineImageUrl(data.image, imageVersion)}
+              src={fixMagazineImageUrl(featureImage, imageVersion)}
               alt={data.name}
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
@@ -2506,14 +2551,17 @@ const PagePartner = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.brand || data.title || 'Partner').trim());
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden text-white bg-[#0f0a0d]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.brand || data.title || 'Partner'}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -2522,7 +2570,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -2612,18 +2660,18 @@ const PagePartner = ({ data, imageVersion }: any) => {
             )}
           </div>
 
-          {(data.videoUrl || data.image) && (
+          {(data.videoUrl || featureImage) && (
             <div className="scroll-reveal scroll-reveal-delay-2">
               <div className="rounded-2xl overflow-hidden aspect-[3/4] shadow-[0_20px_80px_rgba(0,0,0,0.5)] ring-1 ring-white/10 relative">
                 {data.videoUrl ? (
                   <>
-                    {data.image ? (
+                    {featureImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover" />
+                      <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.brand} className="absolute inset-0 w-full h-full object-cover" />
                     ) : null}
                     <video
                       src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                       autoPlay
                       muted
                       loop
@@ -2633,7 +2681,7 @@ const PagePartner = ({ data, imageVersion }: any) => {
                   </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.brand} className="w-full h-full object-cover" />
+                  <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.brand} className="w-full h-full object-cover" />
                 )}
               </div>
             </div>
@@ -2657,14 +2705,17 @@ const PageBackCover = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.nextIssue || kicker || 'Back Cover').trim());
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
     return (
       <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
-        {data.image ? (
+        {backgroundMedia ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={fixMagazineImageUrl(data.image, imageVersion)}
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.title || data.nextIssue || kicker}
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -2673,7 +2724,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
         {data.videoUrl ? (
           <video
             src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-            poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+            poster={backgroundMedia ? fixMagazineImageUrl(backgroundMedia, imageVersion) : undefined}
             autoPlay
             muted
             loop
@@ -2795,17 +2846,17 @@ const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
             </div>
 
-            {(data.videoUrl || data.image) && (
+            {(data.videoUrl || featureImage) && (
               <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative">
                 {data.videoUrl ? (
                   <>
-                    {data.image ? (
+                    {featureImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="absolute inset-0 w-full h-full object-cover" />
+                      <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.title || data.nextIssue || kicker} className="absolute inset-0 w-full h-full object-cover" />
                     ) : null}
                     <video
                       src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
-                      poster={data.image ? fixMagazineImageUrl(data.image, imageVersion) : undefined}
+                      poster={featureImage ? fixMagazineImageUrl(featureImage, imageVersion) : undefined}
                       autoPlay
                       muted
                       loop
@@ -2815,7 +2866,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                   </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={fixMagazineImageUrl(data.image, imageVersion)} alt={data.title || data.nextIssue || kicker} className="w-full h-full object-cover" />
+                  <img src={fixMagazineImageUrl(featureImage, imageVersion)} alt={data.title || data.nextIssue || kicker} className="w-full h-full object-cover" />
                 )}
               </div>
             )}

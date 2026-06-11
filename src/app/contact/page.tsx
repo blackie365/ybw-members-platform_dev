@@ -1,4 +1,5 @@
 import { getPage } from '@/lib/ghost';
+import { sanitizeHtml } from '@/lib/utils';
 import Image from 'next/image';
 import { ModernContactForm } from '@/components/ModernContactForm';
 
@@ -114,7 +115,7 @@ export default async function ContactPage() {
               
               <div 
                 className="prose prose-lg max-w-none text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: page?.html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(page?.html || '') }}
               />
             </div>
           )}

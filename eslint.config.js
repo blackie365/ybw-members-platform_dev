@@ -1,12 +1,21 @@
+const { FlatCompat } = require('@eslint/eslintrc');
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
 module.exports = [
-  ...require("eslint-config-next/core-web-vitals"),
   {
-    name: "project-overrides",
+    ignores: ['.next/**', 'node_modules/**'],
+  },
+  ...compat.extends('next/core-web-vitals'),
+  {
+    name: 'project-overrides',
     rules: {
-      "react-hooks/immutability": "off",
-      "react-hooks/purity": "off",
-      "react-hooks/refs": "off",
-      "react-hooks/set-state-in-effect": "off",
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ];

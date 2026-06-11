@@ -5,17 +5,11 @@ import { getNewsletterWelcomeEmailTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 
 export async function POST(request: Request) {
-  console.log('📬 [API/Newsletter] Request started');
-  
   try {
-    const rawBody = await request.text();
-    console.log('📦 [API/Newsletter] Raw body:', rawBody);
-    
-    let body;
+    let body: any;
     try {
-      body = JSON.parse(rawBody);
-    } catch (e) {
-      console.error('❌ [API/Newsletter] JSON parse failed');
+      body = await request.json();
+    } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON in request' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -36,8 +30,6 @@ export async function POST(request: Request) {
       });
     }
 
-    console.log(`📬 [API/Newsletter] Email: ${email}`);
-
     // 2. Add to Beehiiv (Primary)
     let beehiivResult = { success: false, alreadyExists: false };
     try {
@@ -50,7 +42,6 @@ export async function POST(request: Request) {
         }
       });
       beehiivResult = { success: !!res?.success, alreadyExists: !!res?.alreadyExists };
-      console.log('✅ [API/Newsletter] Beehiiv sync result:', beehiivResult);
     } catch (beehiivError: any) {
       console.error('❌ [API/Newsletter] Beehiiv failed:', beehiivError.message || beehiivError);
     }
@@ -64,7 +55,6 @@ export async function POST(request: Request) {
         labels: ['newsletter-signup', 'beehiiv-sync']
       });
       ghostResult = !!ghostRes;
-      console.log('✅ [API/Newsletter] Ghost sync result:', ghostResult);
     } catch (ghostError: any) {
       console.warn('⚠️ [API/Newsletter] Ghost sync skipped:', ghostError.message || ghostError);
     }
@@ -94,10 +84,8 @@ export async function POST(request: Request) {
             { ...memberData, membershipTier: 'free', createdAt: new Date().toISOString() },
             { merge: true }
           );
-          console.log('✅ [API/Newsletter] Firebase record created (newsletter_*)');
         } else {
           await querySnapshot.docs[0].ref.update(memberData);
-          console.log('✅ [API/Newsletter] Firebase record updated');
         }
       }
     } catch (firebaseError: any) {
@@ -112,7 +100,6 @@ export async function POST(request: Request) {
         subject: 'Welcome to Yorkshire Businesswoman',
         html
       });
-      console.log('✅ [API/Newsletter] Welcome email sent');
     } catch (emailError: any) {
       console.warn('⚠️ [API/Newsletter] Welcome email failed:', emailError.message || emailError);
     }
@@ -129,8 +116,6 @@ export async function POST(request: Request) {
       }
     };
 
-    console.log('🏁 [API/Newsletter] Request completed successfully');
-    
     return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
