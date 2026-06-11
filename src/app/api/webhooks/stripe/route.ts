@@ -64,6 +64,22 @@ export async function POST(req: Request) {
   }
 
   try {
+    const processedRef = adminDb.collection('stripe_webhook_events').doc(event.id);
+    const isDuplicate = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(processedRef);
+      if (snap.exists) return true;
+      tx.set(processedRef, {
+        type: event.type,
+        livemode: (event as any).livemode === true,
+        createdAt: new Date().toISOString(),
+      });
+      return false;
+    });
+
+    if (isDuplicate) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+
     // Handle successful checkout
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -233,8 +249,12 @@ export async function POST(req: Request) {
       if (invoice.subscription) {
         const customerEmail = invoice.customer_email;
         if (customerEmail) {
+          const customerEmailLower = String(customerEmail).trim().toLowerCase();
           const usersRef = adminDb.collection('newMemberCollection');
-          const snapshot = await usersRef.where('email', '==', customerEmail).get();
+          let snapshot = await usersRef.where('emailLower', '==', customerEmailLower).limit(1).get();
+          if (snapshot.empty) {
+            snapshot = await usersRef.where('email', '==', customerEmail).limit(1).get();
+          }
           
           if (!snapshot.empty) {
             const userDoc = snapshot.docs[0];
@@ -256,11 +276,12 @@ export async function POST(req: Request) {
               status: 'active',
               membershipTier: tier,
               billingInterval: interval,
-              stripeCustomerId: invoice.customer,
+              stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id,
               subscriptionId: invoice.subscription,
               lastPaymentDate: new Date().toISOString(),
               userInactive: false,
               isNewsletterAuthorized: true,
+              emailLower: customerEmailLower,
             });
             console.log(`Updated member tier to ${tier}`);
 
