@@ -11,33 +11,36 @@ function normalizeBaseUrl(raw: string | undefined) {
 const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY;
 
 function requireGhostContentKey() {
-  if (!GHOST_CONTENT_API_KEY) {
+  const trimmed = String(GHOST_CONTENT_API_KEY || '').trim();
+  if (!trimmed) {
     throw new Error('Missing Ghost Content API key (NEXT_PUBLIC_GHOST_CONTENT_API_KEY or GHOST_CONTENT_API_KEY)');
   }
-  return GHOST_CONTENT_API_KEY;
+  return trimmed;
 }
 
 function getGhostBaseCandidates() {
-  const explicit = normalizeBaseUrl(process.env.NEXT_PUBLIC_GHOST_API_URL || process.env.GHOST_API_URL);
-  if (explicit) return [explicit];
-
   const candidates = new Set<string>();
+
+  const explicit = normalizeBaseUrl(process.env.NEXT_PUBLIC_GHOST_API_URL || process.env.GHOST_API_URL);
+  if (explicit) candidates.add(explicit);
+
   const site = normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk');
   if (site) candidates.add(site);
 
-  try {
-    const u = new URL(site);
-    if (u.hostname.startsWith('admin.')) {
-      u.hostname = u.hostname.replace(/^admin\./, '');
-      candidates.add(normalizeBaseUrl(u.toString()));
-    } else {
-      u.hostname = `admin.${u.hostname}`;
-      candidates.add(normalizeBaseUrl(u.toString()));
-    }
-  } catch {}
-
-  candidates.add('https://yorkshirebusinesswoman.co.uk');
-  candidates.add('https://admin.yorkshirebusinesswoman.co.uk');
+  for (const base of [explicit, site, 'https://yorkshirebusinesswoman.co.uk', 'https://admin.yorkshirebusinesswoman.co.uk']) {
+    if (!base) continue;
+    candidates.add(base);
+    try {
+      const u = new URL(base);
+      if (u.hostname.startsWith('admin.')) {
+        u.hostname = u.hostname.replace(/^admin\./, '');
+        candidates.add(normalizeBaseUrl(u.toString()));
+      } else {
+        u.hostname = `admin.${u.hostname}`;
+        candidates.add(normalizeBaseUrl(u.toString()));
+      }
+    } catch {}
+  }
 
   return Array.from(candidates).filter(Boolean);
 }
