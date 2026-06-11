@@ -8,6 +8,12 @@ import { getPosts } from '@/lib/ghost';
 export async function getGhostPostsAction(options?: any) {
   try {
     await checkAdmin();
+    const hasGhostKey = Boolean(
+      process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY
+    );
+    if (!hasGhostKey) {
+      throw new Error('Ghost is not configured (missing Content API key).');
+    }
     const posts = await getPosts(options);
     return { success: true, data: posts };
   } catch (error: any) {
