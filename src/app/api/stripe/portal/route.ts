@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { customerId, userEmail } = body;
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const clerkUser = await currentUser();
+    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -18,27 +25,30 @@ export async function POST(request: Request) {
       apiVersion: '2023-10-16' as any, // Using stable typing
     });
 
-    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+    let stripeCustomerId: string | undefined;
 
-    let stripeCustomerId = customerId;
+    if (adminDb) {
+      const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
+      const profile = profileSnap.data() as any;
+      if (profile?.stripeCustomerId && typeof profile.stripeCustomerId === 'string') {
+        stripeCustomerId = profile.stripeCustomerId;
+      }
+    }
 
-    // If no customerId is provided but we have an email, we can try to look up the customer
     if (!stripeCustomerId && userEmail) {
-      const customers = await stripe.customers.list({
-        email: userEmail,
-        limit: 1
-      });
+      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
       if (customers.data.length > 0) {
         stripeCustomerId = customers.data[0].id;
       }
     }
 
     if (!stripeCustomerId) {
-      // Create a customer just to allow portal access (or handle gracefully)
-      const customer = await stripe.customers.create({
-        email: userEmail,
-      });
+      const customer = await stripe.customers.create(userEmail ? { email: userEmail } : undefined);
       stripeCustomerId = customer.id;
+      if (adminDb) {
+        await adminDb.collection('newMemberCollection').doc(userId).set({ stripeCustomerId }, { merge: true });
+      }
     }
 
     const session = await stripe.billingPortal.sessions.create({

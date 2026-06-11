@@ -118,8 +118,11 @@ function SignInContent({ returnUrl }: { returnUrl: string }) {
   )
 }
 
-export default function Page({ searchParams }: { searchParams?: { returnUrl?: string | string[] } }) {
-  const rawReturnUrl = Array.isArray(searchParams?.returnUrl) ? searchParams?.returnUrl[0] : searchParams?.returnUrl;
+export default async function Page({ searchParams }: { searchParams?: Promise<{ returnUrl?: string | string[] }> }) {
+  const resolvedSearchParams = await searchParams;
+  const rawReturnUrl = Array.isArray(resolvedSearchParams?.returnUrl)
+    ? resolvedSearchParams?.returnUrl[0]
+    : resolvedSearchParams?.returnUrl;
   const returnUrl = normalizeReturnUrl(rawReturnUrl);
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background">Loading...</div>}>

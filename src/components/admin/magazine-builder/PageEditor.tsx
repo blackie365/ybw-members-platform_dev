@@ -431,6 +431,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2 col-span-2">
+              <Label>Cover Feature Image (Optional)</Label>
+              <Input value={safeContent.featureImage || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2 col-span-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
               <p className="text-[10px] text-muted-foreground italic">If provided, this video will replace the static background image.</p>
@@ -446,9 +450,13 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 <Input value={safeContent.author || ''} onChange={(e) => updateContent('author', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Editor Image URL</Label>
-                <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+                <Label>Feature Image</Label>
+                <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image (Optional)</Label>
+              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
 
             <div className="space-y-2">
@@ -587,6 +595,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
             <div className="space-y-2">
               <Label>Feature Image</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -690,6 +702,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label>Feature Image (Optional)</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
             </div>
@@ -772,6 +788,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
             <div className="space-y-2">
               <Label>Lifestyle Image</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -874,6 +894,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
             <div className="space-y-2">
               <Label>Spotlight Image</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -947,6 +971,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
             <div className="space-y-2">
               <Label>Feature Image</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -1008,6 +1036,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Background Image</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Feature Image (Optional)</Label>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>

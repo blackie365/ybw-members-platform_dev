@@ -297,7 +297,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               title: post.title,
               author: post.primary_author?.name || 'Gill Laidler',
               role: 'Editor-in-Chief',
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               text: cleanText, // Removed truncation limit
               quote: pulloutQuote,
               intro: subtitle
@@ -308,7 +308,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               title: post.title,
               author: post.primary_author?.name || 'Expert Contributor',
               category: post.primary_tag?.name || 'Expert Column',
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               text: cleanText, // Removed truncation limit
               tips: post.tags?.filter((t: any) => t.name !== post.primary_tag?.name).map((t: any) => t.name).slice(0, 5) || []
             };
@@ -317,7 +317,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             content = {
               name: post.primary_author?.name || 'Featured Guest',
               title: post.title || 'Feature Story',
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               intro: subtitle,
               text: cleanText,
               quote: pulloutQuote
@@ -329,7 +329,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               title: post.title,
               quote: pulloutQuote,
               text: cleanText, // Removed truncation limit
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               stats: [
                 { label: 'READ TIME', value: `${post.reading_time || 5} MIN` },
                 { label: 'TOPIC', value: post.primary_tag?.name?.toUpperCase() || 'NEWS' }
@@ -341,7 +341,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               title: post.title,
               kicker: post.primary_tag?.name || 'Lifestyle',
               text: cleanText, // Removed truncation limit
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
             };
             break;
@@ -349,7 +349,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             content = {
               name: post.primary_author?.name || 'Member Name',
               role: post.primary_tag?.name || 'Entrepreneur',
-              image: post.feature_image || '',
+              featureImage: post.feature_image || '',
               message: pulloutQuote,
               bio: cleanText // Removed truncation limit
             };
@@ -361,7 +361,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               headline: post.title,
               text: cleanText,
               offer: 'Exclusive Member Benefit',
-              image: post.feature_image || ''
+              featureImage: post.feature_image || ''
             };
             break;
           case 'cover':
@@ -371,14 +371,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               subheadline: subtitle,
               date: new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
               issue: 'LATEST',
-              image: post.feature_image || ''
+              image: post.feature_image || '',
+              featureImage: post.feature_image || ''
             };
             break;
           default:
             content = {
               title: post.title,
               author: post.primary_author?.name || 'YBW Team',
-              image: post.feature_image,
+              featureImage: post.feature_image || '',
               text: cleanText, // Removed truncation limit
               name: post.title,
               intro: subtitle,
@@ -411,9 +412,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         if (res.success) {
           toast.success(`Smart Imported "${post.title}" as ${type}`);
           
-          if (issue.autoSyncCover !== false && type === 'cover' && content.image) {
-            await updateMagazineIssueAction(id, { coverImage: content.image });
-            setIssue(prev => ({ ...prev, coverImage: content.image }));
+          const coverImageToSync = String(content.featureImage || content.image || '').trim();
+          if (issue.autoSyncCover !== false && type === 'cover' && coverImageToSync) {
+            await updateMagazineIssueAction(id, { coverImage: coverImageToSync });
+            setIssue(prev => ({ ...prev, coverImage: coverImageToSync }));
             toast.info('Issue thumbnail updated from imported cover');
           }
 
@@ -441,10 +443,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     try {
       // PROACTIVE LOGIC: If this is a cover page, automatically sync its image to the issue metadata
       const page = pages.find(p => p.docId === pageDocId);
-      if (issue.autoSyncCover !== false && page?.type === 'cover' && content.image && content.image !== issue.coverImage) {
+      const coverImageToSync = String(content?.featureImage || content?.image || '').trim();
+      if (issue.autoSyncCover !== false && page?.type === 'cover' && coverImageToSync && coverImageToSync !== issue.coverImage) {
         console.log('Auto-syncing cover image from page to issue metadata...');
-        await updateMagazineIssueAction(id, { coverImage: content.image });
-        setIssue(prev => ({ ...prev, coverImage: content.image }));
+        await updateMagazineIssueAction(id, { coverImage: coverImageToSync });
+        setIssue(prev => ({ ...prev, coverImage: coverImageToSync }));
         toast.info('Issue thumbnail synced from cover page');
       }
 
@@ -537,14 +540,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           subheadline: 'Celebrating excellence and innovation across Yorkshire.', 
           date: issue.publishDate || new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), 
           issue: 'No. XX', 
-          image: '' 
+          image: '',
+          featureImage: ''
         };
       case 'editorial': 
         return { 
           title: 'Editor\'s Welcome', 
           author: 'Gill Laidler', 
           role: 'Editor-in-Chief', 
-          image: '', 
+          featureImage: '',
+          image: '',
           text: 'Welcome to this edition...', 
           quote: 'Empowering women in business across the region.' 
         };
@@ -566,7 +571,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           mediaLayout: 'side',
           name: 'Featured Guest', 
           title: 'Article Headline', 
-          image: '', 
+          featureImage: '',
+          image: '',
           intro: 'An inspiring story of leadership and innovation...' 
         };
       case 'feature-right': 
@@ -577,7 +583,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           quote: 'Success is not final, failure is not fatal...', 
           text: 'The journey of building a brand in Yorkshire...', 
           stats: [{ label: 'READ TIME', value: '5 MIN' }], 
-          image: '' 
+          featureImage: '',
+          image: ''
         };
       case 'column': 
         return { 
@@ -586,7 +593,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           title: 'Expert Insights', 
           category: 'Finance & Growth', 
           author: 'Expert Name', 
-          image: '', 
+          image: '',
+          featureImage: '',
           text: 'In today\'s climate...', 
           tips: ['Plan ahead', 'Network often'],
           tipsLabel: 'Key Takeaways'
@@ -599,7 +607,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           highlightsLabel: 'Highlights',
           editorsPickLabel: 'Editor\'s Pick',
           text: 'Discover the balance between work and wellness...', 
-          image: '', 
+          featureImage: '',
+          image: '',
           highlights: ['Summer Style', 'Local Retreats'] 
         };
       case 'spotlight': 
@@ -608,7 +617,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           mediaLayout: 'side',
           name: 'Member Name', 
           role: 'CEO, Company Ltd', 
-          image: '', 
+          featureImage: '',
+          image: '',
           message: 'Consistency is key to growth.', 
           bio: 'A brief history of their professional journey...' 
         };
@@ -618,7 +628,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           mediaLayout: 'side',
           brand: 'Partner Name', 
           headline: 'Premium Services for Members', 
-          image: '', 
+          featureImage: '',
+          image: '',
           offer: '20% Off for YBW Members' 
         };
       case 'back-cover': 
@@ -631,7 +642,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           cta: 'Become a Member Today',
           text: 'Yorkshire BusinessWoman magazine — celebrating the leaders, innovators and changemakers shaping our region.',
           socials: ['Instagram', 'LinkedIn', 'X'], 
-          image: '' 
+          image: '',
+          featureImage: ''
         };
       default: return {};
     }

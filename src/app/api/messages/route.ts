@@ -5,6 +5,10 @@ import { MessageThread, generateThreadId } from '@/lib/messages';
 // GET /api/messages - Get all message threads for a user
 export async function GET(request: NextRequest) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
@@ -37,6 +41,10 @@ export async function GET(request: NextRequest) {
 // POST /api/messages - Create a new message thread or get existing one
 export async function POST(request: NextRequest) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { senderId, senderName, senderImage, senderSlug, recipientId, recipientName, recipientImage, recipientSlug, message } = body;
 

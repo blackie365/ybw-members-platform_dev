@@ -21,6 +21,10 @@ export async function POST(req: NextRequest) {
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `${folder}/${userId}-${Date.now()}.${fileExtension}`;
     
+    if (!adminStorage) {
+      return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
+    }
+
     const bucket = adminStorage.bucket();
     const storageFile = bucket.file(fileName);
 

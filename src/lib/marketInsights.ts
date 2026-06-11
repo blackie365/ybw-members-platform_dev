@@ -61,6 +61,9 @@ export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
 
 export async function saveMarketInsight(insight: Omit<MarketInsight, 'id'>): Promise<MarketInsight> {
   try {
+    if (!adminDb) {
+      throw new Error('Database not initialized');
+    }
     const docRef = await adminDb.collection('marketInsights').add(insight);
     return {
       id: docRef.id,

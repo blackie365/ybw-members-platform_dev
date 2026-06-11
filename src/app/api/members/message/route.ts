@@ -4,6 +4,10 @@ import { sendEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+    }
+
     const body = await req.json();
     const { recipientId, senderId, senderName, senderEmail, message } = body;
 

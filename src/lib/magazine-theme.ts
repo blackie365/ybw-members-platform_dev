@@ -54,7 +54,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Subheadline', key: 'subheadline', type: 'textarea', required: false },
       { name: 'Date', key: 'date', type: 'text', required: true },
       { name: 'Issue No.', key: 'issue', type: 'text', required: true },
-      { name: 'Cover Image', key: 'image', type: 'image', required: true },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
     ]
   },
   {
@@ -66,7 +67,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Author', key: 'author', type: 'text', required: true },
       { name: 'Role', key: 'role', type: 'text', required: true },
-      { name: 'Editor Image', key: 'image', type: 'image', required: true },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
       { name: 'Main Text', key: 'text', type: 'textarea', required: true },
       { name: 'Signature Quote', key: 'quote', type: 'text', required: false },
     ]
@@ -90,7 +92,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Subject Name', key: 'name', type: 'text', required: true },
       { name: 'Short Title', key: 'title', type: 'text', required: true },
       { name: 'Intro Text', key: 'textarea', type: 'textarea', required: true },
-      { name: 'Hero Image', key: 'image', type: 'image', required: true },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
   {
@@ -102,6 +105,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Main Quote', key: 'quote', type: 'textarea', required: true },
       { name: 'Main Text', key: 'text', type: 'textarea', required: true },
       { name: 'Snapshot Stats', key: 'stats', type: 'stats', required: false },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
       { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
@@ -116,7 +120,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Category', key: 'category', type: 'text', required: true },
       { name: 'Body Text', key: 'text', type: 'textarea', required: true },
       { name: 'Key Takeaways', key: 'tips', type: 'list', required: false },
-      { name: 'Header Image', key: 'image', type: 'image', required: false },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
   {
@@ -127,7 +132,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     fields: [
       { name: 'Main Text', key: 'text', type: 'textarea', required: true },
       { name: 'Highlights', key: 'highlights', type: 'list', required: false },
-      { name: 'Lifestyle Image', key: 'image', type: 'image', required: true },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
   {
@@ -140,7 +146,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Current Role', key: 'role', type: 'text', required: true },
       { name: 'Key Message', key: 'message', type: 'textarea', required: true },
       { name: 'Biography', key: 'bio', type: 'textarea', required: true },
-      { name: 'Profile Image', key: 'image', type: 'image', required: true },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
   {
@@ -152,7 +159,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Brand Name', key: 'brand', type: 'text', required: true },
       { name: 'Headline', key: 'headline', type: 'text', required: true },
       { name: 'Special Offer', key: 'offer', type: 'text', required: true },
-      { name: 'Brand Image', key: 'image', type: 'image', required: true },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
+      { name: 'Background Image', key: 'image', type: 'image', required: false },
     ]
   },
   {
@@ -165,6 +173,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Call to Action', key: 'cta', type: 'text', required: true },
       { name: 'Social Links', key: 'socials', type: 'list', required: false },
       { name: 'Background Image', key: 'image', type: 'image', required: false },
+      { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
     ]
   }
 ];

@@ -7,6 +7,8 @@ import { adminAuth, adminDb } from './firebase-admin';
  */
 export async function verifyAdminToken(idToken: string): Promise<boolean> {
   try {
+    if (!adminAuth || !adminDb) return false;
+
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
 
@@ -36,6 +38,8 @@ export async function verifyAdminToken(idToken: string): Promise<boolean> {
  */
 export async function grantAdminRole(email: string): Promise<void> {
   try {
+    if (!adminAuth || !adminDb) return;
+
     const user = await adminAuth.getUserByEmail(email);
     if (user.customClaims && user.customClaims.admin === true) {
       return;

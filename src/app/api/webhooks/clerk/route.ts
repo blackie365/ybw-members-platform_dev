@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
       await memberRef.set(baseUpdate, { merge: true })
 
-      console.log(`Successfully synced Clerk user ${id} to Firestore. Newsletter Auth: ${acceptsNewsletter}`)
+      console.log(`Successfully synced Clerk user to Firestore`)
     } catch (error) {
       console.error('Error syncing user to Firestore:', error)
       return new Response('Error: Firestore sync failed', { status: 500 })
@@ -233,7 +233,7 @@ export async function POST(req: Request) {
         if (ghostRes) {
           await adminDb?.collection('newMemberCollection').doc(id).set({ ghostSyncedAt: nowIso }, { merge: true });
         }
-        console.log(`Successfully synced Clerk user ${id} to Ghost CMS.`);
+        console.log(`Successfully synced Clerk user to Ghost CMS.`);
       } catch (ghostError) {
         console.warn('Ghost CMS sync failed (non-critical):', ghostError);
       }

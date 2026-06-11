@@ -7,10 +7,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, description, link, imageUrl, isMembersOnly, userId, userEmail, userName } = body;
 
-    console.log('[Offers API] Received submission:', { title, userId, userEmail });
-
     if (!userId || !title || !description) {
-      console.warn('[Offers API] Missing required fields:', { userId: !!userId, title: !!title, description: !!description });
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -34,7 +31,6 @@ export async function POST(request: Request) {
     };
 
     const docRef = await adminDb.collection('offer_requests').add(docData);
-    console.log('[Offers API] Successfully created offer doc:', docRef.id);
 
     // Revalidate paths
     revalidatePath('/dashboard');

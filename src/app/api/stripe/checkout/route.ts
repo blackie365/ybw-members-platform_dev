@@ -1,18 +1,23 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { auth, currentUser } from '@clerk/nextjs/server';
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const clerkUser = await currentUser();
+    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
+
     const body = await request.json();
-    const { postId, postSlug, postTitle, userEmail, userId, priceAmount, plan, cycle } = body;
+    const { postId, postSlug, postTitle, priceAmount, plan, cycle } = body;
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
       console.warn('[STRIPE MOCK] No STRIPE_SECRET_KEY found. Running in mock mode.');
-      console.log(`[STRIPE MOCK] Received checkout request for ${plan ? 'Subscription' : 'Event'}: ${postTitle || plan}`);
-      console.log(`[STRIPE MOCK] Buyer: ${userEmail} (ID: ${userId})`);
-      if (priceAmount) console.log(`[STRIPE MOCK] Amount: £${priceAmount / 100}`);
-      
       return NextResponse.json({ 
         url: `/dashboard?success=mock_stripe_checkout_complete&reason=missing_key` 
       });
@@ -24,9 +29,7 @@ export async function POST(request: Request) {
     });
 
     // We must use the absolute origin because Stripe requires a fully qualified URL for success/cancel redirects.
-    const origin = process.env.NEXT_PUBLIC_SITE_URL 
-      || request.headers.get('origin') 
-      || 'https://yorkshirebusinesswoman.co.uk';
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
 
     // Ensure origin does not have a trailing slash
     const cleanOrigin = origin.replace(/\/$/, '');
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        customer_email: userEmail,
+        customer_email: userEmail || undefined,
         line_items: [{
           price: priceId,
           quantity: 1,
@@ -58,8 +61,10 @@ export async function POST(request: Request) {
 
     // Handle FREE tickets (no Stripe required)
     if (priceAmount === 0) {
-      console.log(`[CHECKOUT] Processing free ticket for event: ${postSlug}`);
       const { adminDb } = await import('@/lib/firebase-admin');
+      if (!adminDb) {
+        return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
+      }
       
       const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
       const profileData = profileSnap.data() || {};
@@ -82,7 +87,7 @@ export async function POST(request: Request) {
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      customer_email: userEmail,
+      customer_email: userEmail || undefined,
       line_items: [{
         price_data: { 
           currency: 'gbp', 

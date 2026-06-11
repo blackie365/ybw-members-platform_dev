@@ -1,4 +1,5 @@
 import { getSinglePost, getPosts } from '@/lib/ghost';
+import { sanitizeHtml } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -244,7 +245,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                           html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
                         }
                       }
-                      return html;
+                      return sanitizeHtml(html);
                     })() 
                   }} 
                 />
