@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     });
 
     const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+    const cleanOrigin = origin.replace(/\/$/, '');
     let stripeCustomerId: string | undefined;
 
     if (adminDb) {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: `${origin}/dashboard/profile`,
+      return_url: `${cleanOrigin}/dashboard/profile`,
     });
 
     return NextResponse.json({ url: session.url });

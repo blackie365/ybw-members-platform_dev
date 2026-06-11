@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
@@ -80,7 +80,7 @@ function MembershipPageClient() {
 
   const isPaidMember = membershipTier !== 'free';
 
-  const startPremiumCheckout = async (cycleOverride?: 'monthly' | 'annually') => {
+  const startPremiumCheckout = useCallback(async (cycleOverride?: 'monthly' | 'annually') => {
     const cycle = cycleOverride || billingCycle;
     if (!user?.uid || !user.email) {
       const returnUrl = `/membership?upgrade=1&cycle=${cycle}`;
@@ -109,7 +109,7 @@ function MembershipPageClient() {
     } finally {
       setLoadingTier(null);
     }
-  };
+  }, [billingCycle, router, user?.email, user?.uid]);
 
   useEffect(() => {
     const cycleParam = searchParams.get('cycle');
@@ -131,7 +131,7 @@ function MembershipPageClient() {
 
     hasAutoUpgradedRef.current = true;
     void startPremiumCheckout(cycleOverride);
-  }, [membershipTier, searchParams, user?.email, user?.uid]);
+  }, [membershipTier, searchParams, startPremiumCheckout, user?.email, user?.uid]);
 
   const openBillingPortal = async () => {
     if (!user?.email) return;

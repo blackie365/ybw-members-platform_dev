@@ -49,12 +49,15 @@ export async function POST(req: Request) {
   });
 
   const sig = req.headers.get('stripe-signature');
+  if (!sig) {
+    return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+  }
   const body = await req.text();
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig!, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err: any) {
     console.error('Webhook signature verification failed.', err.message);
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
@@ -65,79 +68,110 @@ export async function POST(req: Request) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      const { postId, postSlug, userId, plan } = session.metadata || {};
+      const { postId, postSlug, userId, plan, cycle } = session.metadata || {};
       
       // If this was a subscription checkout, update the user immediately
-      if (plan && userId) {
+      if (plan === 'premium' && userId) {
         const usersRef = adminDb.collection('newMemberCollection');
-        const userDoc = await usersRef.doc(userId).get();
-        
-        if (userDoc.exists) {
-          const membershipTier = plan.toLowerCase().includes('annual') || plan.toLowerCase().includes('year') ? 'paid_annual' : 'paid_monthly';
-          const billingInterval = membershipTier === 'paid_annual' ? 'year' : 'month';
-          const nowIso = new Date().toISOString();
+        const userRef = usersRef.doc(userId);
+        const userSnap = await userRef.get();
 
-          await userDoc.ref.update({
-            status: 'active',
-            membershipTier: membershipTier,
-            billingInterval: billingInterval,
-            stripeCustomerId: session.customer,
-            subscriptionId: session.subscription,
-            lastPaymentDate: nowIso,
-            userInactive: false,
-            isNewsletterAuthorized: true,
-          });
-          console.log(`Successfully activated ${membershipTier} subscription`);
+        const nowIso = new Date().toISOString();
+        const emailFromStripe = session.customer_details?.email || session.customer_email || '';
+        const emailLower = typeof emailFromStripe === 'string' ? emailFromStripe.toLowerCase() : '';
 
-          // Trigger Welcome Email Workflow non-blockingly
-          const userData = userDoc.data() || {};
-          const userEmail = session.customer_details?.email || session.customer_email || userData.email;
-          const firstName = userData.firstName || 'there';
-          const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        const stripeCustomerId =
+          typeof session.customer === 'string' ? session.customer : (session.customer as any)?.id;
+        const stripeSubscriptionId =
+          typeof session.subscription === 'string' ? session.subscription : (session.subscription as any)?.id;
 
-          if (userEmail && !(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
-            userDoc.ref.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true }).catch(() => {});
-            sendEmail({
-              to: userEmail,
-              subject: 'Welcome to Yorkshire Businesswoman!',
-              html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-            })
-              .then(() => userDoc.ref.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true }))
-              .catch(err => console.error('Failed to send welcome email:', err));
+        let billingInterval: 'month' | 'year' = cycle === 'annually' ? 'year' : 'month';
+        if (cycle !== 'annually' && cycle !== 'monthly') billingInterval = 'month';
+
+        if (typeof stripeSubscriptionId === 'string') {
+          try {
+            const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            const interval = sub.items.data[0]?.plan?.interval;
+            billingInterval = interval === 'year' ? 'year' : 'month';
+          } catch (err) {
+            console.warn('Failed to retrieve subscription interval (non-fatal):', err);
           }
-
-          if (userEmail && !(userData as any).ghostSyncedAt && !(userData as any).ghostSyncAttemptedAt) {
-            userDoc.ref.set({ ghostSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
-            addGhostMember({
-              email: userEmail,
-              name: displayName || undefined,
-              labels: ['stripe-upgrade', 'paid-member', membershipTier],
-            })
-              .then((res) => {
-                if (res) return userDoc.ref.set({ ghostSyncedAt: nowIso }, { merge: true });
-              })
-              .catch(() => {});
-          }
-
-          // Notify all admins about the upgrade
-          const adminRecipients = await getAdminRecipients();
-          sendEmail({
-            to: adminRecipients,
-            subject: `Membership Upgrade: ${userEmail || userId}`,
-            html: `
-              <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #4f46e5;">Membership Upgrade</h2>
-                <p>A member has upgraded successfully.</p>
-                <ul>
-                  <li><strong>Email:</strong> ${userEmail || 'N/A'}</li>
-                  <li><strong>User ID:</strong> ${userId}</li>
-                  <li><strong>Tier:</strong> ${membershipTier}</li>
-                  <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
-                </ul>
-              </div>
-            `,
-          }).catch(err => console.error('Failed to send admin upgrade notification:', err));
         }
+
+        const membershipTier = billingInterval === 'year' ? 'paid_annual' : 'paid_monthly';
+
+        const membershipUpdate: Record<string, any> = {
+          status: 'active',
+          membershipTier,
+          billingInterval,
+          stripeCustomerId,
+          subscriptionId: stripeSubscriptionId,
+          lastPaymentDate: nowIso,
+          userInactive: false,
+          isNewsletterAuthorized: true,
+          updatedAt: nowIso,
+        };
+
+        if (!userSnap.exists) {
+          membershipUpdate.createdAt = nowIso;
+          membershipUpdate.role = 'member';
+          membershipUpdate.isAdmin = false;
+          membershipUpdate.isFeatured = false;
+          if (emailFromStripe) {
+            membershipUpdate.email = emailFromStripe;
+            membershipUpdate.emailLower = emailLower;
+          }
+        }
+
+        await userRef.set(membershipUpdate, { merge: true });
+        console.log(`Successfully activated ${membershipTier} subscription`);
+
+        const userData = userSnap.data() || {};
+        const userEmail = emailFromStripe || userData.email;
+        const firstName = userData.firstName || 'there';
+        const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+
+        if (userEmail && !(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
+          userRef.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true }).catch(() => {});
+          sendEmail({
+            to: userEmail,
+            subject: 'Welcome to Yorkshire Businesswoman!',
+            html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+          })
+            .then(() => userRef.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true }))
+            .catch(err => console.error('Failed to send welcome email:', err));
+        }
+
+        if (userEmail && !(userData as any).ghostSyncedAt && !(userData as any).ghostSyncAttemptedAt) {
+          userRef.set({ ghostSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
+          addGhostMember({
+            email: userEmail,
+            name: displayName || undefined,
+            labels: ['stripe-upgrade', 'paid-member', membershipTier],
+          })
+            .then((res) => {
+              if (res) return userRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+            })
+            .catch(() => {});
+        }
+
+        const adminRecipients = await getAdminRecipients();
+        sendEmail({
+          to: adminRecipients,
+          subject: `Membership Upgrade: ${userEmail || userId}`,
+          html: `
+            <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #4f46e5;">Membership Upgrade</h2>
+              <p>A member has upgraded successfully.</p>
+              <ul>
+                <li><strong>Email:</strong> ${userEmail || 'N/A'}</li>
+                <li><strong>User ID:</strong> ${userId}</li>
+                <li><strong>Tier:</strong> ${membershipTier}</li>
+                <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+              </ul>
+            </div>
+          `,
+        }).catch(err => console.error('Failed to send admin upgrade notification:', err));
       }
       
       // Record ticket purchase in Firestore
