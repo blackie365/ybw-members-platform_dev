@@ -271,7 +271,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             .replace(/<p[^>]*>/gi, '<p>') // Standardize paragraphs
             .replace(/<br\s*\/?>/gi, '<br />') // Standardize breaks
             .replace(/<[^>]*>?/gm, (tag) => {
-              const allowed = ['p', 'br', 'strong', 'em', 'u', 'b', 'i'];
+              const allowed = ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'a', 'ul', 'ol', 'li', 'blockquote', 'h2', 'h3'];
               const tagName = tag.match(/<\/?([a-z0-9]+)/i)?.[1]?.toLowerCase();
               return allowed.includes(tagName || '') ? tag : '';
             })
@@ -318,12 +318,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               name: post.primary_author?.name || 'Featured Guest',
               title: post.title || 'Feature Story',
               image: post.feature_image || '',
-              intro: subtitle
+              intro: subtitle,
+              text: cleanText,
+              quote: pulloutQuote
             };
             break;
           case 'feature-right':
             content = {
               name: post.primary_author?.name || '',
+              title: post.title,
               quote: pulloutQuote,
               text: cleanText, // Removed truncation limit
               image: post.feature_image || '',
@@ -335,6 +338,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             break;
           case 'lifestyle':
             content = {
+              title: post.title,
+              kicker: post.primary_tag?.name || 'Lifestyle',
               text: cleanText, // Removed truncation limit
               image: post.feature_image || '',
               highlights: post.tags?.slice(0, 4).map((t: any) => t.name) || []
@@ -352,7 +357,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           case 'partner':
             content = {
               brand: post.primary_author?.name || 'Partner Brand',
+              title: post.title,
               headline: post.title,
+              text: cleanText,
               offer: 'Exclusive Member Benefit',
               image: post.feature_image || ''
             };
@@ -384,21 +391,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         // Update existing page
         const res = await updateMagazinePageAction(id, targetPageId, { content });
         if (res.success) {
-          toast.success(`Updated spread with content from "${post.title}"
-import { IssueMetadata } from '@/components/admin/magazine-builder/IssueMetadata';
-import { PageTypeSelector } from '@/components/admin/magazine-builder/PageTypeSelector';
-import { PageList } from '@/components/admin/magazine-builder/PageList';
-import { PageEditor } from '@/components/admin/magazine-builder/PageEditor';
-import { GhostImporter } from '@/components/admin/magazine-builder/GhostImporter';
-import { ManualImporter } from '@/components/admin/magazine-builder/ManualImporter';
-
-
-
-
-
-`);
+          toast.success(`Updated spread with content from "${post.title}"`);
           await loadData(true);
           setActiveTab('builder');
+        } else {
+          toast.error(res.error || 'Failed to import content');
         }
       } else {
         // Create new page
@@ -423,10 +420,12 @@ import { ManualImporter } from '@/components/admin/magazine-builder/ManualImport
           await loadData(true);
           setSelectedPageId(res.id as string);
           setActiveTab('builder');
+        } else {
+          toast.error(res.error || 'Failed to import content');
         }
       }
     } catch (err) {
-      toast.error('Failed to import content');
+      toast.error(err instanceof Error ? err.message : 'Failed to import content');
     } finally {
       setSaving(false);
     }
