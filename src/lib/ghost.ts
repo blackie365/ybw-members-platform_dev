@@ -9,8 +9,7 @@ function normalizeBaseUrl(raw: string | undefined) {
 const GHOST_API_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_GHOST_API_URL ||
     process.env.GHOST_API_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'https://yorkshirebusinesswoman.co.uk'
+    'https://admin.yorkshirebusinesswoman.co.uk'
 );
 const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY;
 
