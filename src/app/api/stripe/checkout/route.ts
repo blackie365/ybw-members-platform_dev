@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -39,9 +40,18 @@ export async function POST(request: Request) {
       const priceId = cycle === 'annually' ?'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
         : 'price_1TVHicLZwCrAHQYPLXqio8Bi'; // Monthly Price ID
 
+      let stripeCustomerId: string | undefined;
+      if (adminDb) {
+        const snap = await adminDb.collection('newMemberCollection').doc(userId).get();
+        const existing = snap.data() as any;
+        if (existing?.stripeCustomerId && typeof existing.stripeCustomerId === 'string') {
+          stripeCustomerId = existing.stripeCustomerId;
+        }
+      }
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        customer_email: userEmail || undefined,
+        ...(stripeCustomerId ? { customer: stripeCustomerId } : { customer_email: userEmail || undefined }),
         line_items: [{
           price: priceId,
           quantity: 1,
@@ -55,12 +65,23 @@ export async function POST(request: Request) {
     }
 
     // Otherwise, fallback to the original logic: Event Ticket purchases
-    if (priceAmount === undefined || isNaN(priceAmount)) {
+    if (!postSlug || typeof postSlug !== 'string') {
+      throw new Error('Invalid postSlug received');
+    }
+    if (!postTitle || typeof postTitle !== 'string') {
+      throw new Error('Invalid postTitle received');
+    }
+
+    const unitAmount = typeof priceAmount === 'number' ? priceAmount : Number(priceAmount);
+    if (!Number.isFinite(unitAmount)) {
        throw new Error(`Invalid priceAmount received: ${priceAmount}`);
+    }
+    if (unitAmount < 0) {
+      throw new Error(`Invalid priceAmount received: ${priceAmount}`);
     }
 
     // Handle FREE tickets (no Stripe required)
-    if (priceAmount === 0) {
+    if (unitAmount === 0) {
       const { adminDb } = await import('@/lib/firebase-admin');
       if (!adminDb) {
         return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
@@ -92,7 +113,7 @@ export async function POST(request: Request) {
         price_data: { 
           currency: 'gbp', 
           product_data: { name: `Ticket for: ${postTitle}` }, 
-          unit_amount: priceAmount 
+          unit_amount: unitAmount 
         },
         quantity: 1,
       }],

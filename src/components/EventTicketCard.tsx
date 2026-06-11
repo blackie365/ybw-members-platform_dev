@@ -79,15 +79,6 @@ export function EventTicketCard({ post }: { post: any }) {
     setLoading(true);
     
     try {
-      console.log("Initiating checkout with data:", {
-        postId: post.id,
-        postSlug: post.slug,
-        postTitle: post.title,
-        userEmail: user.email,
-        userId: user.uid,
-        priceAmount: priceAmount, 
-      });
-
       // This will call our Next.js API route, which talks securely to Stripe to create a Checkout Session
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -105,7 +96,6 @@ export function EventTicketCard({ post }: { post: any }) {
       });
 
       const data = await response.json();
-      console.log("Checkout API response:", data);
 
       if (data.free && data.success) {
         // It was a free ticket and successfully registered.
