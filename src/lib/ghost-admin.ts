@@ -13,8 +13,7 @@ const GHOST_API_URL = normalizeBaseUrl(
   process.env.GHOST_ADMIN_API_URL ||
     process.env.NEXT_PUBLIC_GHOST_API_URL ||
     process.env.GHOST_API_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'https://yorkshirebusinesswoman.co.uk'
+    'https://admin.yorkshirebusinesswoman.co.uk'
 );
 
 function getGhostAdmin() {
