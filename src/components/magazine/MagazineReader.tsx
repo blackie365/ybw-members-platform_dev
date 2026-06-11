@@ -1418,7 +1418,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes)}
                   imageVersion={imageVersion}
                   variant="dark"
-                  textClassName="text-white/85 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
+                  textClassName="font-serif text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0"
                 />
               )}
 
@@ -1653,7 +1653,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                       pullQuotes={pullQuotes}
                       imageVersion={imageVersion}
                       variant="dark"
-                      textClassName="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
+                      textClassName="font-serif text-white/85 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
                     />
                   )}
 
@@ -1857,7 +1857,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                         pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                         imageVersion={imageVersion}
                         variant="dark"
-                        textClassName="text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
+                        textClassName="font-serif text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0 [&_a]:text-white [&_a]:underline [&_a:hover]:opacity-90"
                       />
                     )}
 
@@ -2065,7 +2065,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
                       pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                       imageVersion={imageVersion}
                       variant="dark"
-                      textClassName="text-white/80 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
+                      textClassName="font-serif text-white/85 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
                     />
                   )}
                   {remainingMedia.length > 0 && (
@@ -2300,7 +2300,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
 
               {data.bio && (
                 <div className="mt-8">
-                  <SafeText html={data.bio} className="text-white/70 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0" />
+                  <SafeText html={data.bio} className="font-serif text-white/75 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0" />
                 </div>
               )}
 
@@ -2458,7 +2458,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             <div className="scroll-reveal scroll-reveal-delay-2">
               <SafeText
                 html={data.bio}
-                className="text-white/55 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
+                className="font-serif text-white/75 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
               />
             </div>
           )}
@@ -2544,9 +2544,9 @@ const PagePartner = ({ data, imageVersion }: any) => {
               </div>
 
               {data.text ? (
-                <SafeText html={data.text} className="text-white/80 leading-relaxed" />
+                <SafeText html={data.text} className="font-serif text-white/85 leading-relaxed" />
               ) : (
-                data.offer && <p className="text-white/80 leading-relaxed">{data.offer}</p>
+                data.offer && <p className="font-serif text-white/85 leading-relaxed">{data.offer}</p>
               )}
 
               {data.offer && (
@@ -2593,15 +2593,15 @@ const PagePartner = ({ data, imageVersion }: any) => {
             </div>
 
             {data.text ? (
-              <SafeText html={data.text} className="text-white/75 leading-relaxed" />
+              <SafeText html={data.text} className="font-serif text-white/80 leading-relaxed" />
             ) : (
-              data.offer && <p className="text-white/75 leading-relaxed">{data.offer}</p>
+              data.offer && <p className="font-serif text-white/80 leading-relaxed">{data.offer}</p>
             )}
 
             {data.offer && (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-px bg-[#a3413a]" />
-                <p className="text-white/55 text-sm font-medium">{data.offer}</p>
+                <p className="text-white/80 text-sm font-medium">{data.offer}</p>
               </div>
             )}
 
@@ -2705,7 +2705,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                 {data.nextIssue && <p className="text-white/70 font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
-              {data.text && <SafeText html={data.text} className="text-white/75 leading-relaxed" />}
+              {data.text && <SafeText html={data.text} className="font-serif text-white/80 leading-relaxed" />}
 
               {additionalMedia.length > 0 && (
                 <div className="scroll-reveal">
