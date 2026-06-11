@@ -1,10 +1,22 @@
 // Ghost API configuration
-const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
-const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY;
+function normalizeBaseUrl(raw: string | undefined) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  const withProtocol = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+  return withProtocol.replace(/\/$/, '');
+}
+
+const GHOST_API_URL = normalizeBaseUrl(
+  process.env.NEXT_PUBLIC_GHOST_API_URL ||
+    process.env.GHOST_API_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://yorkshirebusinesswoman.co.uk'
+);
+const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY;
 
 function requireGhostContentKey() {
   if (!GHOST_CONTENT_API_KEY) {
-    throw new Error('Missing NEXT_PUBLIC_GHOST_CONTENT_API_KEY');
+    throw new Error('Missing Ghost Content API key (NEXT_PUBLIC_GHOST_CONTENT_API_KEY or GHOST_CONTENT_API_KEY)');
   }
   return GHOST_CONTENT_API_KEY;
 }

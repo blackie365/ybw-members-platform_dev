@@ -2,7 +2,20 @@
 
 import GhostAdminAPI from '@tryghost/admin-api';
 
-const GHOST_API_URL = (process.env.NEXT_PUBLIC_GHOST_API_URL || 'https://admin.yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
+function normalizeBaseUrl(raw: string | undefined) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  const withProtocol = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+  return withProtocol.replace(/\/$/, '');
+}
+
+const GHOST_API_URL = normalizeBaseUrl(
+  process.env.GHOST_ADMIN_API_URL ||
+    process.env.NEXT_PUBLIC_GHOST_API_URL ||
+    process.env.GHOST_API_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://yorkshirebusinesswoman.co.uk'
+);
 
 function getGhostAdmin() {
   const key = process.env.GHOST_ADMIN_API_KEY || process.env.GHOST_ADMIN_KEY;
