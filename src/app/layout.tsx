@@ -21,8 +21,24 @@ const inter = Inter({
   variable: '--font-sans'
 });
 
+// Build a valid metadataBase URL. NEXT_PUBLIC_SITE_URL may be set without a
+// protocol (e.g. "yorkshirebusinesswoman.co.uk"), which makes `new URL()` throw
+// "Invalid URL" and 500s every page. Normalize it and fall back safely.
+function resolveSiteUrl(): URL {
+  const fallback = 'https://yorkshirebusinesswoman.co.uk';
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const candidate = raw
+    ? /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+    : fallback;
+  try {
+    return new URL(candidate);
+  } catch {
+    return new URL(fallback);
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
+  metadataBase: resolveSiteUrl(),
   title: 'Yorkshire BusinessWoman | Business Magazine for Women',
   description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
   generator: 'v0.app',
