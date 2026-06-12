@@ -1,9 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+const clerk = clerkMiddleware(async (auth, req) => {
   if (isAdminRoute(req)) {
     // Just ensure the user is logged in. 
     // We handle strict role-based access in the /admin layout (Server Component)
@@ -11,6 +12,17 @@ export default clerkMiddleware(async (auth, req) => {
     await auth?.protect();
   }
 });
+
+export default async function middleware(req: NextRequest, evt: NextFetchEvent) {
+  const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  if (!clerkConfigured) return NextResponse.next();
+
+  try {
+    return await clerk(req, evt);
+  } catch (e) {
+    return NextResponse.next();
+  }
+}
 
 export const config = {
   matcher: [
