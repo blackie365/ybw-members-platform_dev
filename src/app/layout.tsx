@@ -151,8 +151,17 @@ export default async function RootLayout({
             </>
           }
 
-        <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fybwmember8082back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.19" />
-        <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></body>
+          {process.env.NEXT_PUBLIC_ROCKET_ENABLED === 'true' && (
+            <>
+              <script
+                type="module"
+                async
+                src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fybwmember8082back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.19"
+              />
+              <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" />
+            </>
+          )}
+        </body>
       </html>
     </ClerkProvider>);
 
