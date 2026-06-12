@@ -1,0 +1,40 @@
+name: Smoke (Production)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      PROD_SITE_URL: ${{ vars.PROD_SITE_URL || 'https://yorkshirebusinesswoman.co.uk' }}
+    steps:
+      - name: Wait for deploy
+        run: sleep 30
+
+      - name: Smoke test homepage
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' "$PROD_SITE_URL/" || true)"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Homepage not healthy after waiting. Last code=$code"
+          exit 1
+
+      - name: Smoke test admin ads route (may redirect)
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' "$PROD_SITE_URL/admin/ads" || true)"
+            case "$code" in
+              200|301|302|307|308) exit 0 ;;
+            esac
+            sleep 20
+          done
+          echo "/admin/ads not healthy after waiting. Last code=$code"
+          exit 1
