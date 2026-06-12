@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { Shield } from "lucide-react";
+import { AdSlot } from "@/components/magazine/AdSlot";
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -24,10 +25,24 @@ const navigation = [
   { name: 'About', href: '/about' },
 ];
 
-export function Header() {
+export type HeaderAdConfig = {
+  imageUrl?: string;
+  linkUrl?: string;
+  altText?: string;
+  enabled?: boolean;
+};
+
+export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
   const { user, profile, isAdmin, signOut } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const envHeaderAdImageUrl = process.env.NEXT_PUBLIC_HEADER_AD_IMAGE_URL;
+  const envHeaderAdLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL;
+  const envHeaderAdAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || "Advertisement";
+  const headerAdEnabled = headerAd?.enabled !== false;
+  const headerAdImageUrl = headerAdEnabled ? (headerAd?.imageUrl || envHeaderAdImageUrl) : undefined;
+  const headerAdLinkUrl = headerAdEnabled ? (headerAd?.linkUrl || envHeaderAdLinkUrl) : undefined;
+  const headerAdAltText = headerAd?.altText || envHeaderAdAltText;
 
   const handleSignOut = async () => {
     try {
@@ -44,9 +59,18 @@ export function Header() {
       {/* Top Banner */}
       <div className="border-b border-border/60 bg-background">
         <div className="mx-auto flex max-w-7xl justify-center px-4 py-5 lg:px-8">
-          <div className="flex h-[90px] w-full max-w-[728px] items-center justify-center rounded-sm border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
-            Advertisement Space
-          </div>
+          {headerAdImageUrl ? (
+            <AdSlot
+              type="leaderboard"
+              imageUrl={headerAdImageUrl}
+              linkUrl={headerAdLinkUrl}
+              altText={headerAdAltText}
+            />
+          ) : (
+            <div className="flex h-[90px] w-full max-w-[728px] items-center justify-center rounded-sm border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
+              Advertisement Space
+            </div>
+          )}
         </div>
       </div>
       {/* Sticky Navigation */}

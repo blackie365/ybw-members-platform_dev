@@ -9,6 +9,7 @@ import { Footer } from "@/components/magazine/footer";
 import { NewsTicker } from "@/components/magazine/news-ticker";
 import { getPosts } from "@/lib/ghost";
 import { CookieBanner } from "@/components/cookie-banner";
+import { adminDb } from "@/lib/firebase-admin";
 import './globals.css';
 
 const playfair = Playfair_Display({
@@ -21,8 +22,15 @@ const inter = Inter({
   variable: '--font-sans'
 });
 
+function normalizeAbsoluteUrl(raw: string) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  return `https://${value}`;
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
+  metadataBase: new URL(normalizeAbsoluteUrl(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')),
   title: 'Yorkshire BusinessWoman | Business Magazine for Women',
   description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
   generator: 'v0.app',
@@ -75,6 +83,19 @@ export default async function RootLayout({
     order: 'published_at DESC'
   }).catch(() => []);
 
+  let headerAd: { imageUrl?: string; linkUrl?: string; altText?: string; enabled?: boolean } | undefined;
+  try {
+    if (adminDb) {
+      const doc = await adminDb.collection('system').doc('ads').get();
+      if (doc.exists) {
+        const data = doc.data() as any;
+        if (data?.headerLeaderboard) {
+          headerAd = data.headerLeaderboard;
+        }
+      }
+    }
+  } catch (e) {}
+
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
@@ -101,7 +122,7 @@ export default async function RootLayout({
             }} />
           
           <Providers>
-            <Header />
+            <Header headerAd={headerAd} />
             <NewsTicker posts={trendingPosts} />
             <main className="flex-1">
               {children}

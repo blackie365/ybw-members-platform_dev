@@ -7,7 +7,8 @@ import {
   Users, 
   BarChart3, 
   Mail,
-  BookOpen
+  BookOpen,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/magazine", label: "Magazine", icon: BookOpen },
   { href: "/admin/members", label: "Members", icon: Users },
+  { href: "/admin/ads", label: "Ads", icon: Megaphone },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
