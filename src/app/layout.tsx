@@ -22,8 +22,15 @@ const inter = Inter({
   variable: '--font-sans'
 });
 
+function normalizeAbsoluteUrl(raw: string) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  return `https://${value}`;
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
+  metadataBase: new URL(normalizeAbsoluteUrl(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')),
   title: 'Yorkshire BusinessWoman | Business Magazine for Women',
   description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
   generator: 'v0.app',
