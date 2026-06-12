@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Menu, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,20 @@ export type HeaderAdConfig = {
   linkUrl?: string;
   altText?: string;
   enabled?: boolean;
+  rotation?: {
+    enabled?: boolean;
+    intervalSeconds?: number;
+    items?: Array<{
+      id: string;
+      enabled?: boolean;
+      imageUrl?: string;
+      linkUrl?: string;
+      altText?: string;
+      weight?: number;
+      startAt?: string;
+      endAt?: string;
+    }>;
+  };
 };
 
 export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
@@ -40,9 +54,62 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
   const envHeaderAdLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL;
   const envHeaderAdAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || "Advertisement";
   const headerAdEnabled = headerAd?.enabled !== false;
-  const headerAdImageUrl = headerAdEnabled ? (headerAd?.imageUrl || envHeaderAdImageUrl) : undefined;
-  const headerAdLinkUrl = headerAdEnabled ? (headerAd?.linkUrl || envHeaderAdLinkUrl) : undefined;
-  const headerAdAltText = headerAd?.altText || envHeaderAdAltText;
+
+  const rotationEnabled = headerAdEnabled && headerAd?.rotation?.enabled === true;
+  const rotationIntervalMs = useMemo(() => {
+    const seconds = typeof headerAd?.rotation?.intervalSeconds === "number" ? headerAd.rotation.intervalSeconds : 30;
+    return Math.min(3600, Math.max(5, Math.floor(seconds || 30))) * 1000;
+  }, [headerAd?.rotation?.intervalSeconds]);
+
+  const eligibleRotationItems = useMemo(() => {
+    const now = new Date();
+    const items = headerAd?.rotation?.items || [];
+    return items
+      .filter((item) => item && item.enabled !== false)
+      .filter((item) => Boolean(item.imageUrl))
+      .filter((item) => {
+        const startAt = item.startAt ? new Date(item.startAt) : null;
+        const endAt = item.endAt ? new Date(item.endAt) : null;
+        if (startAt && Number.isFinite(startAt.getTime()) && now < startAt) return false;
+        if (endAt && Number.isFinite(endAt.getTime()) && now > endAt) return false;
+        return true;
+      });
+  }, [headerAd?.rotation?.items]);
+
+  const [rotationBucket, setRotationBucket] = useState(() => Math.floor(Date.now() / rotationIntervalMs));
+  useEffect(() => {
+    if (!rotationEnabled || eligibleRotationItems.length < 2) return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      const now = Date.now();
+      const nextBoundary = (Math.floor(now / rotationIntervalMs) + 1) * rotationIntervalMs;
+      const delay = Math.max(250, nextBoundary - now + 20);
+      timeoutId = setTimeout(() => {
+        setRotationBucket(Math.floor(Date.now() / rotationIntervalMs));
+        schedule();
+      }, delay);
+    };
+
+    schedule();
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [eligibleRotationItems.length, rotationEnabled, rotationIntervalMs]);
+
+  const rotatedItem = useMemo(() => {
+    if (!rotationEnabled) return undefined;
+    if (eligibleRotationItems.length === 0) return undefined;
+    return eligibleRotationItems[rotationBucket % eligibleRotationItems.length];
+  }, [eligibleRotationItems, rotationBucket, rotationEnabled]);
+
+  const headerAdImageUrl = headerAdEnabled
+    ? rotatedItem?.imageUrl || headerAd?.imageUrl || envHeaderAdImageUrl
+    : undefined;
+  const headerAdLinkUrl = headerAdEnabled
+    ? rotatedItem?.linkUrl || headerAd?.linkUrl || envHeaderAdLinkUrl
+    : undefined;
+  const headerAdAltText = rotatedItem?.altText || headerAd?.altText || envHeaderAdAltText;
 
   const handleSignOut = async () => {
     try {
