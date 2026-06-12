@@ -82,42 +82,38 @@ export default async function MagazinePage() {
   let errorOccurred = false;
 
   try {
-    // 1. Fetch the latest featured posts for the carousel
-    featuredPosts = await getPosts({
-      limit: 5,
-      filter: "featured:true",
-      order: "published_at DESC"
-    });
+    // Fetch all post collections in parallel so a slow/unavailable source
+    // doesn't serialize into a multi-second render (each call falls back to
+    // an RSS fetch when the Ghost API key isn't configured).
+    const [
+      featuredPostsRes,
+      recentPostsRes,
+      latestEventsRes,
+      fashionPostsRes,
+      healthPostsRes,
+      tagsRes,
+      featuredMembersRes,
+    ] = await Promise.all([
+      // 1. The latest featured posts for the carousel
+      getPosts({ limit: 5, filter: "featured:true", order: "published_at DESC" }),
+      // 2. The latest posts chronologically for the grid
+      getPosts({ limit: 15, order: "published_at DESC" }),
+      // 2b. Latest events
+      getPosts({ limit: 3, filter: "tag:events", order: "published_at DESC" }),
+      // 2c. Category specific posts
+      getPosts({ limit: 3, filter: "tag:fashion-lifestyle", order: "published_at DESC" }),
+      getPosts({ limit: 3, filter: "tag:health-wellbeing", order: "published_at DESC" }),
+      getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' }),
+      getFeaturedMembers(),
+    ]);
 
-    // 2. Fetch the latest posts chronologically for the grid
-    recentPosts = await getPosts({ 
-      limit: 15, 
-      order: "published_at DESC" 
-    });
-
-    // 2b. Fetch latest events
-    latestEvents = await getPosts({
-      limit: 3,
-      filter: "tag:events",
-      order: "published_at DESC"
-    });
-
-    // 2c. Fetch category specific posts
-    fashionPosts = await getPosts({
-      limit: 3,
-      filter: "tag:fashion-lifestyle",
-      order: "published_at DESC"
-    });
-
-    healthPosts = await getPosts({
-      limit: 3,
-      filter: "tag:health-wellbeing",
-      order: "published_at DESC"
-    });
-
-    tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
-    const featuredMembers = await getFeaturedMembers();
-    featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
+    featuredPosts = featuredPostsRes;
+    recentPosts = recentPostsRes;
+    latestEvents = latestEventsRes;
+    fashionPosts = fashionPostsRes;
+    healthPosts = healthPostsRes;
+    tags = tagsRes;
+    featuredMember = featuredMembersRes.length > 0 ? featuredMembersRes[0] : null;
   } catch (error) {
     console.error("Critical error fetching data for MagazinePage:", error);
     errorOccurred = true;

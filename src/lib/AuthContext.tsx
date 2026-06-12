@@ -133,7 +133,28 @@ function calculateProfileCompleteness(profile: MemberProfile | null): number {
   return Math.round(requiredScore + optionalScore);
 }
 
+// When no Clerk publishable key is configured (e.g. preview environments where
+// the key is scoped to Production/Preview only), ClerkProvider is not mounted.
+// Calling Clerk hooks in that case throws, so we use a safe fallback provider
+// that renders the app in a logged-out state instead of crashing.
+const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+const FallbackAuthProvider = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <AuthContext.Provider value={{ ...defaultContext, loading: false }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  if (!hasClerk) {
+    return <FallbackAuthProvider>{children}</FallbackAuthProvider>;
+  }
+  return <ClerkAuthProvider>{children}</ClerkAuthProvider>;
+};
+
+const ClerkAuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut: clerkSignOut } = useClerk();
   const [user, setUser] = useState<AuthUser | null>(null);

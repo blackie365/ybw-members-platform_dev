@@ -125,6 +125,7 @@ async function getPostsFromRss(options?: { limit?: number | string; filter?: str
   const res = await fetch(rssUrl, {
     next: { revalidate: 60, tags: ['ghost-posts'] },
     headers: { 'Accept': 'application/rss+xml, application/xml;q=0.9, */*;q=0.8' },
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     throw new Error(`Ghost RSS responded with status: ${res.status} ${res.statusText}`);

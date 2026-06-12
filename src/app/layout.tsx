@@ -75,10 +75,12 @@ export default async function RootLayout({
     order: 'published_at DESC'
   }).catch(() => []);
 
-  return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      
+  // Only enable Clerk when a publishable key is actually present. Without a key,
+  // ClerkProvider falls into "keyless mode" and injects a client-side overlay
+  // that never resolves, which blocks the preview with an infinite spinner.
+  const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  const tree = (
       <html lang="en" className="bg-background" suppressHydrationWarning>
         <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
           {/* Organization Schema */}
@@ -133,6 +135,15 @@ export default async function RootLayout({
         <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fybwmember8082back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.19" />
         <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></body>
       </html>
-    </ClerkProvider>);
+  );
 
+  if (!clerkPublishableKey) {
+    return tree;
+  }
+
+  return (
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      {tree}
+    </ClerkProvider>
+  );
 }
