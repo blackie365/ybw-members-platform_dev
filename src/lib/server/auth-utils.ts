@@ -33,13 +33,24 @@ export async function checkAdmin() {
   // 3. Fallback: Check Firestore profile directly (Most reliable but slowest)
   try {
     if (adminDb) {
+      const email =
+        clerkUser?.primaryEmailAddress?.emailAddress ||
+        clerkUser?.emailAddresses?.[0]?.emailAddress ||
+        '';
+
       const doc = await adminDb.collection('newMemberCollection').doc(userId).get();
       if (doc.exists) {
         const profile = doc.data();
         if (profile?.isAdmin === true || profile?.role === 'admin' || profile?.role === 'super_admin') {
           return userId;
         }
-      }
+      } else if (email) {
+        const snap = await adminDb.collection('newMemberCollection').where('email', '==', email).limit(1).get();
+        const profile = snap.empty ? null : snap.docs[0].data();
+        if (profile?.isAdmin === true || profile?.role === 'admin' || profile?.role === 'super_admin') {
+          return userId;
+        }
+      }      
     }
   } catch (err) {
     console.error('Error checking Firestore for admin status:', err);
