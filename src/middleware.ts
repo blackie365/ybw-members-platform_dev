@@ -5,9 +5,12 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 const clerk = clerkMiddleware(async (auth, req) => {
-  void auth;
-  void req;
-  void isAdminRoute;
+  if (isAdminRoute(req)) {
+    // Just ensure the user is logged in. 
+    // We handle strict role-based access in the /admin layout (Server Component)
+    // to avoid JWT session claim synchronization issues.
+    await auth?.protect();
+  }
 });
 
 export default async function middleware(req: NextRequest, evt: NextFetchEvent) {
