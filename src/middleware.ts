@@ -14,6 +14,10 @@ const clerk = clerkMiddleware(async (auth, req) => {
 });
 
 export default async function middleware(req: NextRequest, evt: NextFetchEvent) {
+  if (req.nextUrl.pathname === "/admin" || req.nextUrl.pathname === "/admin/") {
+    return NextResponse.redirect(new URL("/admin/ads", req.url));
+  }
+
   const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   if (!clerkConfigured) return NextResponse.next();
 
