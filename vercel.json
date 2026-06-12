@@ -1,3 +1,15 @@
 {
-  "crons": []
+  "crons": [],
+  "redirects": [
+    {
+      "source": "/admin",
+      "destination": "/admin/ads",
+      "permanent": false
+    },
+    {
+      "source": "/admin/",
+      "destination": "/admin/ads",
+      "permanent": false
+    }
+  ]
 }
