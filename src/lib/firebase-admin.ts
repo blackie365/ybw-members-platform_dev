@@ -86,8 +86,15 @@ if (!admin?.apps?.length) {
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
 
 // Safely export services only if the app is initialized
-const firestore = admin?.apps?.length > 0 ? getFirestore(admin?.app(), dbId) : null;
-if (firestore) firestore.settings({ ignoreUndefinedProperties: true });
+let firestore: ReturnType<typeof getFirestore> | null = null;
+if (admin?.apps?.length > 0) {
+  try {
+    firestore = getFirestore(admin.app(), dbId);
+    firestore.settings({ ignoreUndefinedProperties: true });
+  } catch (e) {
+    firestore = null;
+  }
+}
 export const adminDb = firestore;
 export const adminAuth = admin?.apps?.length > 0 ? admin?.auth() : null;
 export const adminStorage = admin?.apps?.length > 0 ? admin?.storage() : null;
