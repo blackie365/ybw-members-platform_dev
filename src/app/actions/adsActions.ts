@@ -43,16 +43,21 @@ function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
 
   const items = (rotation.items || [])
     .filter((item): item is AdItem => Boolean(item && item.id))
-    .map((item) => ({
-      id: String(item.id),
-      enabled: item.enabled !== false,
-      imageUrl: item.imageUrl || '',
-      linkUrl: item.linkUrl || '',
-      altText: item.altText || '',
-      weight: typeof item.weight === 'number' ? item.weight : undefined,
-      startAt: item.startAt || '',
-      endAt: item.endAt || '',
-    }));
+    .map((item) => {
+      const sanitized: AdItem = {
+        id: String(item.id),
+        enabled: item.enabled !== false,
+        imageUrl: item.imageUrl || '',
+        linkUrl: item.linkUrl || '',
+        altText: item.altText || '',
+      };
+
+      if (typeof item.weight === 'number') sanitized.weight = item.weight;
+      if (item.startAt) sanitized.startAt = item.startAt;
+      if (item.endAt) sanitized.endAt = item.endAt;
+
+      return sanitized;
+    });
 
   return {
     enabled: rotation.enabled === true,
