@@ -9,7 +9,6 @@ import { Footer } from "@/components/magazine/footer";
 import { NewsTicker } from "@/components/magazine/news-ticker";
 import { getPosts } from "@/lib/ghost";
 import { CookieBanner } from "@/components/cookie-banner";
-import { adminDb } from "@/lib/firebase-admin";
 import './globals.css';
 
 const playfair = Playfair_Display({
@@ -85,20 +84,18 @@ export default async function RootLayout({
 
   let headerAd: { imageUrl?: string; linkUrl?: string; altText?: string; enabled?: boolean } | undefined;
   try {
+    const { adminDb } = await import("@/lib/firebase-admin");
     if (adminDb) {
       const doc = await adminDb.collection('system').doc('ads').get();
       if (doc.exists) {
         const data = doc.data() as any;
-        if (data?.headerLeaderboard) {
-          headerAd = data.headerLeaderboard;
-        }
+        if (data?.headerLeaderboard) headerAd = data.headerLeaderboard;
       }
-    }
+    }    
   } catch (e) {}
 
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider>
       
       <html lang="en" className="bg-background" suppressHydrationWarning>
         <body className={`${playfair.variable} ${inter.variable} font-sans antialiased flex flex-col min-h-screen`}>
