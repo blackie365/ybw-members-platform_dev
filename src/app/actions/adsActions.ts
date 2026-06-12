@@ -3,7 +3,7 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 
-type HeaderLeaderboardAdItem = {
+type AdItem = {
   id: string;
   enabled?: boolean;
   imageUrl?: string;
@@ -14,24 +14,52 @@ type HeaderLeaderboardAdItem = {
   endAt?: string;
 };
 
-type HeaderLeaderboardRotation = {
+type AdRotation = {
   enabled?: boolean;
   intervalSeconds?: number;
-  items?: HeaderLeaderboardAdItem[];
+  items?: AdItem[];
 };
 
-type HeaderLeaderboardAd = {
+type AdSlotConfig = {
   enabled?: boolean;
   imageUrl?: string;
   linkUrl?: string;
   altText?: string;
-  rotation?: HeaderLeaderboardRotation;
+  rotation?: AdRotation;
   updatedAt?: string;
 };
 
 type AdsConfig = {
-  headerLeaderboard?: HeaderLeaderboardAd;
+  headerLeaderboard?: AdSlotConfig;
+  sidebarMpu?: AdSlotConfig;
+  midArticle?: AdSlotConfig;
 };
+
+function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
+  if (!rotation) return undefined;
+
+  const intervalSecondsRaw = typeof rotation.intervalSeconds === 'number' ? rotation.intervalSeconds : 30;
+  const intervalSeconds = Math.min(3600, Math.max(5, Math.floor(intervalSecondsRaw || 30)));
+
+  const items = (rotation.items || [])
+    .filter((item): item is AdItem => Boolean(item && item.id))
+    .map((item) => ({
+      id: String(item.id),
+      enabled: item.enabled !== false,
+      imageUrl: item.imageUrl || '',
+      linkUrl: item.linkUrl || '',
+      altText: item.altText || '',
+      weight: typeof item.weight === 'number' ? item.weight : undefined,
+      startAt: item.startAt || '',
+      endAt: item.endAt || '',
+    }));
+
+  return {
+    enabled: rotation.enabled === true,
+    intervalSeconds,
+    items,
+  };
+}
 
 export async function getAdsConfigAction(): Promise<{ success: true; data: AdsConfig } | { success: false; error: string }> {
   try {
@@ -45,6 +73,8 @@ export async function getAdsConfigAction(): Promise<{ success: true; data: AdsCo
       success: true,
       data: {
         headerLeaderboard: data.headerLeaderboard || {},
+        sidebarMpu: data.sidebarMpu || {},
+        midArticle: data.midArticle || {},
       },
     };
   } catch (error: any) {
@@ -52,38 +82,15 @@ export async function getAdsConfigAction(): Promise<{ success: true; data: AdsCo
   }
 }
 
-export async function updateHeaderLeaderboardAdAction(input: HeaderLeaderboardAd): Promise<{ success: true } | { success: false; error: string }> {
+export async function updateAdSlotAction(
+  slot: keyof AdsConfig,
+  input: AdSlotConfig
+): Promise<{ success: true } | { success: false; error: string }> {
   try {
     await checkAdmin();
     if (!adminDb) throw new Error('Database not initialized');
 
-    const sanitizeRotation = (rotation?: HeaderLeaderboardRotation): HeaderLeaderboardRotation | undefined => {
-      if (!rotation) return undefined;
-
-      const intervalSecondsRaw = typeof rotation.intervalSeconds === 'number' ? rotation.intervalSeconds : 30;
-      const intervalSeconds = Math.min(3600, Math.max(5, Math.floor(intervalSecondsRaw || 30)));
-
-      const items = (rotation.items || [])
-        .filter((item): item is HeaderLeaderboardAdItem => Boolean(item && item.id))
-        .map((item) => ({
-          id: String(item.id),
-          enabled: item.enabled !== false,
-          imageUrl: item.imageUrl || '',
-          linkUrl: item.linkUrl || '',
-          altText: item.altText || '',
-          weight: typeof item.weight === 'number' ? item.weight : undefined,
-          startAt: item.startAt || '',
-          endAt: item.endAt || '',
-        }));
-
-      return {
-        enabled: rotation.enabled === true,
-        intervalSeconds,
-        items,
-      };
-    };
-
-    const payload: HeaderLeaderboardAd = {
+    const payload: AdSlotConfig = {
       enabled: input.enabled !== false,
       imageUrl: input.imageUrl || '',
       linkUrl: input.linkUrl || '',
@@ -94,13 +101,25 @@ export async function updateHeaderLeaderboardAdAction(input: HeaderLeaderboardAd
 
     await adminDb.collection('system').doc('ads').set(
       {
-        headerLeaderboard: payload,
+        [slot]: payload,
       },
       { merge: true }
     );
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error?.message || 'Failed to update header ad' };
+    return { success: false, error: error?.message || 'Failed to update ad config' };
   }
+}
+
+export async function updateHeaderLeaderboardAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
+  return updateAdSlotAction('headerLeaderboard', input);
+}
+
+export async function updateSidebarMpuAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
+  return updateAdSlotAction('sidebarMpu', input);
+}
+
+export async function updateMidArticleAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
+  return updateAdSlotAction('midArticle', input);
 }

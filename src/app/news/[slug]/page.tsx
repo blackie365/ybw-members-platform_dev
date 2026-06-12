@@ -11,6 +11,7 @@ import { EventRSVP } from '@/components/EventRSVP';
 import { ArrowLeft, Facebook, Linkedin, Lock, Mail, Twitter } from 'lucide-react';
 import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
+import { adminDb } from '@/lib/firebase-admin';
 
 export const revalidate = 0;
 
@@ -54,6 +55,49 @@ async function getRelatedPosts(currentPostId: string, tags: any[]) {
   // Removed the date filter from related posts as well to ensure they show up correctly.
   const related = await getPosts({ limit: 4, filter: `tag:${primaryTag.slug}+id:-${currentPostId}` });
   return related.slice(0, 3);
+}
+
+function pickAdFromSlotConfig(slot: any): { imageUrl?: string; linkUrl?: string; altText?: string } | undefined {
+  if (!slot || slot.enabled === false) return undefined;
+
+  const altText = slot.altText || 'Advertisement';
+
+  const rotationEnabled = slot.rotation?.enabled === true;
+  const rawItems = Array.isArray(slot.rotation?.items) ? slot.rotation.items : [];
+  const intervalSecondsRaw = typeof slot.rotation?.intervalSeconds === 'number' ? slot.rotation.intervalSeconds : 30;
+  const intervalSeconds = Math.min(3600, Math.max(5, Math.floor(intervalSecondsRaw || 30)));
+  const intervalMs = intervalSeconds * 1000;
+
+  if (rotationEnabled && rawItems.length > 0) {
+    const now = new Date();
+    const eligible = rawItems
+      .filter((item: any) => item && item.enabled !== false)
+      .filter((item: any) => Boolean(item.imageUrl))
+      .filter((item: any) => {
+        const startAt = item.startAt ? new Date(item.startAt) : null;
+        const endAt = item.endAt ? new Date(item.endAt) : null;
+        if (startAt && Number.isFinite(startAt.getTime()) && now < startAt) return false;
+        if (endAt && Number.isFinite(endAt.getTime()) && now > endAt) return false;
+        return true;
+      });
+
+    if (eligible.length > 0) {
+      const bucket = Math.floor(Date.now() / intervalMs);
+      const item = eligible[bucket % eligible.length];
+      return {
+        imageUrl: item.imageUrl,
+        linkUrl: item.linkUrl || slot.linkUrl || '',
+        altText: item.altText || altText,
+      };
+    }
+  }
+
+  if (!slot.imageUrl) return undefined;
+  return {
+    imageUrl: slot.imageUrl,
+    linkUrl: slot.linkUrl || '',
+    altText,
+  };
 }
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -112,6 +156,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       }
     })
   };
+
+  let adsConfig: any = {};
+  try {
+    if (adminDb) {
+      const doc = await adminDb.collection('system').doc('ads').get();
+      if (doc.exists) adsConfig = doc.data() || {};
+    }
+  } catch (e) {}
+
+  const midArticleAd = pickAdFromSlotConfig(adsConfig?.midArticle);
+  const sidebarMpuAd = pickAdFromSlotConfig(adsConfig?.sidebarMpu);
 
   return (
     <div className="min-h-screen bg-background">
@@ -251,7 +306,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 />
                 
                 <div className="mt-12">
-                  <AdSlot type="mid-article" />
+                  <AdSlot
+                    type="mid-article"
+                    imageUrl={midArticleAd?.imageUrl}
+                    linkUrl={midArticleAd?.linkUrl}
+                    altText={midArticleAd?.altText}
+                  />
                 </div>
 
                 {isEvent && (
@@ -313,7 +373,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
             <div className="sticky top-24 flex flex-col gap-8">
               {isEvent && !isLocked && ticketCardEnabled && <EventTicketCard post={post} />}
-              <AdSlot type="sidebar-mpu" />
+              <AdSlot
+                type="sidebar-mpu"
+                imageUrl={sidebarMpuAd?.imageUrl}
+                linkUrl={sidebarMpuAd?.linkUrl}
+                altText={sidebarMpuAd?.altText}
+              />
             </div>
           </aside>
         </div>
