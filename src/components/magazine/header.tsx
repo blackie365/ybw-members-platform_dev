@@ -53,6 +53,7 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const envHeaderAdImageUrl = process.env.NEXT_PUBLIC_HEADER_AD_IMAGE_URL;
+  const envHeaderAdIframeUrl = process.env.NEXT_PUBLIC_HEADER_AD_IFRAME_URL;
   const envHeaderAdLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL;
   const envHeaderAdAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || "Advertisement";
   const headerAdEnabled = headerAd?.enabled !== false;
@@ -109,7 +110,7 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
     ? rotatedItem?.imageUrl || headerAd?.imageUrl || envHeaderAdImageUrl
     : undefined;
   const headerAdIframeUrl = headerAdEnabled
-    ? rotatedItem?.iframeUrl || headerAd?.iframeUrl
+    ? rotatedItem?.iframeUrl || headerAd?.iframeUrl || envHeaderAdIframeUrl
     : undefined;
   const headerAdLinkUrl = headerAdEnabled
     ? rotatedItem?.linkUrl || headerAd?.linkUrl || envHeaderAdLinkUrl
