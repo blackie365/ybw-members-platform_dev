@@ -515,7 +515,7 @@ function normalizeAdditionalMedia(input: any, fallbackAlt: string): AdditionalMe
 }
 
 function getAdditionalMedia(data: any, fallbackAlt: string): AdditionalMediaItem[] {
-  const main = String(data?.image || '').trim();
+  const main = String(data?.featureImage || data?.image || '').trim();
   const sources: AdditionalMediaItem[] = [
     ...normalizeAdditionalMedia(data?.images, fallbackAlt),
     ...normalizeAdditionalMedia(data?.gallery, fallbackAlt),
@@ -975,7 +975,7 @@ const PageCover = ({ data, imageVersion }: any) => {
 
   const dateIssue = [data.date, data.issue].filter(Boolean).join(' · ');
   const backgroundImage = String(data.image || '').trim();
-  const featureImageExplicit = String(data.featureImage || '').trim();
+  const featureImageExplicit = String(data.featureImage || data.image || '').trim();
   const featureImage = featureImageExplicit || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.headline || data.title || 'Cover').trim());
@@ -1370,8 +1370,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
@@ -1611,8 +1611,8 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const snapshotLabel = String(data.snapshotLabel || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
@@ -1832,8 +1832,8 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const tipsLabel = String(data.tipsLabel || data.tipsTitle || '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || kicker || 'Column').trim());
   const inlineMedia = additionalMedia.slice(0, 2);
@@ -2047,8 +2047,8 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
@@ -2274,8 +2274,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.name || sectionLabel || 'Spotlight').trim());
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
@@ -2551,8 +2551,8 @@ const PagePartner = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.brand || data.title || 'Partner').trim());
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
@@ -2705,8 +2705,8 @@ const PageBackCover = ({ data, imageVersion }: any) => {
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.nextIssue || kicker || 'Back Cover').trim());
-  const backgroundImage = String(data.image || '').trim();
-  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
+  const backgroundImage = String(data.featureImage || data.image || '').trim();
+  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
 
   if (isFullBackground) {
