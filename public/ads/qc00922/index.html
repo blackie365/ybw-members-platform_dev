@@ -14,7 +14,7 @@
 <title>QC00922 - 780x90px - HTML5_v1</title>
 <!-- write your code here -->
 <script src="https://code.createjs.com/1.0.0/createjs.min.js"></script>
-<script src="QC00922 - 780x90px - HTML5_v1.js"></script>
+<script src="banner.js"></script>
 <script>
 var canvas, stage, exportRoot, anim_container, dom_overlay_container, fnStartAnimation;
 function init() {
@@ -52,15 +52,15 @@ function handleComplete(evt,comp) {
 		createjs.Ticker.addEventListener("tick", stage);
 	}	    
 	//Code to support hidpi screens and responsive scaling.
-	AdobeAn.makeResponsive(false,'both',false,1,[canvas,anim_container,dom_overlay_container]);	
+	AdobeAn.makeResponsive(true,'both',true,1,[canvas,anim_container,dom_overlay_container]);	
 	AdobeAn.compositionLoaded(lib.properties.id);
 	fnStartAnimation();
 }
 </script>
 <!-- write your code here -->
 </head>
-<body onload="init();" style="margin:0px;">
-	<div id="animation_container" style="background-color:rgba(255, 255, 255, 1.00); width:780px; height:90px">
+<body onload="init();" style="margin:0px; padding:0px; overflow:hidden;">
+	<div id="animation_container" style="background-color:rgba(255, 255, 255, 1.00); width:100%; height:100%; display:flex; justify-content:center; align-items:center;">
 		<canvas id="canvas" width="780" height="90" style="position: absolute; display: block; background-color:rgba(255, 255, 255, 1.00);"></canvas>
 		<div id="dom_overlay_container" style="pointer-events:none; overflow:hidden; width:780px; height:90px; position: absolute; left: 0px; top: 0px; display: block;">
 		</div>

@@ -119,7 +119,7 @@ function AdContent({
         <iframe
           src={iframeUrl}
           title={altText}
-          className="absolute inset-0 h-full w-full border-0"
+          className={cn("absolute inset-0 h-full w-full border-0", linkUrl && "pointer-events-none")}
           scrolling="no"
         />
       </div>
