@@ -975,7 +975,7 @@ const PageCover = ({ data, imageVersion }: any) => {
 
   const dateIssue = [data.date, data.issue].filter(Boolean).join(' · ');
   const backgroundImage = String(data.image || '').trim();
-  const featureImageExplicit = String(data.featureImage || data.image || '').trim();
+  const featureImageExplicit = String(data.featureImage || '').trim();
   const featureImage = featureImageExplicit || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.headline || data.title || 'Cover').trim());
@@ -1428,9 +1428,9 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
                 </p>
               )}
 
-              {(data.title || data.name) && (
+              {(data.title) && (
                 <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
-                  {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
+                  {renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}
                 </h2>
               )}
 
