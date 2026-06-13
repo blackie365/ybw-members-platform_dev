@@ -27,6 +27,7 @@ const navigation = [
 
 export type HeaderAdConfig = {
   imageUrl?: string;
+  iframeUrl?: string;
   linkUrl?: string;
   altText?: string;
   enabled?: boolean;
@@ -37,6 +38,7 @@ export type HeaderAdConfig = {
       id: string;
       enabled?: boolean;
       imageUrl?: string;
+      iframeUrl?: string;
       linkUrl?: string;
       altText?: string;
       weight?: number;
@@ -66,7 +68,7 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
     const items = headerAd?.rotation?.items || [];
     return items
       .filter((item) => item && item.enabled !== false)
-      .filter((item) => Boolean(item.imageUrl))
+      .filter((item) => Boolean(item.imageUrl) || Boolean(item.iframeUrl))
       .filter((item) => {
         const startAt = item.startAt ? new Date(item.startAt) : null;
         const endAt = item.endAt ? new Date(item.endAt) : null;
@@ -106,6 +108,9 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
   const headerAdImageUrl = headerAdEnabled
     ? rotatedItem?.imageUrl || headerAd?.imageUrl || envHeaderAdImageUrl
     : undefined;
+  const headerAdIframeUrl = headerAdEnabled
+    ? rotatedItem?.iframeUrl || headerAd?.iframeUrl
+    : undefined;
   const headerAdLinkUrl = headerAdEnabled
     ? rotatedItem?.linkUrl || headerAd?.linkUrl || envHeaderAdLinkUrl
     : undefined;
@@ -126,10 +131,11 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
       {/* Top Banner */}
       <div className="border-b border-border/60 bg-background">
         <div className="mx-auto flex max-w-7xl justify-center px-4 py-5 lg:px-8">
-          {headerAdImageUrl ? (
+          {(headerAdImageUrl || headerAdIframeUrl) ? (
             <AdSlot
               type="leaderboard"
               imageUrl={headerAdImageUrl}
+              iframeUrl={headerAdIframeUrl}
               linkUrl={headerAdLinkUrl}
               altText={headerAdAltText}
             />
