@@ -1,6 +1,6 @@
 'use server';
 
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 
 type AdItem = {
@@ -69,7 +69,7 @@ function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
 export async function getAdsConfigAction(): Promise<{ success: true; data: AdsConfig } | { success: false; error: string }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
 
     const doc = await adminDb.collection('system').doc('ads').get();
     const data = (doc.exists ? (doc.data() as any) : {}) || {};
@@ -93,7 +93,7 @@ export async function updateAdSlotAction(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
 
     const payload: AdSlotConfig = {
       enabled: input.enabled !== false,

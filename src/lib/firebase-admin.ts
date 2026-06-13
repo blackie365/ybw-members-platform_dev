@@ -83,11 +83,38 @@ if (!admin?.apps?.length) {
 }
 
 // Specify the correct database ID used by the project
-const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '(default)';
+const dbIdRaw = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID;
+const dbId = typeof dbIdRaw === 'string' && dbIdRaw.trim() ? dbIdRaw.trim() : '(default)';
 
 // Safely export services only if the app is initialized
-const firestore = admin?.apps?.length > 0 ? getFirestore(admin?.app(), dbId) : null;
-if (firestore) firestore.settings({ ignoreUndefinedProperties: true });
+let firestore: ReturnType<typeof getFirestore> | null = null;
+let firestoreInitError: string | null = null;
+let firestoreUsedFallback = false;
+
+if (admin?.apps?.length > 0) {
+  try {
+    firestore = getFirestore(admin.app(), dbId);
+    firestore.settings({ ignoreUndefinedProperties: true });
+  } catch (e: any) {
+    firestoreInitError = String(e?.message || e || 'Unknown Firestore init error');
+    try {
+      firestore = getFirestore(admin.app());
+      firestore.settings({ ignoreUndefinedProperties: true });
+      firestoreUsedFallback = true;
+    } catch (e2: any) {
+      const fallbackErr = String(e2?.message || e2 || 'Unknown Firestore init error (fallback)');
+      firestoreInitError = `${firestoreInitError} | fallback: ${fallbackErr}`;
+      firestore = null;
+    }
+  }
+}
+
 export const adminDb = firestore;
+export const adminDbInit = {
+  ok: Boolean(firestore),
+  databaseId: dbId,
+  usedFallback: firestoreUsedFallback,
+  error: firestoreInitError,
+};
 export const adminAuth = admin?.apps?.length > 0 ? admin?.auth() : null;
 export const adminStorage = admin?.apps?.length > 0 ? admin?.storage() : null;
