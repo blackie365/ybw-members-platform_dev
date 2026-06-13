@@ -1,6 +1,6 @@
 'use server';
 
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { getGhostMembers } from '@/lib/ghost-admin';
 
@@ -8,7 +8,7 @@ export async function getAdminOverviewStats() {
   try {
     await checkAdmin();
     
-    if (!adminDb) throw new Error('Database not initialized');
+    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
 
     // Fetch Firestore stats
     const [membersSnap, eventsSnap, messagesSnap] = await Promise.all([
