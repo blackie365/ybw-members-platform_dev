@@ -94,12 +94,24 @@ let firestoreUsedFallback = false;
 if (admin?.apps?.length > 0) {
   try {
     firestore = getFirestore(admin.app(), dbId);
-    firestore.settings({ ignoreUndefinedProperties: true });
+    try {
+      firestore.settings({ ignoreUndefinedProperties: true });
+    } catch (e: any) {
+      if (!e.message?.includes('has already been initialized')) {
+        throw e;
+      }
+    }
   } catch (e: any) {
     firestoreInitError = String(e?.message || e || 'Unknown Firestore init error');
     try {
       firestore = getFirestore(admin.app());
-      firestore.settings({ ignoreUndefinedProperties: true });
+      try {
+        firestore.settings({ ignoreUndefinedProperties: true });
+      } catch (e2: any) {
+        if (!e2.message?.includes('has already been initialized')) {
+          throw e2;
+        }
+      }
       firestoreUsedFallback = true;
     } catch (e2: any) {
       const fallbackErr = String(e2?.message || e2 || 'Unknown Firestore init error (fallback)');
