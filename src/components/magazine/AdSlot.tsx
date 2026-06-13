@@ -8,6 +8,8 @@ export interface AdSlotProps {
   type: AdSlotType
   /** Direct image ad */
   imageUrl?: string
+  /** HTML5 / Iframe ad */
+  iframeUrl?: string
   /** Where the ad links to */
   linkUrl?: string
   linkTarget?: '_blank' | '_self'
@@ -23,6 +25,7 @@ export interface AdSlotProps {
 export function AdSlot({
   type,
   imageUrl,
+  iframeUrl,
   linkUrl,
   linkTarget = '_blank',
   altText = 'Advertisement',
@@ -37,6 +40,7 @@ export function AdSlot({
         <div className="overflow-hidden ring-1 ring-border">
           <AdContent
             imageUrl={imageUrl}
+            iframeUrl={iframeUrl}
             linkUrl={linkUrl}
             linkTarget={linkTarget}
             altText={altText}
@@ -57,6 +61,7 @@ export function AdSlot({
         <div className="mx-auto max-w-[728px] overflow-hidden ring-1 ring-border">
           <AdContent
             imageUrl={imageUrl}
+            iframeUrl={iframeUrl}
             linkUrl={linkUrl}
             linkTarget={linkTarget}
             altText={altText}
@@ -77,6 +82,7 @@ export function AdSlot({
       <div className="mx-auto max-w-[728px] overflow-hidden ring-1 ring-border">
         <AdContent
           imageUrl={imageUrl}
+          iframeUrl={iframeUrl}
           linkUrl={linkUrl}
           linkTarget={linkTarget}
           altText={altText}
@@ -90,6 +96,7 @@ export function AdSlot({
 
 function AdContent({
   imageUrl,
+  iframeUrl,
   linkUrl,
   linkTarget,
   altText,
@@ -97,34 +104,52 @@ function AdContent({
   aspectClass,
 }: {
   imageUrl?: string
+  iframeUrl?: string
   linkUrl?: string
   linkTarget?: '_blank' | '_self'
   altText: string
   placeholderSize: string
   aspectClass: string
 }) {
-  const inner = imageUrl ? (
-    <div className={cn('relative w-full bg-muted', aspectClass)}>
-      <Image
-        src={imageUrl}
-        alt={altText}
-        fill
-        className="object-cover"
-        sizes="(max-width: 768px) 100vw, 728px"
-      />
-    </div>
-  ) : (
-    <div
-      className={cn(
-        'flex w-full items-center justify-center bg-muted/40',
-        aspectClass
-      )}
-    >
-      <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
-        {placeholderSize}
-      </span>
-    </div>
-  )
+  let inner;
+
+  if (iframeUrl) {
+    inner = (
+      <div className={cn('relative w-full bg-muted', aspectClass)}>
+        <iframe
+          src={iframeUrl}
+          title={altText}
+          className="absolute inset-0 h-full w-full border-0"
+          scrolling="no"
+        />
+      </div>
+    );
+  } else if (imageUrl) {
+    inner = (
+      <div className={cn('relative w-full bg-muted', aspectClass)}>
+        <Image
+          src={imageUrl}
+          alt={altText}
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 728px"
+        />
+      </div>
+    );
+  } else {
+    inner = (
+      <div
+        className={cn(
+          'flex w-full items-center justify-center bg-muted/40',
+          aspectClass
+        )}
+      >
+        <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/40">
+          {placeholderSize}
+        </span>
+      </div>
+    );
+  }
 
   if (linkUrl) {
     return (

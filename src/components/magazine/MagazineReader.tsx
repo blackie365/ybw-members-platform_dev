@@ -984,7 +984,7 @@ const PageCover = ({ data, imageVersion }: any) => {
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
       {backgroundMedia ? (
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${featureImageExplicit ? 'blur-xl opacity-50 scale-110' : ''}`}
           style={{ backgroundImage: `url('${fixMagazineImageUrl(backgroundMedia, imageVersion)}')` }}
         />
       ) : null}
@@ -1534,10 +1534,10 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         )}
 
         {/* Title */}
-        {(data.title || data.name) && (
+        {(data.title) && (
           <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
             style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
-            {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
+            {renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}
           </h2>
         )}
 
@@ -1667,9 +1667,11 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                     {nameLabel && (
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{nameLabel}</p>
                     )}
-                    <h2 className="text-section-lg font-serif font-600 text-white">
-                      {renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}
-                    </h2>
+                    {(data.title) && (
+                      <h2 className="text-section-lg font-serif font-600 text-white">
+                        {renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}
+                      </h2>
+                    )}
                   </div>
 
                   {data.quote && (
@@ -1743,7 +1745,9 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
               {nameLabel && (
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{nameLabel}</p>
               )}
-              <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title || data.name, 'font-serif italic text-[#a3413a]')}</h2>
+              {(data.title) && (
+                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
+              )}
             </div>
 
             {data.quote && (
@@ -1981,7 +1985,9 @@ const PageColumn = ({ data, imageVersion }: any) => {
 
             <div className={[data.videoUrl || featureImage ? 'lg:col-span-7' : 'lg:col-span-12', 'space-y-6', data.videoUrl || featureImage ? 'scroll-reveal scroll-reveal-delay-2' : 'scroll-reveal'].join(' ')}>
               <div>
-                <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
+                {(data.title) && (
+                  <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>
+                )}
                 {data.author && <p className="text-sm text-[#7a6e65] font-medium uppercase tracking-wider mt-1">{data.author}</p>}
               </div>
 
@@ -2424,7 +2430,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           </div>
 
           {/* Name card — bottom left */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-8 z-20">
+          {/* <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-8 z-20">
             <div className="scroll-reveal">
               <h2
                 className="font-serif text-white leading-[0.95] tracking-tight"
@@ -2438,7 +2444,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
                 </p>
               )}
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* ── RIGHT: Content column ── */}
@@ -2450,7 +2456,7 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
             style={{ background: 'radial-gradient(ellipse, #a3413a 0%, transparent 70%)', filter: 'blur(80px)' }}
           />
 
-          {(data.name || sectionLabel || data.role) && (
+          {(data.name) && (
             <div className="sticky top-0 z-20 -mx-8 lg:-mx-12 xl:-mx-16 px-8 lg:px-12 xl:px-16 py-5 bg-[#0e0b09]/85 backdrop-blur-md border-b border-white/[0.06]">
               {sectionLabel && (
                 <div className="flex items-center gap-2">

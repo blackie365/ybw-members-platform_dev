@@ -14,6 +14,7 @@ type AdItem = {
   id: string;
   enabled?: boolean;
   imageUrl?: string;
+  iframeUrl?: string;
   linkUrl?: string;
   altText?: string;
 };
@@ -27,6 +28,7 @@ type AdRotation = {
 type AdSlotConfig = {
   enabled?: boolean;
   imageUrl?: string;
+  iframeUrl?: string;
   linkUrl?: string;
   altText?: string;
   rotation?: AdRotation;
@@ -39,6 +41,7 @@ export default function AdsAdminPage() {
   const defaultSlot: AdSlotConfig = {
     enabled: true,
     imageUrl: '',
+    iframeUrl: '',
     linkUrl: '',
     altText: 'Advertisement',
     rotation: { enabled: false, intervalSeconds: 30, items: [] },
@@ -56,6 +59,7 @@ export default function AdsAdminPage() {
       id,
       enabled: item.enabled !== false,
       imageUrl: item.imageUrl || '',
+      iframeUrl: item.iframeUrl || '',
       linkUrl: item.linkUrl || '',
       altText: item.altText || '',
     };
@@ -112,6 +116,7 @@ export default function AdsAdminPage() {
           return {
             enabled: raw?.enabled !== false,
             imageUrl: raw?.imageUrl || '',
+            iframeUrl: raw?.iframeUrl || '',
             linkUrl: raw?.linkUrl || '',
             altText: raw?.altText || 'Advertisement',
             rotation,
@@ -342,7 +347,7 @@ export default function AdsAdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Image</label>
+                <label className="text-sm font-medium">Image Upload</label>
                 <div className="flex items-center gap-3">
                   <Input
                     type="file"
@@ -356,22 +361,33 @@ export default function AdsAdminPage() {
                   {uploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">HTML5 Iframe URL (Optional)</label>
+                <Input value={slot.iframeUrl || ''} onChange={(e) => updateSlot(def.key, { iframeUrl: e.target.value })} placeholder="/ads/qc00922/index.html" />
+                <div className="text-xs text-muted-foreground">Overrides image if provided. Perfect for animated HTML5 banners.</div>
+              </div>
             </div>
 
             <div className="space-y-2">
               <div className="text-sm font-medium">Preview</div>
               <div className="border border-border bg-muted/20 p-4 flex items-center justify-center">
-                {slot.imageUrl ? (
+                {slot.iframeUrl ? (
+                  <div className={`relative w-full ${def.maxWidthClass} ${def.aspectClass} bg-muted`}>
+                    <iframe src={slot.iframeUrl} className="absolute inset-0 h-full w-full border-0" scrolling="no" title={slot.altText || 'Ad'} />
+                  </div>
+                ) : slot.imageUrl ? (
                   <div className={`relative w-full ${def.maxWidthClass} ${def.aspectClass} bg-muted`}>
                     <Image src={slot.imageUrl} alt={slot.altText || 'Advertisement'} fill className="object-cover" />
                   </div>
                 ) : (
                   <div className={`w-full ${def.maxWidthClass} ${def.aspectClass} flex items-center justify-center border border-dashed border-border text-xs text-muted-foreground`}>
-                    No image uploaded
+                    No image or iframe uploaded
                   </div>
                 )}
               </div>
-              {slot.imageUrl && <div className="text-xs text-muted-foreground break-all">{slot.imageUrl}</div>}
+              {slot.iframeUrl && <div className="text-xs text-muted-foreground break-all">{slot.iframeUrl}</div>}
+              {slot.imageUrl && !slot.iframeUrl && <div className="text-xs text-muted-foreground break-all">{slot.imageUrl}</div>}
             </div>
           </div>
 
