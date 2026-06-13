@@ -2324,8 +2324,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
               </div>
 
               {data.name && (
-                <h2 className="font-serif text-white leading-[0.95] tracking-tight" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 700 }}>
-                  {data.name}
+                <h2 className="font-serif text-white font-bold leading-tight tracking-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
+                  {renderTitleArt(data.name, 'font-serif italic text-[#a3413a]')}
                 </h2>
               )}
               {data.role && (
@@ -2467,9 +2467,9 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
                 </div>
               )}
               {data.name && (
-                <h3 className="mt-3 font-serif text-white leading-tight tracking-tight text-2xl sm:text-3xl font-bold">
-                  {data.name}
-                </h3>
+                <h2 className="mt-3 font-serif text-white font-bold leading-tight tracking-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
+                  {renderTitleArt(data.name, 'font-serif italic text-[#a3413a]')}
+                </h2>
               )}
               {data.role && (
                 <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
