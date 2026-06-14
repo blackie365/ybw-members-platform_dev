@@ -451,9 +451,26 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               </div>
               <div className="space-y-2">
                 <Label>Feature Image</Label>
-                <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
-              </div>
+              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Additional Images (Inline / Gallery)</Label>
+              <Textarea
+                rows={3}
+                placeholder="One image URL per line"
+                value={(() => {
+                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  return '';
+                })()}
+                onChange={(e) => {
+                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+                  updateContent('images', urls);
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
+            </div>
+          </div>
             <div className="space-y-2">
               <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
@@ -597,6 +614,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Feature Image</Label>
               <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Additional Images (Inline / Gallery)</Label>
+              <Textarea
+                rows={3}
+                placeholder="One image URL per line"
+                value={(() => {
+                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  return '';
+                })()}
+                onChange={(e) => {
+                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+                  updateContent('images', urls);
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
+            </div>
             <div className="space-y-2">
               <Label>Background Image (Optional)</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
@@ -704,6 +738,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Feature Image (Optional)</Label>
               <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Additional Images (Inline / Gallery)</Label>
+              <Textarea
+                rows={3}
+                placeholder="One image URL per line"
+                value={(() => {
+                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  return '';
+                })()}
+                onChange={(e) => {
+                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+                  updateContent('images', urls);
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
             </div>
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
