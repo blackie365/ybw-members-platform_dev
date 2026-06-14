@@ -703,11 +703,13 @@ function MediaFigure({
   imageVersion,
   variant,
   size,
+  align,
 }: {
   item: AdditionalMediaItem;
   imageVersion: string;
   variant: 'light' | 'dark';
   size: 'inline' | 'wide' | 'full';
+  align?: 'left' | 'right';
 }) {
   const frameClassName = variant === 'dark'
     ? 'border border-white/10 bg-white/5'
@@ -722,11 +724,16 @@ function MediaFigure({
     size === 'inline' ? 'aspect-[4/3]' : 'aspect-[16/9]'
   );
 
-  const outerClassName = size === 'full'
-    ? 'w-full'
-    : size === 'wide'
-      ? 'w-full'
-      : 'w-full max-w-xl';
+  let outerClassName = 'w-full mb-6 mt-2';
+  if (size === 'inline') {
+    outerClassName = align === 'left'
+      ? 'w-full md:w-1/2 lg:w-5/12 md:float-left md:mr-8 md:mb-6 md:mt-2'
+      : 'w-full md:w-1/2 lg:w-5/12 md:float-right md:ml-8 md:mb-6 md:mt-2';
+  } else if (size === 'full') {
+    outerClassName = 'w-full mb-8 mt-4 clear-both';
+  } else if (size === 'wide') {
+    outerClassName = 'w-full max-w-4xl mx-auto mb-8 mt-4 clear-both';
+  }
 
   return (
     <figure className={['rounded-3xl overflow-hidden shadow-[0_20px_90px_rgba(0,0,0,0.14)]', frameClassName, outerClassName].join(' ')}>
@@ -772,16 +779,35 @@ function InterleavedTextWithMedia({
   const safeQuotes = Array.isArray(pullQuotes) ? pullQuotes.map((q) => String(q || '').trim()).filter(Boolean) : [];
   if (safeBlocks.length === 0) return null;
 
-  const insertionPoints = new Set<number>();
-  if (safeMedia.length > 0 && safeBlocks.length >= 2) insertionPoints.add(2);
-  if (safeMedia.length > 1 && safeBlocks.length >= 5) insertionPoints.add(5);
-
+  // We want to interleave safeQuotes and safeMedia beautifully throughout the blocks
   const quotePoints = new Set<number>();
-  if (safeQuotes.length > 0) {
-    quotePoints.add(safeBlocks.length >= 3 ? 3 : 1);
+  const mediaPoints = new Set<number>();
+
+  let availableSlots = [];
+  for (let i = 1; i < safeBlocks.length; i++) {
+    availableSlots.push(i);
   }
-  if (safeQuotes.length > 1) {
-    quotePoints.add(safeBlocks.length >= 6 ? 6 : Math.max(2, safeBlocks.length));
+
+  // Space out quotes
+  const qSpacing = Math.max(2, Math.floor(safeBlocks.length / (safeQuotes.length + 1)));
+  for (let i = 0; i < safeQuotes.length; i++) {
+    let pt = (i + 1) * qSpacing;
+    if (pt >= safeBlocks.length) pt = safeBlocks.length - 1;
+    quotePoints.add(pt);
+    availableSlots = availableSlots.filter(s => s !== pt);
+  }
+
+  // Space out media in the remaining slots
+  const mSpacing = Math.max(1, Math.floor(availableSlots.length / (safeMedia.length + 1)));
+  for (let i = 0; i < safeMedia.length; i++) {
+    if (availableSlots.length > 0) {
+      let idx = Math.min((i + 1) * mSpacing, availableSlots.length - 1);
+      let pt = availableSlots[idx];
+      mediaPoints.add(pt);
+      availableSlots = availableSlots.filter(s => s !== pt);
+    } else {
+      mediaPoints.add(safeBlocks.length - 1);
+    }
   }
 
   let mediaIndex = 0;
@@ -789,10 +815,27 @@ function InterleavedTextWithMedia({
   const nodes: React.ReactNode[] = [];
 
   for (let i = 0; i < safeBlocks.length; i += 1) {
-    const block = safeBlocks[i];
-    nodes.push(<SafeText key={`tb-${i}`} html={block} className={textClassName} />);
+    if (mediaPoints.has(i) && mediaIndex < safeMedia.length) {
+      const item = safeMedia[mediaIndex];
+      const requestedLayout = item.layout === 'full' || item.layout === 'wide' || item.layout === 'inline' ? item.layout : undefined;
+      const size = requestedLayout || 'inline';
+      const align = mediaIndex % 2 === 0 ? 'left' : 'right';
+      mediaIndex++;
 
-    if (quotePoints.has(i + 1) && quoteIndex < safeQuotes.length) {
+      if (size === 'inline') {
+        nodes.push(
+          <MediaFigure key={`tm-${i}`} item={item} imageVersion={imageVersion} variant={variant} size={size} align={align} />
+        );
+      } else {
+        nodes.push(
+          <div key={`tm-${i}`} className="py-2 clear-both w-full">
+            <MediaFigure item={item} imageVersion={imageVersion} variant={variant} size={size} align={align} />
+          </div>
+        );
+      }
+    }
+
+    if (quotePoints.has(i) && quoteIndex < safeQuotes.length) {
       const quote = safeQuotes[quoteIndex];
       const align = quoteIndex % 2 === 0 ? 'right' : 'left';
       quoteIndex += 1;
@@ -801,16 +844,21 @@ function InterleavedTextWithMedia({
       );
     }
 
-    if (insertionPoints.has(i + 1) && mediaIndex < safeMedia.length) {
-      const item = safeMedia[mediaIndex++];
-      const requestedLayout = item.layout === 'full' || item.layout === 'wide' || item.layout === 'inline' ? item.layout : undefined;
-      const size = requestedLayout === 'full' ? 'full' : requestedLayout === 'inline' ? 'inline' : 'wide';
-      nodes.push(
-        <div key={`tm-${i}`} className="py-1 clear-both">
-          <MediaFigure item={item} imageVersion={imageVersion} variant={variant} size={size} />
-        </div>
-      );
-    }
+    nodes.push(<SafeText key={`tb-${i}`} html={safeBlocks[i]} className={textClassName} />);
+  }
+
+  // Handle any leftover media
+  while (mediaIndex < safeMedia.length) {
+    const item = safeMedia[mediaIndex];
+    const requestedLayout = item.layout === 'full' || item.layout === 'wide' || item.layout === 'inline' ? item.layout : undefined;
+    const size = requestedLayout || 'wide';
+    const align = mediaIndex % 2 === 0 ? 'left' : 'right';
+    mediaIndex++;
+    nodes.push(
+      <div key={`tm-leftover-${mediaIndex}`} className="py-4 clear-both w-full">
+        <MediaFigure item={item} imageVersion={imageVersion} variant={variant} size={size} align={align} />
+      </div>
+    );
   }
 
   return (
@@ -1122,7 +1170,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
   const signature = String(data.author || '').trim().split(/\s+/g).filter(Boolean)[0] || '';
   const introWithDropcap = introHtml ? addClassToFirstParagraph(introHtml, 'editorial-dropcap') : '';
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || 'Editorial').trim());
-  const inlineMedia = additionalMedia.slice(0, 2);
+  const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const textBlocks = [
     ...(introWithDropcap ? [introWithDropcap] : []),
@@ -1374,7 +1422,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
-  const inlineMedia = additionalMedia.slice(0, 2);
+  const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const textBlocks = [
     ...getHtmlBlocks(String(data.intro || '')),
@@ -1615,7 +1663,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
   const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
-  const inlineMedia = additionalMedia.slice(0, 2);
+  const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
   const textBlocks = getHtmlBlocks(String(data.text || ''));
@@ -1840,7 +1888,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
   const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.author || kicker || 'Column').trim());
-  const inlineMedia = additionalMedia.slice(0, 2);
+  const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const textBlocks = getHtmlBlocks(String(data.text || ''));
 
@@ -2047,7 +2095,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const editorsPickLabel = String(data.editorsPickLabel || '').trim();
   const highlights = Array.isArray(data.highlights) ? data.highlights : [];
   const additionalMedia = getAdditionalMedia(data, String(title || kicker || 'Lifestyle').trim());
-  const inlineMedia = additionalMedia.slice(0, 2);
+  const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const textBlocks = getHtmlBlocks(String(data.text || ''));
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
