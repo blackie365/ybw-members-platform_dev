@@ -126,3 +126,41 @@ export async function editGhostMember(id: string, data: any) {
     return null;
   }
 }
+
+/**
+ * Upgrade a member to paid status by email
+ */
+export async function upgradeGhostMemberByEmail(email: string, tierLabel: string) {
+  const admin = getGhostAdmin();
+  if (!admin) return null;
+
+  try {
+    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    if (members && members.length > 0) {
+      const member = members[0];
+      const currentLabels = member.labels.map((l: any) => l.name || l);
+      const newLabels = currentLabels.filter((l: string) => !['free-member'].includes(l));
+      
+      if (!newLabels.includes('paid-member')) newLabels.push('paid-member');
+      if (!newLabels.includes('stripe-upgrade')) newLabels.push('stripe-upgrade');
+      if (!newLabels.includes(tierLabel)) newLabels.push(tierLabel);
+
+      return await admin.members.edit({
+        id: member.id,
+        labels: newLabels,
+        comped: true
+      });
+    } else {
+      // If they somehow don't exist, create them as paid
+      return await admin.members.add({
+        email,
+        labels: ['stripe-upgrade', 'paid-member', tierLabel],
+        comped: true,
+        newsletters: []
+      });
+    }
+  } catch (err) {
+    console.error("Error upgrading Ghost member:", err);
+    return null;
+  }
+}
