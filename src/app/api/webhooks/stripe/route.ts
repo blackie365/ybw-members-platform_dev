@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
-import { addGhostMember } from '@/lib/ghost-admin';
+import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
@@ -158,15 +158,11 @@ export async function POST(req: Request) {
             .catch(err => console.error('Failed to send welcome email:', err));
         }
 
-        if (userEmail && !(userData as any).ghostSyncedAt && !(userData as any).ghostSyncAttemptedAt) {
-          userRef.set({ ghostSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
-          addGhostMember({
-            email: userEmail,
-            name: displayName || undefined,
-            labels: ['stripe-upgrade', 'paid-member', membershipTier],
-          })
+        if (userEmail && !(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
+          userRef.set({ ghostPaidSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
+          upgradeGhostMemberByEmail(userEmail, membershipTier)
             .then((res) => {
-              if (res) return userRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+              if (res) return userRef.set({ ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso }, { merge: true });
             })
             .catch(() => {});
         }
