@@ -1188,7 +1188,7 @@ const PageEditorial = ({ data, imageVersion }: any) => {
                   pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes)}
                   imageVersion={imageVersion}
                   variant="light"
-                  textClassName="text-[#3d2b1f]/80 leading-relaxed"
+                  textClassName="font-serif text-[#3d2b1f]/80 leading-relaxed"
                 />
               </div>
             )}
@@ -1276,7 +1276,7 @@ const PageContents = ({ data, imageVersion }: any) => {
 
         {data.text && (
           <div className="scroll-reveal -mt-6 mb-10 max-w-3xl">
-            <SafeText html={data.text} className="text-white/70 leading-relaxed" />
+            <SafeText html={data.text} className="font-serif text-white/70 leading-relaxed" />
           </div>
         )}
 
@@ -1553,7 +1553,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {/* Intro / body text */}
         {data.intro && (
           <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-            <SafeText html={data.intro} className="text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
+            <SafeText html={data.intro} className="font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
           </div>
         )}
 
@@ -1565,7 +1565,7 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
               pullQuotes={pullQuotes}
               imageVersion={imageVersion}
               variant="light"
-              textClassName="text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3"
+              textClassName="font-serif text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3"
             />
           </div>
         )}
@@ -1765,7 +1765,7 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
                 pullQuotes={pullQuotes}
                 imageVersion={imageVersion}
                 variant="light"
-                textClassName="text-[#3d2b1f]/75 leading-relaxed"
+                textClassName="font-serif text-[#3d2b1f]/75 leading-relaxed"
               />
             )}
 
@@ -1998,7 +1998,7 @@ const PageColumn = ({ data, imageVersion }: any) => {
                   pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
                   imageVersion={imageVersion}
                   variant="light"
-                  textClassName="text-[#3d2b1f]/75 leading-relaxed"
+                  textClassName="font-serif text-[#3d2b1f]/75 leading-relaxed"
                 />
               )}
 
@@ -2254,7 +2254,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               pullQuotes={normalizePullQuotes(data.pullQuotes || data.quotes || data.quote)}
               imageVersion={imageVersion}
               variant="light"
-              textClassName="text-[#3d2b1f]/75 leading-relaxed"
+              textClassName="font-serif text-[#3d2b1f]/75 leading-relaxed"
             />
           </div>
         )}
@@ -2822,7 +2822,7 @@ const PageBackCover = ({ data, imageVersion }: any) => {
                 {data.nextIssue && <p className="text-[#7a6e65] font-medium mt-1 text-lg">{data.nextIssue}</p>}
               </div>
 
-              {data.text && <SafeText html={data.text} className="text-[#3d2b1f]/70 leading-relaxed" />}
+              {data.text && <SafeText html={data.text} className="font-serif text-[#3d2b1f]/70 leading-relaxed" />}
 
               {additionalMedia.length > 0 && (
                 <div className="scroll-reveal scroll-reveal-delay-2">
