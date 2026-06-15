@@ -41,8 +41,8 @@ export function EmailLayout({ children, previewText }: EmailLayoutProps) {
               }}>
               
               <img
-                src="https://img.rocket.new/generatedImages/rocket_gen_img_1545cfed3-1772247582674.png"
-                alt="Yorkshire Businesswoman"
+                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
+                alt="Yorkshire BusinessWoman Logo"
                 width="200"
                 style={{
                   display: "block",
