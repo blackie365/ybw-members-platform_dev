@@ -11,11 +11,12 @@ export function EventTicketCard({ post }: { post: any }) {
     amount: 5000, // Default £50
     display: '£50',
     isFree: false,
-    source: 'default'
+    source: 'default',
+    hasMemberDiscount: false
   });
   const [quantity, setQuantity] = useState(1);
   
-  const { user } = useAuth();
+  const { user, isPremium } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -24,12 +25,20 @@ export function EventTicketCard({ post }: { post: any }) {
       const metadata = await getEventMetadata(post.slug);
       
       if (metadata.success && metadata.data?.price !== undefined) {
-        const price = metadata.data.price;
+        let activePrice = metadata.data.price;
+        let hasMemberDiscount = false;
+        
+        if (isPremium && metadata.data.memberPrice !== undefined) {
+          activePrice = metadata.data.memberPrice;
+          hasMemberDiscount = true;
+        }
+
         setPriceData({
-          amount: price * 100,
-          display: price === 0 ? 'Free' : `£${price}`,
-          isFree: price === 0,
-          source: 'firestore'
+          amount: activePrice * 100,
+          display: activePrice === 0 ? 'Free' : `£${activePrice}`,
+          isFree: activePrice === 0,
+          source: 'firestore',
+          hasMemberDiscount
         });
         return;
       }
@@ -47,7 +56,7 @@ export function EventTicketCard({ post }: { post: any }) {
           const priceString = (slugMatch?.[1] || nameMatch?.[1] || priceTag.slug.split('-').pop())?.toLowerCase();
 
           if (priceString === 'free') {
-            setPriceData({ amount: 0, display: 'Free', isFree: true, source: 'tag' });
+            setPriceData({ amount: 0, display: 'Free', isFree: true, source: 'tag', hasMemberDiscount: false });
           } else if (priceString) {
             const digits = priceString.match(/\d+/);
             if (digits) {
@@ -56,7 +65,8 @@ export function EventTicketCard({ post }: { post: any }) {
                 amount: numericPrice * 100,
                 display: `£${numericPrice}`,
                 isFree: false,
-                source: 'tag'
+                source: 'tag',
+                hasMemberDiscount: false
               });
             }
           }
@@ -65,9 +75,9 @@ export function EventTicketCard({ post }: { post: any }) {
     }
 
     resolvePrice();
-  }, [post.slug, post.tags]);
+  }, [post.slug, post.tags, isPremium]);
 
-  const { amount: priceAmount, display: displayPrice, isFree } = priceData;
+  const { amount: priceAmount, display: displayPrice, isFree, hasMemberDiscount } = priceData;
 
   const handleCheckout = async () => {
     // If they aren't logged in, force them to login or register first so we know who bought the ticket!
@@ -131,7 +141,14 @@ export function EventTicketCard({ post }: { post: any }) {
       <div className="flex items-end justify-between mb-6">
         <div>
           <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Ticket Price</p>
-          <p className="text-3xl font-extrabold text-zinc-900 dark:text-white">{displayPrice}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-extrabold text-zinc-900 dark:text-white">{displayPrice}</p>
+            {hasMemberDiscount && (
+              <span className="text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full mb-1">
+                Member Rate
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

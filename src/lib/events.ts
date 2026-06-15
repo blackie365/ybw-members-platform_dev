@@ -20,6 +20,7 @@ export interface Event {
   eventType: EventType;
   accessLevel?: 'public' | 'members-only';
   price?: number;
+  memberPrice?: number;
   ticketCardEnabled?: boolean;
   capacity?: number;
   registeredCount?: number;
