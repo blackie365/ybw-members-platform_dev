@@ -86,8 +86,9 @@ export async function POST(req: Request) {
       
       const { postId, postSlug, userId, plan, cycle } = session.metadata || {};
       
-      // If this was a subscription checkout, update the user immediately
-      if (plan === 'premium' && userId) {
+      // If this was a subscription checkout, update the user immediately.
+      // We check if it's a subscription mode checkout OR if they passed 'premium' plan metadata.
+      if ((session.mode === 'subscription' || plan === 'premium') && userId) {
         const usersRef = adminDb.collection('newMemberCollection');
         const userRef = usersRef.doc(userId);
         const userSnap = await userRef.get();
@@ -268,18 +269,46 @@ export async function POST(req: Request) {
               console.error('Error retrieving subscription for tier update:', e);
             }
 
+            const nowIso = new Date().toISOString();
+
             await userDoc.ref.update({
               status: 'active',
               membershipTier: tier,
               billingInterval: interval,
               stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id,
               subscriptionId: invoice.subscription,
-              lastPaymentDate: new Date().toISOString(),
+              lastPaymentDate: nowIso,
               userInactive: false,
               isNewsletterAuthorized: true,
               emailLower: customerEmailLower,
             });
             console.log(`Updated member tier to ${tier}`);
+
+            // Send premium welcome email if it hasn't been sent yet
+            const userEmail = customerEmail;
+            const firstName = userData.firstName || 'there';
+            const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+
+            if (!(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
+              userDoc.ref.update({ premiumWelcomeEmailAttemptedAt: nowIso }).catch(() => {});
+              sendEmail({
+                to: userEmail,
+                subject: 'Welcome to Yorkshire Businesswoman!',
+                html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
+              })
+                .then(() => userDoc.ref.update({ premiumWelcomeEmailSentAt: nowIso }))
+                .catch(err => console.error('Failed to send welcome email from invoice webhook:', err));
+            }
+
+            // Sync to Ghost CMS if not synced yet
+            if (!(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
+              userDoc.ref.update({ ghostPaidSyncAttemptedAt: nowIso }).catch(() => {});
+              upgradeGhostMemberByEmail(userEmail, tier)
+                .then((res) => {
+                  if (res) return userDoc.ref.update({ ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso });
+                })
+                .catch(() => {});
+            }
 
             const adminRecipients = await getAdminRecipients();
             sendEmail({
