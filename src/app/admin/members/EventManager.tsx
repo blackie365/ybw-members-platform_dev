@@ -15,6 +15,7 @@ import { Loader2, Save } from "lucide-react";
 export interface EventMetadata {
   id: string
   price?: number
+  memberPrice?: number
   accessLevel?: 'public' | 'members-only'
   ticketCardEnabled?: boolean
   capacity?: number
@@ -26,9 +27,11 @@ interface EventManagerProps {
   eventsMetadata: Record<string, EventMetadata>
   updating: string | null
   editingPrice: Record<string, string>
+  editingMemberPrice: Record<string, string>
   setEditingPrice: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  setEditingMemberPrice: React.Dispatch<React.SetStateAction<Record<string, string>>>
   handleUpdatePrice: (slug: string) => void
-  handleToggleAccess: (slug: string, currentAccess?: string) => void
+  handleToggleAccess: (slug: string, currentLevel?: 'public' | 'members-only') => void
   handleToggleTicketCard: (slug: string, currentEnabled?: boolean) => void
 }
 
@@ -37,7 +40,9 @@ export function EventManager({
   eventsMetadata,
   updating,
   editingPrice,
+  editingMemberPrice,
   setEditingPrice,
+  setEditingMemberPrice,
   handleUpdatePrice,
   handleToggleAccess,
   handleToggleTicketCard,
@@ -49,7 +54,8 @@ export function EventManager({
           <TableRow>
             <TableHead>Event</TableHead>
             <TableHead>Current Price</TableHead>
-            <TableHead>New Price (£)</TableHead>
+            <TableHead>New Standard (£)</TableHead>
+            <TableHead>New Member (£)</TableHead>
             <TableHead className="text-center">Members Only</TableHead>
             <TableHead className="text-center">Stripe Card</TableHead>
             <TableHead className="w-[100px]"></TableHead>
@@ -70,24 +76,40 @@ export function EventManager({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {typeof meta?.price === 'number' ? (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                      £{meta.price} (Live)
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Using Tag/Default
-                    </Badge>
-                  )}
+                  <div className="flex flex-col gap-1 text-sm">
+                    {typeof meta?.price === 'number' ? (
+                      <span className="text-green-600 font-medium">Std: £{meta.price}</span>
+                    ) : (
+                      <span className="text-muted-foreground italic">Std: Unset</span>
+                    )}
+                    {typeof meta?.memberPrice === 'number' ? (
+                      <span className="text-blue-600 font-medium">Mem: £{meta.memberPrice}</span>
+                    ) : (
+                      <span className="text-muted-foreground italic">Mem: Unset</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <Input
-                    type="number"
-                    className="w-24 h-9"
-                    placeholder="e.g. 50"
-                    value={editingPrice[event.slug] || ""}
-                    onChange={(e) => setEditingPrice(prev => ({ ...prev, [event.slug]: e.target.value }))}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="number" 
+                      placeholder="e.g. 50" 
+                      className="w-20"
+                      value={editingPrice[event.slug] || ""}
+                      onChange={(e) => setEditingPrice(prev => ({ ...prev, [event.slug]: e.target.value }))}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      type="number" 
+                      placeholder="e.g. 40" 
+                      className="w-20"
+                      value={editingMemberPrice[event.slug] || ""}
+                      onChange={(e) => setEditingMemberPrice(prev => ({ ...prev, [event.slug]: e.target.value }))}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="text-center">
                   <div className="flex flex-col items-center gap-1">
@@ -118,7 +140,7 @@ export function EventManager({
                     size="sm" 
                     variant="outline" 
                     className="h-9 gap-2 border-accent text-accent hover:bg-accent hover:text-white"
-                    disabled={isUpdating}
+                    disabled={isUpdating || (!editingPrice[event.slug] && !editingMemberPrice[event.slug])}
                     onClick={() => handleUpdatePrice(event.slug)}
                   >
                     {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

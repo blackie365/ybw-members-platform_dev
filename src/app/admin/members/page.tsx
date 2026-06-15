@@ -52,6 +52,7 @@ function AdminMembersContent() {
   const [eventsMetadata, setEventsMetadata] = useState<Record<string, EventMetadata>>({})
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({})
+  const [editingMemberPrice, setEditingMemberPrice] = useState<Record<string, string>>({})
 
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([])
@@ -196,28 +197,50 @@ function AdminMembersContent() {
   }
 
   const handleUpdatePrice = async (slug: string) => {
-    const price = parseInt(editingPrice[slug], 10)
-    if (isNaN(price)) {
-      alert("Please enter a valid numeric price")
-      return
-    }
+    const stdPriceStr = editingPrice[slug]
+    const memPriceStr = editingMemberPrice[slug]
+    
+    // If both are empty, nothing to update
+    if (!stdPriceStr && !memPriceStr) return
 
     setUpdating(slug)
     try {
-      const currentMeta = eventsMetadata[slug] || {}
-      const res = await updateEventMetadata(slug, { 
-        price,
-        accessLevel: currentMeta.accessLevel || 'public' 
-      } as any)
+      const updateData: Partial<EventMetadata> = {}
       
+      if (stdPriceStr) {
+        const p = parseInt(stdPriceStr, 10)
+        if (!isNaN(p)) updateData.price = p
+      }
+      
+      if (memPriceStr) {
+        const mp = parseInt(memPriceStr, 10)
+        if (!isNaN(mp)) updateData.memberPrice = mp
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        setUpdating(null)
+        return
+      }
+
+      const res = await updateEventMetadata(slug, updateData as any)
       if (res.success) {
         setEventsMetadata(prev => ({
           ...prev,
-          [slug]: { ...prev[slug], id: slug, price }
+          [slug]: { ...prev[slug], id: slug, ...updateData }
         }))
-        alert(`Price for ${slug} updated to £${price}`)
+        // clear the inputs
+        setEditingPrice(prev => {
+          const next = { ...prev }
+          delete next[slug]
+          return next
+        })
+        setEditingMemberPrice(prev => {
+          const next = { ...prev }
+          delete next[slug]
+          return next
+        })
       } else {
-        alert("Failed to update: " + res.error)
+        alert("Failed to update price: " + res.error)
       }
     } catch (err) {
       console.error(err)
@@ -520,11 +543,13 @@ function AdminMembersContent() {
                 </div>
               ) : (
                 <EventManager 
-                  events={events}
+                  events={events} 
                   eventsMetadata={eventsMetadata}
                   updating={updating}
                   editingPrice={editingPrice}
+                  editingMemberPrice={editingMemberPrice}
                   setEditingPrice={setEditingPrice}
+                  setEditingMemberPrice={setEditingMemberPrice}
                   handleUpdatePrice={handleUpdatePrice}
                   handleToggleAccess={handleToggleAccess}
                   handleToggleTicketCard={handleToggleTicketCard}
