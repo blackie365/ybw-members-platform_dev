@@ -209,6 +209,7 @@ export async function POST(req: Request) {
 
             const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(userId);
             const ticketQuantity = parseInt(session.metadata?.quantity || '1', 10);
+            const guestInfo = session.metadata?.guestInfo || '';
             
             await attendeeRef.set({
               uid: userId,
@@ -217,7 +218,8 @@ export async function POST(req: Request) {
               company: profileData.companyName || profileData['Company'] || '',
               timestamp: new Date().toISOString(),
               hasTicket: true,
-              quantity: ticketQuantity
+              quantity: ticketQuantity,
+              guestInfo: guestInfo
             });
             console.log(`Successfully added attendee to RSVP list for ${postSlug}`);
 

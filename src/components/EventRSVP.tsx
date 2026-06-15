@@ -13,6 +13,8 @@ interface Attendee {
   image: string;
   company: string;
   timestamp: any;
+  quantity?: number;
+  guestInfo?: string;
 }
 
 export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventTitle: string }) {
@@ -141,9 +143,16 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">{attendee.name}</span>
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    {attendee.name} {attendee.quantity && attendee.quantity > 1 ? `(+${attendee.quantity - 1})` : ''}
+                  </span>
                   {attendee.company && (
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight">{attendee.company}</span>
+                  )}
+                  {attendee.guestInfo && (
+                    <span className="text-[10px] text-zinc-400 mt-0.5 leading-tight truncate max-w-[120px]" title={attendee.guestInfo}>
+                      Guests: {attendee.guestInfo}
+                    </span>
                   )}
                 </div>
               </Link>

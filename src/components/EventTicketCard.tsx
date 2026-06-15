@@ -9,12 +9,14 @@ export function EventTicketCard({ post }: { post: any }) {
   const [loading, setLoading] = useState(false);
   const [priceData, setPriceData] = useState({
     amount: 5000, // Default £50
+    standardAmount: 5000,
     display: '£50',
     isFree: false,
     source: 'default',
     hasMemberDiscount: false
   });
   const [quantity, setQuantity] = useState(1);
+  const [guestInfo, setGuestInfo] = useState('');
   
   const { user, isPremium } = useAuth();
   const router = useRouter();
@@ -35,6 +37,7 @@ export function EventTicketCard({ post }: { post: any }) {
 
         setPriceData({
           amount: activePrice * 100,
+          standardAmount: metadata.data.price * 100,
           display: activePrice === 0 ? 'Free' : `£${activePrice}`,
           isFree: activePrice === 0,
           source: 'firestore',
@@ -56,13 +59,14 @@ export function EventTicketCard({ post }: { post: any }) {
           const priceString = (slugMatch?.[1] || nameMatch?.[1] || priceTag.slug.split('-').pop())?.toLowerCase();
 
           if (priceString === 'free') {
-            setPriceData({ amount: 0, display: 'Free', isFree: true, source: 'tag', hasMemberDiscount: false });
+            setPriceData({ amount: 0, standardAmount: 0, display: 'Free', isFree: true, source: 'tag', hasMemberDiscount: false });
           } else if (priceString) {
             const digits = priceString.match(/\d+/);
             if (digits) {
               const numericPrice = parseInt(digits[0], 10);
               setPriceData({
                 amount: numericPrice * 100,
+                standardAmount: numericPrice * 100,
                 display: `£${numericPrice}`,
                 isFree: false,
                 source: 'tag',
@@ -77,7 +81,11 @@ export function EventTicketCard({ post }: { post: any }) {
     resolvePrice();
   }, [post.slug, post.tags, isPremium]);
 
-  const { amount: priceAmount, display: displayPrice, isFree, hasMemberDiscount } = priceData;
+  const { amount: priceAmount, standardAmount, display: displayPrice, isFree, hasMemberDiscount } = priceData;
+
+  const grandTotalAmount = hasMemberDiscount 
+    ? priceAmount + (Math.max(0, quantity - 1) * standardAmount)
+    : priceAmount * quantity;
 
   const handleCheckout = async () => {
     // If they aren't logged in, force them to login or register first so we know who bought the ticket!
@@ -103,7 +111,10 @@ export function EventTicketCard({ post }: { post: any }) {
           userEmail: user.email,
           userId: user.uid,
           priceAmount: priceAmount,
-          quantity: quantity, 
+          standardAmount: standardAmount,
+          hasMemberDiscount: hasMemberDiscount,
+          quantity: quantity,
+          guestInfo: guestInfo 
         }),
       });
 
@@ -172,10 +183,29 @@ export function EventTicketCard({ post }: { post: any }) {
       </div>
 
       {quantity > 1 && !isFree && (
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total</p>
-          <p className="text-lg font-bold text-zinc-900 dark:text-white">£{(priceAmount / 100) * quantity}</p>
-        </div>
+        <>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Guest Names / Emails (Optional)
+            </label>
+            <textarea 
+              rows={2}
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+              placeholder="Who are the extra tickets for?"
+              value={guestInfo}
+              onChange={(e) => setGuestInfo(e.target.value)}
+            />
+            {hasMemberDiscount && (
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                Note: Member discount applies to 1 ticket. Additional tickets are charged at the standard rate (£{standardAmount / 100}).
+              </p>
+            )}
+          </div>
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total</p>
+            <p className="text-lg font-bold text-zinc-900 dark:text-white">£{grandTotalAmount / 100}</p>
+          </div>
+        </>
       )}
 
       <button
