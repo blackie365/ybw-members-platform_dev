@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
 
     const body = await request.json();
-    const { postId, postSlug, postTitle, priceAmount, plan, cycle } = body;
+    const { postId, postSlug, postTitle, priceAmount, plan, cycle, quantity = 1 } = body;
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -99,7 +99,8 @@ export async function POST(request: Request) {
         image: profileData.profileImage || '',
         company: profileData.companyName || profileData['Company'] || '',
         timestamp: new Date().toISOString(),
-        ticketType: 'free'
+        ticketType: 'free',
+        quantity: parseInt(quantity) || 1
       });
 
       // Instead of returning a URL to redirect to, just return a success flag
@@ -115,12 +116,12 @@ export async function POST(request: Request) {
           product_data: { name: `Ticket for: ${postTitle}` }, 
           unit_amount: unitAmount 
         },
-        quantity: 1,
+        quantity: parseInt(quantity) || 1,
       }],
       mode: 'payment',
       success_url: `${cleanOrigin}/news/${postSlug}?success=ticket_purchased`,
       cancel_url: `${cleanOrigin}/news/${postSlug}?canceled=true`,
-      metadata: { postId, postSlug, userId } // Stored so Stripe Webhooks can update Firebase later
+      metadata: { postId, postSlug, userId, quantity: (parseInt(quantity) || 1).toString() } // Stored so Stripe Webhooks can update Firebase later
     });
 
     return NextResponse.json({ url: session.url });

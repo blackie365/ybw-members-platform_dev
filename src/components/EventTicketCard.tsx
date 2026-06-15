@@ -13,6 +13,7 @@ export function EventTicketCard({ post }: { post: any }) {
     isFree: false,
     source: 'default'
   });
+  const [quantity, setQuantity] = useState(1);
   
   const { user } = useAuth();
   const router = useRouter();
@@ -91,7 +92,8 @@ export function EventTicketCard({ post }: { post: any }) {
           postTitle: post.title,
           userEmail: user.email,
           userId: user.uid,
-          priceAmount: priceAmount, 
+          priceAmount: priceAmount,
+          quantity: quantity, 
         }),
       });
 
@@ -132,6 +134,32 @@ export function EventTicketCard({ post }: { post: any }) {
           <p className="text-3xl font-extrabold text-zinc-900 dark:text-white">{displayPrice}</p>
         </div>
       </div>
+
+      <div className="flex items-center justify-between mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-700">
+        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Quantity</p>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 dark:hover:text-white transition-colors"
+          >
+            -
+          </button>
+          <span className="w-4 text-center font-medium">{quantity}</span>
+          <button 
+            onClick={() => setQuantity(Math.min(10, quantity + 1))}
+            className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 dark:hover:text-white transition-colors"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {quantity > 1 && !isFree && (
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Total</p>
+          <p className="text-lg font-bold text-zinc-900 dark:text-white">£{(priceAmount / 100) * quantity}</p>
+        </div>
+      )}
 
       <button
         onClick={(e) => {

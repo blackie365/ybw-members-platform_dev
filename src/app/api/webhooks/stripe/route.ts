@@ -208,13 +208,16 @@ export async function POST(req: Request) {
             const profileData = profileSnap.data() || {};
 
             const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(userId);
+            const ticketQuantity = parseInt(session.metadata?.quantity || '1', 10);
+            
             await attendeeRef.set({
               uid: userId,
               name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : 'Member',
               image: profileData.profileImage || '',
               company: profileData.companyName || profileData['Company'] || '',
               timestamp: new Date().toISOString(),
-              hasTicket: true
+              hasTicket: true,
+              quantity: ticketQuantity
             });
             console.log(`Successfully added attendee to RSVP list for ${postSlug}`);
 
