@@ -14,7 +14,18 @@ export async function POST(request: Request) {
     const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
 
     const body = await request.json();
-    const { postId, postSlug, postTitle, priceAmount, plan, cycle, quantity = 1 } = body;
+    const { 
+      postId, 
+      postSlug, 
+      postTitle, 
+      priceAmount, 
+      standardAmount,
+      hasMemberDiscount,
+      plan, 
+      cycle, 
+      quantity = 1,
+      guestInfo = ''
+    } = body;
 
     // Check if Stripe key is available
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -100,28 +111,61 @@ export async function POST(request: Request) {
         company: profileData.companyName || profileData['Company'] || '',
         timestamp: new Date().toISOString(),
         ticketType: 'free',
-        quantity: parseInt(quantity) || 1
+        quantity: parseInt(quantity) || 1,
+        guestInfo: guestInfo || ''
       });
 
       // Instead of returning a URL to redirect to, just return a success flag
       return NextResponse.json({ success: true, free: true });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      customer_email: userEmail || undefined,
-      line_items: [{
+    const qty = parseInt(quantity) || 1;
+    const items = [];
+
+    if (hasMemberDiscount && qty > 1 && standardAmount) {
+      // 1 Member ticket, remainder are standard guest tickets
+      items.push({
+        price_data: { 
+          currency: 'gbp', 
+          product_data: { name: `Member Ticket for: ${postTitle}` }, 
+          unit_amount: unitAmount 
+        },
+        quantity: 1,
+      });
+      items.push({
+        price_data: { 
+          currency: 'gbp', 
+          product_data: { name: `Guest Ticket for: ${postTitle}` }, 
+          unit_amount: parseInt(standardAmount) 
+        },
+        quantity: qty - 1,
+      });
+    } else {
+      // Just standard checkout
+      items.push({
         price_data: { 
           currency: 'gbp', 
           product_data: { name: `Ticket for: ${postTitle}` }, 
           unit_amount: unitAmount 
         },
-        quantity: parseInt(quantity) || 1,
-      }],
+        quantity: qty,
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      customer_email: userEmail || undefined,
+      line_items: items,
       mode: 'payment',
       success_url: `${cleanOrigin}/news/${postSlug}?success=ticket_purchased`,
       cancel_url: `${cleanOrigin}/news/${postSlug}?canceled=true`,
-      metadata: { postId, postSlug, userId, quantity: (parseInt(quantity) || 1).toString() } // Stored so Stripe Webhooks can update Firebase later
+      metadata: { 
+        postId, 
+        postSlug, 
+        userId, 
+        quantity: qty.toString(),
+        guestInfo: guestInfo.substring(0, 500) // Stripe metadata has 500 char limit
+      } 
     });
 
     return NextResponse.json({ url: session.url });
