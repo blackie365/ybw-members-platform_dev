@@ -91,6 +91,18 @@ export function WelcomeEmail({ firstName, membershipTier }: WelcomeEmailProps) {
               </p>
             </td>
           </tr>
+          {membershipTier === "Premium Member" && (
+            <tr>
+              <td style={{ padding: "8px 0", verticalAlign: "top", width: "24px" }}>
+                <span style={{ color: "#b5604a", fontWeight: 600 }}>4.</span>
+              </td>
+              <td style={{ padding: "8px 0" }}>
+                <p style={{ fontFamily: "'Inter', Arial, sans-serif", fontSize: "15px", color: "#78716c", margin: 0, lineHeight: 1.6 }}>
+                  <strong style={{ color: "#1c1917" }}>Join the WhatsApp Group</strong> — <a href="https://chat.whatsapp.com/IXzw4rWevCS8gYPYRFhLDd?s=cl&p=i&mlu=2" style={{ color: "#b5604a", textDecoration: "underline" }}>Click here to join</a> our exclusive members-only chat
+                </p>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
