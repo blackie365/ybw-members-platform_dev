@@ -60,7 +60,7 @@ export function EventManager({
             const meta = eventsMetadata[event.slug]
             const isUpdating = updating === event.slug
             const isMembersOnly = meta?.accessLevel === 'members-only'
-            const isTicketCardEnabled = meta?.ticketCardEnabled !== false
+            const isTicketCardEnabled = meta?.ticketCardEnabled === true
             return (
               <TableRow key={event.id}>
                 <TableCell>

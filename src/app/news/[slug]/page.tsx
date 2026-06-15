@@ -113,11 +113,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   // Check event access level if it's an event
   let accessLevel = 'public';
-  let ticketCardEnabled = true;
+  let ticketCardEnabled = false; // Hidden by default as requested
   if (isEvent) {
     const metadataRes = await getEventMetadata(post.slug);
     if (metadataRes.success && metadataRes.data) {
-      ticketCardEnabled = metadataRes.data.ticketCardEnabled !== false;
+      ticketCardEnabled = metadataRes.data.ticketCardEnabled === true;
       if (metadataRes.data.accessLevel === 'members-only') {
         accessLevel = 'members-only';
       }

@@ -252,7 +252,8 @@ function AdminMembersContent() {
   }
 
   const handleToggleTicketCard = async (slug: string, currentEnabled?: boolean) => {
-    const nextEnabled = currentEnabled === false
+    // Now defaults to false (invisible), so clicking it when undefined should set it to true.
+    const nextEnabled = currentEnabled !== true
     setUpdating(slug)
     try {
       const currentMeta = eventsMetadata[slug] || {}
