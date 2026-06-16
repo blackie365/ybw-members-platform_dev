@@ -11,7 +11,7 @@ const navItems = [
   { name: 'Dashboard Home', href: '/dashboard', icon: LayoutDashboard },
   { name: 'My Profile', href: '/dashboard/profile', icon: User },
   { name: 'Messages', href: '/dashboard/messages', icon: Mail, badge: true },
-  { name: 'Events', href: '/events', icon: Calendar },
+  { name: 'Events', href: '/news?tag=events', icon: Calendar },
   { name: 'Directory', href: '/dashboard/directory', icon: Users },
   { name: 'Member Offers', href: '/dashboard/offers', icon: Gift },
   { name: 'Job & Board Roles', href: '/dashboard/opportunities', icon: Briefcase },
@@ -21,7 +21,7 @@ const navItems = [
 const quickActions = [
   { name: 'Update Profile', href: '/dashboard/profile', icon: User },
   { name: 'Submit an Offer', href: '/dashboard/offers/create', icon: Gift },
-  { name: 'Event Access', href: '/events', icon: Calendar },
+  { name: 'Event Access', href: '/news?tag=events', icon: Calendar },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

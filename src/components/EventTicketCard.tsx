@@ -30,7 +30,8 @@ export function EventTicketCard({ post }: { post: any }) {
         let activePrice = metadata.data.price;
         let hasMemberDiscount = false;
         
-        if (isPremium && metadata.data.memberPrice !== undefined) {
+        // Apply member discount if they are signed in and a member price exists
+        if (user && metadata.data.memberPrice !== undefined) {
           activePrice = metadata.data.memberPrice;
           hasMemberDiscount = true;
         }
@@ -52,34 +53,63 @@ export function EventTicketCard({ post }: { post: any }) {
           t.slug.includes('ticket-price') || 
           t.name.toLowerCase().includes('ticket price')
         );
+        const memberPriceTag = post.tags.find((t: any) => 
+          t.slug.includes('member-price') || 
+          t.name.toLowerCase().includes('member price')
+        );
 
         if (priceTag) {
           const slugMatch = priceTag.slug.match(/ticket-price-([a-z0-9]+)/i);
           const nameMatch = priceTag.name.match(/ticket price ([a-z0-9]+)/i);
           const priceString = (slugMatch?.[1] || nameMatch?.[1] || priceTag.slug.split('-').pop())?.toLowerCase();
 
+          let standardNumericPrice = 0;
+          let isFree = false;
+
           if (priceString === 'free') {
-            setPriceData({ amount: 0, standardAmount: 0, display: 'Free', isFree: true, source: 'tag', hasMemberDiscount: false });
+            isFree = true;
           } else if (priceString) {
             const digits = priceString.match(/\d+/);
             if (digits) {
-              const numericPrice = parseInt(digits[0], 10);
-              setPriceData({
-                amount: numericPrice * 100,
-                standardAmount: numericPrice * 100,
-                display: `£${numericPrice}`,
-                isFree: false,
-                source: 'tag',
-                hasMemberDiscount: false
-              });
+              standardNumericPrice = parseInt(digits[0], 10);
             }
           }
+
+          let activePrice = standardNumericPrice;
+          let hasMemberDiscount = false;
+
+          // If signed in and there's a member price tag
+          if (user && memberPriceTag) {
+            const memSlugMatch = memberPriceTag.slug.match(/member-price-([a-z0-9]+)/i);
+            const memNameMatch = memberPriceTag.name.match(/member price ([a-z0-9]+)/i);
+            const memPriceString = (memSlugMatch?.[1] || memNameMatch?.[1] || memberPriceTag.slug.split('-').pop())?.toLowerCase();
+            
+            if (memPriceString === 'free') {
+              activePrice = 0;
+              hasMemberDiscount = true;
+            } else if (memPriceString) {
+              const memDigits = memPriceString.match(/\d+/);
+              if (memDigits) {
+                activePrice = parseInt(memDigits[0], 10);
+                hasMemberDiscount = true;
+              }
+            }
+          }
+
+          setPriceData({
+            amount: isFree ? 0 : activePrice * 100,
+            standardAmount: isFree ? 0 : standardNumericPrice * 100,
+            display: isFree ? 'Free' : `£${activePrice}`,
+            isFree: isFree || activePrice === 0,
+            source: 'tag',
+            hasMemberDiscount
+          });
         }
       }
     }
 
     resolvePrice();
-  }, [post.slug, post.tags, isPremium]);
+  }, [post.slug, post.tags, isPremium, user]);
 
   const { amount: priceAmount, standardAmount, display: displayPrice, isFree, hasMemberDiscount } = priceData;
 
