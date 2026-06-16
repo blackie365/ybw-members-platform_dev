@@ -147,15 +147,13 @@ export async function upgradeGhostMemberByEmail(email: string, tierLabel: string
 
       return await admin.members.edit({
         id: member.id,
-        labels: newLabels,
-        comped: true
+        labels: newLabels
       });
     } else {
       // If they somehow don't exist, create them as paid
       return await admin.members.add({
         email,
         labels: ['stripe-upgrade', 'paid-member', tierLabel],
-        comped: true,
         newsletters: []
       });
     }
