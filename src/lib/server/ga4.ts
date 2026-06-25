@@ -12,6 +12,7 @@ let accessTokenCache:
   | null = null;
 
 export type WebStatsRange = "30d" | "90d" | "365d";
+export type WebStatsSelection = WebStatsRange | "custom";
 
 export interface Ga4SummaryMetrics {
   totalUsers: number;
@@ -55,7 +56,7 @@ export interface Ga4PagePoint {
 }
 
 export interface Ga4WebStatsReport {
-  range: WebStatsRange;
+  range: WebStatsSelection;
   rangeLabel: string;
   currentRange: {
     startDate: string;
@@ -97,6 +98,12 @@ const RANGE_LABELS: Record<WebStatsRange, string> = {
   "365d": "Last 12 months",
 };
 
+export interface Ga4DateRangeOptions {
+  range?: WebStatsRange;
+  startDate?: string;
+  endDate?: string;
+}
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -121,6 +128,19 @@ function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function parseDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error("Custom date range must use YYYY-MM-DD format.");
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || formatDate(parsed) !== value) {
+    throw new Error("Custom date range contains an invalid date.");
+  }
+
+  return parsed;
+}
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
@@ -139,7 +159,46 @@ function getRangeDays(range: WebStatsRange) {
   }
 }
 
-function getDateWindows(range: WebStatsRange) {
+function getDaySpan(startDate: string, endDate: string) {
+  const start = parseDateInput(startDate);
+  const end = parseDateInput(endDate);
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1;
+}
+
+function buildCustomWindows(startDate: string, endDate: string) {
+  const start = parseDateInput(startDate);
+  const end = parseDateInput(endDate);
+
+  if (start.getTime() > end.getTime()) {
+    throw new Error("Custom start date must be before the end date.");
+  }
+
+  const totalDays = getDaySpan(startDate, endDate);
+  const previousEnd = addDays(start, -1);
+  const previousStart = addDays(previousEnd, -(totalDays - 1));
+
+  return {
+    selection: "custom" as const,
+    rangeLabel: "Custom period",
+    totalDays,
+    current: {
+      startDate,
+      endDate,
+    },
+    previous: {
+      startDate: formatDate(previousStart),
+      endDate: formatDate(previousEnd),
+    },
+  };
+}
+
+function getDateWindows(options: Ga4DateRangeOptions = {}) {
+  if (options.startDate && options.endDate) {
+    return buildCustomWindows(options.startDate, options.endDate);
+  }
+
+  const range = options.range ?? "30d";
   const totalDays = getRangeDays(range);
   const end = addDays(new Date(), -1);
   const start = addDays(end, -(totalDays - 1));
@@ -147,6 +206,9 @@ function getDateWindows(range: WebStatsRange) {
   const previousStart = addDays(previousEnd, -(totalDays - 1));
 
   return {
+    selection: range,
+    rangeLabel: RANGE_LABELS[range],
+    totalDays,
     current: {
       startDate: formatDate(start),
       endDate: formatDate(end),
@@ -311,9 +373,9 @@ function buildDateRangeWindow(window: DateRangeWindow) {
 }
 
 export async function getGa4WebStatsReport(
-  range: WebStatsRange = "30d",
+  options: Ga4DateRangeOptions = {},
 ): Promise<Ga4WebStatsReport> {
-  const windows = getDateWindows(range);
+  const windows = getDateWindows(options);
 
   const [
     currentSummary,
@@ -356,7 +418,7 @@ export async function getGa4WebStatsReport(
       ],
       orderBys: [{ dimension: { dimensionName: "date" } }],
       keepEmptyRows: true,
-      limit: getRangeDays(range).toString(),
+      limit: windows.totalDays.toString(),
     }),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
@@ -389,8 +451,8 @@ export async function getGa4WebStatsReport(
   ]);
 
   return {
-    range,
-    rangeLabel: RANGE_LABELS[range],
+    range: windows.selection,
+    rangeLabel: windows.rangeLabel,
     currentRange: windows.current,
     previousRange: windows.previous,
     summary: {
