@@ -149,6 +149,7 @@ export default function AdminPage() {
           <Link className="text-accent hover:underline" href="/admin/magazine">Magazine</Link>
           <Link className="text-accent hover:underline" href="/admin/newsletter">Newsletter</Link>
           <Link className="text-accent hover:underline" href="/admin/analytics">Analytics</Link>
+          <Link className="text-accent hover:underline" href="/admin/webstats">Web Stats</Link>
         </CardContent>
       </Card>
     </div>
