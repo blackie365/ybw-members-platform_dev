@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Mail,
   BookOpen,
-  Megaphone
+  Megaphone,
+  Globe
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ const adminNavItems = [
   { href: "/admin/ads", label: "Ads", icon: Megaphone },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/webstats", label: "Web Stats", icon: Globe },
 ];
 
 export function AdminSidebar() {
