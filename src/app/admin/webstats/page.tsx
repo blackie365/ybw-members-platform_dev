@@ -27,6 +27,10 @@ import {
   getGa4WebStatsReport,
   type WebStatsRange,
 } from "@/lib/server/ga4";
+import {
+  getSocialMediaReport,
+  type SocialMediaReport,
+} from "@/lib/server/social";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +57,8 @@ const SECTION_OPTIONS = [
   { value: "devices", label: "Device split" },
   { value: "highlights", label: "Content highlights" },
   { value: "top-pages", label: "Top pages table" },
+  { value: "social-summary", label: "Social summary" },
+  { value: "social-content", label: "Social top content" },
 ] as const;
 
 type ReportSection = (typeof SECTION_OPTIONS)[number]["value"];
@@ -105,6 +111,14 @@ function formatDateLabel(value: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
+function formatDateTimeLabel(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function formatShortDateLabel(value: string) {
@@ -293,7 +307,9 @@ export default async function AdminWebStatsPage({
     visibleSections.includes(section);
 
   let report: Ga4WebStatsReport | null = null;
+  let socialReport: SocialMediaReport | null = null;
   let errorMessage: string | null = null;
+  let socialErrorMessage: string | null = null;
 
   try {
     report = await getGa4WebStatsReport(request);
@@ -302,6 +318,20 @@ export default async function AdminWebStatsPage({
       error instanceof Error
         ? error.message
         : "Unable to load GA4 web statistics.";
+  }
+
+  if (report) {
+    try {
+      socialReport = await getSocialMediaReport({
+        startDate: report.currentRange.startDate,
+        endDate: report.currentRange.endDate,
+      });
+    } catch (error) {
+      socialErrorMessage =
+        error instanceof Error
+          ? error.message
+          : "Unable to load social media statistics.";
+    }
   }
 
   if (!report) {
@@ -388,6 +418,20 @@ export default async function AdminWebStatsPage({
   const visibleSectionsInput = visibleSections.map((section) => (
     <input key={section} type="hidden" name="sections" value={section} />
   ));
+  const connectedSocialChannels =
+    socialReport?.channels.filter((channel) => channel.connected) ?? [];
+  const totalSocialFollowers = connectedSocialChannels.reduce(
+    (sum, channel) => sum + channel.followers,
+    0,
+  );
+  const totalSocialEngagements = connectedSocialChannels.reduce(
+    (sum, channel) => sum + channel.engagements,
+    0,
+  );
+  const totalSocialImpressions = connectedSocialChannels.reduce(
+    (sum, channel) => sum + channel.impressions,
+    0,
+  );
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -910,6 +954,208 @@ export default async function AdminWebStatsPage({
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isSectionVisible("social-summary") ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif">Social Media Summary</CardTitle>
+            <CardDescription>
+              Connected Meta channels for the same reporting window as the web report
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {socialErrorMessage ? (
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                {socialErrorMessage}
+              </div>
+            ) : null}
+
+            {socialReport ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Connected Channels"
+                    value={formatInteger(connectedSocialChannels.length)}
+                    supporting="Social profiles currently linked to the report"
+                  />
+                  <MetricCard
+                    label="Followers"
+                    value={formatInteger(totalSocialFollowers)}
+                    supporting="Combined followers across connected social profiles"
+                  />
+                  <MetricCard
+                    label="Recent Engagements"
+                    value={formatInteger(totalSocialEngagements)}
+                    supporting="Combined interactions from recent connected content"
+                  />
+                  <MetricCard
+                    label="Recent Impressions"
+                    value={formatInteger(totalSocialImpressions)}
+                    supporting="Impressions currently available from connected social APIs"
+                  />
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {socialReport.channels.map((channel) => (
+                    <Card key={channel.platform} className="border-accent/10">
+                      <CardHeader>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <CardTitle className="font-serif text-xl">
+                              {channel.label}
+                            </CardTitle>
+                            <CardDescription>
+                              {channel.accountName || "Not connected"}
+                            </CardDescription>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="w-fit bg-muted/50"
+                          >
+                            {channel.connected ? "Connected" : "Setup needed"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {channel.statusMessage ? (
+                          <p className="text-sm text-muted-foreground">
+                            {channel.statusMessage}
+                          </p>
+                        ) : null}
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="rounded-xl border bg-muted/20 p-4">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Followers
+                            </div>
+                            <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                              {formatInteger(channel.followers)}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border bg-muted/20 p-4">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Recent engagements
+                            </div>
+                            <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                              {formatInteger(channel.engagements)}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border bg-muted/20 p-4">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Recent content items
+                            </div>
+                            <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                              {formatInteger(channel.contentCount)}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border bg-muted/20 p-4">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Impressions available
+                            </div>
+                            <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                              {formatInteger(channel.impressions)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {channel.profileUrl ? (
+                          <div className="text-sm text-muted-foreground">
+                            Profile:{" "}
+                            <a
+                              href={channel.profileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-foreground underline underline-offset-4"
+                            >
+                              {channel.accountHandle || channel.accountName || channel.profileUrl}
+                            </a>
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Add Meta API credentials to load Facebook and Instagram stats into
+                this report.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isSectionVisible("social-content") ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif">Top Social Content</CardTitle>
+            <CardDescription>
+              Highest-engagement recent items from connected Facebook and Instagram profiles
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {socialReport && socialReport.topContent.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Platform</TableHead>
+                    <TableHead>Content</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Engagements</TableHead>
+                    <TableHead className="text-right">Likes</TableHead>
+                    <TableHead className="text-right">Comments</TableHead>
+                    <TableHead className="text-right">Impressions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {socialReport.topContent.map((item) => (
+                    <TableRow key={`${item.platform}-${item.id}`}>
+                      <TableCell className="font-medium capitalize">
+                        {item.platform}
+                      </TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal">
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline underline-offset-4"
+                          >
+                            {item.title}
+                          </a>
+                        ) : (
+                          item.title
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDateTimeLabel(item.publishedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatInteger(item.engagements)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatInteger(item.likes)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatInteger(item.comments)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatInteger(item.impressions)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Connect the Meta API to start pulling Facebook and Instagram content
+                performance into this section.
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : null}
