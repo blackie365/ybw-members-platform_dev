@@ -13,6 +13,7 @@ let accessTokenCache:
 
 export type WebStatsRange = "30d" | "90d" | "365d";
 export type WebStatsSelection = WebStatsRange | "custom";
+export type Ga4PropertySource = "current" | "legacy";
 
 export interface Ga4SummaryMetrics {
   totalUsers: number;
@@ -58,6 +59,8 @@ export interface Ga4PagePoint {
 export interface Ga4WebStatsReport {
   range: WebStatsSelection;
   rangeLabel: string;
+  propertySource: Ga4PropertySource;
+  propertyLabel: string;
   currentRange: {
     startDate: string;
     endDate: string;
@@ -102,6 +105,7 @@ export interface Ga4DateRangeOptions {
   range?: WebStatsRange;
   startDate?: string;
   endDate?: string;
+  propertySource?: Ga4PropertySource;
 }
 
 function getRequiredEnv(name: string): string {
@@ -272,10 +276,42 @@ async function getAccessToken() {
   return payloadJson.access_token;
 }
 
+function getPropertyConfig(propertySource: Ga4PropertySource) {
+  const currentPropertyId =
+    process.env.GA4_PROPERTY_ID_CURRENT || process.env.GA4_PROPERTY_ID;
+  const legacyPropertyId =
+    process.env.GA4_PROPERTY_ID_LEGACY || process.env.GA4_PROPERTY_ID;
+
+  if (propertySource === "legacy") {
+    if (!legacyPropertyId) {
+      throw new Error(
+        "Missing required environment variable: GA4_PROPERTY_ID_LEGACY",
+      );
+    }
+
+    return {
+      propertyId: legacyPropertyId,
+      propertyLabel: "Legacy snapshot",
+    };
+  }
+
+  if (!currentPropertyId) {
+    throw new Error(
+      "Missing required environment variable: GA4_PROPERTY_ID_CURRENT",
+    );
+  }
+
+  return {
+    propertyId: currentPropertyId,
+    propertyLabel: "Current property",
+  };
+}
+
 async function runReport(
   body: Record<string, unknown>,
+  propertySource: Ga4PropertySource,
 ): Promise<Ga4RunReportResponse> {
-  const propertyId = getRequiredEnv("GA4_PROPERTY_ID");
+  const { propertyId } = getPropertyConfig(propertySource);
   const accessToken = await getAccessToken();
 
   const response = await fetch(
@@ -376,6 +412,8 @@ export async function getGa4WebStatsReport(
   options: Ga4DateRangeOptions = {},
 ): Promise<Ga4WebStatsReport> {
   const windows = getDateWindows(options);
+  const propertySource = options.propertySource ?? "current";
+  const propertyConfig = getPropertyConfig(propertySource);
 
   const [
     currentSummary,
@@ -396,7 +434,7 @@ export async function getGa4WebStatsReport(
         { name: "engagementRate" },
         { name: "averageSessionDuration" },
       ],
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.previous),
       metrics: [
@@ -407,7 +445,7 @@ export async function getGa4WebStatsReport(
         { name: "engagementRate" },
         { name: "averageSessionDuration" },
       ],
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
       dimensions: [{ name: "date" }],
@@ -419,40 +457,42 @@ export async function getGa4WebStatsReport(
       orderBys: [{ dimension: { dimensionName: "date" } }],
       keepEmptyRows: true,
       limit: windows.totalDays.toString(),
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
       dimensions: [{ name: "sessionDefaultChannelGroup" }],
       metrics: [{ name: "sessions" }, { name: "totalUsers" }],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "6",
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
       dimensions: [{ name: "deviceCategory" }],
       metrics: [{ name: "sessions" }, { name: "totalUsers" }],
       orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       limit: "6",
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
       dimensions: [{ name: "country" }],
       metrics: [{ name: "totalUsers" }],
       orderBys: [{ metric: { metricName: "totalUsers" }, desc: true }],
       limit: "5",
-    }),
+    }, propertySource),
     runReport({
       dateRanges: buildDateRangeWindow(windows.current),
       dimensions: [{ name: "pageTitle" }, { name: "pagePath" }],
       metrics: [{ name: "screenPageViews" }, { name: "totalUsers" }],
       orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
       limit: "10",
-    }),
+    }, propertySource),
   ]);
 
   return {
     range: windows.selection,
     rangeLabel: windows.rangeLabel,
+    propertySource,
+    propertyLabel: propertyConfig.propertyLabel,
     currentRange: windows.current,
     previousRange: windows.previous,
     summary: {
