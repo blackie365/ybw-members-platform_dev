@@ -167,16 +167,11 @@ function buildNarrative(report: Ga4WebStatsReport) {
 
   if (report.propertySource === "legacy") {
     return [
-      `During this reporting period, the website achieved ${formatInteger(report.summary.current.totalUsers)} users and ${formatInteger(report.summary.current.sessions)} sessions, demonstrating strong audience reach.`,
-      `New visitors represented ${formatPercentFromRatio(newUserShare)} of the audience, highlighting healthy discovery and continued brand visibility.`,
-      `Readers generated ${formatInteger(report.summary.current.pageViews)} page views, with an average of ${pagesPerSession.toFixed(1)} pages per session, showing encouraging content interest.`,
-      `Engagement remained positive, with an engagement rate of ${engagementRate} and an average session time of ${averageSession}.`,
-      topChannel
-        ? `${topChannel.channel} was the leading traffic source, delivering ${formatInteger(topChannel.sessions)} sessions into the site.`
-        : "Traffic acquisition remained diversified across the reporting window.",
-      topPage
-        ? `"${topPage.title}" was a standout content performer, generating ${formatInteger(topPage.pageViews)} page views during the period.`
-        : "High-performing content highlights can be included once page-level data is selected.",
+      `Over the selected period, the website delivered ${formatInteger(report.summary.current.totalUsers)} users and ${formatInteger(report.summary.current.sessions)} sessions, giving the brand strong digital visibility and a healthy level of repeat interest.`,
+      `New visitors accounted for ${formatPercentFromRatio(newUserShare)} of the audience, while ${formatInteger(report.summary.current.pageViews)} page views and ${pagesPerSession.toFixed(1)} pages per session point to solid discovery and encouraging content consumption.`,
+      topChannel && topPage
+        ? `Engagement remained positive at ${engagementRate}, with an average session time of ${averageSession}; ${topChannel.channel} was the leading traffic source, and "${topPage.title}" emerged as the standout content performer.`
+        : `Engagement remained positive at ${engagementRate}, with an average session time of ${averageSession}, reinforcing the strength of the audience response across the reporting window.`,
     ];
   }
 
@@ -638,8 +633,8 @@ export default async function AdminWebStatsPage({
           <CardContent>
             {report.propertySource === "legacy" ? (
               <p className="mb-3 text-sm text-muted-foreground">
-                This recap highlights the strongest audience, discovery and content
-                signals from the selected reporting period in a client-ready format.
+                This summary is designed as a concise, client-ready snapshot for
+                presentations, proposals and sales conversations.
               </p>
             ) : null}
             <div className="grid gap-2 text-sm text-muted-foreground">
