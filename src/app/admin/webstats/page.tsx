@@ -160,6 +160,25 @@ function buildNarrative(report: Ga4WebStatsReport) {
     report.summary.current.pageViews,
     report.summary.current.sessions,
   );
+  const engagementRate = formatPercent(report.summary.current.engagementRate);
+  const averageSession = formatDuration(
+    report.summary.current.averageSessionDuration,
+  );
+
+  if (report.propertySource === "legacy") {
+    return [
+      `During this reporting period, the website achieved ${formatInteger(report.summary.current.totalUsers)} users and ${formatInteger(report.summary.current.sessions)} sessions, demonstrating strong audience reach.`,
+      `New visitors represented ${formatPercentFromRatio(newUserShare)} of the audience, highlighting healthy discovery and continued brand visibility.`,
+      `Readers generated ${formatInteger(report.summary.current.pageViews)} page views, with an average of ${pagesPerSession.toFixed(1)} pages per session, showing encouraging content interest.`,
+      `Engagement remained positive, with an engagement rate of ${engagementRate} and an average session time of ${averageSession}.`,
+      topChannel
+        ? `${topChannel.channel} was the leading traffic source, delivering ${formatInteger(topChannel.sessions)} sessions into the site.`
+        : "Traffic acquisition remained diversified across the reporting window.",
+      topPage
+        ? `"${topPage.title}" was a standout content performer, generating ${formatInteger(topPage.pageViews)} page views during the period.`
+        : "High-performing content highlights can be included once page-level data is selected.",
+    ];
+  }
 
   return [
     `The site reached ${formatInteger(report.summary.current.totalUsers)} users and generated ${formatInteger(report.summary.current.sessions)} sessions during this period.`,
@@ -600,7 +619,7 @@ export default async function AdminWebStatsPage({
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {report.propertySource === "legacy"
-                    ? "Historic snapshot view"
+                  ? "Audience performance recap"
                     : "Current live property"}{" "}
                   | {report.rangeLabel} | {formatDateLabel(report.currentRange.startDate)} to{" "}
                   {formatDateLabel(report.currentRange.endDate)}
@@ -619,9 +638,8 @@ export default async function AdminWebStatsPage({
           <CardContent>
             {report.propertySource === "legacy" ? (
               <p className="mb-3 text-sm text-muted-foreground">
-                This view uses the legacy GA4 property so you can create historical
-                PDF snapshots while the live site continues collecting clean data in
-                the current Yorkshire BusinessWoman property.
+                This recap highlights the strongest audience, discovery and content
+                signals from the selected reporting period in a client-ready format.
               </p>
             ) : null}
             <div className="grid gap-2 text-sm text-muted-foreground">
