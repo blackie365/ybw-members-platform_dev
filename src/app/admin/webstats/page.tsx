@@ -44,6 +44,19 @@ const SOURCE_OPTIONS: Array<{ value: Ga4PropertySource; label: string }> = [
   { value: "legacy", label: "Legacy" },
 ];
 
+const SECTION_OPTIONS = [
+  { value: "overview", label: "Overview" },
+  { value: "summary", label: "KPI cards" },
+  { value: "trend", label: "Audience trend" },
+  { value: "sources", label: "Traffic sources" },
+  { value: "snapshot", label: "Audience snapshot" },
+  { value: "devices", label: "Device split" },
+  { value: "highlights", label: "Content highlights" },
+  { value: "top-pages", label: "Top pages table" },
+] as const;
+
+type ReportSection = (typeof SECTION_OPTIONS)[number]["value"];
+
 function getSelectedRange(rangeParam?: string) {
   if (rangeParam === "90d" || rangeParam === "365d") {
     return rangeParam;
@@ -57,6 +70,14 @@ function getSelectedSource(sourceParam?: string): Ga4PropertySource {
 
 function getRequestedValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getRequestedValues(value?: string | string[]) {
+  if (!value) {
+    return [];
+  }
+
+  return Array.isArray(value) ? value : [value];
 }
 
 function formatInteger(value: number) {
@@ -171,11 +192,13 @@ function buildReportHref({
   range,
   startDate,
   endDate,
+  sections,
 }: {
   source: Ga4PropertySource;
   range?: WebStatsRange;
   startDate?: string;
   endDate?: string;
+  sections?: ReportSection[];
 }) {
   const searchParams = new URLSearchParams();
   searchParams.set("source", source);
@@ -187,7 +210,28 @@ function buildReportHref({
     searchParams.set("range", range ?? "30d");
   }
 
+  if (sections && sections.length > 0 && sections.length < SECTION_OPTIONS.length) {
+    for (const section of sections) {
+      searchParams.append("sections", section);
+    }
+  }
+
   return `/admin/webstats?${searchParams.toString()}`;
+}
+
+function getVisibleSections(params: Record<string, string | string[] | undefined>) {
+  const requestedSections = new Set(getRequestedValues(params.sections));
+  if (requestedSections.size === 0) {
+    return SECTION_OPTIONS.map((option) => option.value);
+  }
+
+  const validSections = SECTION_OPTIONS
+    .map((option) => option.value)
+    .filter((value) => requestedSections.has(value));
+
+  return validSections.length > 0
+    ? validSections
+    : SECTION_OPTIONS.map((option) => option.value);
 }
 
 function getReportRequest(params: Record<string, string | string[] | undefined>) {
@@ -243,8 +287,10 @@ export default async function AdminWebStatsPage({
   const params = searchParams ? await searchParams : {};
   const requestedStartDate = getRequestedValue(params.startDate);
   const requestedEndDate = getRequestedValue(params.endDate);
-  const selectedSource = getSelectedSource(getRequestedValue(params.source));
   const request = getReportRequest(params);
+  const visibleSections = getVisibleSections(params);
+  const isSectionVisible = (section: ReportSection) =>
+    visibleSections.includes(section);
 
   let report: Ga4WebStatsReport | null = null;
   let errorMessage: string | null = null;
@@ -339,6 +385,9 @@ export default async function AdminWebStatsPage({
   const selectedEndDate = requestedEndDate ?? report.currentRange.endDate;
   const currentRange =
     report.range === "custom" ? undefined : (report.range as WebStatsRange);
+  const visibleSectionsInput = visibleSections.map((section) => (
+    <input key={section} type="hidden" name="sections" value={section} />
+  ));
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -366,6 +415,7 @@ export default async function AdminWebStatsPage({
                   range: currentRange,
                   startDate: requestedStartDate,
                   endDate: requestedEndDate,
+                  sections: visibleSections,
                 })}
               >
                 {option.label}
@@ -383,6 +433,7 @@ export default async function AdminWebStatsPage({
                 href={buildReportHref({
                   source: report.propertySource,
                   range: option.value,
+                  sections: visibleSections,
                 })}
               >
                 {option.label}
@@ -402,6 +453,7 @@ export default async function AdminWebStatsPage({
         </CardHeader>
         <CardContent>
           <form action="/admin/webstats" method="get" className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+            {visibleSectionsInput}
             <label className="grid gap-2 text-sm font-medium text-foreground">
               Start date
               <Input
@@ -428,6 +480,7 @@ export default async function AdminWebStatsPage({
                   href={buildReportHref({
                     source: report.propertySource,
                     range: "30d",
+                    sections: visibleSections,
                   })}
                 >
                   Reset
@@ -438,263 +491,378 @@ export default async function AdminWebStatsPage({
         </CardContent>
       </Card>
 
-      <Card className="border-accent/10 print:border-0 print:shadow-none">
-        <CardHeader className="gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="font-serif text-2xl">
-                Yorkshire Businesswoman Web Performance Report
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {report.propertySource === "legacy"
-                  ? "Historic snapshot view"
-                  : "Current live property"}{" "}
-                | {report.rangeLabel} | {formatDateLabel(report.currentRange.startDate)} to{" "}
-                {formatDateLabel(report.currentRange.endDate)}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="w-fit bg-muted/50">
-                {report.propertyLabel}
-              </Badge>
-              <Badge variant="outline" className="w-fit bg-muted/50">
-                Generated {new Date(report.generatedAt).toLocaleString("en-GB")}
-              </Badge>
-            </div>
-          </div>
+      <Card className="print:hidden">
+        <CardHeader>
+          <CardTitle className="font-serif">Visible Sections</CardTitle>
+          <CardDescription>
+            Choose which panes appear in the report and exported PDF
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {report.propertySource === "legacy" ? (
-            <p className="mb-3 text-sm text-muted-foreground">
-              This view uses the legacy GA4 property so you can create historical
-              PDF snapshots while the live site continues collecting clean data in
-              the current Yorkshire BusinessWoman property.
-            </p>
-          ) : null}
-          <div className="grid gap-2 text-sm text-muted-foreground">
-            {narrative.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
+          <form action="/admin/webstats" method="get" className="space-y-4">
+            <input type="hidden" name="source" value={report.propertySource} />
+            {currentRange ? (
+              <input type="hidden" name="range" value={currentRange} />
+            ) : (
+              <>
+                <input type="hidden" name="startDate" value={selectedStartDate} />
+                <input type="hidden" name="endDate" value={selectedEndDate} />
+              </>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {SECTION_OPTIONS.map((section) => (
+                <label
+                  key={section.value}
+                  className="flex items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    name="sections"
+                    value={section.value}
+                    defaultChecked={isSectionVisible(section.value)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span>{section.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit">Apply visibility</Button>
+              <Button asChild type="button" variant="outline">
+                <Link
+                  href={buildReportHref({
+                    source: report.propertySource,
+                    range: currentRange,
+                    startDate: requestedStartDate,
+                    endDate: requestedEndDate,
+                    sections: SECTION_OPTIONS.map((section) => section.value),
+                  })}
+                >
+                  Show all
+                </Link>
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard
-          label="Total Users"
-          value={formatInteger(report.summary.current.totalUsers)}
-          supporting="Distinct users across the selected reporting period"
-        />
-        <MetricCard
-          label="Sessions"
-          value={formatInteger(report.summary.current.sessions)}
-          supporting="Total visits recorded in GA4"
-        />
-        <MetricCard
-          label="Page Views"
-          value={formatInteger(report.summary.current.pageViews)}
-          supporting="Total page and screen views"
-        />
-        <MetricCard
-          label="New Users"
-          value={formatInteger(report.summary.current.newUsers)}
-          supporting="First-time visitors recorded by GA4"
-        />
-        <MetricCard
-          label="Engagement Rate"
-          value={formatPercent(report.summary.current.engagementRate)}
-          supporting="Share of engaged sessions"
-        />
-        <MetricCard
-          label="Avg Session"
-          value={formatDuration(report.summary.current.averageSessionDuration)}
-          supporting="Average session duration"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif">Audience Trend</CardTitle>
-            <CardDescription>
-              Averaged into up to 12 points for a clean print-friendly summary
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {condensedTrend.map((point) => (
-              <div
-                key={point.date}
-                className="grid grid-cols-[72px_1fr_64px] items-center gap-3"
-              >
-                <span className="text-sm text-muted-foreground">
-                  {point.label}
-                </span>
-                <div className="h-3 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-accent"
-                    style={{
-                      width: `${Math.max((point.users / maxTrendUsers) * 100, 4)}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-right text-sm font-medium text-foreground">
-                  {formatInteger(point.users)}
-                </span>
+      {isSectionVisible("overview") ? (
+        <Card className="border-accent/10 print:border-0 print:shadow-none">
+          <CardHeader className="gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="font-serif text-2xl">
+                  Yorkshire Businesswoman Web Performance Report
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {report.propertySource === "legacy"
+                    ? "Historic snapshot view"
+                    : "Current live property"}{" "}
+                  | {report.rangeLabel} | {formatDateLabel(report.currentRange.startDate)} to{" "}
+                  {formatDateLabel(report.currentRange.endDate)}
+                </CardDescription>
               </div>
-            ))}
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="w-fit bg-muted/50">
+                  {report.propertyLabel}
+                </Badge>
+                <Badge variant="outline" className="w-fit bg-muted/50">
+                  Generated {new Date(report.generatedAt).toLocaleString("en-GB")}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {report.propertySource === "legacy" ? (
+              <p className="mb-3 text-sm text-muted-foreground">
+                This view uses the legacy GA4 property so you can create historical
+                PDF snapshots while the live site continues collecting clean data in
+                the current Yorkshire BusinessWoman property.
+              </p>
+            ) : null}
+            <div className="grid gap-2 text-sm text-muted-foreground">
+              {narrative.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
           </CardContent>
         </Card>
+      ) : null}
 
+      {isSectionVisible("summary") ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MetricCard
+            label="Total Users"
+            value={formatInteger(report.summary.current.totalUsers)}
+            supporting="Distinct users across the selected reporting period"
+          />
+          <MetricCard
+            label="Sessions"
+            value={formatInteger(report.summary.current.sessions)}
+            supporting="Total visits recorded in GA4"
+          />
+          <MetricCard
+            label="Page Views"
+            value={formatInteger(report.summary.current.pageViews)}
+            supporting="Total page and screen views"
+          />
+          <MetricCard
+            label="New Users"
+            value={formatInteger(report.summary.current.newUsers)}
+            supporting="First-time visitors recorded by GA4"
+          />
+          <MetricCard
+            label="Engagement Rate"
+            value={formatPercent(report.summary.current.engagementRate)}
+            supporting="Share of engaged sessions"
+          />
+          <MetricCard
+            label="Avg Session"
+            value={formatDuration(report.summary.current.averageSessionDuration)}
+            supporting="Average session duration"
+          />
+        </div>
+      ) : null}
+
+      {isSectionVisible("trend") || isSectionVisible("sources") ? (
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          {isSectionVisible("trend") ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Audience Trend</CardTitle>
+                <CardDescription>
+                  Averaged into up to 12 points for a clean print-friendly summary
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {condensedTrend.map((point) => (
+                  <div
+                    key={point.date}
+                    className="grid grid-cols-[72px_1fr_64px] items-center gap-3"
+                  >
+                    <span className="text-sm text-muted-foreground">
+                      {point.label}
+                    </span>
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{
+                          width: `${Math.max((point.users / maxTrendUsers) * 100, 4)}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-right text-sm font-medium text-foreground">
+                      {formatInteger(point.users)}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {isSectionVisible("sources") ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Traffic Sources</CardTitle>
+                <CardDescription>
+                  Sessions grouped by GA4 default channel
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {report.channels.map((channel) => (
+                  <div key={channel.channel} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          {channel.channel}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatInteger(channel.users)} users
+                        </div>
+                      </div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {formatInteger(channel.sessions)}
+                      </div>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-[#b79c65]"
+                        style={{
+                          width: `${Math.max((channel.sessions / maxChannelSessions) * 100, 6)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isSectionVisible("snapshot") || isSectionVisible("devices") ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {isSectionVisible("snapshot") ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Audience Snapshot</CardTitle>
+                <CardDescription>
+                  Client-friendly highlights that reinforce scale and attention
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      New audience share
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatPercentFromRatio(newUserShare)}
+                    </span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: clampWidth(newUserShare * 100, 10) }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border bg-muted/20 p-4">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Pages per session
+                    </div>
+                    <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                      {pagesPerSession.toFixed(1)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Average content depth per visit
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-muted/20 p-4">
+                    <div className="text-sm font-medium text-muted-foreground">
+                      Sessions per user
+                    </div>
+                    <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                      {sessionsPerUser.toFixed(1)}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Repeat visit activity during the period
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      Top page contribution
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatPercentFromRatio(topPageShare)}
+                    </span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-[#b79c65]"
+                      style={{ width: clampWidth(topPageShare * 100, 8) }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Share of all page views generated by the strongest single page
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {isSectionVisible("devices") ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif">Device Split</CardTitle>
+                <CardDescription>
+                  Session mix by device category
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {report.devices.map((device) => (
+                  <div key={device.device} className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-sm font-medium text-foreground">
+                          {device.device}
+                        </span>
+                        <div className="text-xs text-muted-foreground">
+                          {formatInteger(device.users)} users
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-foreground">
+                          {formatInteger(device.sessions)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatPercentFromRatio(
+                            safeRatio(device.sessions, report.summary.current.sessions),
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-foreground"
+                        style={{
+                          width: clampWidth(
+                            safeRatio(device.sessions, report.summary.current.sessions) * 100,
+                            8,
+                          ),
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isSectionVisible("highlights") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif">Traffic Sources</CardTitle>
+            <CardTitle className="font-serif">Content Highlights</CardTitle>
             <CardDescription>
-              Sessions grouped by GA4 default channel
+              Strongest-performing pages by view volume
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {report.channels.map((channel) => (
-              <div key={channel.channel} className="space-y-2">
+            {report.topPages.slice(0, 5).map((page) => (
+              <div key={`${page.path}-${page.title}`} className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-medium text-foreground">
-                      {channel.channel}
+                      {page.title}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {formatInteger(channel.users)} users
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {formatInteger(channel.sessions)}
-                  </div>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-[#b79c65]"
-                    style={{
-                      width: `${Math.max((channel.sessions / maxChannelSessions) * 100, 6)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif">Audience Snapshot</CardTitle>
-            <CardDescription>
-              Client-friendly highlights that reinforce scale and attention
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">
-                  New audience share
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatPercentFromRatio(newUserShare)}
-                </span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-accent"
-                  style={{ width: clampWidth(newUserShare * 100, 10) }}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div
-                className="rounded-xl border bg-muted/20 p-4"
-              >
-                <div className="text-sm font-medium text-muted-foreground">
-                  Pages per session
-                </div>
-                <div className="mt-2 font-serif text-3xl font-bold text-foreground">
-                  {pagesPerSession.toFixed(1)}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Average content depth per visit
-                </div>
-              </div>
-
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="text-sm font-medium text-muted-foreground">
-                  Sessions per user
-                </div>
-                <div className="mt-2 font-serif text-3xl font-bold text-foreground">
-                  {sessionsPerUser.toFixed(1)}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Repeat visit activity during the period
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">
-                  Top page contribution
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatPercentFromRatio(topPageShare)}
-                </span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-[#b79c65]"
-                  style={{ width: clampWidth(topPageShare * 100, 8) }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Share of all page views generated by the strongest single page
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif">Device Split</CardTitle>
-            <CardDescription>
-              Session mix by device category
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {report.devices.map((device) => (
-              <div key={device.device} className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-sm font-medium text-foreground">
-                      {device.device}
-                    </span>
-                    <div className="text-xs text-muted-foreground">
-                      {formatInteger(device.users)} users
+                      {page.path}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-foreground">
-                      {formatInteger(device.sessions)}
+                      {formatInteger(page.pageViews)} views
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {formatPercentFromRatio(
-                        safeRatio(device.sessions, report.summary.current.sessions),
-                      )}
+                      {formatInteger(page.users)} users
                     </div>
                   </div>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-foreground"
+                    className="h-full rounded-full bg-accent"
                     style={{
                       width: clampWidth(
-                        safeRatio(device.sessions, report.summary.current.sessions) * 100,
-                        8,
+                        safeRatio(page.pageViews, maxTopPageViews) * 100,
+                        10,
                       ),
                     }}
                   />
@@ -703,90 +871,48 @@ export default async function AdminWebStatsPage({
             ))}
           </CardContent>
         </Card>
-      </div>
+      ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif">Content Highlights</CardTitle>
-          <CardDescription>
-            Strongest-performing pages by view volume
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {report.topPages.slice(0, 5).map((page) => (
-            <div key={`${page.path}-${page.title}`} className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {page.title}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {page.path}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-foreground">
-                    {formatInteger(page.pageViews)} views
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatInteger(page.users)} users
-                  </div>
-                </div>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-accent"
-                  style={{
-                    width: clampWidth(
-                      safeRatio(page.pageViews, maxTopPageViews) * 100,
-                      10,
-                    ),
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-serif">Top Pages</CardTitle>
-          <CardDescription>
-            Most-viewed pages for the selected reporting period
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Page</TableHead>
-                <TableHead>Path</TableHead>
-                <TableHead className="text-right">Views</TableHead>
-                <TableHead className="text-right">Users</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {report.topPages.map((page) => (
-                <TableRow key={`${page.path}-${page.title}`}>
-                  <TableCell className="max-w-[280px] whitespace-normal font-medium">
-                    {page.title}
-                  </TableCell>
-                  <TableCell className="max-w-[280px] whitespace-normal text-muted-foreground">
-                    {page.path}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatInteger(page.pageViews)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatInteger(page.users)}
-                  </TableCell>
+      {isSectionVisible("top-pages") ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif">Top Pages</CardTitle>
+            <CardDescription>
+              Most-viewed pages for the selected reporting period
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Page</TableHead>
+                  <TableHead>Path</TableHead>
+                  <TableHead className="text-right">Views</TableHead>
+                  <TableHead className="text-right">Users</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {report.topPages.map((page) => (
+                  <TableRow key={`${page.path}-${page.title}`}>
+                    <TableCell className="max-w-[280px] whitespace-normal font-medium">
+                      {page.title}
+                    </TableCell>
+                    <TableCell className="max-w-[280px] whitespace-normal text-muted-foreground">
+                      {page.path}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatInteger(page.pageViews)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatInteger(page.users)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
