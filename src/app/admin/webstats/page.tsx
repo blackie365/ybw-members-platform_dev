@@ -49,16 +49,16 @@ const SOURCE_OPTIONS: Array<{ value: Ga4PropertySource; label: string }> = [
 ];
 
 const SECTION_OPTIONS = [
-  { value: "overview", label: "Overview" },
-  { value: "summary", label: "KPI cards" },
-  { value: "trend", label: "Audience trend" },
-  { value: "sources", label: "Traffic sources" },
-  { value: "snapshot", label: "Audience snapshot" },
-  { value: "devices", label: "Device split" },
-  { value: "highlights", label: "Content highlights" },
-  { value: "top-pages", label: "Top pages table" },
-  { value: "social-summary", label: "Social summary" },
-  { value: "social-content", label: "Social top content" },
+  { value: "overview", label: "Executive summary" },
+  { value: "summary", label: "Performance snapshot" },
+  { value: "trend", label: "Audience reach trend" },
+  { value: "sources", label: "Audience acquisition" },
+  { value: "snapshot", label: "Engagement snapshot" },
+  { value: "devices", label: "Device profile" },
+  { value: "highlights", label: "Content performance" },
+  { value: "top-pages", label: "Page performance table" },
+  { value: "social-summary", label: "Social reach summary" },
+  { value: "social-content", label: "Social content highlights" },
 ] as const;
 
 type ReportSection = (typeof SECTION_OPTIONS)[number]["value"];
@@ -151,7 +151,6 @@ function clampWidth(value: number, minimum = 6) {
 
 function buildNarrative(report: Ga4WebStatsReport) {
   const topChannel = report.channels[0];
-  const topPage = report.topPages[0];
   const newUserShare = safeRatio(
     report.summary.current.newUsers,
     report.summary.current.totalUsers,
@@ -169,12 +168,13 @@ function buildNarrative(report: Ga4WebStatsReport) {
     return [
       `Over the selected period, the website delivered ${formatInteger(report.summary.current.totalUsers)} users and ${formatInteger(report.summary.current.sessions)} sessions, giving the brand strong digital visibility and a healthy level of repeat interest.`,
       `New visitors accounted for ${formatPercentFromRatio(newUserShare)} of the audience, while ${formatInteger(report.summary.current.pageViews)} page views and ${pagesPerSession.toFixed(1)} pages per session point to solid discovery and encouraging content consumption.`,
-      topChannel && topPage
-        ? `Engagement remained positive at ${engagementRate}, with an average session time of ${averageSession}; ${topChannel.channel} was the leading traffic source, and "${topPage.title}" emerged as the standout content performer.`
+      topChannel
+        ? `Engagement remained positive at ${engagementRate}, with an average session time of ${averageSession}; ${topChannel.channel} was the leading traffic source across the reporting window.`
         : `Engagement remained positive at ${engagementRate}, with an average session time of ${averageSession}, reinforcing the strength of the audience response across the reporting window.`,
     ];
   }
 
+  const topPage = report.topPages[0];
   return [
     `The site reached ${formatInteger(report.summary.current.totalUsers)} users and generated ${formatInteger(report.summary.current.sessions)} sessions during this period.`,
     `New visitors accounted for ${formatPercentFromRatio(newUserShare)} of the audience, showing strong discovery and fresh reach.`,
@@ -262,6 +262,14 @@ function getVisibleSections(params: Record<string, string | string[] | undefined
     : SECTION_OPTIONS.map((option) => option.value);
 }
 
+function getAvailableSections(propertySource: Ga4PropertySource) {
+  return propertySource === "legacy"
+    ? SECTION_OPTIONS.filter(
+        (option) => option.value !== "highlights" && option.value !== "top-pages",
+      )
+    : SECTION_OPTIONS;
+}
+
 function getReportRequest(params: Record<string, string | string[] | undefined>) {
   const startDate = getRequestedValue(params.startDate);
   const endDate = getRequestedValue(params.endDate);
@@ -317,8 +325,10 @@ export default async function AdminWebStatsPage({
   const requestedEndDate = getRequestedValue(params.endDate);
   const request = getReportRequest(params);
   const visibleSections = getVisibleSections(params);
+  const availableSections = getAvailableSections(request.propertySource);
+  const availableSectionValues = availableSections.map((section) => section.value);
   const isSectionVisible = (section: ReportSection) =>
-    visibleSections.includes(section);
+    availableSectionValues.includes(section) && visibleSections.includes(section);
 
   let report: Ga4WebStatsReport | null = null;
   let socialReport: SocialMediaReport | null = null;
@@ -452,7 +462,7 @@ export default async function AdminWebStatsPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between print:hidden">
         <div>
           <h1 className="font-serif text-3xl font-bold text-foreground">
-            Web Stats
+            Web Performance
           </h1>
           <p className="mt-1 text-muted-foreground">
             GA4 reporting for client-ready web performance snapshots
@@ -504,7 +514,7 @@ export default async function AdminWebStatsPage({
 
       <Card className="print:hidden">
         <CardHeader>
-          <CardTitle className="font-serif">Report Period</CardTitle>
+          <CardTitle className="font-serif">Reporting Period</CardTitle>
           <CardDescription>
             Use quick ranges or choose a custom calendar period for this report
           </CardDescription>
@@ -551,7 +561,7 @@ export default async function AdminWebStatsPage({
 
       <Card className="print:hidden">
         <CardHeader>
-          <CardTitle className="font-serif">Visible Sections</CardTitle>
+          <CardTitle className="font-serif">Report Sections</CardTitle>
           <CardDescription>
             Choose which panes appear in the report and exported PDF
           </CardDescription>
@@ -568,7 +578,7 @@ export default async function AdminWebStatsPage({
               </>
             )}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {SECTION_OPTIONS.map((section) => (
+              {availableSections.map((section) => (
                 <label
                   key={section.value}
                   className="flex items-center gap-3 rounded-lg border bg-muted/20 px-3 py-2 text-sm"
@@ -593,7 +603,7 @@ export default async function AdminWebStatsPage({
                     range: currentRange,
                     startDate: requestedStartDate,
                     endDate: requestedEndDate,
-                    sections: SECTION_OPTIONS.map((section) => section.value),
+                    sections: availableSectionValues,
                   })}
                 >
                   Show all
@@ -610,7 +620,7 @@ export default async function AdminWebStatsPage({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="font-serif text-2xl">
-                  Yorkshire Businesswoman Web Performance Report
+                  Yorkshire Businesswoman Digital Performance Report
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {report.propertySource === "legacy"
@@ -686,7 +696,7 @@ export default async function AdminWebStatsPage({
           {isSectionVisible("trend") ? (
             <Card>
               <CardHeader>
-                <CardTitle className="font-serif">Audience Trend</CardTitle>
+                <CardTitle className="font-serif">Audience Reach Trend</CardTitle>
                 <CardDescription>
                   Averaged into up to 12 points for a clean print-friendly summary
                 </CardDescription>
@@ -720,7 +730,7 @@ export default async function AdminWebStatsPage({
           {isSectionVisible("sources") ? (
             <Card>
               <CardHeader>
-                <CardTitle className="font-serif">Traffic Sources</CardTitle>
+                <CardTitle className="font-serif">Audience Acquisition</CardTitle>
                 <CardDescription>
                   Sessions grouped by GA4 default channel
                 </CardDescription>
@@ -762,7 +772,7 @@ export default async function AdminWebStatsPage({
           {isSectionVisible("snapshot") ? (
             <Card>
               <CardHeader>
-                <CardTitle className="font-serif">Audience Snapshot</CardTitle>
+                <CardTitle className="font-serif">Engagement Snapshot</CardTitle>
                 <CardDescription>
                   Client-friendly highlights that reinforce scale and attention
                 </CardDescription>
@@ -837,7 +847,7 @@ export default async function AdminWebStatsPage({
           {isSectionVisible("devices") ? (
             <Card>
               <CardHeader>
-                <CardTitle className="font-serif">Device Split</CardTitle>
+                <CardTitle className="font-serif">Device Profile</CardTitle>
                 <CardDescription>
                   Session mix by device category
                 </CardDescription>
@@ -887,7 +897,7 @@ export default async function AdminWebStatsPage({
       {isSectionVisible("highlights") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif">Content Highlights</CardTitle>
+            <CardTitle className="font-serif">Content Performance</CardTitle>
             <CardDescription>
               Strongest-performing pages by view volume
             </CardDescription>
@@ -933,7 +943,7 @@ export default async function AdminWebStatsPage({
       {isSectionVisible("top-pages") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif">Top Pages</CardTitle>
+            <CardTitle className="font-serif">Page Performance</CardTitle>
             <CardDescription>
               Most-viewed pages for the selected reporting period
             </CardDescription>
@@ -974,7 +984,7 @@ export default async function AdminWebStatsPage({
       {isSectionVisible("social-summary") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif">Social Media Summary</CardTitle>
+            <CardTitle className="font-serif">Social Reach Summary</CardTitle>
             <CardDescription>
               Connected Meta channels for the same reporting window as the web report
             </CardDescription>
@@ -1105,7 +1115,7 @@ export default async function AdminWebStatsPage({
       {isSectionVisible("social-content") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-serif">Top Social Content</CardTitle>
+            <CardTitle className="font-serif">Social Content Highlights</CardTitle>
             <CardDescription>
               Highest-engagement recent items from connected Facebook and Instagram profiles
             </CardDescription>
