@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { PrintReportButton } from "@/components/admin/PrintReportButton";
 import {
+  type Ga4PropertySource,
   type Ga4TrendPoint,
   type Ga4DateRangeOptions,
   type Ga4WebStatsReport,
@@ -38,11 +39,20 @@ const RANGE_OPTIONS: Array<{ value: WebStatsRange; label: string }> = [
   { value: "365d", label: "12 months" },
 ];
 
+const SOURCE_OPTIONS: Array<{ value: Ga4PropertySource; label: string }> = [
+  { value: "current", label: "Current" },
+  { value: "legacy", label: "Legacy" },
+];
+
 function getSelectedRange(rangeParam?: string) {
   if (rangeParam === "90d" || rangeParam === "365d") {
     return rangeParam;
   }
   return "30d";
+}
+
+function getSelectedSource(sourceParam?: string): Ga4PropertySource {
+  return sourceParam === "legacy" ? "legacy" : "current";
 }
 
 function getRequestedValue(value?: string | string[]) {
@@ -156,18 +166,45 @@ function compactTrend(points: Ga4TrendPoint[], maxPoints = 12) {
   return compacted;
 }
 
+function buildReportHref({
+  source,
+  range,
+  startDate,
+  endDate,
+}: {
+  source: Ga4PropertySource;
+  range?: WebStatsRange;
+  startDate?: string;
+  endDate?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("source", source);
+
+  if (startDate && endDate) {
+    searchParams.set("startDate", startDate);
+    searchParams.set("endDate", endDate);
+  } else {
+    searchParams.set("range", range ?? "30d");
+  }
+
+  return `/admin/webstats?${searchParams.toString()}`;
+}
+
 function getReportRequest(params: Record<string, string | string[] | undefined>) {
   const startDate = getRequestedValue(params.startDate);
   const endDate = getRequestedValue(params.endDate);
+  const propertySource = getSelectedSource(getRequestedValue(params.source));
 
   if (startDate && endDate) {
     return {
+      propertySource,
       startDate,
       endDate,
     } satisfies Ga4DateRangeOptions;
   }
 
   return {
+    propertySource,
     range: getSelectedRange(getRequestedValue(params.range)),
   } satisfies Ga4DateRangeOptions;
 }
@@ -206,6 +243,7 @@ export default async function AdminWebStatsPage({
   const params = searchParams ? await searchParams : {};
   const requestedStartDate = getRequestedValue(params.startDate);
   const requestedEndDate = getRequestedValue(params.endDate);
+  const selectedSource = getSelectedSource(getRequestedValue(params.source));
   const request = getReportRequest(params);
 
   let report: Ga4WebStatsReport | null = null;
@@ -250,7 +288,10 @@ export default async function AdminWebStatsPage({
               Required server environment variables:
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>
-                  <code>GA4_PROPERTY_ID</code>
+                  <code>GA4_PROPERTY_ID_CURRENT</code> or <code>GA4_PROPERTY_ID</code>
+                </li>
+                <li>
+                  <code>GA4_PROPERTY_ID_LEGACY</code> for the legacy report view
                 </li>
                 <li>
                   <code>GOOGLE_SERVICE_ACCOUNT_EMAIL</code>
@@ -296,6 +337,8 @@ export default async function AdminWebStatsPage({
   );
   const selectedStartDate = requestedStartDate ?? report.currentRange.startDate;
   const selectedEndDate = requestedEndDate ?? report.currentRange.endDate;
+  const currentRange =
+    report.range === "custom" ? undefined : (report.range as WebStatsRange);
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -310,6 +353,25 @@ export default async function AdminWebStatsPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {SOURCE_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              asChild
+              variant={option.value === report.propertySource ? "default" : "outline"}
+              size="sm"
+            >
+              <Link
+                href={buildReportHref({
+                  source: option.value,
+                  range: currentRange,
+                  startDate: requestedStartDate,
+                  endDate: requestedEndDate,
+                })}
+              >
+                {option.label}
+              </Link>
+            </Button>
+          ))}
           {RANGE_OPTIONS.map((option) => (
             <Button
               key={option.value}
@@ -317,7 +379,12 @@ export default async function AdminWebStatsPage({
               variant={option.value === report.range ? "default" : "outline"}
               size="sm"
             >
-              <Link href={`/admin/webstats?range=${option.value}`}>
+              <Link
+                href={buildReportHref({
+                  source: report.propertySource,
+                  range: option.value,
+                })}
+              >
                 {option.label}
               </Link>
             </Button>
@@ -344,6 +411,7 @@ export default async function AdminWebStatsPage({
                 max={yesterdayIso}
               />
             </label>
+            <input type="hidden" name="source" value={report.propertySource} />
             <label className="grid gap-2 text-sm font-medium text-foreground">
               End date
               <Input
@@ -356,7 +424,14 @@ export default async function AdminWebStatsPage({
             <div className="flex gap-2">
               <Button type="submit">Apply period</Button>
               <Button asChild type="button" variant="outline">
-                <Link href="/admin/webstats?range=30d">Reset</Link>
+                <Link
+                  href={buildReportHref({
+                    source: report.propertySource,
+                    range: "30d",
+                  })}
+                >
+                  Reset
+                </Link>
               </Button>
             </div>
           </form>
@@ -371,16 +446,31 @@ export default async function AdminWebStatsPage({
                 Yorkshire Businesswoman Web Performance Report
               </CardTitle>
               <CardDescription className="mt-1">
-                {report.rangeLabel} | {formatDateLabel(report.currentRange.startDate)} to{" "}
+                {report.propertySource === "legacy"
+                  ? "Historic snapshot view"
+                  : "Current live property"}{" "}
+                | {report.rangeLabel} | {formatDateLabel(report.currentRange.startDate)} to{" "}
                 {formatDateLabel(report.currentRange.endDate)}
               </CardDescription>
             </div>
-            <Badge variant="outline" className="w-fit bg-muted/50">
-              Generated {new Date(report.generatedAt).toLocaleString("en-GB")}
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="w-fit bg-muted/50">
+                {report.propertyLabel}
+              </Badge>
+              <Badge variant="outline" className="w-fit bg-muted/50">
+                Generated {new Date(report.generatedAt).toLocaleString("en-GB")}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {report.propertySource === "legacy" ? (
+            <p className="mb-3 text-sm text-muted-foreground">
+              This view uses the legacy GA4 property so you can create historical
+              PDF snapshots while the live site continues collecting clean data in
+              the current Yorkshire BusinessWoman property.
+            </p>
+          ) : null}
           <div className="grid gap-2 text-sm text-muted-foreground">
             {narrative.map((line) => (
               <p key={line}>{line}</p>
