@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Download, Loader2, UserCog, Calendar, Tag } from "lucide-react";
+import { Search, Download, Loader2, UserCog, Calendar, Tag, ShieldCheck } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,7 @@ import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventAc
 // Import domain-specific actions
 import { 
   getMembersAction,
+  getMembershipAuditAction,
   toggleFeaturedStatus, 
   repairMemberDuplicatesByEmailAction,
   getFirestoreOffersAction, 
@@ -35,6 +36,44 @@ import {
 import { MemberTable, type Member } from "./MemberTable";
 import { EventManager, type EventMetadata } from "./EventManager";
 import { OfferManager, type Offer } from "./OfferManager";
+import { MembershipAudit } from "./MembershipAudit";
+
+type MembershipAuditRow = {
+  id: string
+  email: string
+  displayName: string
+  appTier: string
+  appStatus: "free" | "paid"
+  appPlanLabel: string
+  stripeStatus: string
+  stripePlanLabel: string
+  stripeInterval: "monthly" | "yearly" | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  renewalDate: string | null
+  ghostExists: boolean
+  ghostLabels: string[]
+  ghostName: string
+  hasIssues: boolean
+  notes: string[]
+}
+
+type MembershipAuditSummary = {
+  totalMembers: number
+  paidMembers: number
+  freeMembers: number
+  rowsWithIssues: number
+  ghostMissing: number
+  ghostOnlyCount: number
+  stripeConfigured: boolean
+  ghostConfigured: boolean
+}
+
+type GhostOnlyMember = {
+  email: string
+  name: string
+  labels: string[]
+}
 
 function AdminMembersContent() {
   const router = useRouter()
@@ -57,12 +96,23 @@ function AdminMembersContent() {
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([])
   const [loadingOffers, setLoadingOffers] = useState(false)
+  const [auditRows, setAuditRows] = useState<MembershipAuditRow[]>([])
+  const [auditSummary, setAuditSummary] = useState<MembershipAuditSummary | null>(null)
+  const [ghostOnlyMembers, setGhostOnlyMembers] = useState<GhostOnlyMember[]>([])
+  const [loadingAudit, setLoadingAudit] = useState(false)
+  const [auditLoaded, setAuditLoaded] = useState(false)
 
   useEffect(() => {
     fetchMembers()
     fetchEvents()
     fetchOffers()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === "membership-audit" && !auditLoaded && !loadingAudit) {
+      fetchMembershipAudit()
+    }
+  }, [activeTab, auditLoaded, loadingAudit])
 
   const fetchMembers = async () => {
     setLoading(true)
@@ -91,6 +141,26 @@ function AdminMembersContent() {
       console.error("Failed to fetch offers:", error)
     } finally {
       setLoadingOffers(false)
+    }
+  }
+
+  const fetchMembershipAudit = async () => {
+    setLoadingAudit(true)
+    try {
+      const res = await getMembershipAuditAction()
+      if (res.success && res.data) {
+        setAuditRows((res.data.rows || []) as MembershipAuditRow[])
+        setAuditSummary((res.data.summary || null) as MembershipAuditSummary | null)
+        setGhostOnlyMembers((res.data.ghostOnlyMembers || []) as GhostOnlyMember[])
+        setAuditLoaded(true)
+      } else {
+        alert("Failed to load membership audit: " + (res.error || "Unknown error"))
+      }
+    } catch (error) {
+      console.error("Failed to load membership audit:", error)
+      alert("Failed to load membership audit")
+    } finally {
+      setLoadingAudit(false)
     }
   }
 
@@ -459,6 +529,10 @@ function AdminMembersContent() {
             <Tag className="h-4 w-4" />
             Member Offers
           </TabsTrigger>
+          <TabsTrigger value="membership-audit" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Membership Audit
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="members">
@@ -587,6 +661,16 @@ function AdminMembersContent() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="membership-audit">
+          <MembershipAudit
+            rows={auditRows}
+            summary={auditSummary}
+            ghostOnlyMembers={ghostOnlyMembers}
+            loading={loadingAudit}
+            onRefresh={fetchMembershipAudit}
+          />
         </TabsContent>
       </Tabs>
     </div>
