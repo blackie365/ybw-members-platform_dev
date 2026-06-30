@@ -194,8 +194,8 @@ type MemberDoc = {
   stripeCustomerId?: string;
   subscriptionId?: string;
   stripeSubscriptionId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
   email?: string;
   emailLower?: string;
   firstName?: string;
@@ -234,10 +234,32 @@ function hasPaidIdentity(data: MemberDoc): boolean {
   return Boolean(data?.stripeCustomerId || data?.subscriptionId || data?.stripeSubscriptionId);
 }
 
+function getDateValue(value: unknown): number {
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? 0 : value.getTime();
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof value.toDate === "function"
+  ) {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+  }
+
+  return 0;
+}
+
 function safeIso(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? undefined : value;
+  const dateValue = getDateValue(value);
+  return dateValue > 0 ? new Date(dateValue).toISOString() : undefined;
 }
 
 function choosePrimary(docs: Array<{ id: string; data: MemberDoc }>) {
@@ -551,8 +573,8 @@ export async function getMembershipAuditAction() {
       }))
       .filter((member) => member.userInactive !== true)
       .sort((a, b) => {
-        const aCreated = typeof a.createdAt === "string" ? Date.parse(a.createdAt) : 0;
-        const bCreated = typeof b.createdAt === "string" ? Date.parse(b.createdAt) : 0;
+        const aCreated = getDateValue(a.createdAt);
+        const bCreated = getDateValue(b.createdAt);
         return bCreated - aCreated;
       });
 
