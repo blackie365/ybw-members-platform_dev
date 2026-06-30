@@ -54,6 +54,7 @@ type MembershipAuditRow = {
   ghostExists: boolean
   ghostLabels: string[]
   ghostName: string
+  ghostNote: string
   hasIssues: boolean
   notes: string[]
 }
@@ -73,6 +74,7 @@ type GhostOnlyMember = {
   email: string
   name: string
   labels: string[]
+  note: string
 }
 
 function AdminMembersContent() {

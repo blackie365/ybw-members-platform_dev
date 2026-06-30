@@ -38,6 +38,7 @@ type MembershipAuditRow = {
   ghostExists: boolean;
   ghostLabels: string[];
   ghostName: string;
+  ghostNote: string;
   hasIssues: boolean;
   notes: string[];
 };
@@ -57,6 +58,7 @@ type GhostOnlyMember = {
   email: string;
   name: string;
   labels: string[];
+  note: string;
 };
 
 interface MembershipAuditProps {
@@ -152,6 +154,7 @@ export function MembershipAudit({
         "Renewal Date",
         "Ghost Exists",
         "Ghost Labels",
+        "Ghost Note",
         "Notes",
       ],
       ...bodyRows,
@@ -180,6 +183,7 @@ export function MembershipAudit({
         formatDate(row.renewalDate),
         row.ghostExists ? "yes" : "no",
         row.ghostLabels.join(", "),
+        row.ghostNote,
         row.notes.join(" | "),
       ]);
 
@@ -192,6 +196,7 @@ export function MembershipAudit({
       "",
       "yes",
       member.labels.join(", "),
+      member.note,
       "Exists in Ghost but not in app members",
     ]);
 
@@ -208,6 +213,7 @@ export function MembershipAudit({
       formatDate(row.renewalDate),
       row.ghostExists ? "yes" : "no",
       row.ghostLabels.join(", "),
+      row.ghostNote,
       row.notes.join(" | "),
     ]);
 
@@ -220,6 +226,7 @@ export function MembershipAudit({
       "",
       "yes",
       member.labels.join(", "),
+      member.note,
       "Exists in Ghost but not in app members",
     ]);
 
@@ -403,6 +410,11 @@ export function MembershipAudit({
                               {row.ghostLabels.join(", ")}
                             </span>
                           ) : null}
+                          {row.ghostNote ? (
+                            <span className="text-xs text-muted-foreground whitespace-pre-wrap">
+                              Note: {row.ghostNote}
+                            </span>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -445,6 +457,7 @@ export function MembershipAudit({
                     <TableHead>Email</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Labels</TableHead>
+                    <TableHead>Note</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -454,6 +467,9 @@ export function MembershipAudit({
                       <TableCell>{member.name || "-"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {member.labels.length > 0 ? member.labels.join(", ") : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {member.note || "-"}
                       </TableCell>
                     </TableRow>
                   ))}
