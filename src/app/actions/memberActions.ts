@@ -542,16 +542,19 @@ export async function getMembershipAuditAction() {
         })
       : null;
 
-    const membersSnapshot = await adminDb
-      .collection("newMemberCollection")
-      .where("userInactive", "==", false)
-      .orderBy("createdAt", "desc")
-      .get();
+    const membersSnapshot = await adminDb.collection("newMemberCollection").get();
 
-    const appMembers = membersSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as AuditMemberRecord),
-    }));
+    const appMembers = membersSnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as AuditMemberRecord),
+      }))
+      .filter((member) => member.userInactive !== true)
+      .sort((a, b) => {
+        const aCreated = typeof a.createdAt === "string" ? Date.parse(a.createdAt) : 0;
+        const bCreated = typeof b.createdAt === "string" ? Date.parse(b.createdAt) : 0;
+        return bCreated - aCreated;
+      });
 
     const ghostMembersRaw = ghostConfigured ? await getGhostMembers({ limit: "all" }) : [];
     const ghostMembers = Array.isArray(ghostMembersRaw)
