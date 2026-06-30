@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase-admin";
 import { addGhostMember, getGhostMembers } from "@/lib/ghost-admin";
 import { revalidatePath } from "next/cache";
 import { checkAdmin } from "@/lib/server/auth-utils";
+import Stripe from "stripe";
 
 export async function getMembersAction() {
   try {
@@ -362,6 +363,376 @@ export async function repairMemberDuplicatesByEmailAction(email: string) {
     return { success: true, repaired: true, primaryId: primary.id, merged: snap.size - 1 };
   } catch (error: any) {
     console.error("Error in repairMemberDuplicatesByEmailAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+type GhostMemberRecord = {
+  id?: string;
+  uuid?: string;
+  email?: string;
+  name?: string;
+  labels?: Array<{ name?: string } | string>;
+  tiers?: Array<{ id?: string; name?: string }>;
+};
+
+type AuditMemberRecord = MemberDoc & {
+  status?: string;
+  userInactive?: boolean;
+};
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function buildDisplayName(data: {
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}) {
+  const displayName = typeof data.displayName === "string" ? data.displayName.trim() : "";
+  if (displayName) return displayName;
+
+  const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+  if (fullName) return fullName;
+
+  return data.email || "Unknown member";
+}
+
+function getAppMembershipView(tier: string | undefined) {
+  switch (tier) {
+    case "paid_annual":
+      return { status: "paid" as const, interval: "yearly" as const, label: "Paid yearly" };
+    case "paid_monthly":
+      return { status: "paid" as const, interval: "monthly" as const, label: "Paid monthly" };
+    case "complimentary":
+      return { status: "paid" as const, interval: null, label: "Paid (complimentary)" };
+    case "founder":
+      return { status: "paid" as const, interval: null, label: "Paid (founder)" };
+    case "premium":
+      return { status: "paid" as const, interval: null, label: "Paid (legacy)" };
+    case "free":
+    default:
+      return { status: "free" as const, interval: null, label: "Free" };
+  }
+}
+
+function getStripeStatusPriority(status: string | undefined) {
+  switch (status) {
+    case "active":
+      return 6;
+    case "trialing":
+      return 5;
+    case "past_due":
+      return 4;
+    case "unpaid":
+      return 3;
+    case "paused":
+      return 2;
+    case "incomplete":
+      return 1;
+    case "canceled":
+      return 0;
+    case "incomplete_expired":
+    default:
+      return -1;
+  }
+}
+
+function pickBestSubscription(subscriptions: Stripe.Subscription[]) {
+  return [...subscriptions].sort((a, b) => {
+    const statusDiff = getStripeStatusPriority(b.status) - getStripeStatusPriority(a.status);
+    if (statusDiff !== 0) return statusDiff;
+
+    const bEnd = typeof (b as any).current_period_end === "number" ? (b as any).current_period_end : 0;
+    const aEnd = typeof (a as any).current_period_end === "number" ? (a as any).current_period_end : 0;
+    if (bEnd !== aEnd) return bEnd - aEnd;
+
+    return (b.created || 0) - (a.created || 0);
+  })[0] || null;
+}
+
+function getStripeInterval(subscription: Stripe.Subscription | null) {
+  if (!subscription) return null;
+  const interval =
+    subscription.items.data[0]?.price?.recurring?.interval ||
+    (subscription as any)?.plan?.interval ||
+    null;
+
+  if (interval === "year") return "yearly";
+  if (interval === "month") return "monthly";
+  return null;
+}
+
+function toIsoDateFromUnix(value: unknown) {
+  if (typeof value !== "number") return null;
+  const date = new Date(value * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function getStripePlanLabel(subscription: Stripe.Subscription | null) {
+  if (!subscription) return "No Stripe subscription";
+
+  const interval = getStripeInterval(subscription);
+  if (subscription.status === "active" || subscription.status === "trialing") {
+    if (interval === "yearly") return "Paid yearly";
+    if (interval === "monthly") return "Paid monthly";
+    return "Paid";
+  }
+
+  if (subscription.status === "canceled") return "Cancelled";
+  if (subscription.status === "past_due") return "Past due";
+  if (subscription.status === "unpaid") return "Unpaid";
+  if (subscription.status === "paused") return "Paused";
+  if (subscription.status === "incomplete") return "Incomplete";
+
+  return subscription.status;
+}
+
+function getGhostLabels(member: GhostMemberRecord | null) {
+  if (!member || !Array.isArray(member.labels)) return [];
+
+  return member.labels
+    .map((label) => (typeof label === "string" ? label : label?.name || ""))
+    .map((label) => label.trim())
+    .filter(Boolean);
+}
+
+function hasLiveStripeSubscription(subscription: Stripe.Subscription | null) {
+  return Boolean(
+    subscription &&
+      ["active", "trialing", "past_due", "unpaid"].includes(subscription.status)
+  );
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const current = nextIndex++;
+      results[current] = await mapper(items[current], current);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
+  );
+
+  return results;
+}
+
+export async function getMembershipAuditAction() {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
+    const ghostConfigured = Boolean(process.env.GHOST_ADMIN_API_KEY || process.env.GHOST_ADMIN_KEY);
+
+    const stripe = stripeConfigured
+      ? new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+          apiVersion: "2023-10-16" as any,
+        })
+      : null;
+
+    const membersSnapshot = await adminDb
+      .collection("newMemberCollection")
+      .where("userInactive", "==", false)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const appMembers = membersSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as AuditMemberRecord),
+    }));
+
+    const ghostMembersRaw = ghostConfigured ? await getGhostMembers({ limit: "all" }) : [];
+    const ghostMembers = Array.isArray(ghostMembersRaw)
+      ? (ghostMembersRaw as GhostMemberRecord[])
+      : [];
+
+    const ghostByEmail = new Map<string, GhostMemberRecord>();
+    for (const member of ghostMembers) {
+      const emailLower = normalizeEmail(member.email);
+      if (emailLower && !ghostByEmail.has(emailLower)) {
+        ghostByEmail.set(emailLower, member);
+      }
+    }
+
+    const customerCache = new Map<string, Stripe.Customer | null>();
+    const subscriptionCache = new Map<string, Stripe.Subscription | null>();
+
+    const rows = await mapWithConcurrency(appMembers, 5, async (member) => {
+      const emailLower = normalizeEmail(member.email || member.emailLower);
+      const displayName = buildDisplayName({
+        displayName: member.displayName,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+      });
+      const appMembership = getAppMembershipView(member.membershipTier);
+      const ghostMember = emailLower ? ghostByEmail.get(emailLower) || null : null;
+      const ghostLabels = getGhostLabels(ghostMember);
+
+      let stripeCustomerId =
+        typeof member.stripeCustomerId === "string" ? member.stripeCustomerId : null;
+      let stripeSubscriptionId =
+        typeof member.subscriptionId === "string"
+          ? member.subscriptionId
+          : typeof member.stripeSubscriptionId === "string"
+            ? member.stripeSubscriptionId
+            : null;
+      let stripeSubscription: Stripe.Subscription | null = null;
+
+      if (stripe && emailLower) {
+        if (!stripeCustomerId) {
+          if (customerCache.has(emailLower)) {
+            const cachedCustomer = customerCache.get(emailLower);
+            stripeCustomerId = cachedCustomer?.id || null;
+          } else {
+            const customers = await stripe.customers.list({
+              email: member.email || emailLower,
+              limit: 10,
+            });
+            const matchedCustomer =
+              customers.data.find(
+                (customer) =>
+                  !("deleted" in customer) &&
+                  normalizeEmail(customer.email) === emailLower
+              ) ||
+              customers.data.find((customer) => !("deleted" in customer)) ||
+              null;
+
+            customerCache.set(emailLower, matchedCustomer);
+            stripeCustomerId = matchedCustomer?.id || null;
+          }
+        }
+
+        if (stripeSubscriptionId) {
+          if (subscriptionCache.has(stripeSubscriptionId)) {
+            stripeSubscription = subscriptionCache.get(stripeSubscriptionId) || null;
+          } else {
+            try {
+              stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+              subscriptionCache.set(stripeSubscriptionId, stripeSubscription);
+            } catch (error) {
+              console.warn(`Failed to retrieve Stripe subscription ${stripeSubscriptionId}:`, error);
+              subscriptionCache.set(stripeSubscriptionId, null);
+            }
+          }
+        }
+
+        if (!stripeSubscription && stripeCustomerId) {
+          if (subscriptionCache.has(`customer:${stripeCustomerId}`)) {
+            stripeSubscription = subscriptionCache.get(`customer:${stripeCustomerId}`) || null;
+          } else {
+            const subscriptions = await stripe.subscriptions.list({
+              customer: stripeCustomerId,
+              status: "all",
+              limit: 20,
+            });
+            stripeSubscription = pickBestSubscription(subscriptions.data);
+            subscriptionCache.set(`customer:${stripeCustomerId}`, stripeSubscription);
+          }
+        }
+      }
+
+      if (!stripeSubscriptionId && stripeSubscription?.id) {
+        stripeSubscriptionId = stripeSubscription.id;
+      }
+
+      const stripeInterval = getStripeInterval(stripeSubscription);
+      const renewalDate = toIsoDateFromUnix((stripeSubscription as any)?.current_period_end);
+      const notes: string[] = [];
+
+      if (!stripeConfigured) {
+        notes.push("Stripe audit unavailable: STRIPE_SECRET_KEY is not configured");
+      } else if (appMembership.status === "paid" && !hasLiveStripeSubscription(stripeSubscription)) {
+        notes.push("App marks this member as paid but Stripe has no live subscription");
+      } else if (appMembership.status === "free" && hasLiveStripeSubscription(stripeSubscription)) {
+        notes.push("App marks this member as free but Stripe has a live subscription");
+      }
+
+      if (appMembership.interval && stripeInterval && appMembership.interval !== stripeInterval) {
+        notes.push(`App says ${appMembership.interval} but Stripe says ${stripeInterval}`);
+      }
+
+      if (!ghostConfigured) {
+        notes.push("Ghost audit unavailable: GHOST_ADMIN_API_KEY is not configured");
+      } else if (!ghostMember) {
+        notes.push("Missing in Ghost");
+      } else if (appMembership.status === "paid" && !ghostLabels.includes("paid-member")) {
+        notes.push("Ghost record is present but not labelled as paid");
+      } else if (appMembership.status === "free" && ghostLabels.includes("paid-member")) {
+        notes.push("Ghost still labels this member as paid");
+      }
+
+      if (stripeSubscription?.cancel_at_period_end) {
+        notes.push("Stripe subscription is set to cancel at period end");
+      }
+
+      return {
+        id: member.id,
+        email: member.email || "",
+        displayName,
+        appTier: member.membershipTier || "free",
+        appStatus: appMembership.status,
+        appPlanLabel: appMembership.label,
+        stripeStatus: stripeSubscription?.status || "none",
+        stripePlanLabel: stripeConfigured ? getStripePlanLabel(stripeSubscription) : "Unavailable",
+        stripeInterval,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        renewalDate,
+        ghostExists: Boolean(ghostMember),
+        ghostLabels,
+        ghostName: ghostMember?.name || "",
+        hasIssues: notes.length > 0,
+        notes,
+      };
+    });
+
+    const appEmails = new Set(rows.map((row) => normalizeEmail(row.email)).filter(Boolean));
+    const ghostOnlyMembers = ghostMembers
+      .filter((member) => {
+        const emailLower = normalizeEmail(member.email);
+        return emailLower && !appEmails.has(emailLower);
+      })
+      .map((member) => ({
+        email: member.email || "",
+        name: member.name || "",
+        labels: getGhostLabels(member),
+      }))
+      .sort((a, b) => a.email.localeCompare(b.email));
+
+    const summary = {
+      totalMembers: rows.length,
+      paidMembers: rows.filter((row) => row.appStatus === "paid").length,
+      freeMembers: rows.filter((row) => row.appStatus === "free").length,
+      rowsWithIssues: rows.filter((row) => row.hasIssues).length,
+      ghostMissing: rows.filter((row) => !row.ghostExists).length,
+      ghostOnlyCount: ghostOnlyMembers.length,
+      stripeConfigured,
+      ghostConfigured,
+    };
+
+    return {
+      success: true,
+      data: {
+        rows,
+        summary,
+        ghostOnlyMembers,
+      },
+    };
+  } catch (error: any) {
+    console.error("Error in getMembershipAuditAction:", error);
     return { success: false, error: error.message };
   }
 }
