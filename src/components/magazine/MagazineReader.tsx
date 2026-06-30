@@ -783,7 +783,7 @@ function InterleavedTextWithMedia({
   const quotePoints = new Set<number>();
   const mediaPoints = new Set<number>();
 
-  let availableSlots = [];
+  let availableSlots: number[] = [];
   for (let i = 1; i < safeBlocks.length; i++) {
     availableSlots.push(i);
   }

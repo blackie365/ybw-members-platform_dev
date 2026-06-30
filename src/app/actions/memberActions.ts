@@ -394,6 +394,7 @@ type GhostMemberRecord = {
   uuid?: string;
   email?: string;
   name?: string;
+  note?: string;
   labels?: Array<{ name?: string } | string>;
   tiers?: Array<{ id?: string; name?: string }>;
 };
@@ -719,6 +720,7 @@ export async function getMembershipAuditAction() {
         ghostExists: Boolean(ghostMember),
         ghostLabels,
         ghostName: ghostMember?.name || "",
+        ghostNote: typeof ghostMember?.note === "string" ? ghostMember.note.trim() : "",
         hasIssues: notes.length > 0,
         notes,
       };
@@ -734,6 +736,7 @@ export async function getMembershipAuditAction() {
         email: member.email || "",
         name: member.name || "",
         labels: getGhostLabels(member),
+        note: typeof member.note === "string" ? member.note.trim() : "",
       }))
       .sort((a, b) => a.email.localeCompare(b.email));
 
