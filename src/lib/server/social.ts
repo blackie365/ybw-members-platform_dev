@@ -105,9 +105,16 @@ interface InstagramMediaItem {
   comments_count?: number;
 }
 
+interface FacebookPageTokenItem {
+  id?: string;
+  access_token?: string;
+}
+
 function getMetaEnv() {
   return {
     accessToken: process.env.META_ACCESS_TOKEN,
+    facebookAccessToken: process.env.META_FACEBOOK_ACCESS_TOKEN,
+    instagramAccessToken: process.env.META_INSTAGRAM_ACCESS_TOKEN,
     facebookPageId: process.env.META_FACEBOOK_PAGE_ID,
     instagramBusinessAccountId: process.env.META_INSTAGRAM_BUSINESS_ACCOUNT_ID,
   };
@@ -116,14 +123,16 @@ function getMetaEnv() {
 async function fetchMeta<T>(
   path: string,
   params: Record<string, string | number | undefined>,
+  accessTokenOverride?: string,
 ): Promise<T> {
   const { accessToken } = getMetaEnv();
-  if (!accessToken) {
-    throw new Error("Missing required environment variable: META_ACCESS_TOKEN");
+  const token = accessTokenOverride || accessToken;
+  if (!token) {
+    throw new Error("Missing required Meta access token");
   }
 
   const searchParams = new URLSearchParams();
-  searchParams.set("access_token", accessToken);
+  searchParams.set("access_token", token);
 
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
@@ -141,6 +150,42 @@ async function fetchMeta<T>(
   }
 
   return (await response.json()) as T;
+}
+
+async function resolveFacebookPageAccessToken() {
+  const { facebookAccessToken, accessToken, facebookPageId } = getMetaEnv();
+
+  if (facebookAccessToken) {
+    return facebookAccessToken;
+  }
+
+  if (!accessToken) {
+    throw new Error(
+      "Missing META_FACEBOOK_ACCESS_TOKEN or META_ACCESS_TOKEN to load Facebook page stats.",
+    );
+  }
+
+  if (!facebookPageId) {
+    throw new Error("Missing META_FACEBOOK_PAGE_ID to load Facebook page stats.");
+  }
+
+  const accounts = await fetchMeta<MetaListResponse<FacebookPageTokenItem>>(
+    "/me/accounts",
+    {
+      fields: "id,access_token",
+      limit: 100,
+    },
+    accessToken,
+  );
+
+  const matchingPage = accounts.data?.find((page) => page.id === facebookPageId);
+  if (!matchingPage?.access_token) {
+    throw new Error(
+      "Unable to derive a Facebook page access token. Add META_FACEBOOK_ACCESS_TOKEN or ensure META_ACCESS_TOKEN is a user token with pages_show_list access to the target page.",
+    );
+  }
+
+  return matchingPage.access_token;
 }
 
 function getInsightValue(insights: MetaInsightItem[] | undefined, metricName: string) {
@@ -214,17 +259,18 @@ async function getFacebookReport({
   }
 
   try {
+    const facebookToken = await resolveFacebookPageAccessToken();
     const [page, posts] = await Promise.all([
       fetchMeta<FacebookPageResponse>(`/${facebookPageId}`, {
         fields: "name,link,fan_count,followers_count,instagram_business_account{id}",
-      }),
+      }, facebookToken),
       fetchMeta<MetaListResponse<FacebookPostItem>>(`/${facebookPageId}/published_posts`, {
         fields:
           "id,message,permalink_url,created_time,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),insights.metric(post_impressions,post_engaged_users)",
         since: startDate,
         until: endDate,
         limit: RECENT_ITEM_LIMIT,
-      }),
+      }, facebookToken),
     ]);
 
     const content = (posts.data ?? []).map((post) => {
@@ -280,9 +326,10 @@ async function getInstagramReport(
   channel: SocialChannelSummary;
   content: SocialContentItem[];
 }> {
-  const { instagramBusinessAccountId } = getMetaEnv();
+  const { instagramBusinessAccountId, instagramAccessToken, accessToken } = getMetaEnv();
   const accountId =
     instagramBusinessAccountId || options.derivedInstagramBusinessAccountId;
+  const instagramToken = instagramAccessToken || accessToken;
 
   if (!accountId) {
     return {
@@ -295,18 +342,29 @@ async function getInstagramReport(
     };
   }
 
+  if (!instagramToken) {
+    return {
+      channel: createDisconnectedChannel(
+        "instagram",
+        "Instagram",
+        "Add META_INSTAGRAM_ACCESS_TOKEN or META_ACCESS_TOKEN to load Instagram stats.",
+      ),
+      content: [],
+    };
+  }
+
   try {
     const [profile, media] = await Promise.all([
       fetchMeta<InstagramProfileResponse>(`/${accountId}`, {
         fields: "username,followers_count,media_count",
-      }),
+      }, instagramToken),
       fetchMeta<MetaListResponse<InstagramMediaItem>>(`/${accountId}/media`, {
         fields:
           "id,caption,permalink,timestamp,like_count,comments_count",
         since: options.startDate,
         until: options.endDate,
         limit: RECENT_ITEM_LIMIT,
-      }),
+      }, instagramToken),
     ]);
 
     let latestReach = 0;
@@ -320,12 +378,12 @@ async function getInstagramReport(
         fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
           metric: "reach",
           period: "day",
-        }),
+        }, instagramToken),
         fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
           metric: "profile_views,accounts_engaged,total_interactions",
           metric_type: "total_value",
           period: "day",
-        }),
+        }, instagramToken),
       ]);
 
       latestReach = getLatestInsightValue(reachInsights.data, "reach");
@@ -401,19 +459,19 @@ async function getInstagramReport(
 export async function getSocialMediaReport(
   options: SocialDateRangeOptions,
 ): Promise<SocialMediaReport> {
-  const { accessToken } = getMetaEnv();
-  if (!accessToken) {
+  const { accessToken, facebookAccessToken, instagramAccessToken } = getMetaEnv();
+  if (!accessToken && !facebookAccessToken && !instagramAccessToken) {
     return {
       channels: [
         createDisconnectedChannel(
           "facebook",
           "Facebook",
-          "Add META_ACCESS_TOKEN and META_FACEBOOK_PAGE_ID to enable Meta reporting.",
+          "Add META_FACEBOOK_ACCESS_TOKEN or META_ACCESS_TOKEN and META_FACEBOOK_PAGE_ID to enable Meta reporting.",
         ),
         createDisconnectedChannel(
           "instagram",
           "Instagram",
-          "Add META_ACCESS_TOKEN and connect an Instagram business account to enable reporting.",
+          "Add META_INSTAGRAM_ACCESS_TOKEN or META_ACCESS_TOKEN and connect an Instagram business account to enable reporting.",
         ),
       ],
       topContent: [],
