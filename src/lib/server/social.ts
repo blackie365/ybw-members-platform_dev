@@ -1,4 +1,4 @@
-const META_API_VERSION = process.env.META_GRAPH_API_VERSION || "v23.0";
+const META_API_VERSION = process.env.META_GRAPH_API_VERSION || "v25.0";
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const RECENT_ITEM_LIMIT = 5;
 
@@ -18,6 +18,11 @@ export interface SocialChannelSummary {
   contentCount: number;
   engagements: number;
   impressions: number;
+  reach?: number;
+  profileViews?: number;
+  accountsEngaged?: number;
+  totalInteractions?: number;
+  insightWindowLabel?: string;
   statusMessage?: string;
 }
 
@@ -50,6 +55,9 @@ interface MetaInsightsValue {
 interface MetaInsightItem {
   name?: string;
   values?: MetaInsightsValue[];
+  total_value?: {
+    value?: number | string;
+  };
 }
 
 interface FacebookPageResponse {
@@ -138,6 +146,24 @@ async function fetchMeta<T>(
 function getInsightValue(insights: MetaInsightItem[] | undefined, metricName: string) {
   const insight = insights?.find((item) => item.name === metricName);
   const value = insight?.values?.[0]?.value;
+  return typeof value === "number" ? value : Number(value || 0);
+}
+
+function getLatestInsightValue(
+  insights: MetaInsightItem[] | undefined,
+  metricName: string,
+) {
+  const insight = insights?.find((item) => item.name === metricName);
+  const value = insight?.values?.at(-1)?.value;
+  return typeof value === "number" ? value : Number(value || 0);
+}
+
+function getTotalInsightValue(
+  insights: MetaInsightItem[] | undefined,
+  metricName: string,
+) {
+  const insight = insights?.find((item) => item.name === metricName);
+  const value = insight?.total_value?.value;
   return typeof value === "number" ? value : Number(value || 0);
 }
 
@@ -283,6 +309,42 @@ async function getInstagramReport(
       }),
     ]);
 
+    let latestReach = 0;
+    let profileViews = 0;
+    let accountsEngaged = 0;
+    let totalInteractions = 0;
+    let insightStatusMessage: string | undefined;
+
+    try {
+      const [reachInsights, totalValueInsights] = await Promise.all([
+        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
+          metric: "reach",
+          period: "day",
+        }),
+        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
+          metric: "profile_views,accounts_engaged,total_interactions",
+          metric_type: "total_value",
+          period: "day",
+        }),
+      ]);
+
+      latestReach = getLatestInsightValue(reachInsights.data, "reach");
+      profileViews = getTotalInsightValue(totalValueInsights.data, "profile_views");
+      accountsEngaged = getTotalInsightValue(
+        totalValueInsights.data,
+        "accounts_engaged",
+      );
+      totalInteractions = getTotalInsightValue(
+        totalValueInsights.data,
+        "total_interactions",
+      );
+    } catch (error) {
+      insightStatusMessage =
+        error instanceof Error
+          ? `Instagram insights unavailable: ${error.message}`
+          : "Instagram insights are currently unavailable.";
+    }
+
     const content = (media.data ?? []).map((item) => {
       const likes = item.like_count ?? 0;
       const comments = item.comments_count ?? 0;
@@ -312,8 +374,15 @@ async function getInstagramReport(
           : undefined,
         followers: profile.followers_count ?? 0,
         contentCount: profile.media_count ?? content.length,
-        engagements: content.reduce((sum, item) => sum + item.engagements, 0),
-        impressions: 0,
+        engagements:
+          totalInteractions || content.reduce((sum, item) => sum + item.engagements, 0),
+        impressions: latestReach,
+        reach: latestReach,
+        profileViews,
+        accountsEngaged,
+        totalInteractions,
+        insightWindowLabel: "Latest daily Instagram insight snapshot",
+        statusMessage: insightStatusMessage,
       },
       content,
     };
