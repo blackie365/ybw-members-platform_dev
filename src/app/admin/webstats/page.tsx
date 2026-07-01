@@ -456,6 +456,18 @@ export default async function AdminWebStatsPage({
     (sum, channel) => sum + channel.impressions,
     0,
   );
+  const totalSocialReach = connectedSocialChannels.reduce(
+    (sum, channel) => sum + (channel.reach ?? 0),
+    0,
+  );
+  const totalSocialProfileViews = connectedSocialChannels.reduce(
+    (sum, channel) => sum + (channel.profileViews ?? 0),
+    0,
+  );
+  const totalSocialAccountsEngaged = connectedSocialChannels.reduce(
+    (sum, channel) => sum + (channel.accountsEngaged ?? 0),
+    0,
+  );
 
   return (
     <div className="space-y-6 print:space-y-4">
@@ -998,7 +1010,7 @@ export default async function AdminWebStatsPage({
 
             {socialReport ? (
               <>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                   <MetricCard
                     label="Connected Channels"
                     value={formatInteger(connectedSocialChannels.length)}
@@ -1012,12 +1024,22 @@ export default async function AdminWebStatsPage({
                   <MetricCard
                     label="Recent Engagements"
                     value={formatInteger(totalSocialEngagements)}
-                    supporting="Combined interactions from recent connected content"
+                    supporting="Combined interaction totals currently available from connected social APIs"
                   />
                   <MetricCard
-                    label="Recent Impressions"
-                    value={formatInteger(totalSocialImpressions)}
-                    supporting="Impressions currently available from connected social APIs"
+                    label="Reach / Impressions"
+                    value={formatInteger(totalSocialReach || totalSocialImpressions)}
+                    supporting="Latest visibility totals currently available from connected social APIs"
+                  />
+                  <MetricCard
+                    label="Profile Visits"
+                    value={formatInteger(totalSocialProfileViews)}
+                    supporting="Latest daily profile visits returned by connected social APIs"
+                  />
+                  <MetricCard
+                    label="Accounts Engaged"
+                    value={formatInteger(totalSocialAccountsEngaged)}
+                    supporting="Latest daily engaged accounts returned by connected social APIs"
                   />
                 </div>
 
@@ -1048,6 +1070,11 @@ export default async function AdminWebStatsPage({
                             {channel.statusMessage}
                           </p>
                         ) : null}
+                        {channel.insightWindowLabel ? (
+                          <p className="text-xs text-muted-foreground">
+                            {channel.insightWindowLabel}
+                          </p>
+                        ) : null}
 
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="rounded-xl border bg-muted/20 p-4">
@@ -1060,7 +1087,7 @@ export default async function AdminWebStatsPage({
                           </div>
                           <div className="rounded-xl border bg-muted/20 p-4">
                             <div className="text-sm font-medium text-muted-foreground">
-                              Recent engagements
+                              Total interactions
                             </div>
                             <div className="mt-2 font-serif text-3xl font-bold text-foreground">
                               {formatInteger(channel.engagements)}
@@ -1068,7 +1095,7 @@ export default async function AdminWebStatsPage({
                           </div>
                           <div className="rounded-xl border bg-muted/20 p-4">
                             <div className="text-sm font-medium text-muted-foreground">
-                              Recent content items
+                              Content library
                             </div>
                             <div className="mt-2 font-serif text-3xl font-bold text-foreground">
                               {formatInteger(channel.contentCount)}
@@ -1076,12 +1103,32 @@ export default async function AdminWebStatsPage({
                           </div>
                           <div className="rounded-xl border bg-muted/20 p-4">
                             <div className="text-sm font-medium text-muted-foreground">
-                              Impressions available
+                              Reach / impressions
                             </div>
                             <div className="mt-2 font-serif text-3xl font-bold text-foreground">
-                              {formatInteger(channel.impressions)}
+                              {formatInteger(channel.reach ?? channel.impressions)}
                             </div>
                           </div>
+                          {channel.platform === "instagram" ? (
+                            <>
+                              <div className="rounded-xl border bg-muted/20 p-4">
+                                <div className="text-sm font-medium text-muted-foreground">
+                                  Profile visits
+                                </div>
+                                <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                                  {formatInteger(channel.profileViews ?? 0)}
+                                </div>
+                              </div>
+                              <div className="rounded-xl border bg-muted/20 p-4">
+                                <div className="text-sm font-medium text-muted-foreground">
+                                  Accounts engaged
+                                </div>
+                                <div className="mt-2 font-serif text-3xl font-bold text-foreground">
+                                  {formatInteger(channel.accountsEngaged ?? 0)}
+                                </div>
+                              </div>
+                            </>
+                          ) : null}
                         </div>
 
                         {channel.profileUrl ? (

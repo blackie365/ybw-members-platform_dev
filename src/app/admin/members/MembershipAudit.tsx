@@ -107,6 +107,36 @@ function escapeCsvCell(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function toAuditCsvRow(row: MembershipAuditRow): string[] {
+  return [
+    "app-member",
+    row.displayName,
+    row.email,
+    row.appPlanLabel,
+    row.stripePlanLabel,
+    formatDate(row.renewalDate),
+    row.ghostExists ? "yes" : "no",
+    row.ghostLabels.join(", "),
+    row.ghostNote,
+    row.notes.join(" | "),
+  ];
+}
+
+function toGhostOnlyCsvRow(member: GhostOnlyMember): string[] {
+  return [
+    "ghost-only",
+    member.name || "",
+    member.email,
+    "",
+    "",
+    "",
+    "yes",
+    member.labels.join(", "),
+    member.note,
+    "Exists in Ghost but not in app members",
+  ];
+}
+
 export function MembershipAudit({
   rows,
   summary,
@@ -143,6 +173,11 @@ export function MembershipAudit({
     });
   }, [filter, rows, search]);
 
+  const filteredIssueRows = useMemo(
+    () => filteredRows.filter((row) => row.hasIssues),
+    [filteredRows]
+  );
+
   const downloadCsv = (fileName: string, bodyRows: string[][]) => {
     const csv = [
       [
@@ -172,63 +207,15 @@ export function MembershipAudit({
   };
 
   const exportMismatches = () => {
-    const mismatchRows = filteredRows
-      .filter((row) => row.hasIssues)
-      .map((row) => [
-        "app-member",
-        row.displayName,
-        row.email,
-        row.appPlanLabel,
-        row.stripePlanLabel,
-        formatDate(row.renewalDate),
-        row.ghostExists ? "yes" : "no",
-        row.ghostLabels.join(", "),
-        row.ghostNote,
-        row.notes.join(" | "),
-      ]);
-
-    const ghostOnlyRows = ghostOnlyMembers.map((member) => [
-      "ghost-only",
-      member.name || "",
-      member.email,
-      "",
-      "",
-      "",
-      "yes",
-      member.labels.join(", "),
-      member.note,
-      "Exists in Ghost but not in app members",
-    ]);
+    const mismatchRows = filteredIssueRows.map(toAuditCsvRow);
+    const ghostOnlyRows = ghostOnlyMembers.map(toGhostOnlyCsvRow);
 
     downloadCsv("membership-audit-mismatches", [...mismatchRows, ...ghostOnlyRows]);
   };
 
   const exportFullAudit = () => {
-    const fullRows = filteredRows.map((row) => [
-      "app-member",
-      row.displayName,
-      row.email,
-      row.appPlanLabel,
-      row.stripePlanLabel,
-      formatDate(row.renewalDate),
-      row.ghostExists ? "yes" : "no",
-      row.ghostLabels.join(", "),
-      row.ghostNote,
-      row.notes.join(" | "),
-    ]);
-
-    const ghostOnlyRows = ghostOnlyMembers.map((member) => [
-      "ghost-only",
-      member.name || "",
-      member.email,
-      "",
-      "",
-      "",
-      "yes",
-      member.labels.join(", "),
-      member.note,
-      "Exists in Ghost but not in app members",
-    ]);
+    const fullRows = filteredRows.map(toAuditCsvRow);
+    const ghostOnlyRows = ghostOnlyMembers.map(toGhostOnlyCsvRow);
 
     downloadCsv("membership-audit-full", [...fullRows, ...ghostOnlyRows]);
   };
@@ -307,7 +294,7 @@ export function MembershipAudit({
               variant="outline"
               size="sm"
               onClick={exportMismatches}
-              disabled={loading || (filteredRows.filter((row) => row.hasIssues).length === 0 && ghostOnlyMembers.length === 0)}
+              disabled={loading || (filteredIssueRows.length === 0 && ghostOnlyMembers.length === 0)}
             >
               <Download className="mr-2 h-4 w-4" />
               Export mismatches

@@ -522,6 +522,10 @@ function getGhostLabels(member: GhostMemberRecord | null) {
     .filter(Boolean);
 }
 
+function getGhostNote(member: GhostMemberRecord | null) {
+  return typeof member?.note === "string" ? member.note.trim() : "";
+}
+
 function hasLiveStripeSubscription(subscription: Stripe.Subscription | null) {
   return Boolean(
     subscription &&
@@ -720,7 +724,7 @@ export async function getMembershipAuditAction() {
         ghostExists: Boolean(ghostMember),
         ghostLabels,
         ghostName: ghostMember?.name || "",
-        ghostNote: typeof ghostMember?.note === "string" ? ghostMember.note.trim() : "",
+        ghostNote: getGhostNote(ghostMember),
         hasIssues: notes.length > 0,
         notes,
       };
@@ -736,16 +740,30 @@ export async function getMembershipAuditAction() {
         email: member.email || "",
         name: member.name || "",
         labels: getGhostLabels(member),
-        note: typeof member.note === "string" ? member.note.trim() : "",
+        note: getGhostNote(member),
       }))
       .sort((a, b) => a.email.localeCompare(b.email));
 
+    const counts = rows.reduce(
+      (acc, row) => {
+        acc.totalMembers += 1;
+        if (row.appStatus === "paid") acc.paidMembers += 1;
+        if (row.appStatus === "free") acc.freeMembers += 1;
+        if (row.hasIssues) acc.rowsWithIssues += 1;
+        if (!row.ghostExists) acc.ghostMissing += 1;
+        return acc;
+      },
+      {
+        totalMembers: 0,
+        paidMembers: 0,
+        freeMembers: 0,
+        rowsWithIssues: 0,
+        ghostMissing: 0,
+      }
+    );
+
     const summary = {
-      totalMembers: rows.length,
-      paidMembers: rows.filter((row) => row.appStatus === "paid").length,
-      freeMembers: rows.filter((row) => row.appStatus === "free").length,
-      rowsWithIssues: rows.filter((row) => row.hasIssues).length,
-      ghostMissing: rows.filter((row) => !row.ghostExists).length,
+      ...counts,
       ghostOnlyCount: ghostOnlyMembers.length,
       stripeConfigured,
       ghostConfigured,
