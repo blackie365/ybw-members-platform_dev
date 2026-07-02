@@ -341,7 +341,7 @@ async function fetchFacebookPostImpressions(
   postId: string,
   facebookToken: string,
 ): Promise<{ impressions: number; metricUsed?: string; unavailableReason?: string }> {
-  const metricCandidates = ["post_impressions", "post_impressions_unique", "post_impressions_organic_v2"];
+  const metricCandidates = ["post_media_view", "post_total_media_view_unique"];
   for (const metric of metricCandidates) {
     try {
       const insights = await fetchMeta<MetaListResponse<MetaInsightItem>>(
