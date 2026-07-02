@@ -323,6 +323,62 @@ function getTotalInsightValue(
   return typeof value === "number" ? value : Number(value || 0);
 }
 
+function getMetaErrorCode(error: unknown): number | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const marker = "Meta API request failed:";
+  const idx = error.message.indexOf(marker);
+  if (idx === -1) return undefined;
+  const jsonPart = error.message.slice(idx + marker.length).trim();
+  try {
+    const parsed = JSON.parse(jsonPart) as { error?: { code?: number } };
+    return parsed?.error?.code;
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchFacebookPostImpressions(
+  postId: string,
+  facebookToken: string,
+): Promise<{ impressions: number; metricUsed?: string; unavailableReason?: string }> {
+  const metricCandidates = ["post_impressions", "post_impressions_unique", "post_impressions_organic_v2"];
+  for (const metric of metricCandidates) {
+    try {
+      const insights = await fetchMeta<MetaListResponse<MetaInsightItem>>(
+        `/${postId}/insights`,
+        {
+          metric,
+          period: "lifetime",
+        },
+        facebookToken,
+      );
+      return { impressions: getInsightValue(insights.data, metric), metricUsed: metric };
+    } catch (error) {
+      const code = getMetaErrorCode(error);
+      // #region debug-point B:fb-post-insights-error
+      __metaDbg({
+        runId: "pre",
+        hypothesisId: "B",
+        location: "social.ts:fetchFacebookPostImpressions",
+        msg: "[DEBUG] Facebook post insights metric failed",
+        data: {
+          postId,
+          metric,
+          code: code ?? null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      // #endregion
+      if (code === 100) {
+        continue;
+      }
+      return { impressions: 0, unavailableReason: "Facebook post impressions are currently unavailable." };
+    }
+  }
+
+  return { impressions: 0, unavailableReason: "Facebook post impressions are currently unavailable." };
+}
+
 function buildContentTitle(value: string | undefined, fallback: string) {
   const firstLine = value?.split("\n").find((line) => line.trim().length > 0)?.trim();
   if (!firstLine) {
@@ -407,23 +463,13 @@ async function getFacebookReport({
       (posts.data ?? []).map(async (post) => {
         if (!post.id) return { postId: "", impressions: 0 };
         try {
-          const insights = await fetchMeta<MetaListResponse<MetaInsightItem>>(
-            `/${post.id}/insights`,
-            {
-              metric: "post_impressions",
-              period: "lifetime",
-            },
-            facebookToken,
-          );
-          return {
-            postId: post.id,
-            impressions: getInsightValue(insights.data, "post_impressions"),
-          };
+          const result = await fetchFacebookPostImpressions(post.id, facebookToken);
+          if (result.unavailableReason) {
+            insightStatusMessage = result.unavailableReason;
+          }
+          return { postId: post.id, impressions: result.impressions };
         } catch (error) {
-          insightStatusMessage =
-            error instanceof Error
-              ? `Facebook post impressions unavailable: ${error.message}`
-              : "Facebook post insights are currently unavailable.";
+          insightStatusMessage = "Facebook post impressions are currently unavailable.";
           return { postId: post.id, impressions: 0 };
         }
       }),
