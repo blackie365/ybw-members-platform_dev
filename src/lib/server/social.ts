@@ -100,6 +100,9 @@ interface FacebookPostItem {
   message?: string;
   permalink_url?: string;
   created_time?: string;
+  shares?: {
+    count?: number;
+  };
   reactions?: {
     summary?: {
       total_count?: number;
@@ -392,7 +395,7 @@ async function getFacebookReport({
       }, facebookToken),
       fetchMeta<MetaListResponse<FacebookPostItem>>(`/${facebookPageId}/published_posts`, {
         fields:
-          "id,message,permalink_url,created_time,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)",
+          "id,message,permalink_url,created_time,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)",
         since: startDate,
         until: endDate,
         limit: RECENT_ITEM_LIMIT,
@@ -402,12 +405,12 @@ async function getFacebookReport({
     let insightStatusMessage: string | undefined;
     const postInsights = await Promise.all(
       (posts.data ?? []).map(async (post) => {
-        if (!post.id) return { postId: "", impressions: 0, engagedUsers: 0 };
+        if (!post.id) return { postId: "", impressions: 0 };
         try {
           const insights = await fetchMeta<MetaListResponse<MetaInsightItem>>(
             `/${post.id}/insights`,
             {
-              metric: "post_impressions,post_engaged_users",
+              metric: "post_impressions",
               period: "lifetime",
             },
             facebookToken,
@@ -415,14 +418,13 @@ async function getFacebookReport({
           return {
             postId: post.id,
             impressions: getInsightValue(insights.data, "post_impressions"),
-            engagedUsers: getInsightValue(insights.data, "post_engaged_users"),
           };
         } catch (error) {
           insightStatusMessage =
             error instanceof Error
-              ? `Facebook post insights unavailable: ${error.message}`
+              ? `Facebook post impressions unavailable: ${error.message}`
               : "Facebook post insights are currently unavailable.";
-          return { postId: post.id, impressions: 0, engagedUsers: 0 };
+          return { postId: post.id, impressions: 0 };
         }
       }),
     );
@@ -447,10 +449,11 @@ async function getFacebookReport({
     // #endregion
 
     const content = (posts.data ?? []).map((post) => {
+      const shares = post.shares?.count ?? 0;
       const likes = post.reactions?.summary?.total_count ?? 0;
       const comments = post.comments?.summary?.total_count ?? 0;
       const insight = post.id ? insightByPostId.get(post.id) : undefined;
-      const engagements = insight?.engagedUsers ?? likes + comments;
+      const engagements = likes + comments + shares;
       const impressions = insight?.impressions ?? 0;
 
       return {
