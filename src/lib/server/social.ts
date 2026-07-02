@@ -5,7 +5,6 @@ const RECENT_ITEM_LIMIT = 5;
 // #region debug-point A:meta-debug-bootstrap
 const __metaDbg = (() => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require("fs");
     const p = ".dbg/web-stats-facebook.env";
     let u = "http://127.0.0.1:7777/event";
