@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { MagazineIssue, MagazinePage } from './types';
 import { toast } from 'sonner';
-import { fetchIssuuMetadataAction } from '@/app/actions/magazineActions';
+import { fetchIssuuMetadataAction, setLatestMagazineIssueAction } from '@/app/actions/magazineActions';
 import { useState } from 'react';
 import Link from 'next/link';
 
@@ -312,6 +312,51 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
               </div>
             </CardContent>
           </Card>
+
+          {!isNew && (
+            <Card className={issue.isLatest ? "border-accent/30 bg-accent/5" : undefined}>
+              <CardHeader>
+                <CardTitle>Publishing</CardTitle>
+                <CardDescription>Control which edition is shown as live.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm">Live Edition</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      This is the edition highlighted on the Admin → Magazine page.
+                    </p>
+                  </div>
+                  {issue.isLatest ? (
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-accent">
+                      Live
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-[10px] font-bold uppercase"
+                      onClick={async () => {
+                        if (!issue.id) return;
+                        if (!confirm("Set this edition as the live edition? This will replace the current live edition.")) {
+                          return;
+                        }
+                        const res = await setLatestMagazineIssueAction(issue.id);
+                        if (res.success) {
+                          onUpdate({ isLatest: true });
+                          toast.success("Live edition updated");
+                        } else {
+                          toast.error(res.error || "Failed to set live edition");
+                        }
+                      }}
+                    >
+                      Set Live
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {issue.readerType === 'custom' && coverPage && (
             <Card className="border-accent/20">

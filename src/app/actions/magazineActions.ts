@@ -78,6 +78,35 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
   }
 }
 
+export async function setLatestMagazineIssueAction(issueId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const now = new Date().toISOString();
+    const issuesRef = adminDb.collection('magazine_issues');
+    const targetRef = issuesRef.doc(issueId);
+
+    await adminDb.runTransaction(async (tx) => {
+      const latestSnap = await tx.get(issuesRef.where('isLatest', '==', true));
+      for (const doc of latestSnap.docs) {
+        if (doc.id === issueId) continue;
+        tx.update(doc.ref, { isLatest: false, updatedAt: now });
+      }
+      tx.set(targetRef, { isLatest: true, updatedAt: now }, { merge: true });
+    });
+
+    revalidatePath('/admin/magazine');
+    revalidatePath('/new-edition');
+    revalidatePath('/magazine');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in setLatestMagazineIssueAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function createMagazineIssueAction(data: any) {
   try {
     await checkAdmin();
