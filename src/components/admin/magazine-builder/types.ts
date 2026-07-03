@@ -44,4 +44,6 @@ export interface MagazineIssue {
   ghostSyncTag?: string; // New: Tag to sync articles from Ghost
   readerType?: 'custom' | 'issuu';
   autoSyncCover?: boolean;
+  flipbookUrl?: string;
+  featureInFlipbook?: boolean;
 }

@@ -107,6 +107,32 @@ export async function setLatestMagazineIssueAction(issueId: string) {
   }
 }
 
+export async function setFeaturedFlipbookIssueAction(issueId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error("Database not initialized");
+
+    const now = new Date().toISOString();
+    const issuesRef = adminDb.collection('magazine_issues');
+    const targetRef = issuesRef.doc(issueId);
+
+    await adminDb.runTransaction(async (tx) => {
+      const featuredSnap = await tx.get(issuesRef.where('featureInFlipbook', '==', true));
+      for (const doc of featuredSnap.docs) {
+        if (doc.id === issueId) continue;
+        tx.update(doc.ref, { featureInFlipbook: false, updatedAt: now });
+      }
+      tx.set(targetRef, { featureInFlipbook: true, updatedAt: now }, { merge: true });
+    });
+
+    revalidatePath('/new-edition');
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in setFeaturedFlipbookIssueAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function createMagazineIssueAction(data: any) {
   try {
     await checkAdmin();

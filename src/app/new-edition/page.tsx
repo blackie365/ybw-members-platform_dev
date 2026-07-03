@@ -26,9 +26,10 @@ export default async function NewEditionPage() {
   const mergedIssues = allIssues.slice(0, 8);
   const liveIssue = mergedIssues.find((issue: any) => issue.isLatest) ?? mergedIssues[0];
   const flipbookIssue =
-    mergedIssues.find((issue: any) => issue.readerType === "issuu" && issue.pdfUrl) ??
-    mergedIssues.find((issue: any) => issue.pdfUrl) ??
+    mergedIssues.find((issue: any) => issue.featureInFlipbook && issue.flipbookUrl) ??
+    mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
+  const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -160,7 +161,7 @@ export default async function NewEditionPage() {
       )}
 
       {/* Issuu Flipping Book Section */}
-      {flipbookIssue && (
+      {flipbookEmbedUrl && (
         <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
         <div className="mx-auto max-w-6xl px-6 lg:px-8 text-center">
           <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-12">
@@ -172,11 +173,11 @@ export default async function NewEditionPage() {
               style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
             >
               <iframe 
-                title={flipbookIssue.title}
+                title={flipbookIssue?.title || "Classic Flipping Book"}
                 allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
                 allowFullScreen={true} 
                 style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src={fixIssuuEmbedUrl(flipbookIssue.pdfUrl)}
+                src={flipbookEmbedUrl}
               />
             </div>
           </div>
