@@ -345,7 +345,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
           Paste text and images directly into your selected template.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6 space-y-4">
+      <CardContent className="pt-6 space-y-6">
         {!selectedPageId ? (
           <div className="p-8 text-center border-2 border-dashed rounded-lg bg-muted/20">
             <p className="text-sm text-muted-foreground">Select a page on the left first to use manual import.</p>
@@ -411,7 +411,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
           </>
         )}
 
-        <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
             <p className="text-[10px] text-muted-foreground">
@@ -452,10 +452,15 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
 
           {idmlStories.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2">
-              <div className="lg:col-span-5 space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Story picker {idmlFileName ? `(${idmlFileName})` : ''}
-                </Label>
+              <div className="lg:col-span-5 space-y-2 min-w-0">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Story picker</Label>
+                  {idmlFileName ? (
+                    <span className="text-[10px] text-muted-foreground truncate min-w-0">
+                      ({idmlFileName})
+                    </span>
+                  ) : null}
+                </div>
                 <Select
                   value={selectedStoryPath}
                   onValueChange={(nextPath) => {
@@ -468,12 +473,24 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
                     <SelectValue placeholder="Choose story…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {idmlStories.map((s) => (
-                      <SelectItem key={s.path} value={s.path}>
-                        {s.title ? `${s.title} — ` : ''}
-                        {s.path.replace('Stories/', '')}
-                      </SelectItem>
-                    ))}
+                    {idmlStories.map((s) => {
+                      const fileLabel = s.path.replace('Stories/', '');
+                      const titleLabel = String(s.title || '').trim();
+                      return (
+                        <SelectItem key={s.path} value={s.path} className="min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 w-full">
+                            <span className="min-w-0 flex-1 truncate">
+                              {titleLabel || fileLabel}
+                            </span>
+                            {titleLabel ? (
+                              <span className="text-muted-foreground text-xs truncate max-w-[140px]">
+                                {fileLabel}
+                              </span>
+                            ) : null}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground">
@@ -483,7 +500,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
               <div className="lg:col-span-7">
                 <div className="rounded-lg border border-border bg-muted/10 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Preview</p>
-                  <p className="mt-2 text-xs text-foreground/90 leading-relaxed">
+                  <p className="mt-2 text-xs text-foreground/90 leading-relaxed break-words">
                     {idmlStories.find((s) => s.path === selectedStoryPath)?.preview || '—'}
                   </p>
                 </div>
@@ -492,14 +509,12 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
           )}
 
           {idmlStories.length > 0 && (
-            <div className="rounded-lg border border-border bg-background p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Contents Builder</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Add the selected story to a draft contents list, then apply it to your Contents page.
-                  </p>
-                </div>
+            <div className="rounded-lg border border-border bg-background p-4 space-y-4">
+              <div className="space-y-1">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Contents Builder</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Add the selected story to a draft contents list, then apply it to your Contents page.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -543,7 +558,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
 
                   <div className="space-y-2">
                     {contentsDraftItems.map((item, idx) => (
-                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center rounded-md border border-border bg-muted/10 p-2">
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center rounded-md border border-border bg-muted/10 p-2 min-w-0">
                         <div className="sm:col-span-2">
                           <Input
                             value={item.page}
@@ -564,7 +579,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
                             placeholder="FEATURE"
                           />
                         </div>
-                        <div className="sm:col-span-6">
+                        <div className="sm:col-span-6 min-w-0">
                           <Input
                             value={item.title}
                             onChange={(e) => {
