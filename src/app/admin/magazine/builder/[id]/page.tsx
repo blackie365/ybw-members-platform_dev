@@ -636,6 +636,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           image: '',
           offer: '20% Off for YBW Members' 
         };
+      case 'full-page-ad':
+        return {
+          label: 'Advertisement',
+          image: '',
+          linkUrl: '',
+          alt: '',
+        };
       case 'back-cover': 
         return { 
           kicker: 'Next Edition',

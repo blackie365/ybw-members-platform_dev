@@ -1050,6 +1050,27 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
           </div>
         );
+      case 'full-page-ad':
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Label (Optional)</Label>
+              <Input value={safeContent.label || ''} onChange={(e) => updateContent('label', e.target.value)} placeholder="Advertisement" />
+            </div>
+            <div className="space-y-2">
+              <Label>Image URL</Label>
+              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} placeholder="https://..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Click-through Link (Optional)</Label>
+              <Input value={safeContent.linkUrl || ''} onChange={(e) => updateContent('linkUrl', e.target.value)} placeholder="https://..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Alt Text (Optional)</Label>
+              <Input value={safeContent.alt || ''} onChange={(e) => updateContent('alt', e.target.value)} placeholder="Full page advert" />
+            </div>
+          </div>
+        );
       case 'back-cover':
         return (
           <div className="space-y-4">

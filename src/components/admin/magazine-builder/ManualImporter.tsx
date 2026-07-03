@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 const decodeXmlEntities = (value: string) => {
@@ -68,6 +69,15 @@ export interface ManualImporterProps {
   selectedPageType?: string;
 }
 
+type ParsedInDesignStory = {
+  path: string;
+  title: string;
+  text: string;
+  imageFileNames: string[];
+  preview: string;
+  length: number;
+};
+
 export function ManualImporter({ onImport, isImporting, selectedPageId, selectedPageType }: ManualImporterProps) {
   const [rawText, setRawText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -77,6 +87,18 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [imageHints, setImageHints] = useState<string[]>([]);
+  const [idmlStories, setIdmlStories] = useState<ParsedInDesignStory[]>([]);
+  const [selectedStoryPath, setSelectedStoryPath] = useState<string>('');
+  const [idmlFileName, setIdmlFileName] = useState<string>('');
+
+  const applyInDesignStory = (story: ParsedInDesignStory) => {
+    if (story.title) setTitle(story.title);
+    setRawText(story.text);
+    setImageHints(story.imageFileNames);
+
+    const firstHit = story.imageFileNames.find((name) => imageMap[name]);
+    if (firstHit) setImageUrl(imageMap[firstHit]);
+  };
 
   const handleManualImport = async () => {
     if (!selectedPageId || !selectedPageType) {
@@ -152,6 +174,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
     try {
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (ext === 'idml') {
+        setIdmlFileName(file.name);
         const { default: JSZip } = await import('jszip');
         const zip = await JSZip.loadAsync(await file.arrayBuffer());
         const storyPaths = Object.keys(zip.files).filter((p) => /^Stories\/.+\.xml$/i.test(p));
@@ -161,34 +184,41 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
           return;
         }
 
-        let best: { path: string; title: string; text: string; imageFileNames: string[] } | null = null;
+        const stories: ParsedInDesignStory[] = [];
         for (const p of storyPaths) {
           const xml = await zip.files[p].async('text');
           const parsed = extractInDesignTextAndImageHints(xml);
           if (!parsed.text) continue;
-          const score = parsed.text.length;
-          const bestScore = best?.text?.length || 0;
-          if (!best || score > bestScore) {
-            best = { path: p, ...parsed };
-          }
+          const cleaned = normalizeWhitespace(parsed.text);
+          const preview = cleaned.replace(/\s+/g, ' ').slice(0, 180);
+          stories.push({
+            path: p,
+            title: parsed.title,
+            text: cleaned,
+            imageFileNames: parsed.imageFileNames,
+            preview,
+            length: cleaned.length,
+          });
         }
 
-        if (!best) {
+        if (stories.length === 0) {
           toast.error('No readable story text found in that IDML file');
           return;
         }
 
-        if (best.title) setTitle(best.title);
-        setRawText(best.text);
-        setImageHints(best.imageFileNames);
+        const sorted = stories.sort((a, b) => b.length - a.length);
+        setIdmlStories(sorted);
+        const initial = sorted[0];
+        setSelectedStoryPath(initial.path);
+        applyInDesignStory(initial);
 
-        const firstHit = best.imageFileNames.find((name) => imageMap[name]);
-        if (firstHit) setImageUrl(imageMap[firstHit]);
-
-        toast.success(`Imported from IDML (${best.path.replace('Stories/', '')})`);
+        toast.success(`Imported from IDML (${initial.path.replace('Stories/', '')})`);
         return;
       }
 
+      setIdmlFileName('');
+      setIdmlStories([]);
+      setSelectedStoryPath('');
       const xml = await file.text();
       const parsed = extractInDesignTextAndImageHints(xml);
       if (!parsed.text) {
@@ -364,6 +394,47 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
               />
             </div>
           </div>
+
+          {idmlStories.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-2">
+              <div className="lg:col-span-5 space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Story picker {idmlFileName ? `(${idmlFileName})` : ''}
+                </Label>
+                <Select
+                  value={selectedStoryPath}
+                  onValueChange={(nextPath) => {
+                    setSelectedStoryPath(nextPath);
+                    const story = idmlStories.find((s) => s.path === nextPath);
+                    if (story) applyInDesignStory(story);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose story…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {idmlStories.map((s) => (
+                      <SelectItem key={s.path} value={s.path}>
+                        {s.title ? `${s.title} — ` : ''}
+                        {s.path.replace('Stories/', '')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  {idmlStories.length} stories found. Selecting a story replaces Title / Body / image hints.
+                </p>
+              </div>
+              <div className="lg:col-span-7">
+                <div className="rounded-lg border border-border bg-muted/10 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Preview</p>
+                  <p className="mt-2 text-xs text-foreground/90 leading-relaxed">
+                    {idmlStories.find((s) => s.path === selectedStoryPath)?.preview || '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {(isParsing || isUploadingImages) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
