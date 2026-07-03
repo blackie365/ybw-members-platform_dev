@@ -604,15 +604,20 @@ async function getInstagramReport(
     ]);
 
     let latestReach = 0;
+    let latestImpressions = 0;
     let profileViews = 0;
     let accountsEngaged = 0;
     let totalInteractions = 0;
     let insightStatusMessage: string | undefined;
 
     try {
-      const [reachInsights, totalValueInsights] = await Promise.all([
+      const [reachInsights, impressionsInsights, totalValueInsights] = await Promise.all([
         fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
           metric: "reach",
+          period: "day",
+        }, instagramToken),
+        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
+          metric: "impressions",
           period: "day",
         }, instagramToken),
         fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
@@ -623,6 +628,7 @@ async function getInstagramReport(
       ]);
 
       latestReach = getLatestInsightValue(reachInsights.data, "reach");
+      latestImpressions = getLatestInsightValue(impressionsInsights.data, "impressions");
       profileViews = getTotalInsightValue(totalValueInsights.data, "profile_views");
       accountsEngaged = getTotalInsightValue(
         totalValueInsights.data,
@@ -670,7 +676,7 @@ async function getInstagramReport(
         contentCount: profile.media_count ?? content.length,
         engagements:
           totalInteractions || content.reduce((sum, item) => sum + item.engagements, 0),
-        impressions: latestReach,
+        impressions: latestImpressions,
         reach: latestReach,
         profileViews,
         accountsEngaged,
