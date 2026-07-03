@@ -9,11 +9,15 @@ import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/action
  import Link from"next/link";
 import { toast } from "sonner";
  import Image from"next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const deleteParam = searchParams.get("delete")
 
   const loadIssues = async () => {
     setLoading(true)
@@ -39,6 +43,22 @@ export default function AdminMagazinePage() {
       }
     }
   }
+
+  useEffect(() => {
+    if (!deleteParam) return
+    if (loading) return
+    if (!issues.some((issue) => issue.id === deleteParam)) {
+      router.replace("/admin/magazine")
+      return
+    }
+
+    Promise.resolve()
+      .then(() => handleDelete(deleteParam))
+      .finally(() => {
+        router.replace("/admin/magazine")
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteParam, loading, issues])
 
   const liveIssue = issues.find(i => i.isLatest);
   const archiveIssues = issues.filter(i => !i.isLatest && i.title.toLowerCase().includes(searchQuery.toLowerCase()));

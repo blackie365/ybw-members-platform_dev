@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
+import { checkAdmin } from '@/lib/server/auth-utils';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -23,13 +24,26 @@ export default async function NewEditionPage() {
   ]);
   
   const mergedIssues = allIssues.slice(0, 8);
-  const latestIssue = mergedIssues[0];
+  const liveIssue = mergedIssues.find((issue: any) => issue.isLatest) ?? mergedIssues[0];
+  const flipbookIssue =
+    mergedIssues.find((issue: any) => issue.readerType === "issuu" && issue.pdfUrl) ??
+    mergedIssues.find((issue: any) => issue.pdfUrl) ??
+    null;
   const featuredPost = ghostPosts[0];
+
+  const isAdmin = await (async () => {
+    try {
+      await checkAdmin();
+      return true;
+    } catch {
+      return false;
+    }
+  })();
   
   console.log('[NewEditionPage] allIssues count:', allIssues.length);
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
-  if (!latestIssue) {
+  if (!liveIssue) {
     console.warn('[NewEditionPage] No latest issue found');
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -67,7 +81,7 @@ export default async function NewEditionPage() {
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button asChild size="lg" className="bg-[#A3413A] hover:bg-white hover:text-[#A3413A] text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300 shadow-xl border-none">
-                  <Link href={`/magazine/issue/${latestIssue.id}`}>
+                  <Link href={`/magazine/issue/${liveIssue.id}`}>
                     <BookOpen className="mr-2 h-5 w-5" />
                     Launch Digital Reader
                   </Link>
@@ -85,12 +99,12 @@ export default async function NewEditionPage() {
             </div>
 
             <div className="relative group cursor-pointer">
-              <Link href={`/magazine/issue/${latestIssue.id}`}>
+              <Link href={`/magazine/issue/${liveIssue.id}`}>
                 <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
-                    src={fixMagazineImageUrl(latestIssue.coverImage, IMAGE_VERSION)}
-                    alt={`${latestIssue.title} Cover`}
+                    src={fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)}
+                    alt={`${liveIssue.title} Cover`}
                     className="absolute inset-0 w-full h-full object-cover border border-white/10"
                   />
                   <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-white/10" />
@@ -146,7 +160,8 @@ export default async function NewEditionPage() {
       )}
 
       {/* Issuu Flipping Book Section */}
-      <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
+      {flipbookIssue && (
+        <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
         <div className="mx-auto max-w-6xl px-6 lg:px-8 text-center">
           <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-12">
             Classic Flipping Book
@@ -157,16 +172,17 @@ export default async function NewEditionPage() {
               style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
             >
               <iframe 
-                title={latestIssue.title}
+                title={flipbookIssue.title}
                 allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
                 allowFullScreen={true} 
                 style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src={fixIssuuEmbedUrl(latestIssue.pdfUrl)}
+                src={fixIssuuEmbedUrl(flipbookIssue.pdfUrl)}
               />
             </div>
           </div>
         </div>
       </section>
+      )}
 
       {/* CTA Section */}
       <section className="border-t border-border bg-card py-16">
@@ -268,6 +284,16 @@ export default async function NewEditionPage() {
                       ) : (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
                           <Link href={issue.pdfUrl || '#'}>Issuu</Link>
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="rounded-full text-[10px] h-8 col-span-2"
+                          asChild
+                        >
+                          <Link href={`/admin/magazine?delete=${issue.id}`}>Delete</Link>
                         </Button>
                       )}
                     </div>
