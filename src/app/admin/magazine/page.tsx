@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Search, ExternalLink, Trash2, Edit2, Loader2, Calendar, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ export default function AdminMagazinePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const deleteParam = searchParams.get("delete")
+  const deleteHandledRef = useRef(false)
 
   const loadIssues = async () => {
     setLoading(true)
@@ -45,8 +46,15 @@ export default function AdminMagazinePage() {
   }
 
   useEffect(() => {
-    if (!deleteParam) return
+    if (!deleteParam) {
+      deleteHandledRef.current = false
+      return
+    }
+    if (deleteHandledRef.current) return
     if (loading) return
+
+    deleteHandledRef.current = true
+
     if (!issues.some((issue) => issue.id === deleteParam)) {
       router.replace("/admin/magazine")
       return
