@@ -610,39 +610,69 @@ async function getInstagramReport(
     let totalInteractions = 0;
     let insightStatusMessage: string | undefined;
 
-    try {
-      const [reachInsights, impressionsInsights, totalValueInsights] = await Promise.all([
-        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
-          metric: "reach",
-          period: "day",
-        }, instagramToken),
-        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
-          metric: "impressions",
-          period: "day",
-        }, instagramToken),
-        fetchMeta<MetaListResponse<MetaInsightItem>>(`/${accountId}/insights`, {
-          metric: "profile_views,accounts_engaged,total_interactions",
-          metric_type: "total_value",
-          period: "day",
-        }, instagramToken),
-      ]);
+    const reachResult = await fetchMeta<MetaListResponse<MetaInsightItem>>(
+      `/${accountId}/insights`,
+      {
+        metric: "reach",
+        period: "day",
+      },
+      instagramToken,
+    ).then(
+      (data) => ({ ok: true as const, data }),
+      (error) => ({ ok: false as const, error }),
+    );
 
-      latestReach = getLatestInsightValue(reachInsights.data, "reach");
-      latestImpressions = getLatestInsightValue(impressionsInsights.data, "impressions");
-      profileViews = getTotalInsightValue(totalValueInsights.data, "profile_views");
-      accountsEngaged = getTotalInsightValue(
-        totalValueInsights.data,
-        "accounts_engaged",
+    if (reachResult.ok) {
+      latestReach = getLatestInsightValue(reachResult.data.data, "reach");
+    } else {
+      insightStatusMessage = "Instagram insights are currently unavailable.";
+    }
+
+    const impressionsCandidates = ["content_views", "views"];
+    for (const metric of impressionsCandidates) {
+      const impressionsResult = await fetchMeta<MetaListResponse<MetaInsightItem>>(
+        `/${accountId}/insights`,
+        {
+          metric,
+          period: "day",
+        },
+        instagramToken,
+      ).then(
+        (data) => ({ ok: true as const, data }),
+        (error) => ({ ok: false as const, error }),
       );
-      totalInteractions = getTotalInsightValue(
-        totalValueInsights.data,
-        "total_interactions",
-      );
-    } catch (error) {
-      insightStatusMessage =
-        error instanceof Error
-          ? `Instagram insights unavailable: ${error.message}`
-          : "Instagram insights are currently unavailable.";
+
+      if (impressionsResult.ok) {
+        latestImpressions = getLatestInsightValue(impressionsResult.data.data, metric);
+        break;
+      }
+
+      const code = getMetaErrorCode(impressionsResult.error);
+      if (code !== 100) {
+        insightStatusMessage = "Instagram insights are currently unavailable.";
+        break;
+      }
+    }
+
+    const totalsResult = await fetchMeta<MetaListResponse<MetaInsightItem>>(
+      `/${accountId}/insights`,
+      {
+        metric: "profile_views,accounts_engaged,total_interactions",
+        metric_type: "total_value",
+        period: "day",
+      },
+      instagramToken,
+    ).then(
+      (data) => ({ ok: true as const, data }),
+      (error) => ({ ok: false as const, error }),
+    );
+
+    if (totalsResult.ok) {
+      profileViews = getTotalInsightValue(totalsResult.data.data, "profile_views");
+      accountsEngaged = getTotalInsightValue(totalsResult.data.data, "accounts_engaged");
+      totalInteractions = getTotalInsightValue(totalsResult.data.data, "total_interactions");
+    } else if (!insightStatusMessage) {
+      insightStatusMessage = "Instagram insights are currently unavailable.";
     }
 
     const content = (media.data ?? []).map((item) => {
