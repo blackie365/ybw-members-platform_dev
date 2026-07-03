@@ -227,18 +227,6 @@ export default async function NewEditionPage() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {mergedIssues.map((issue: any) => (
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
-                {isAdmin && issue?.id && (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="absolute top-3 left-3 z-10 text-muted-foreground hover:text-destructive"
-                    asChild
-                  >
-                    <Link href={`/admin/magazine?delete=${issue.id}`} aria-label="Delete edition">
-                      <Trash2 className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                )}
                 {/* Cover Image - Entire image is now a link */}
                 <Link 
                   href={`/magazine/issue/${issue.id}`}
@@ -297,6 +285,19 @@ export default async function NewEditionPage() {
                       ) : (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
                           <Link href={issue.pdfUrl || '#'}>Issuu</Link>
+                        </Button>
+                      )}
+                      {isAdmin && issue?.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full text-[10px] h-8 col-span-2 text-destructive hover:text-destructive"
+                          asChild
+                        >
+                          <Link href={`/admin/magazine?delete=${issue.id}`}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Link>
                         </Button>
                       )}
                     </div>

@@ -68,8 +68,8 @@ export async function getMagazineIssuesServer(): Promise<MagazineIssue[]> {
     }
     
     return snapshot.docs.map(doc => serializeData({
+      ...doc.data(),
       id: doc.id,
-      ...doc.data()
     }) as MagazineIssue);
   } catch (error) {
     console.error('Error fetching magazine issues (server):', error);
@@ -91,7 +91,7 @@ export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
     
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
-      return serializeData({ id: doc.id, ...doc.data() }) as MagazineIssue;
+      return serializeData({ ...doc.data(), id: doc.id }) as MagazineIssue;
     }
     return null;
   } catch (error) {
@@ -110,7 +110,7 @@ export async function getMagazineIssueServer(issueId: string): Promise<MagazineI
     const doc = await adminDb.collection('magazine_issues').doc(issueId).get();
     
     if (doc.exists) {
-      return serializeData({ id: doc.id, ...doc.data() }) as MagazineIssue;
+      return serializeData({ ...doc.data(), id: doc.id }) as MagazineIssue;
     }
     return null;
   } catch (error) {
