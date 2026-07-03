@@ -150,6 +150,45 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   const handleImportFromInDesignFile = async (file: File) => {
     setIsParsing(true);
     try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'idml') {
+        const { default: JSZip } = await import('jszip');
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        const storyPaths = Object.keys(zip.files).filter((p) => /^Stories\/.+\.xml$/i.test(p));
+
+        if (storyPaths.length === 0) {
+          toast.error('No Stories found in that IDML file');
+          return;
+        }
+
+        let best: { path: string; title: string; text: string; imageFileNames: string[] } | null = null;
+        for (const p of storyPaths) {
+          const xml = await zip.files[p].async('text');
+          const parsed = extractInDesignTextAndImageHints(xml);
+          if (!parsed.text) continue;
+          const score = parsed.text.length;
+          const bestScore = best?.text?.length || 0;
+          if (!best || score > bestScore) {
+            best = { path: p, ...parsed };
+          }
+        }
+
+        if (!best) {
+          toast.error('No readable story text found in that IDML file');
+          return;
+        }
+
+        if (best.title) setTitle(best.title);
+        setRawText(best.text);
+        setImageHints(best.imageFileNames);
+
+        const firstHit = best.imageFileNames.find((name) => imageMap[name]);
+        if (firstHit) setImageUrl(imageMap[firstHit]);
+
+        toast.success(`Imported from IDML (${best.path.replace('Stories/', '')})`);
+        return;
+      }
+
       const xml = await file.text();
       const parsed = extractInDesignTextAndImageHints(xml);
       if (!parsed.text) {
@@ -300,7 +339,7 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">InDesign story file (ICML/XML)</Label>
               <Input
                 type="file"
-                accept=".icml,.xml,.txt"
+                accept=".idml,.icml,.xml,.txt"
                 disabled={isParsing || isImporting}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
