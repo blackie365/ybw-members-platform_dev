@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { MagazineIssue, MagazinePage } from './types';
 import { toast } from 'sonner';
-import { fetchIssuuMetadataAction, setLatestMagazineIssueAction } from '@/app/actions/magazineActions';
+import { fetchIssuuMetadataAction, setFeaturedFlipbookIssueAction, setLatestMagazineIssueAction } from '@/app/actions/magazineActions';
 import { useState } from 'react';
 import Link from 'next/link';
 
@@ -256,6 +256,68 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
         </div>
         
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Classic Flipbook</CardTitle>
+              <CardDescription>Optional Issuu embed for the public New Edition page.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="flipbookUrl">Issuu Publication Link</Label>
+                <Input
+                  id="flipbookUrl"
+                  value={issue.flipbookUrl || ''}
+                  onChange={(e) => onUpdate({ flipbookUrl: e.target.value })}
+                  placeholder="https://issuu.com/..."
+                />
+                <p className="text-[10px] text-muted-foreground italic">
+                  This does not change the edition&apos;s reader. It only controls the Classic Flipping Book embed.
+                </p>
+              </div>
+
+              {!isNew && (
+                <div className="flex items-center justify-between gap-4 pt-2 border-t">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm">Featured Flipbook</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Choose which edition appears in the Classic Flipping Book section.
+                    </p>
+                  </div>
+                  {issue.featureInFlipbook ? (
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-accent">
+                      Featured
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-[10px] font-bold uppercase"
+                      onClick={async () => {
+                        if (!issue.id) return;
+                        if (!issue.flipbookUrl) {
+                          toast.error("Add an Issuu link first");
+                          return;
+                        }
+                        if (!confirm("Feature this edition in the Classic Flipping Book section?")) {
+                          return;
+                        }
+                        const res = await setFeaturedFlipbookIssueAction(issue.id);
+                        if (res.success) {
+                          onUpdate({ featureInFlipbook: true });
+                          toast.success("Classic flipbook updated");
+                        } else {
+                          toast.error(res.error || "Failed to feature flipbook edition");
+                        }
+                      }}
+                    >
+                      Feature
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Archive Thumbnail</CardTitle>

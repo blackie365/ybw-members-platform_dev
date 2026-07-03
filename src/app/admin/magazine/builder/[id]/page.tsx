@@ -76,7 +76,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     isLatest: false,
     tags: [],
     autoSyncCover: true,
-    readerType: 'custom'
+    readerType: 'custom',
+    flipbookUrl: '',
+    featureInFlipbook: false
   });
 
   const [pages, setPages] = useState<MagazinePage[]>([]);
@@ -166,7 +168,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             tags: castIssue.tags || [],
             autoSyncCover: castIssue.autoSyncCover !== undefined ? castIssue.autoSyncCover : true,
             readerType: castIssue.readerType || 'custom',
-            ghostSyncTag: castIssue.ghostSyncTag || ''
+            ghostSyncTag: castIssue.ghostSyncTag || '',
+            flipbookUrl: castIssue.flipbookUrl || '',
+            featureInFlipbook: castIssue.featureInFlipbook || false
           });
         }
       }

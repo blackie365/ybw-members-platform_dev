@@ -13,6 +13,8 @@ export interface MagazineIssue {
   isLatest: boolean;
   tags: string[];
   readerType?: 'custom' | 'issuu';
+  flipbookUrl?: string;
+  featureInFlipbook?: boolean;
 }
 
 export interface MagazinePage {
