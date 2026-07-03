@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft, ChevronRight, X, Menu, Download, Share2, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
 
 
@@ -1000,6 +1001,7 @@ function renderPage(page: any, imageVersion: string) {
     case 'lifestyle':    return <PageLifestyle data={page.content} imageVersion={imageVersion} />;
     case 'spotlight':    return <PageSpotlight data={page.content} imageVersion={imageVersion} />;
     case 'partner':      return <PagePartner data={page.content} imageVersion={imageVersion} />;
+    case 'full-page-ad': return <PageFullPageAd data={page.content} imageVersion={imageVersion} />;
     case 'back-cover':   return <PageBackCover data={page.content} imageVersion={imageVersion} />;
     default:             return <div className="flex items-center justify-center h-full text-zinc-400 text-sm">Page coming soon…</div>;
   }
@@ -1153,6 +1155,57 @@ const PageCover = ({ data, imageVersion }: any) => {
           </div>
         ) : null}
       </div>
+    </div>
+  );
+};
+
+const PageFullPageAd = ({ data, imageVersion }: any) => {
+  const image = String(data?.image || '').trim();
+  const label = String(data?.label || 'Advertisement').trim();
+  const alt = String(data?.alt || label || 'Advertisement').trim();
+  const rawLink = String(data?.linkUrl || '').trim();
+  const href = rawLink
+    ? (rawLink.startsWith('https://') || rawLink.startsWith('http://') ? rawLink : `https://${rawLink}`)
+    : '';
+
+  return (
+    <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
+      {image ? (
+        <Image
+          src={fixMagazineImageUrl(image, imageVersion)}
+          alt={alt}
+          fill
+          sizes="100vw"
+          className="object-contain"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
+      )}
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/15" />
+
+      <div className="absolute top-5 left-5 z-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#a3413a]" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
+            {label || 'Advertisement'}
+          </span>
+        </div>
+      </div>
+
+      {href ? (
+        <div className="absolute bottom-6 right-6 z-10">
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white text-xs font-semibold hover:bg-white/15 hover:border-white/25 transition-colors"
+          >
+            Visit
+            <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 };

@@ -19,6 +19,7 @@ export const PAGE_TYPES = [
   { id: 'lifestyle', label: 'Lifestyle Spread', icon: Heart },
   { id: 'spotlight', label: 'Member Spotlight', icon: User },
   { id: 'partner', label: 'Partner Feature', icon: Star },
+  { id: 'full-page-ad', label: 'Full Page Ad', icon: ImageIcon },
   { id: 'back-cover', label: 'Back Cover', icon: Share2 },
 ];
 

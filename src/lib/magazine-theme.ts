@@ -27,7 +27,7 @@ export const MAGAZINE_THEME = {
 };
 
 export type MagazineTemplateId = 
-  | 'cover' |'editorial' |'contents' |'feature-left' |'feature-right' |'column' |'lifestyle' |'spotlight' |'partner' |'back-cover';
+  | 'cover' |'editorial' |'contents' |'feature-left' |'feature-right' |'column' |'lifestyle' |'spotlight' |'partner' |'full-page-ad' |'back-cover';
 
 export interface MagazineTemplate {
   id: MagazineTemplateId;
@@ -161,6 +161,18 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
       { name: 'Special Offer', key: 'offer', type: 'text', required: true },
       { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
       { name: 'Background Image', key: 'image', type: 'image', required: false },
+    ]
+  },
+  {
+    id: 'full-page-ad',
+    name: 'Full Page Ad',
+    description: 'Single-page advertisement with optional click-through link.',
+    category: 'structural',
+    fields: [
+      { name: 'Label', key: 'label', type: 'text', required: false },
+      { name: 'Image', key: 'image', type: 'image', required: true },
+      { name: 'Link URL', key: 'linkUrl', type: 'text', required: false },
+      { name: 'Alt Text', key: 'alt', type: 'text', required: false },
     ]
   },
   {
