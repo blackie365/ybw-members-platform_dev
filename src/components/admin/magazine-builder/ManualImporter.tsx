@@ -90,6 +90,9 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   const [idmlStories, setIdmlStories] = useState<ParsedInDesignStory[]>([]);
   const [selectedStoryPath, setSelectedStoryPath] = useState<string>('');
   const [idmlFileName, setIdmlFileName] = useState<string>('');
+  const [contentsDraftItems, setContentsDraftItems] = useState<Array<{ page: string; category: string; title: string }>>([]);
+  const [contentsDraftPage, setContentsDraftPage] = useState('');
+  const [contentsDraftCategory, setContentsDraftCategory] = useState('');
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -98,6 +101,58 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
 
     const firstHit = story.imageFileNames.find((name) => imageMap[name]);
     if (firstHit) setImageUrl(imageMap[firstHit]);
+  };
+
+  const handleAddSelectedStoryToContents = () => {
+    const story = idmlStories.find((s) => s.path === selectedStoryPath);
+    if (!story) {
+      toast.error('Select a story first');
+      return;
+    }
+
+    const draftTitle = String(story.title || '').trim() || story.preview || story.path.replace('Stories/', '');
+    const page = String(contentsDraftPage || '').trim();
+    const category = String(contentsDraftCategory || '').trim();
+
+    setContentsDraftItems((prev) => [
+      ...prev,
+      { page, category, title: draftTitle },
+    ]);
+
+    if (page) {
+      const nextNum = Number.parseInt(page, 10);
+      if (Number.isFinite(nextNum)) setContentsDraftPage(String(nextNum + 1));
+      else setContentsDraftPage('');
+    } else {
+      setContentsDraftPage('');
+    }
+  };
+
+  const handleApplyContentsListToSelectedPage = async () => {
+    if (!selectedPageId || selectedPageType !== 'contents') {
+      toast.error('Select your Contents page first');
+      return;
+    }
+
+    const items = contentsDraftItems
+      .map((item) => ({
+        page: String(item.page || '').trim(),
+        category: String(item.category || '').trim(),
+        title: String(item.title || '').trim(),
+      }))
+      .filter((item) => item.page || item.title || item.category);
+
+    if (items.length === 0) {
+      toast.error('Add at least one contents item first');
+      return;
+    }
+
+    try {
+      await onImport({ _isManual: true, manualContent: { items } }, 'contents', selectedPageId);
+      toast.success('Contents list applied');
+    } catch {
+      toast.error('Failed to apply contents list');
+    }
   };
 
   const handleManualImport = async () => {
@@ -433,6 +488,122 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {idmlStories.length > 0 && (
+            <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Contents Builder</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Add the selected story to a draft contents list, then apply it to your Contents page.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Page</Label>
+                  <Input value={contentsDraftPage} onChange={(e) => setContentsDraftPage(e.target.value)} placeholder="04" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Category</Label>
+                  <Input value={contentsDraftCategory} onChange={(e) => setContentsDraftCategory(e.target.value)} placeholder="FEATURE" />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleAddSelectedStoryToContents}
+                    disabled={isImporting || isParsing}
+                  >
+                    Add selected story
+                  </Button>
+                </div>
+              </div>
+
+              {contentsDraftItems.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Draft items ({contentsDraftItems.length})
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-7 px-2 text-[10px]"
+                      onClick={() => setContentsDraftItems([])}
+                      disabled={isImporting}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {contentsDraftItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center rounded-md border border-border bg-muted/10 p-2">
+                        <div className="sm:col-span-2">
+                          <Input
+                            value={item.page}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setContentsDraftItems((prev) => prev.map((p, i) => (i === idx ? { ...p, page: next } : p)));
+                            }}
+                            placeholder="04"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <Input
+                            value={item.category}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setContentsDraftItems((prev) => prev.map((p, i) => (i === idx ? { ...p, category: next } : p)));
+                            }}
+                            placeholder="FEATURE"
+                          />
+                        </div>
+                        <div className="sm:col-span-6">
+                          <Input
+                            value={item.title}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              setContentsDraftItems((prev) => prev.map((p, i) => (i === idx ? { ...p, title: next } : p)));
+                            }}
+                            placeholder="Story title…"
+                          />
+                        </div>
+                        <div className="sm:col-span-1 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-8 px-2 text-[10px]"
+                            onClick={() => setContentsDraftItems((prev) => prev.filter((_, i) => i !== idx))}
+                            disabled={isImporting}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-11"
+                    onClick={handleApplyContentsListToSelectedPage}
+                    disabled={isImporting || selectedPageType !== 'contents'}
+                  >
+                    Apply to selected Contents page
+                  </Button>
+                  {selectedPageType !== 'contents' && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Select your Contents page to enable this button.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
