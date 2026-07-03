@@ -9,6 +9,58 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 
+const decodeXmlEntities = (value: string) => {
+  try {
+    const doc = new DOMParser().parseFromString(value, 'text/html');
+    return doc.documentElement.textContent || '';
+  } catch {
+    return value
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+};
+
+const normalizeWhitespace = (value: string) => {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
+
+const extractInDesignTextAndImageHints = (xml: string) => {
+  const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
+  const rawPieces = contentMatches.map((m) => decodeXmlEntities(m[1] || '').trim()).filter(Boolean);
+
+  const text = normalizeWhitespace(
+    rawPieces
+      .join('\n')
+      .replace(/\n{2,}/g, '\n\n')
+  );
+
+  const title = normalizeWhitespace(rawPieces[0] || '').split('\n')[0] || '';
+
+  const fileNameMatches = [
+    ...xml.matchAll(/LinkResourceURI="file:[^"]*\/([^"\/]+\.(?:png|jpe?g|webp|gif|svg))"/gi),
+    ...xml.matchAll(/LinkResourceURI="[^"]*\/([^"\/]+\.(?:png|jpe?g|webp|gif|svg))"/gi),
+    ...xml.matchAll(/(?:href|src)="[^"]*\/([^"\/]+\.(?:png|jpe?g|webp|gif|svg))"/gi),
+  ];
+  const imageFileNames = Array.from(
+    new Set(
+      fileNameMatches
+        .map((m) => String(m[1] || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  return { title, text, imageFileNames };
+};
+
 export interface ManualImporterProps {
   onImport: (content: any, type: string, targetPageId?: string) => Promise<void>;
   isImporting: boolean;
@@ -21,6 +73,10 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const [imageHints, setImageHints] = useState<string[]>([]);
 
   const handleManualImport = async () => {
     if (!selectedPageId || !selectedPageType) {
@@ -88,6 +144,69 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
       setAuthor('');
     } catch (err) {
       toast.error('Failed to import manual content');
+    }
+  };
+
+  const handleImportFromInDesignFile = async (file: File) => {
+    setIsParsing(true);
+    try {
+      const xml = await file.text();
+      const parsed = extractInDesignTextAndImageHints(xml);
+      if (!parsed.text) {
+        toast.error('No text found in that file');
+        return;
+      }
+      if (parsed.title) setTitle(parsed.title);
+      setRawText(parsed.text);
+      setImageHints(parsed.imageFileNames);
+
+      const firstHit = parsed.imageFileNames.find((name) => imageMap[name]);
+      if (firstHit) setImageUrl(imageMap[firstHit]);
+
+      toast.success('Imported text from InDesign file');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to parse file');
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const uploadOneImage = async (file: File) => {
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+    uploadFormData.append('folder', 'magazine-import');
+    const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadFormData });
+    if (!uploadRes.ok) {
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      throw new Error(uploadData?.error || 'Failed to upload image');
+    }
+    const { url } = await uploadRes.json();
+    if (!url) throw new Error('Upload returned no URL');
+    return String(url);
+  };
+
+  const handleUploadImages = async (files: FileList) => {
+    setIsUploadingImages(true);
+    try {
+      const nextMap: Record<string, string> = { ...imageMap };
+      for (const file of Array.from(files)) {
+        const url = await uploadOneImage(file);
+        nextMap[file.name] = url;
+      }
+      setImageMap(nextMap);
+
+      const firstHint = imageHints.find((name) => nextMap[name]);
+      if (firstHint) setImageUrl(nextMap[firstHint]);
+      else {
+        const firstUploaded = Object.values(nextMap)[0];
+        if (firstUploaded && !imageUrl) setImageUrl(firstUploaded);
+      }
+
+      toast.success('Images uploaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Image upload failed');
+    } finally {
+      setIsUploadingImages(false);
     }
   };
 
@@ -167,6 +286,74 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
             </Button>
           </>
         )}
+
+        <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
+            <p className="text-[10px] text-muted-foreground">
+              Export an ICML file, or unzip an IDML and choose a Stories/Story_*.xml file. Upload your linked images to match by filename.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">InDesign story file (ICML/XML)</Label>
+              <Input
+                type="file"
+                accept=".icml,.xml,.txt"
+                disabled={isParsing || isImporting}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  handleImportFromInDesignFile(file);
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Upload images (optional)</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={isUploadingImages || isImporting}
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (!files || !files.length) return;
+                  handleUploadImages(files);
+                }}
+              />
+            </div>
+          </div>
+
+          {(isParsing || isUploadingImages) && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {isParsing ? 'Parsing file…' : 'Uploading images…'}
+            </div>
+          )}
+
+          {imageHints.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Detected image names</p>
+              <div className="flex flex-wrap gap-1.5">
+                {imageHints.slice(0, 10).map((name) => (
+                  <span
+                    key={name}
+                    className={`text-[9px] uppercase tracking-wider px-2 py-1 rounded-full border ${
+                      imageMap[name] ? 'border-accent/30 text-accent' : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+              {imageHints.length > 10 && (
+                <p className="text-[10px] text-muted-foreground">Showing first 10.</p>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
