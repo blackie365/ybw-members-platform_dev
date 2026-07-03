@@ -45,8 +45,8 @@ export async function getMagazineIssuesAction() {
       }, {} as any);
 
       return {
-        id: doc.id,
-        ...serializedData
+        ...serializedData,
+        id: doc.id
       };
     });
 
@@ -63,8 +63,9 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
+    const { id: _ignoredId, ...rest } = data ?? {};
     await adminDb.collection('magazine_issues').doc(issueId).update({
-      ...data,
+      ...rest,
       updatedAt: new Date().toISOString()
     });
 
@@ -138,8 +139,9 @@ export async function createMagazineIssueAction(data: any) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
+    const { id: _ignoredId, ...rest } = data ?? {};
     const docRef = await adminDb.collection('magazine_issues').add({
-      ...data,
+      ...rest,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
