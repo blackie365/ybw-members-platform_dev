@@ -182,7 +182,7 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
             )}
           </button>
           <button
-            className="text-zinc-500 hover:text-white lg:hidden h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+            className="text-zinc-500 hover:text-white h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
             onClick={() => setIsNavOpen(!isNavOpen)}
           >
             <Menu className="h-5 w-5" />
@@ -345,6 +345,8 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
             <nav className="space-y-1">
               {pages.map((page, i) => {
                 const isActive = currentPage === i;
+                const pageTitle = getPageNavTitle(page);
+                const pageNumber = getPageNavNumber(page, i);
                 return (
                   <button
                     key={page.id}
@@ -357,10 +359,10 @@ export default function MagazineReader({ issue, pages }: MagazineReaderProps) {
                     ].join(' ')}
                   >
                     <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
-                      {String(i + 1).padStart(2, '0')}
+                      {pageNumber}
                     </span>
-                    <span className={`font-medium text-xs uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                      {page.type.replace('-', ' ')}
+                    <span className={`font-medium text-xs uppercase tracking-widest min-w-0 flex-1 truncate ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                      {pageTitle}
                     </span>
                     {isActive && (
                       <motion.div layoutId="activeDot" className="h-1 w-1 rounded-full bg-[#a3413a] ml-auto" />
@@ -420,6 +422,39 @@ function SafeText({ html, className }: { html: string; className?: string }) {
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
+}
+
+function getPageNavTitle(page: any) {
+  const type = String(page?.type || '').trim();
+  const content = page?.content || {};
+
+  const titleFromContent =
+    String(
+      content?.navTitle ||
+      content?.title ||
+      content?.headline ||
+      content?.name ||
+      content?.brand ||
+      content?.label ||
+      ''
+    ).trim();
+
+  if (type === 'cover') return titleFromContent || 'Cover';
+  if (type === 'contents') return titleFromContent || 'Contents';
+  if (type === 'editorial') return titleFromContent || "Editor's Note";
+  if (type === 'full-page-ad') return titleFromContent || 'Advertisement';
+  if (type === 'back-cover') return titleFromContent || 'Back Cover';
+
+  if (titleFromContent) return titleFromContent;
+  return type ? type.replace(/-/g, ' ') : 'Page';
+}
+
+function getPageNavNumber(page: any, index: number) {
+  const raw = page?.id;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw).padStart(2, '0');
+  const parsed = Number.parseInt(String(raw ?? '').trim(), 10);
+  if (Number.isFinite(parsed)) return String(parsed).padStart(2, '0');
+  return String(index + 1).padStart(2, '0');
 }
 
 type AdditionalMediaItem = {
