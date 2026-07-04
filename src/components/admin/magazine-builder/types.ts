@@ -32,6 +32,20 @@ export interface MagazinePage {
   updatedAt?: string;
 }
 
+export interface StoryLibraryItem {
+  id: string;
+  title: string;
+  author?: string;
+  text: string;
+  imageFileNames?: string[];
+  source?: {
+    type: 'idml' | 'icml' | 'xml' | 'manual';
+    fileName?: string;
+    path?: string;
+  };
+  createdAt: string;
+}
+
 export interface MagazineIssue {
   id: string;
   title: string;
@@ -47,4 +61,5 @@ export interface MagazineIssue {
   autoSyncCover?: boolean;
   flipbookUrl?: string;
   featureInFlipbook?: boolean;
+  storyLibrary?: StoryLibraryItem[];
 }

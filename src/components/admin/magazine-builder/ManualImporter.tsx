@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -67,6 +68,9 @@ export interface ManualImporterProps {
   isImporting: boolean;
   selectedPageId?: string;
   selectedPageType?: string;
+  issueId?: string;
+  storyLibrary?: StoryLibraryItem[];
+  onSaveStoryLibrary?: (storyLibrary: StoryLibraryItem[]) => Promise<void>;
 }
 
 type ParsedInDesignStory = {
@@ -78,7 +82,22 @@ type ParsedInDesignStory = {
   length: number;
 };
 
-export function ManualImporter({ onImport, isImporting, selectedPageId, selectedPageType }: ManualImporterProps) {
+const createStoryId = () => {
+  const anyCrypto = globalThis.crypto as undefined | { randomUUID?: () => string };
+  const uuid = anyCrypto?.randomUUID?.();
+  if (uuid) return uuid;
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+export function ManualImporter({
+  onImport,
+  isImporting,
+  selectedPageId,
+  selectedPageType,
+  issueId,
+  storyLibrary,
+  onSaveStoryLibrary,
+}: ManualImporterProps) {
   const [rawText, setRawText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -93,6 +112,10 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   const [contentsDraftItems, setContentsDraftItems] = useState<Array<{ page: string; category: string; title: string }>>([]);
   const [contentsDraftPage, setContentsDraftPage] = useState('');
   const [contentsDraftCategory, setContentsDraftCategory] = useState('');
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const [activeLibraryId, setActiveLibraryId] = useState<string>('');
+
+  const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -104,13 +127,20 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
   };
 
   const handleAddSelectedStoryToContents = () => {
-    const story = idmlStories.find((s) => s.path === selectedStoryPath);
-    if (!story) {
-      toast.error('Select a story first');
+    const fromIdml = idmlStories.find((s) => s.path === selectedStoryPath);
+    const draftTitle =
+      String(fromIdml?.title || '').trim() ||
+      String(title || '').trim() ||
+      fromIdml?.preview ||
+      normalizeWhitespace(rawText).replace(/\s+/g, ' ').slice(0, 140) ||
+      fromIdml?.path?.replace('Stories/', '') ||
+      '';
+
+    if (!draftTitle) {
+      toast.error('Choose a story (or load one into the editor) first');
       return;
     }
 
-    const draftTitle = String(story.title || '').trim() || story.preview || story.path.replace('Stories/', '');
     const page = String(contentsDraftPage || '').trim();
     const category = String(contentsDraftCategory || '').trim();
 
@@ -125,6 +155,74 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
       else setContentsDraftPage('');
     } else {
       setContentsDraftPage('');
+    }
+  };
+
+  const applyStoryLibraryItem = (item: StoryLibraryItem) => {
+    setActiveLibraryId(item.id);
+    setTitle(String(item.title || '').trim());
+    setAuthor(String(item.author || '').trim());
+    setRawText(String(item.text || ''));
+
+    const hints = Array.isArray(item.imageFileNames) ? item.imageFileNames.map((n) => String(n || '').trim()).filter(Boolean) : [];
+    setImageHints(hints);
+
+    const firstHit = hints.find((name) => imageMap[name]);
+    if (firstHit) setImageUrl(imageMap[firstHit]);
+  };
+
+  const saveStoryLibrary = async (next: StoryLibraryItem[]) => {
+    if (!onSaveStoryLibrary) {
+      toast.error('Story library saving is not available here');
+      return;
+    }
+    if (!issueId) {
+      toast.error('Please create the edition first');
+      return;
+    }
+    await onSaveStoryLibrary(next);
+  };
+
+  const handleSaveSelectedStoryToLibrary = async () => {
+    const fromIdml = idmlStories.find((s) => s.path === selectedStoryPath);
+    const cleanTitle = String(fromIdml?.title || title || '').trim();
+    const cleanText = String(fromIdml?.text || rawText || '').trim();
+    if (!cleanText) {
+      toast.error('No story text to save');
+      return;
+    }
+
+    const imageFileNames = Array.isArray(fromIdml?.imageFileNames) ? fromIdml!.imageFileNames : imageHints;
+    const item: StoryLibraryItem = {
+      id: createStoryId(),
+      title: cleanTitle || 'Untitled Story',
+      author: String(author || '').trim() || undefined,
+      text: cleanText,
+      imageFileNames: Array.isArray(imageFileNames) ? imageFileNames : undefined,
+      source: fromIdml
+        ? { type: 'idml', fileName: idmlFileName || undefined, path: fromIdml.path }
+        : { type: 'manual' },
+      createdAt: new Date().toISOString(),
+    };
+
+    const next = [item, ...safeStoryLibrary].slice(0, 100);
+    try {
+      await saveStoryLibrary(next);
+      toast.success('Saved to Story Library');
+      setActiveLibraryId(item.id);
+    } catch {
+      toast.error('Failed to save story');
+    }
+  };
+
+  const handleRemoveFromStoryLibrary = async (storyId: string) => {
+    const next = safeStoryLibrary.filter((s) => s.id !== storyId);
+    try {
+      await saveStoryLibrary(next);
+      if (activeLibraryId === storyId) setActiveLibraryId('');
+      toast.success('Removed from Story Library');
+    } catch {
+      toast.error('Failed to remove story');
     }
   };
 
@@ -333,6 +431,14 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
       setIsUploadingImages(false);
     }
   };
+
+  const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
+  const filteredStoryLibrary = normalizedLibraryQuery
+    ? safeStoryLibrary.filter((s) => {
+        const haystack = `${s.title || ''} ${s.author || ''}`.toLowerCase();
+        return haystack.includes(normalizedLibraryQuery);
+      })
+    : safeStoryLibrary;
 
   return (
     <Card className="border-accent/20">
@@ -647,6 +753,85 @@ export function ManualImporter({ onImport, isImporting, selectedPageId, selected
               {imageHints.length > 10 && (
                 <p className="text-[10px] text-muted-foreground">Showing first 10.</p>
               )}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Story Library</p>
+              <p className="text-[10px] text-muted-foreground">
+                Save stories once, then load them into the editor (and integrate into spreads) without re-uploading files.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              onClick={handleSaveSelectedStoryToLibrary}
+              disabled={
+                isImporting ||
+                !onSaveStoryLibrary ||
+                !issueId ||
+                issueId === 'new' ||
+                (!rawText.trim() && !idmlStories.find((s) => s.path === selectedStoryPath)?.text)
+              }
+            >
+              Save story
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Search</Label>
+            <Input
+              value={libraryQuery}
+              onChange={(e) => setLibraryQuery(e.target.value)}
+              placeholder="Search by title or author…"
+            />
+          </div>
+
+          {filteredStoryLibrary.length > 0 ? (
+            <div className="space-y-2 max-h-[320px] overflow-auto pr-1">
+              {filteredStoryLibrary.map((s) => {
+                const isActive = s.id === activeLibraryId;
+                const subtitle = String(s.author || '').trim() || (s.source?.fileName ? s.source.fileName : '');
+                return (
+                  <div
+                    key={s.id}
+                    className={[
+                      'flex items-center gap-2 rounded-md border p-2 min-w-0',
+                      isActive ? 'border-accent/40 bg-accent/5' : 'border-border bg-muted/10',
+                    ].join(' ')}
+                  >
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => applyStoryLibraryItem(s)}
+                    >
+                      <p className="text-sm font-semibold truncate">{String(s.title || '').trim() || 'Untitled Story'}</p>
+                      {subtitle ? (
+                        <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
+                      ) : null}
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 px-2 text-[10px] shrink-0"
+                      onClick={() => handleRemoveFromStoryLibrary(s.id)}
+                      disabled={isImporting || !onSaveStoryLibrary || !issueId || issueId === 'new'}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-4 rounded-md border border-dashed bg-muted/10">
+              <p className="text-xs text-muted-foreground">
+                No saved stories yet. Upload an IDML/ICML, pick a story, then click “Save story”.
+              </p>
             </div>
           )}
         </div>

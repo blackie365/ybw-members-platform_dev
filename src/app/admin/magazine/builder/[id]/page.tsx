@@ -78,7 +78,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     autoSyncCover: true,
     readerType: 'custom',
     flipbookUrl: '',
-    featureInFlipbook: false
+    featureInFlipbook: false,
+    storyLibrary: []
   });
 
   const [pages, setPages] = useState<MagazinePage[]>([]);
@@ -170,7 +171,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             readerType: castIssue.readerType || 'custom',
             ghostSyncTag: castIssue.ghostSyncTag || '',
             flipbookUrl: castIssue.flipbookUrl || '',
-            featureInFlipbook: castIssue.featureInFlipbook || false
+            featureInFlipbook: castIssue.featureInFlipbook || false,
+            storyLibrary: Array.isArray(castIssue.storyLibrary) ? castIssue.storyLibrary : []
           });
         }
       }
@@ -223,6 +225,28 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
     } catch (error) {
       toast.error('An error occurred while saving');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveStoryLibrary = async (storyLibrary: any[]) => {
+    if (isNew) {
+      toast.error('Please create the edition first');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await updateMagazineIssueAction(id, { storyLibrary });
+      if (res.success) {
+        setIssue((prev) => ({ ...prev, storyLibrary }));
+        toast.success('Story library saved');
+      } else {
+        toast.error(res.error || 'Failed to save story library');
+      }
+    } catch {
+      toast.error('Failed to save story library');
     } finally {
       setSaving(false);
     }
@@ -816,6 +840,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                     isImporting={saving}
                     selectedPageId={selectedPageId || undefined}
                     selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+                    issueId={id}
+                    storyLibrary={issue.storyLibrary || []}
+                    onSaveStoryLibrary={handleSaveStoryLibrary}
                   />
                 </div>
               </div>
