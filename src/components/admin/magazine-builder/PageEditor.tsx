@@ -297,6 +297,44 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     }, 0);
   };
 
+  const insertListAtCursor = (field: string, listType: 'ul' | 'ol') => {
+    const textarea = document.getElementById(`editor-${field}`) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    const rawLines = selectedText.split(/\r?\n/g).map((l) => l.trim()).filter(Boolean);
+
+    const listOpen = `<${listType}>`;
+    const listClose = `</${listType}>`;
+
+    if (rawLines.length >= 2) {
+      const items = rawLines.map((line) => `<li>${line}</li>`).join('');
+      const listHtml = `${listOpen}${items}${listClose}`;
+      const nextText = text.substring(0, start) + listHtml + text.substring(end);
+      updateContent(field, nextText);
+      setTimeout(() => {
+        textarea.focus();
+        const cursor = start + listHtml.length;
+        textarea.setSelectionRange(cursor, cursor);
+      }, 0);
+      return;
+    }
+
+    const inner = selectedText.trim();
+    const listHtml = `${listOpen}<li>${inner}</li>${listClose}`;
+    const nextText = text.substring(0, start) + listHtml + text.substring(end);
+    updateContent(field, nextText);
+    setTimeout(() => {
+      textarea.focus();
+      const liStart = start + listOpen.length + '<li>'.length;
+      const liEnd = liStart + inner.length;
+      textarea.setSelectionRange(liStart, liEnd);
+    }, 0);
+  };
+
   const FormattingToolbar = ({ field, allowParagraph = true }: { field: string; allowParagraph?: boolean }) => (
     <div className="flex flex-wrap items-center gap-1 p-1 bg-muted/20 rounded-t-lg border border-b-0">
       <Button 
@@ -410,7 +448,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         variant="ghost"
         size="sm"
         className="h-8 px-2"
-        onClick={() => insertTextAtCursor(field, '<ul><li>', '</li></ul>')}
+        onClick={() => insertListAtCursor(field, 'ul')}
         title="Bulleted list"
       >
         <span className="text-[10px] font-bold">UL</span>
@@ -419,7 +457,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         variant="ghost"
         size="sm"
         className="h-8 px-2"
-        onClick={() => insertTextAtCursor(field, '<ol><li>', '</li></ol>')}
+        onClick={() => insertListAtCursor(field, 'ol')}
         title="Numbered list"
       >
         <span className="text-[10px] font-bold">OL</span>
