@@ -338,7 +338,7 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                 {issue.coverImage ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={issue.coverImage} alt="Cover Preview" className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={issue.coverImage} alt="Cover Preview" className="absolute inset-0 w-full h-full object-contain bg-black/5" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                        <Button variant="secondary" size="sm" onClick={() => onUpdate({ coverImage: '' })}>Change Image</Button>
                     </div>
