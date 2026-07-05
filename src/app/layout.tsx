@@ -82,7 +82,7 @@ export default async function RootLayout({
     order: 'published_at DESC'
   }).catch(() => []);
 
-  let headerAd: { imageUrl?: string; linkUrl?: string; altText?: string; enabled?: boolean } | undefined;
+  let headerAd: any | undefined;
   try {
     const { adminDb } = await import("@/lib/firebase-admin");
     if (adminDb) {

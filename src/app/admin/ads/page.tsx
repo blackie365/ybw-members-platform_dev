@@ -165,6 +165,33 @@ export default function AdsAdminPage() {
     }
   };
 
+  const uploadHtml5Zip = async (slotKey: 'headerLeaderboard' | 'sidebarMpu' | 'midArticle', folder: string, file: File) => {
+    setUploading(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('folder', `${folder}/html5`);
+
+      const uploadRes = await fetch('/api/upload-html5-ad', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!uploadRes.ok) {
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        throw new Error(uploadData.error || 'Failed to upload HTML5 zip');
+      }
+
+      const { indexUrl } = await uploadRes.json();
+      setAds((prev) => ({ ...prev, [slotKey]: { ...prev[slotKey], iframeUrl: indexUrl } }));
+      toast.success('HTML5 ad uploaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const uploadRotationItemImage = async (
     slotKey: 'headerLeaderboard' | 'sidebarMpu' | 'midArticle',
     folder: string,
@@ -213,6 +240,7 @@ export default function AdsAdminPage() {
         const result = await updateAdSlotAction(slotKey, {
           enabled: slot.enabled !== false,
           imageUrl: slot.imageUrl || '',
+          iframeUrl: slot.iframeUrl || '',
           linkUrl: slot.linkUrl || '',
           altText: slot.altText || 'Advertisement',
           rotation: {
@@ -360,6 +388,28 @@ export default function AdsAdminPage() {
                   />
                   {uploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
+                {slot.iframeUrl && (
+                  <div className="text-xs text-muted-foreground">
+                    This slot is currently using an HTML5 iframe. Image uploads won&apos;t display unless you clear the iframe URL.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">HTML5 Zip Upload (Recommended for HTML5 ads)</label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="file"
+                    accept=".zip"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadHtml5Zip(def.key, def.folder, file);
+                    }}
+                  />
+                  {uploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <div className="text-xs text-muted-foreground">Upload a zip containing index.html and its assets. We&apos;ll host it and set the iframe URL automatically.</div>
               </div>
 
               <div className="space-y-2">
