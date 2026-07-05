@@ -1512,12 +1512,14 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const additionalMedia = getAdditionalMedia(data, String(data.title || data.name || kicker || 'Feature').trim());
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const introHtml = String(data.intro || '').trim();
+  const bodyHtml = String(data.text || data.textarea || data.body || '').trim();
   const textBlocks = [
-    ...getHtmlBlocks(String(data.intro || '')),
-    ...getHtmlBlocks(String(data.text || '')),
+    ...getHtmlBlocks(introHtml),
+    ...getHtmlBlocks(bodyHtml),
   ];
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
-  const bodyBlocks = getHtmlBlocks(String(data.text || ''));
+  const bodyBlocks = getHtmlBlocks(bodyHtml);
 
   if (isFullBackground) {
     return (
@@ -1687,9 +1689,9 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
         )}
 
         {/* Intro / body text */}
-        {data.intro && (
+        {introHtml && (
           <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-            <SafeText html={data.intro} className="font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
+            <SafeText html={introHtml} className="font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
           </div>
         )}
 
