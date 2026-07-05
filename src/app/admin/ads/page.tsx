@@ -75,11 +75,11 @@ export default function AdsAdminPage() {
   }> = [
     {
       key: 'headerLeaderboard',
-      title: 'Header Leaderboard (728×90)',
+      title: 'Header Leaderboard (780×90)',
       description: 'Shown at the top of every page.',
       folder: 'ads/header-leaderboard',
-      aspectClass: 'aspect-[728/90]',
-      maxWidthClass: 'max-w-[728px]',
+      aspectClass: 'aspect-[780/90]',
+      maxWidthClass: 'max-w-[780px]',
     },
     {
       key: 'sidebarMpu',
@@ -91,11 +91,11 @@ export default function AdsAdminPage() {
     },
     {
       key: 'midArticle',
-      title: 'Mid-Article (728×90)',
+      title: 'Mid-Article (780×90)',
       description: 'Shown inside an article body section.',
       folder: 'ads/mid-article',
-      aspectClass: 'aspect-[728/90]',
-      maxWidthClass: 'max-w-[728px]',
+      aspectClass: 'aspect-[780/90]',
+      maxWidthClass: 'max-w-[780px]',
     },
   ];
 

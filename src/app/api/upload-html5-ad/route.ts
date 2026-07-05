@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(uploads);
 
-    const baseUrl = `https://storage.googleapis.com/${bucket.name}/${prefix}`;
-    const indexUrlRaw = indexPath ? `https://storage.googleapis.com/${bucket.name}/${indexPath}` : '';
+    const baseUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURI(prefix)}`;
+    const indexUrlRaw = indexPath ? `https://storage.googleapis.com/${bucket.name}/${encodeURI(indexPath)}` : '';
     const indexUrl = indexUrlRaw ? `${indexUrlRaw}?v=${Date.now()}` : '';
 
     if (!indexUrl) {
@@ -116,4 +116,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
   }
 }
-

@@ -4,6 +4,9 @@ import { cn } from '@/lib/utils';
 
 export type AdSlotType = 'sidebar-mpu' | 'mid-article' | 'leaderboard'
 
+const LEADERBOARD_WIDTH = 780
+const LEADERBOARD_HEIGHT = 90
+
 export interface AdSlotProps {
   type: AdSlotType
   /** Direct image ad */
@@ -65,8 +68,8 @@ export function AdSlot({
             linkUrl={linkUrl}
             linkTarget={linkTarget}
             altText={altText}
-            placeholderSize="728×90"
-            aspectClass="aspect-[728/90]"
+            placeholderSize={`${LEADERBOARD_WIDTH}×${LEADERBOARD_HEIGHT}`}
+            aspectClass={`aspect-[${LEADERBOARD_WIDTH}/${LEADERBOARD_HEIGHT}]`}
           />
         </div>
       </div>
@@ -79,15 +82,15 @@ export function AdSlot({
       <span className="mb-2 block text-right text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
         Sponsored
       </span>
-      <div className="mx-auto max-w-[728px] overflow-hidden ring-1 ring-border">
+      <div className={`mx-auto max-w-[${LEADERBOARD_WIDTH}px] overflow-hidden ring-1 ring-border`}>
         <AdContent
           imageUrl={imageUrl}
           iframeUrl={iframeUrl}
           linkUrl={linkUrl}
           linkTarget={linkTarget}
           altText={altText}
-          placeholderSize="728×90"
-          aspectClass="aspect-[728/90]"
+          placeholderSize={`${LEADERBOARD_WIDTH}×${LEADERBOARD_HEIGHT}`}
+          aspectClass={`aspect-[${LEADERBOARD_WIDTH}/${LEADERBOARD_HEIGHT}]`}
         />
       </div>
     </div>
@@ -132,7 +135,7 @@ function AdContent({
           alt={altText}
           fill
           className="object-cover"
-          sizes="(max-width: 768px) 100vw, 728px"
+          sizes={`(max-width: 768px) 100vw, ${LEADERBOARD_WIDTH}px`}
         />
       </div>
     );
