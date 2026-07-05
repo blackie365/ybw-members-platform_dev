@@ -53,6 +53,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
   const [statsDraft, setStatsDraft] = useState<string>('[]');
   const [statsError, setStatsError] = useState<string>('');
   const lastLoadedDocIdRef = useRef<string | null>(null);
+  const lastSyncedContentJsonRef = useRef<string>('');
   const [pendingType, setPendingType] = useState<string | null>(null);
   const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
 
@@ -211,14 +212,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
 
   useEffect(() => {
     if (!page?.docId) return;
-    if (lastLoadedDocIdRef.current === page.docId) return;
-    lastLoadedDocIdRef.current = page.docId;
+    if (rawJsonFocusedRef.current) return;
+    if (rawJsonError) return;
 
     const nextContent = page.content || {};
+    const nextJson = JSON.stringify(nextContent || {});
+    const currentJson = JSON.stringify(content || {});
+    const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
+    const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
+    const shouldSync = isNewDoc || !hasLocalEdits;
+
+    if (!shouldSync) return;
+
+    lastLoadedDocIdRef.current = page.docId;
+    lastSyncedContentJsonRef.current = nextJson;
     setContent(nextContent);
     setRawJsonDraft(JSON.stringify(nextContent || {}, null, 2));
     setRawJsonError('');
-    rawJsonFocusedRef.current = false;
 
     if (page.type === 'lifestyle') {
       const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
@@ -242,7 +252,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     setStatsError('');
     setPendingType(null);
     setIsTypeDialogOpen(false);
-  }, [page?.docId, page?.content, page?.type]);
+  }, [content, page?.content, page?.docId, page?.type, rawJsonError]);
 
   useEffect(() => {
     if (rawJsonFocusedRef.current) return;
