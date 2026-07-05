@@ -106,7 +106,7 @@ export default async function NewEditionPage() {
                   <img 
                     src={fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)}
                     alt={`${liveIssue.title} Cover`}
-                    className="absolute inset-0 w-full h-full object-cover border border-white/10"
+                    className="absolute inset-0 w-full h-full object-contain bg-black/10 border border-white/10"
                   />
                   <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-white/10" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -236,7 +236,7 @@ export default async function NewEditionPage() {
                   <img
                     src={fixMagazineImageUrl(issue.coverImage, IMAGE_VERSION)}
                     alt={issue.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
                     <div className="rounded-full bg-white/10 backdrop-blur-md p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/20">
