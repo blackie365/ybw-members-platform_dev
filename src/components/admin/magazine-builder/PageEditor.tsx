@@ -143,7 +143,40 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       } catch {}
     }
 
-    const lines = trimmed.split(/\r?\n+/g).map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    const looksLikeUrl = (value: string) => {
+      const v = value.trim();
+      if (!v) return false;
+      return (
+        v.startsWith('https://') ||
+        v.startsWith('http://') ||
+        v.startsWith('/') ||
+        v.startsWith('./') ||
+        v.startsWith('../') ||
+        v.startsWith('data:') ||
+        v.startsWith('gs://')
+      );
+    };
+
+    const lines = trimmed
+      .split(/\r?\n+/g)
+      .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+
+    if (lines.length === 1) {
+      const single = lines[0];
+
+      const commaSpaceParts = single.split(/,\s+/g).map((s) => s.trim()).filter(Boolean);
+      if (commaSpaceParts.length > 1 && commaSpaceParts.every(looksLikeUrl)) return commaSpaceParts;
+
+      const semicolonSpaceParts = single.split(/;\s+/g).map((s) => s.trim()).filter(Boolean);
+      if (semicolonSpaceParts.length > 1 && semicolonSpaceParts.every(looksLikeUrl)) return semicolonSpaceParts;
+
+      const httpCount = (single.match(/https?:\/\//g) || []).length;
+      if (httpCount >= 2) {
+        return single.split(/[,;]\s*(?=https?:\/\/)/g).map((s) => s.trim()).filter(Boolean);
+      }
+    }
+
     return lines;
   };
 
@@ -457,15 +490,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Additional Images (Inline / Gallery)</Label>
               <Textarea
                 rows={3}
-                placeholder="One image URL per line"
+                placeholder="One image URL per line (or paste a JSON array)"
                 value={(() => {
                   const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
                   return '';
                 })()}
                 onChange={(e) => {
-                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
-                  updateContent('images', urls);
+                  const next = e.target.value;
+                  updateContent('images', parseImageUrls(next));
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
@@ -618,15 +651,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Additional Images (Inline / Gallery)</Label>
               <Textarea
                 rows={3}
-                placeholder="One image URL per line"
+                placeholder="One image URL per line (or paste a JSON array)"
                 value={(() => {
                   const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
                   return '';
                 })()}
                 onChange={(e) => {
-                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
-                  updateContent('images', urls);
+                  const next = e.target.value;
+                  updateContent('images', parseImageUrls(next));
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
@@ -743,15 +776,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Additional Images (Inline / Gallery)</Label>
               <Textarea
                 rows={3}
-                placeholder="One image URL per line"
+                placeholder="One image URL per line (or paste a JSON array)"
                 value={(() => {
                   const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : a.src).join('\n');
+                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
                   return '';
                 })()}
                 onChange={(e) => {
-                  const urls = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
-                  updateContent('images', urls);
+                  const next = e.target.value;
+                  updateContent('images', parseImageUrls(next));
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
