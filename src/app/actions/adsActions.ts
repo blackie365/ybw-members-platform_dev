@@ -7,6 +7,7 @@ type AdItem = {
   id: string;
   enabled?: boolean;
   imageUrl?: string;
+  iframeUrl?: string;
   linkUrl?: string;
   altText?: string;
   weight?: number;
@@ -23,6 +24,7 @@ type AdRotation = {
 type AdSlotConfig = {
   enabled?: boolean;
   imageUrl?: string;
+  iframeUrl?: string;
   linkUrl?: string;
   altText?: string;
   rotation?: AdRotation;
@@ -48,6 +50,7 @@ function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
         id: String(item.id),
         enabled: item.enabled !== false,
         imageUrl: item.imageUrl || '',
+        iframeUrl: (item as any).iframeUrl || '',
         linkUrl: item.linkUrl || '',
         altText: item.altText || '',
       };
@@ -98,6 +101,7 @@ export async function updateAdSlotAction(
     const payload: AdSlotConfig = {
       enabled: input.enabled !== false,
       imageUrl: input.imageUrl || '',
+      iframeUrl: (input as any).iframeUrl || '',
       linkUrl: input.linkUrl || '',
       altText: input.altText || 'Advertisement',
       rotation: sanitizeRotation(input.rotation),
