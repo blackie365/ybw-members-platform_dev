@@ -1196,6 +1196,8 @@ const PageCover = ({ data, imageVersion }: any) => {
 
 const PageFullPageAd = ({ data, imageVersion }: any) => {
   const image = String(data?.image || '').trim();
+  const backgroundImage = String(data?.backgroundImage || '').trim();
+  const videoUrl = String(data?.videoUrl || '').trim();
   const label = String(data?.label || 'Advertisement').trim();
   const alt = String(data?.alt || label || 'Advertisement').trim();
   const rawLink = String(data?.linkUrl || '').trim();
@@ -1205,6 +1207,34 @@ const PageFullPageAd = ({ data, imageVersion }: any) => {
 
   return (
     <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
+      {videoUrl ? (
+        <video
+          src={fixMagazineImageUrl(videoUrl, imageVersion)}
+          poster={backgroundImage ? fixMagazineImageUrl(backgroundImage, imageVersion) : (image ? fixMagazineImageUrl(image, imageVersion) : undefined)}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : backgroundImage ? (
+        <Image
+          src={fixMagazineImageUrl(backgroundImage, imageVersion)}
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover"
+        />
+      ) : image ? (
+        <Image
+          src={fixMagazineImageUrl(image, imageVersion)}
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover blur-2xl scale-105 opacity-35"
+        />
+      ) : null}
+
       {image ? (
         <Image
           src={fixMagazineImageUrl(image, imageVersion)}

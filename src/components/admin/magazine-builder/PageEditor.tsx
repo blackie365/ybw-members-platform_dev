@@ -1141,6 +1141,17 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             <div className="space-y-2">
               <Label>Image URL</Label>
               <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} placeholder="https://..." />
+              <p className="text-[10px] text-muted-foreground">This is the main foreground ad artwork shown on top of the background media.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Background Image URL (Optional)</Label>
+              <Input value={safeContent.backgroundImage || ''} onChange={(e) => updateContent('backgroundImage', e.target.value)} placeholder="https://..." />
+              <p className="text-[10px] text-muted-foreground">Used behind the main ad image when no background video is set.</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Background Video URL (Optional)</Label>
+              <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
+              <p className="text-[10px] text-muted-foreground italic">If provided, this video will replace the static background image.</p>
             </div>
             <div className="space-y-2">
               <Label>Click-through Link (Optional)</Label>
