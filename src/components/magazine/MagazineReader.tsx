@@ -1087,8 +1087,8 @@ const PageCover = ({ data, imageVersion }: any) => {
       ) : null}
 
       {/* Multi-layer gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/15" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/72 via-black/40 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
 
       {/* Decorative blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -1185,7 +1185,7 @@ const PageCover = ({ data, imageVersion }: any) => {
                 alt={String(data.headline || data.title || 'Cover Feature').trim()}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/5" />
             </div>
           </div>
         ) : null}
@@ -1247,7 +1247,7 @@ const PageFullPageAd = ({ data, imageVersion }: any) => {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/15" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/22 via-transparent to-black/8" />
 
       <div className="absolute top-5 left-5 z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
@@ -1575,8 +1575,8 @@ const PageFeatureLeft = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/12 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -1812,8 +1812,8 @@ const PageFeatureRight = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/12 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -2037,8 +2037,8 @@ const PageColumn = ({ data, imageVersion }: any) => {
             />
           ) : null}
 
-          <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-black/15" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/64 via-black/30 to-black/8" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/48 via-black/12 to-transparent" />
 
           <div className="relative z-10 py-16 lg:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -2249,8 +2249,8 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/52 via-black/12 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -2365,7 +2365,7 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-[#1a0d14] to-[#0e0b09]" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 {kicker && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-1.5">{kicker}</p>}
                 <h3 className="font-serif font-semibold text-white text-2xl">{renderTitleArt(title)}</h3>
@@ -2476,8 +2476,8 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/56 via-black/16 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -2583,9 +2583,9 @@ const PageSpotlight = ({ data, imageVersion }: any) => {
           )}
 
           {/* Gradient fade into right column */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0e0b09]/80 hidden lg:block" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0e0b09]/60 hidden lg:block" />
           {/* Bottom fade */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b09]/90 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b09]/70 via-transparent to-transparent" />
 
           {/* Section label — top left badge */}
           <div className="absolute top-6 left-6 z-20 scroll-reveal">
@@ -2753,8 +2753,8 @@ const PagePartner = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/56 via-black/16 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -2907,8 +2907,8 @@ const PageBackCover = ({ data, imageVersion }: any) => {
           />
         ) : null}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/68 via-black/36 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/56 via-black/16 to-transparent" />
 
         <div className="relative z-10 py-16 lg:py-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
