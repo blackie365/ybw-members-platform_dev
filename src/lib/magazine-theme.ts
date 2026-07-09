@@ -171,6 +171,8 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     fields: [
       { name: 'Label', key: 'label', type: 'text', required: false },
       { name: 'Image', key: 'image', type: 'image', required: true },
+      { name: 'Background Image', key: 'backgroundImage', type: 'image', required: false },
+      { name: 'Background Video URL', key: 'videoUrl', type: 'text', required: false },
       { name: 'Link URL', key: 'linkUrl', type: 'text', required: false },
       { name: 'Alt Text', key: 'alt', type: 'text', required: false },
     ]

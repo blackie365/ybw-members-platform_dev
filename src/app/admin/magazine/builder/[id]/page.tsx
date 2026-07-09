@@ -664,6 +664,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         return {
           label: 'Advertisement',
           image: '',
+          backgroundImage: '',
+          videoUrl: '',
           linkUrl: '',
           alt: '',
         };
