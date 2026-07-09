@@ -1200,6 +1200,7 @@ const PageFullPageAd = ({ data, imageVersion }: any) => {
   const videoUrl = String(data?.videoUrl || '').trim();
   const label = String(data?.label || 'Advertisement').trim();
   const alt = String(data?.alt || label || 'Advertisement').trim();
+  const hasBackgroundMedia = Boolean(videoUrl || backgroundImage);
   const rawLink = String(data?.linkUrl || '').trim();
   const href = rawLink
     ? (rawLink.startsWith('https://') || rawLink.startsWith('http://') ? rawLink : `https://${rawLink}`)
@@ -1236,13 +1237,17 @@ const PageFullPageAd = ({ data, imageVersion }: any) => {
       ) : null}
 
       {image ? (
-        <Image
-          src={fixMagazineImageUrl(image, imageVersion)}
-          alt={alt}
-          fill
-          sizes="100vw"
-          className="object-contain"
-        />
+        <div className={`absolute inset-0 ${hasBackgroundMedia ? 'p-6 sm:p-8 lg:p-10' : ''}`}>
+          <div className="relative w-full h-full">
+            <Image
+              src={fixMagazineImageUrl(image, imageVersion)}
+              alt={alt}
+              fill
+              sizes="100vw"
+              className="object-contain"
+            />
+          </div>
+        </div>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
       )}
@@ -2221,9 +2226,10 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   const textPreview = String(data.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
   const isFullBackground = mediaLayout === 'background';
-  const backgroundImage = String(data.featureImage || data.image || '').trim();
-  const featureImage = String(data.featureImage || data.image || '').trim() || backgroundImage;
+  const backgroundImage = String(data.image || '').trim();
+  const featureImage = String(data.featureImage || '').trim() || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
+  const sideLayoutBackground = backgroundImage && backgroundImage !== featureImage ? backgroundImage : '';
 
   if (isFullBackground) {
     return (
@@ -2327,8 +2333,17 @@ const PageLifestyle = ({ data, imageVersion }: any) => {
   }
 
   return (
-    <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <div ref={ref} className="relative bg-[#faf7f2] py-16 lg:py-24 min-h-full overflow-hidden">
+      {sideLayoutBackground ? (
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.14]"
+            style={{ backgroundImage: `url('${fixMagazineImageUrl(sideLayoutBackground, imageVersion)}')` }}
+          />
+          <div className="absolute inset-0 bg-[#faf7f2]/88" />
+        </>
+      ) : null}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="scroll-reveal mb-10">
           <div className="flex items-center gap-4 w-full min-w-0">
             <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
