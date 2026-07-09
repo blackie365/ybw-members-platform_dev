@@ -1,11 +1,17 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
- import Image from'next/image';
+import Image from'next/image';
 import { cn } from '@/lib/utils';
 
 export type AdSlotType = 'sidebar-mpu' | 'mid-article' | 'leaderboard'
 
 const LEADERBOARD_WIDTH = 780
 const LEADERBOARD_HEIGHT = 90
+const LEADERBOARD_ASPECT_CLASS = 'aspect-[780/90]'
+const LEADERBOARD_MAX_WIDTH_CLASS = 'max-w-[780px]'
+const LEADERBOARD_PLACEHOLDER = '780×90'
 
 export interface AdSlotProps {
   type: AdSlotType
@@ -42,6 +48,7 @@ export function AdSlot({
         </span>
         <div className="overflow-hidden ring-1 ring-border">
           <AdContent
+            type={type}
             imageUrl={imageUrl}
             iframeUrl={iframeUrl}
             linkUrl={linkUrl}
@@ -61,15 +68,16 @@ export function AdSlot({
         <span className="mb-4 block text-center text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
           Sponsored
         </span>
-        <div className="mx-auto max-w-[728px] overflow-hidden ring-1 ring-border">
+        <div className={cn('mx-auto overflow-hidden ring-1 ring-border', LEADERBOARD_MAX_WIDTH_CLASS)}>
           <AdContent
+            type={type}
             imageUrl={imageUrl}
             iframeUrl={iframeUrl}
             linkUrl={linkUrl}
             linkTarget={linkTarget}
             altText={altText}
-            placeholderSize={`${LEADERBOARD_WIDTH}×${LEADERBOARD_HEIGHT}`}
-            aspectClass={`aspect-[${LEADERBOARD_WIDTH}/${LEADERBOARD_HEIGHT}]`}
+            placeholderSize={LEADERBOARD_PLACEHOLDER}
+            aspectClass={LEADERBOARD_ASPECT_CLASS}
           />
         </div>
       </div>
@@ -82,15 +90,16 @@ export function AdSlot({
       <span className="mb-2 block text-right text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
         Sponsored
       </span>
-      <div className={`mx-auto max-w-[${LEADERBOARD_WIDTH}px] overflow-hidden ring-1 ring-border`}>
+      <div className={cn('mx-auto overflow-hidden ring-1 ring-border', LEADERBOARD_MAX_WIDTH_CLASS)}>
         <AdContent
+          type={type}
           imageUrl={imageUrl}
           iframeUrl={iframeUrl}
           linkUrl={linkUrl}
           linkTarget={linkTarget}
           altText={altText}
-          placeholderSize={`${LEADERBOARD_WIDTH}×${LEADERBOARD_HEIGHT}`}
-          aspectClass={`aspect-[${LEADERBOARD_WIDTH}/${LEADERBOARD_HEIGHT}]`}
+          placeholderSize={LEADERBOARD_PLACEHOLDER}
+          aspectClass={LEADERBOARD_ASPECT_CLASS}
         />
       </div>
     </div>
@@ -98,6 +107,7 @@ export function AdSlot({
 }
 
 function AdContent({
+  type,
   imageUrl,
   iframeUrl,
   linkUrl,
@@ -106,6 +116,7 @@ function AdContent({
   placeholderSize,
   aspectClass,
 }: {
+  type: AdSlotType
   imageUrl?: string
   iframeUrl?: string
   linkUrl?: string
@@ -114,24 +125,27 @@ function AdContent({
   placeholderSize: string
   aspectClass: string
 }) {
+  const safeIframeUrl = iframeUrl ? encodeURI(iframeUrl) : undefined
+  const safeImageUrl = imageUrl ? encodeURI(imageUrl) : undefined
+
   let inner;
 
-  if (iframeUrl) {
+  if (safeIframeUrl) {
     inner = (
-      <div className={cn('relative w-full bg-muted', aspectClass)}>
-        <iframe
-          src={iframeUrl}
-          title={altText}
-          className={cn("absolute inset-0 h-full w-full border-0", linkUrl && "pointer-events-none")}
-          scrolling="no"
-        />
-      </div>
+      <ResponsiveIframeFrame
+        src={safeIframeUrl}
+        title={altText}
+        aspectClass={aspectClass}
+        linkUrl={linkUrl}
+        nativeWidth={type === 'sidebar-mpu' ? 300 : LEADERBOARD_WIDTH}
+        nativeHeight={type === 'sidebar-mpu' ? 250 : LEADERBOARD_HEIGHT}
+      />
     );
-  } else if (imageUrl) {
+  } else if (safeImageUrl) {
     inner = (
       <div className={cn('relative w-full bg-muted', aspectClass)}>
         <Image
-          src={imageUrl}
+          src={safeImageUrl}
           alt={altText}
           fill
           className="object-cover"
@@ -168,4 +182,57 @@ function AdContent({
   }
 
   return <>{inner}</>
+}
+
+function ResponsiveIframeFrame({
+  src,
+  title,
+  aspectClass,
+  linkUrl,
+  nativeWidth,
+  nativeHeight,
+}: {
+  src: string
+  title: string
+  aspectClass: string
+  linkUrl?: string
+  nativeWidth: number
+  nativeHeight: number
+}) {
+  const frameRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const element = frameRef.current
+    if (!element) return
+
+    const updateScale = () => {
+      const nextScale = element.clientWidth / nativeWidth
+      setScale(nextScale > 0 ? Math.min(1, nextScale) : 1)
+    }
+
+    updateScale()
+
+    const observer = new ResizeObserver(() => updateScale())
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [nativeWidth])
+
+  return (
+    <div ref={frameRef} className={cn('relative w-full overflow-hidden bg-muted', aspectClass)}>
+      <iframe
+        src={src}
+        title={title}
+        className={cn('absolute left-1/2 top-1/2 border-0', linkUrl && 'pointer-events-none')}
+        scrolling="no"
+        style={{
+          width: nativeWidth,
+          height: nativeHeight,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+      />
+    </div>
+  )
 }
