@@ -288,6 +288,7 @@ export function ManualImporter({
         manualContent.quote = rawText.substring(0, 100) + '...';
         break;
       case 'spotlight':
+        manualContent.title = title || 'Member Spotlight';
         manualContent.name = author || 'Member Name';
         manualContent.bio = rawText;
         manualContent.image = imageUrl;
@@ -296,6 +297,23 @@ export function ManualImporter({
         manualContent.title = title || 'Lifestyle';
         manualContent.text = rawText;
         manualContent.image = imageUrl;
+        break;
+      case 'partner':
+        manualContent.title = title || 'Partner Feature';
+        manualContent.brand = author || 'Partner Name';
+        manualContent.headline = title || 'Partner Feature';
+        manualContent.text = rawText;
+        manualContent.image = imageUrl;
+        break;
+      case 'back-cover':
+        manualContent.title = title || 'Next Edition';
+        manualContent.text = rawText;
+        manualContent.image = imageUrl;
+        break;
+      case 'full-page-ad':
+        manualContent.title = title || 'Advertisement';
+        manualContent.image = imageUrl;
+        manualContent.alt = title || 'Advertisement';
         break;
       default:
         manualContent.text = rawText;

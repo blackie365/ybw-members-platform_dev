@@ -125,8 +125,11 @@ function AdContent({
   placeholderSize: string
   aspectClass: string
 }) {
-  const safeIframeUrl = iframeUrl ? encodeURI(iframeUrl) : undefined
-  const safeImageUrl = imageUrl ? encodeURI(imageUrl) : undefined
+  // The upload APIs already return browser-safe public URLs.
+  // Re-encoding them here turns `%20` into `%2520`, which breaks
+  // HTML5 banner iframe paths and some image assets.
+  const safeIframeUrl = iframeUrl?.trim() || undefined
+  const safeImageUrl = imageUrl?.trim() || undefined
 
   let inner;
 

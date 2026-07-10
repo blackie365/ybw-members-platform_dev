@@ -486,6 +486,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         return (
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 col-span-2">
+              <Label>Issue Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
+            <div className="space-y-2 col-span-2">
               <Label>Headline</Label>
               <Input value={safeContent.headline || ''} onChange={(e) => updateContent('headline', e.target.value)} />
             </div>
@@ -525,6 +529,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'editorial':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Editor Name</Label>
@@ -1134,6 +1142,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'full-page-ad':
         return (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} placeholder="Advertisement" />
+            </div>
             <div className="space-y-2">
               <Label>Label (Optional)</Label>
               <Input value={safeContent.label || ''} onChange={(e) => updateContent('label', e.target.value)} placeholder="Advertisement" />

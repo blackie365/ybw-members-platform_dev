@@ -79,6 +79,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Overview of the current issue with regional news.',
     category: 'structural',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Items', key: 'items', type: 'list', required: true },
       { name: 'Regional News', key: 'news', type: 'list', required: false },
     ]
@@ -102,6 +103,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Big quote and snapshot stats with faded background.',
     category: 'feature',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Main Quote', key: 'quote', type: 'textarea', required: true },
       { name: 'Main Text', key: 'text', type: 'textarea', required: true },
       { name: 'Snapshot Stats', key: 'stats', type: 'stats', required: false },
@@ -130,6 +132,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Elegant layout with side image and artistic typography.',
     category: 'content',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Main Text', key: 'text', type: 'textarea', required: true },
       { name: 'Highlights', key: 'highlights', type: 'list', required: false },
       { name: 'Feature Image', key: 'featureImage', type: 'image', required: false },
@@ -142,6 +145,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Profile feature with tilted photo and bio.',
     category: 'content',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Member Name', key: 'name', type: 'text', required: true },
       { name: 'Current Role', key: 'role', type: 'text', required: true },
       { name: 'Key Message', key: 'message', type: 'textarea', required: true },
@@ -156,6 +160,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Branded full-page feature with special offer.',
     category: 'feature',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Brand Name', key: 'brand', type: 'text', required: true },
       { name: 'Headline', key: 'headline', type: 'text', required: true },
       { name: 'Special Offer', key: 'offer', type: 'text', required: true },
@@ -169,6 +174,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Single-page advertisement with optional click-through link.',
     category: 'structural',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: false },
       { name: 'Label', key: 'label', type: 'text', required: false },
       { name: 'Image', key: 'image', type: 'image', required: true },
       { name: 'Background Image', key: 'backgroundImage', type: 'image', required: false },
@@ -183,6 +189,7 @@ export const MAGAZINE_TEMPLATES: MagazineTemplate[] = [
     description: 'Closing page with next issue info and socials.',
     category: 'structural',
     fields: [
+      { name: 'Title', key: 'title', type: 'text', required: true },
       { name: 'Next Issue Date', key: 'nextIssue', type: 'text', required: true },
       { name: 'Call to Action', key: 'cta', type: 'text', required: true },
       { name: 'Social Links', key: 'socials', type: 'list', required: false },

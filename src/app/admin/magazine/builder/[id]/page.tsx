@@ -375,6 +375,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             break;
           case 'spotlight':
             content = {
+              title: post.title || 'Member Spotlight',
               name: post.primary_author?.name || 'Member Name',
               role: post.primary_tag?.name || 'Entrepreneur',
               featureImage: post.feature_image || '',
@@ -608,6 +609,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           kicker: 'Feature',
           mediaLayout: 'side',
           name: 'Featured Guest',
+          title: 'Feature Story',
           quote: 'Success is not final, failure is not fatal...', 
           text: 'The journey of building a brand in Yorkshire...', 
           stats: [{ label: 'READ TIME', value: '5 MIN' }], 
@@ -654,6 +656,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         return { 
           kicker: 'Partner Feature',
           mediaLayout: 'side',
+          title: 'Partner Feature',
           brand: 'Partner Name', 
           headline: 'Premium Services for Members', 
           featureImage: '',
@@ -662,6 +665,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         };
       case 'full-page-ad':
         return {
+          title: 'Advertisement',
           label: 'Advertisement',
           image: '',
           backgroundImage: '',
