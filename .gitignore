@@ -9,6 +9,7 @@ next.user-config.*
 
 # Environment variables
 .env*.local
+.env.v1
 
 # Common ignores
 node_modules
@@ -17,6 +18,11 @@ node_modules
 .vercel
 serviceAccountKey.json
 members.csv
+.trae/
+.trae-auth/
+.trae-auth-firebase/
+.trae-vercel-home/
+dev-repos/
 
 # Exclude sensitive data and archives
 *.csv

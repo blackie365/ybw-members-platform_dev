@@ -75,6 +75,7 @@ export default async function MagazinePage() {
   let featuredPosts: any[] = [];
   let recentPosts: any[] = [];
   let latestEvents: any[] = [];
+  let editorsBlogPosts: any[] = [];
   let fashionPosts: any[] = [];
   let healthPosts: any[] = [];
   let tags: any[] = [];
@@ -102,7 +103,13 @@ export default async function MagazinePage() {
       order: "published_at DESC"
     });
 
-    // 2c. Fetch category specific posts
+    // 2c. Fetch editor-led and category specific posts
+    editorsBlogPosts = await getPosts({
+      limit: 3,
+      filter: "tag:editorial,tag:editors-blog,tag:editors",
+      order: "published_at DESC"
+    });
+
     fashionPosts = await getPosts({
       limit: 3,
       filter: "tag:fashion-lifestyle",
@@ -147,6 +154,7 @@ export default async function MagazinePage() {
         <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
         <ArticleGrid posts={gridPosts} />
         <LatestEvents events={latestEvents} />
+        <CategorySection title="Editors Blog" posts={editorsBlogPosts} tagSlug="editorial" />
         <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
         <FeaturedInterview member={featuredMember} />
         <CategorySection title="Health & Wellbeing" posts={healthPosts} />

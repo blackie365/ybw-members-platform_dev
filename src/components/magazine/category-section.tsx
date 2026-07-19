@@ -21,9 +21,11 @@ interface Post {
 export function CategorySection({ 
   title, 
   posts, 
+  tagSlug,
 }: { 
   title: string
   posts: Post[]
+  tagSlug?: string
 }) {
   if (!posts || posts.length === 0) return null
 
@@ -43,7 +45,7 @@ export function CategorySection({
           </motion.h2>
 
           <Link 
-            href={`/news?tag=${title.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-')}`}
+            href={`/news?tag=${tagSlug || title.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-')}`}
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-accent transition-colors"
           >
             View All
