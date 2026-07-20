@@ -16,6 +16,7 @@ import {
   upsertStories,
 } from '@/features/magazine/server/edition-repository';
 import { applyEditionPreset } from '@/features/magazine/server/preset-service';
+import { getMagazinePreset } from '@/features/magazine/domain/presets';
 import { getMagazineV2LegacyMatchSummary } from '@/features/magazine/server/public-reader';
 import type { Edition, Slot, Story } from '@/features/magazine/domain/types';
 
@@ -833,6 +834,54 @@ export async function getLatestPremiumReaderStatusAction() {
     };
   } catch (error: any) {
     console.error('Error in getLatestPremiumReaderStatusAction:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getLatestPremiumReaderCurationSummaryAction() {
+  try {
+    await checkAdmin();
+    const latestIssue = (await getLatestIssueServer()) as LegacyIssueWithLibrary | null;
+
+    if (!latestIssue) {
+      return { success: true, data: null };
+    }
+
+    const legacyPages = await getMagazinePagesServer(latestIssue.id);
+    const preset = getMagazinePreset('standard_monthly');
+    if (!preset) {
+      throw new Error('The standard monthly flatplan preset is missing.');
+    }
+
+    const mappedStories = buildLegacyIssueStories(latestIssue, legacyPages);
+    const availablePageTypes = Array.from(
+      new Set(
+        legacyPages
+          .map((page) => getText(page.type))
+          .filter(Boolean),
+      ),
+    );
+
+    return {
+      success: true,
+      data: {
+        legacyIssueId: latestIssue.id,
+        legacyIssueTitle: latestIssue.title,
+        hasFlipbook: Boolean(getText(latestIssue.flipbookUrl)),
+        flipbookHref: getText(latestIssue.flipbookUrl) || null,
+        presetLabel: preset.label,
+        flatplanPageCount: preset.pages.length,
+        mappedStoryCount: mappedStories.length,
+        availablePageTypes,
+        flatplan: preset.pages.map((page) => ({
+          position: page.position,
+          intent: page.intent.replace(/_/g, ' '),
+          template: `${page.templateFamily}/${page.templateVariant}`,
+        })),
+      },
+    };
+  } catch (error: any) {
+    console.error('Error in getLatestPremiumReaderCurationSummaryAction:', error);
     return { success: false, error: error.message };
   }
 }
