@@ -327,10 +327,13 @@ type LegacyIssueWithLibrary = MagazineIssue & {
     title?: string;
     author?: string;
     text?: string;
+    includedInPremiumReader?: boolean;
     imageFileNames?: string[];
     createdAt?: string;
   }>;
 };
+
+type LegacyStoryLibraryEntry = NonNullable<LegacyIssueWithLibrary['storyLibrary']>[number];
 
 function getLegacyPageContent(page: MagazinePage | undefined): Record<string, unknown> {
   return page?.content && typeof page.content === 'object' ? (page.content as Record<string, unknown>) : {};
@@ -425,6 +428,10 @@ function createLegacyStory(args: {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function isStoryLibraryEntryIncludedInPremiumReader(entry: LegacyStoryLibraryEntry): boolean {
+  return entry?.includedInPremiumReader !== false;
 }
 
 function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazinePage[]): Story[] {
@@ -552,6 +559,8 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
   }
 
   (issue.storyLibrary ?? []).forEach((entry, index) => {
+    if (!isStoryLibraryEntryIncludedInPremiumReader(entry)) return;
+
     const text = getText(entry.text);
     const title = getText(entry.title);
     if (!text && !title) return;
