@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BookOpen, Calendar, Trash2 } from 'lucide-react';
+import { ArrowRight, BookOpen, Calendar, Monitor, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
@@ -30,7 +30,6 @@ export default async function NewEditionPage() {
     mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
   const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
-  const primaryMagazineHref = flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/issue/${liveIssue.id}`;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -62,116 +61,193 @@ export default async function NewEditionPage() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Make the flipbook the primary magazine experience so readers do not stop at the digital reader CTA. */}
-      <section className="relative bg-[#050505] text-white py-24 sm:py-32 overflow-hidden">
+      <section className="relative overflow-hidden bg-[#050505] py-24 text-white sm:py-32">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:32px_32px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:32px_32px]" />
         </div>
+        <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-accent/20 blur-[120px]" />
+        <div className="absolute -left-16 bottom-0 h-72 w-72 rounded-full bg-white/10 blur-[140px]" />
 
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="flex flex-col items-start text-left">
-              <Badge className="bg-accent text-white border-none mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] animate-pulse">
-                Signature Magazine Experience
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="max-w-2xl">
+              <Badge className="mb-6 border-none bg-accent px-4 py-1.5 text-[10px] uppercase tracking-[0.22em] text-white">
+                Latest Edition
               </Badge>
-              <h1 className="font-serif text-5xl sm:text-7xl font-medium tracking-tight mb-8 leading-tight">
-                Open The <span className="italic text-accent">Magazine</span> <br />In Its Classic Form
+              <h1 className="font-serif text-5xl font-medium tracking-tight sm:text-7xl">
+                {liveIssue.title}
               </h1>
-              <p className="text-xl text-zinc-400 leading-relaxed font-light mb-12 max-w-xl">
-                Discover the latest edition in a format that stays closest to the printed magazine, with elegant page turns and a more familiar editorial presentation. For readers who prefer a more immersive web experience, the enhanced digital reader remains available alongside it.
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
+                Discover the latest Yorkshire BusinessWoman edition in a premium editorial format, with a polished magazine presentation and a beautifully considered digital reading experience.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button asChild size="lg" className="bg-[#A3413A] hover:bg-white hover:text-[#A3413A] text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300 shadow-xl border-none">
-                  <Link href={primaryMagazineHref}>
-                    <BookOpen className="mr-2 h-5 w-5" />
-                    Open Flipping Book
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+                <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
+                  <Link href="#edition-formats">
+                    Read The Latest Edition
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="border-white/15 bg-transparent px-8 py-6 h-auto text-lg rounded-none text-white hover:bg-white hover:text-[#050505]">
-                  <Link href={`/magazine/issue/${liveIssue.id}`}>
-                    <ArrowRight className="mr-2 h-5 w-5" />
-                    Use Digital Reader Instead
+                <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-white/15 bg-transparent px-8 py-6 text-lg text-white hover:bg-white hover:text-[#050505]">
+                  <Link href="#edition-archive">
+                    Browse Archive
                   </Link>
                 </Button>
               </div>
 
-              <div className="mt-12 flex items-center gap-4 text-sm text-zinc-500">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-zinc-800" />
-                  ))}
+              <div className="mt-12 flex flex-wrap items-center gap-6 text-sm text-zinc-500">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-accent" />
+                  <span>{new Date(liveIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
                 </div>
-                <p>Join <span className="text-white font-medium">5,000+</span> digital visitors</p>
+                <div className="h-4 w-px bg-white/10" />
+                <p>{liveIssue.tags?.slice(0, 3).join(' · ') || 'Yorkshire BusinessWoman Magazine'}</p>
               </div>
             </div>
 
-            <div className="relative group cursor-pointer">
-              <Link href={primaryMagazineHref}>
-                <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)}
-                    alt={`${liveIssue.title} Cover`}
-                    className="absolute inset-0 w-full h-full object-contain bg-black/10 border border-white/10"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-transparent to-white/10" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-white/10 backdrop-blur-xl p-6 rounded-full border border-white/20">
-                      <BookOpen className="h-10 w-10 text-white" />
+            <div className="relative">
+              <div className="absolute inset-x-10 top-10 h-[82%] rounded-[2rem] bg-accent/20 blur-[80px]" />
+              <div className="relative grid gap-5 lg:grid-cols-[0.68fr_0.32fr]">
+                <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] bg-black/30">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)}
+                      alt={`${liveIssue.title} Cover`}
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-transparent to-white/10" />
+                    <div className="absolute left-4 top-4">
+                      <Badge className="border-none bg-white text-[#050505] px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
+                        Current Edition
+                      </Badge>
                     </div>
                   </div>
-                  <div className="absolute left-5 top-5">
-                    <Badge className="bg-white text-[#050505] border-none px-3 py-1 uppercase tracking-[0.18em] text-[10px]">
-                      Featured Edition Format
-                    </Badge>
+                </div>
+
+                <div className="flex flex-col justify-between gap-4">
+                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Print-Inspired</p>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Magazine View</h2>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                      A refined page-turning presentation designed to feel closest to the printed edition.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Digital-First</p>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Experience</h2>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                      An immersive web-native reader with richer layouts and a more cinematic on-screen feel.
+                    </p>
                   </div>
                 </div>
-              </Link>
-              <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent/20 blur-[120px] rounded-full pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="edition-formats" className="border-y border-border bg-[#f7f2eb] py-20 text-[#16110f]">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <Badge className="border-none bg-[#A3413A] px-4 py-1.5 text-[10px] uppercase tracking-[0.22em] text-white">
+              Choose Your Format
+            </Badge>
+            <h2 className="mt-6 font-serif text-4xl font-medium sm:text-5xl">
+              Read The Edition Your Way
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-[#5a4a3f]">
+              Both formats give access to the same latest edition, presented in two distinct ways for different reading preferences.
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="group overflow-hidden rounded-[2rem] border border-[#d8c8b5] bg-white shadow-[0_24px_90px_rgba(0,0,0,0.08)]">
+              <div className="flex h-full flex-col justify-between p-8 sm:p-10">
+                <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <Badge className="border-none bg-[#16110f] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
+                      Featured Format
+                    </Badge>
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-[#8b6f5a]">Most Like Print</span>
+                  </div>
+                  <h3 className="mt-6 font-serif text-3xl font-medium sm:text-4xl">
+                    Magazine View
+                  </h3>
+                  <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5a4a3f] sm:text-lg">
+                    {flipbookEmbedUrl
+                      ? 'Elegant page turns, a familiar editorial rhythm, and a presentation that feels closest to the physical magazine.'
+                      : 'A magazine-led presentation designed for a refined editorial feel, with the latest edition opening in our enhanced digital format when a flipbook is not available.'}
+                  </p>
+                </div>
+
+                <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-5 text-base text-white hover:bg-[#8c362f]">
+                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/issue/${liveIssue.id}`}>
+                      <BookOpen className="mr-2 h-5 w-5" />
+                      {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Latest Edition'}
+                    </Link>
+                  </Button>
+                  {flipbookIssue?.flipbookUrl ? (
+                    <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-[#d8c8b5] px-8 py-5 text-base">
+                      <Link href={flipbookIssue.flipbookUrl}>
+                        Open In Issuu
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="group overflow-hidden rounded-[2rem] border border-[#d8c8b5] bg-[#16110f] text-white shadow-[0_24px_90px_rgba(0,0,0,0.14)]">
+              <div className="flex h-full flex-col justify-between p-8 sm:p-10">
+                <div>
+                  <Badge className="border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
+                    Enhanced Web Reader
+                  </Badge>
+                  <h3 className="mt-6 font-serif text-3xl font-medium">
+                    Digital Experience
+                  </h3>
+                  <p className="mt-4 text-base leading-relaxed text-zinc-300">
+                    A richer digital presentation built for readers who prefer a more immersive on-screen experience.
+                  </p>
+                </div>
+
+                <div className="mt-8">
+                  <Button asChild size="lg" className="h-auto rounded-none border border-white/10 bg-white text-[#16110f] px-8 py-5 text-base hover:bg-accent hover:text-white">
+                    <Link href={`/magazine/issue/${liveIssue.id}`}>
+                      <Monitor className="mr-2 h-5 w-5" />
+                      Open Digital Experience
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {flipbookEmbedUrl && (
-        <section id="classic-flipbook" className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border scroll-mt-24">
+        <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
-            <div className="mb-10 flex flex-col gap-6 text-center">
-              <div className="mx-auto flex max-w-3xl flex-col items-center">
-                <Badge className="mb-5 bg-accent text-white border-none uppercase tracking-[0.22em] text-[10px] px-3 py-1.5">
-                  Editorial Presentation
-                </Badge>
-                <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-4">
-                  Classic Flipping Book
-                </h2>
-                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-                  Designed to mirror the feel of the printed edition, this presentation offers a familiar, polished way to browse the magazine while still keeping the enhanced digital reader available for those who prefer a richer on-screen format.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button asChild size="lg" className="bg-[#A3413A] hover:bg-[#8c362f] text-white rounded-none">
-                  <Link href={flipbookIssue?.flipbookUrl || flipbookEmbedUrl}>
-                    Open In Issuu
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-none">
-                  <Link href={`/magazine/issue/${liveIssue.id}`}>
-                    Launch Enhanced Digital Reader
-                  </Link>
-                </Button>
-              </div>
+            <div className="mb-10 text-center">
+              <h2 className="font-serif text-3xl font-medium sm:text-4xl">
+                Magazine View
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Browse the edition in a polished, page-turning format designed to echo the feel of the printed publication.
+              </p>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-              <div 
+            <div className="group relative overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_30px_110px_rgba(0,0,0,0.12)]">
+              <div
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
-                <iframe 
-                  title={flipbookIssue?.title || "Classic Flipping Book"}
-                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                  allowFullScreen={true} 
-                  style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
+                <iframe
+                  title={flipbookIssue?.title || 'Classic Flipping Book'}
+                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  allowFullScreen={true}
+                  style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }}
                   src={flipbookEmbedUrl}
                 />
               </div>
@@ -179,27 +255,6 @@ export default async function NewEditionPage() {
           </div>
         </section>
       )}
-
-      <section className="border-b border-border bg-[#0b0b0b] py-12 text-white">
-        <div className="mx-auto max-w-5xl px-6 lg:px-8">
-          <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-white/[0.03] p-8 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-accent mb-3">Digital Experience</p>
-              <h2 className="font-serif text-2xl sm:text-3xl font-medium">
-                Prefer The Enhanced Digital Reader?
-              </h2>
-              <p className="mt-3 text-white/65 leading-relaxed">
-                The web reader is still available for anyone who wants the more cinematic version with custom layouts and a richer on-screen experience.
-              </p>
-            </div>
-            <Button asChild size="lg" className="bg-white text-[#050505] hover:bg-accent hover:text-white rounded-none">
-              <Link href={`/magazine/issue/${liveIssue.id}`}>
-                Open Digital Reader
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
 
       {/* Ghost Post Featured Story Section */}
       {featuredPost && (
@@ -266,7 +321,7 @@ export default async function NewEditionPage() {
       </section>
 
       {/* Edition Archive Section */}
-      <section className="py-20 bg-zinc-50/50">
+      <section id="edition-archive" className="py-20 bg-zinc-50/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
             <h2 className="font-serif text-3xl font-medium text-foreground sm:text-4xl">
