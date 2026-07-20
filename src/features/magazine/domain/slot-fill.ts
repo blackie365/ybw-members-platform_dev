@@ -8,6 +8,7 @@ interface AutoFillInput {
 
 function scoreStoryForSlot(story: Story, slot: Slot, page: FlatplanPage): number {
   if (story.status !== 'approved' && story.status !== 'candidate') return -1;
+  if (story.includedInEditionCandidatePool === false) return -1;
   if (slot.contentType !== 'story' && slot.contentType !== 'editorial_note') return -1;
 
   const placementRules = slot.placementRules;
@@ -49,6 +50,8 @@ function scoreStoryForSlot(story: Story, slot: Slot, page: FlatplanPage): number
 
   if (story.heroImage?.src) score += 5;
   if (story.pullQuotes?.length) score += 5;
+  if (typeof story.priority === 'number') score += story.priority;
+  if (typeof story.placementConfidence === 'number') score += Math.round(story.placementConfidence * 10);
 
   return score;
 }
@@ -95,7 +98,11 @@ export function autoFillSlots({ pages, slots, stories }: AutoFillInput): {
 
     if (!candidate) {
       if (slot.isRequired) unresolvedSlots.push(slot.id);
-      return slot;
+      return {
+        ...slot,
+        automationConfidence: 0,
+        reviewReason: slot.isRequired ? 'No eligible story candidate matched this required slot.' : undefined,
+      };
     }
 
     usedStoryIds.add(candidate.story.id);
@@ -103,10 +110,13 @@ export function autoFillSlots({ pages, slots, stories }: AutoFillInput): {
 
     return {
       ...slot,
+      bindingMode: slot.bindingMode ?? 'auto',
       binding: {
         ...slot.binding,
         storyId: candidate.story.id,
       },
+      automationConfidence: candidate.score,
+      reviewReason: undefined,
       updatedAt: new Date().toISOString(),
     };
   });

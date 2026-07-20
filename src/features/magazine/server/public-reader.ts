@@ -57,7 +57,7 @@ function isPrimaryReaderReady(edition: Edition, pages: FlatplanPage[], slots: Sl
   if (edition.isLive) return true;
   if (edition.readerMode === 'custom') return true;
 
-  return ['ready_for_review', 'scheduled', 'live', 'archived'].includes(edition.status);
+  return ['ready_for_review', 'approved', 'scheduled', 'live', 'archived'].includes(edition.status);
 }
 
 function extractIssuuDocSlug(url?: string): string | null {
