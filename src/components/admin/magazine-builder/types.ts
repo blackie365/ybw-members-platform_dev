@@ -8,6 +8,7 @@ import {
   Share2,
   List
 } from 'lucide-react';
+import type { StoryContentType } from '@/features/magazine/domain/types';
 
 export const PAGE_TYPES = [
   { id: 'cover', label: 'Main Cover', icon: ImageIcon },
@@ -36,8 +37,11 @@ export interface StoryLibraryItem {
   id: string;
   title: string;
   author?: string;
+  standfirst?: string;
   text: string;
   includedInPremiumReader?: boolean;
+  premiumReaderPriority?: number;
+  premiumReaderContentType?: StoryContentType;
   imageFileNames?: string[];
   source?: {
     type: 'idml' | 'icml' | 'xml' | 'manual';
