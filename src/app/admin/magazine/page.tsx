@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
  import Image from"next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { StoryLibraryItem } from "@/components/admin/magazine-builder/types";
+import type { PremiumReaderPlacementPreference, StoryLibraryItem } from "@/components/admin/magazine-builder/types";
 import type { StoryContentType } from "@/features/magazine/domain/types";
 
 interface PremiumReaderStatus {
@@ -66,6 +66,19 @@ const PREMIUM_READER_TYPE_OPTIONS: Array<{ value: StoryContentType; label: strin
   { value: "utility", label: "Utility" },
 ];
 
+const PREMIUM_READER_PLACEMENT_OPTIONS: Array<{
+  value: PremiumReaderPlacementPreference;
+  label: string;
+}> = [
+  { value: "auto", label: "Auto Place" },
+  { value: "cover", label: "Cover Story" },
+  { value: "contents_highlight", label: "Contents Highlight" },
+  { value: "feature_primary", label: "Lead Feature" },
+  { value: "feature_secondary", label: "Secondary Feature" },
+  { value: "feature_supporting_1", label: "Supporting Feature 1" },
+  { value: "feature_supporting_2", label: "Supporting Feature 2" },
+];
+
 const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
 
 function normalizeStoryLibraryItem(item: StoryLibraryItem): StoryLibraryItem {
@@ -84,6 +97,7 @@ function normalizeStoryLibraryItem(item: StoryLibraryItem): StoryLibraryItem {
     includedInPremiumReader: isIncludedInPremiumReader(item),
     premiumReaderPriority: priority,
     premiumReaderContentType: item.premiumReaderContentType || "feature",
+    premiumReaderPlacementPreference: item.premiumReaderPlacementPreference || "auto",
   };
 }
 
@@ -94,6 +108,7 @@ function serializeStoryLibrary(items: StoryLibraryItem[]) {
       includedInPremiumReader: isIncludedInPremiumReader(item),
       premiumReaderPriority: item.premiumReaderPriority ?? 40,
       premiumReaderContentType: item.premiumReaderContentType || "feature",
+      premiumReaderPlacementPreference: item.premiumReaderPlacementPreference || "auto",
       title: item.title,
       author: item.author || "",
       standfirst: item.standfirst || "",
@@ -230,7 +245,7 @@ export default function AdminMagazinePage() {
     .filter((story) => {
       const query = storySelectionQuery.trim().toLowerCase();
       if (!query) return true;
-      return [story.title, story.author, story.source?.fileName, story.premiumReaderContentType]
+      return [story.title, story.author, story.source?.fileName, story.premiumReaderContentType, story.premiumReaderPlacementPreference]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     })
@@ -410,7 +425,7 @@ export default function AdminMagazinePage() {
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Selected Articles</p>
                         <p className="mt-2 max-w-2xl text-sm text-zinc-700">
-                          Choose exactly which saved stories feed the premium reader, and set their editorial importance before you build.
+                          Choose exactly which saved stories feed the premium reader, set their editorial importance, and pin key stories to the lead or secondary feature slots before you build.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -454,6 +469,11 @@ export default function AdminMagazinePage() {
                                     <Badge variant="secondary" className="bg-white text-zinc-700">
                                       {story.premiumReaderContentType || "feature"}
                                     </Badge>
+                                    {(story.premiumReaderPlacementPreference || "auto") !== "auto" ? (
+                                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                                        {PREMIUM_READER_PLACEMENT_OPTIONS.find((option) => option.value === (story.premiumReaderPlacementPreference || "auto"))?.label || "Pinned"}
+                                      </Badge>
+                                    ) : null}
                                   </div>
                                   <p className="mt-1 text-xs text-zinc-500">
                                     {[story.author, story.source?.fileName].filter(Boolean).join(" · ") || "Saved story"}
@@ -463,7 +483,7 @@ export default function AdminMagazinePage() {
                                   ) : null}
                                 </div>
 
-                                <div className="grid gap-3 md:grid-cols-[auto_120px_160px] xl:min-w-[440px]">
+                                <div className="grid gap-3 md:grid-cols-[auto_110px_150px_180px] xl:min-w-[640px]">
                                   <Button
                                     variant={isIncludedInPremiumReader(story) ? "default" : "outline"}
                                     className={isIncludedInPremiumReader(story) ? "bg-accent text-white hover:bg-accent/90" : ""}
@@ -507,6 +527,29 @@ export default function AdminMagazinePage() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {PREMIUM_READER_TYPE_OPTIONS.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div>
+                                    <Label className="text-[10px] uppercase tracking-widest text-zinc-500">Flatplan Slot</Label>
+                                    <Select
+                                      value={story.premiumReaderPlacementPreference || "auto"}
+                                      onValueChange={(value) =>
+                                        updateStorySelectionItem(story.id, {
+                                          premiumReaderPlacementPreference: value as PremiumReaderPlacementPreference,
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger className="mt-2 bg-white">
+                                        <SelectValue placeholder="Choose slot" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {PREMIUM_READER_PLACEMENT_OPTIONS.map((option) => (
                                           <SelectItem key={option.value} value={option.value}>
                                             {option.label}
                                           </SelectItem>
