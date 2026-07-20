@@ -30,6 +30,7 @@ export default async function NewEditionPage() {
     mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
   const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
+  const primaryMagazineHref = flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/issue/${liveIssue.id}`;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -61,30 +62,36 @@ export default async function NewEditionPage() {
 
   return (
     <main className="flex-1 bg-background">
-      {/* Premium Reader Hero Section - The "Best Part of the Site" */}
+      {/* Make the flipbook the primary magazine experience so readers do not stop at the digital reader CTA. */}
       <section className="relative bg-[#050505] text-white py-24 sm:py-32 overflow-hidden">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[length:32px_32px]" />
         </div>
-        
+
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="flex flex-col items-start text-left">
               <Badge className="bg-accent text-white border-none mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] animate-pulse">
-                Interactive Experience
+                Start Here
               </Badge>
               <h1 className="font-serif text-5xl sm:text-7xl font-medium tracking-tight mb-8 leading-tight">
-                The <span className="italic text-accent">Premium</span> <br />Digital Reader
+                Open The <span className="italic text-accent">Magazine</span> <br />In Its Classic Form
               </h1>
               <p className="text-xl text-zinc-400 leading-relaxed font-light mb-12 max-w-xl">
-                Experience our cinematic, smooth-turning digital edition. Optimized for every screen with high-resolution spreads and interactive content.
+                Start with the page-turning flipping book so readers land in the familiar magazine experience straight away. The enhanced digital reader remains available as a secondary option.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button asChild size="lg" className="bg-[#A3413A] hover:bg-white hover:text-[#A3413A] text-white px-8 py-6 h-auto text-lg rounded-none transition-all duration-300 shadow-xl border-none">
-                  <Link href={`/magazine/issue/${liveIssue.id}`}>
+                  <Link href={primaryMagazineHref}>
                     <BookOpen className="mr-2 h-5 w-5" />
-                    Launch Digital Reader
+                    Open Flipping Book
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="border-white/15 bg-transparent px-8 py-6 h-auto text-lg rounded-none text-white hover:bg-white hover:text-[#050505]">
+                  <Link href={`/magazine/issue/${liveIssue.id}`}>
+                    <ArrowRight className="mr-2 h-5 w-5" />
+                    Use Digital Reader Instead
                   </Link>
                 </Button>
               </div>
@@ -100,7 +107,7 @@ export default async function NewEditionPage() {
             </div>
 
             <div className="relative group cursor-pointer">
-              <Link href={`/magazine/issue/${liveIssue.id}`}>
+              <Link href={primaryMagazineHref}>
                 <div className="relative aspect-[3/4] max-w-[450px] mx-auto shadow-[0_0_100px_rgba(0,0,0,0.8)] transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
@@ -114,11 +121,82 @@ export default async function NewEditionPage() {
                       <BookOpen className="h-10 w-10 text-white" />
                     </div>
                   </div>
+                  <div className="absolute left-5 top-5">
+                    <Badge className="bg-white text-[#050505] border-none px-3 py-1 uppercase tracking-[0.18em] text-[10px]">
+                      Default Magazine View
+                    </Badge>
+                  </div>
                 </div>
               </Link>
-              {/* Decorative light flare */}
               <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent/20 blur-[120px] rounded-full pointer-events-none" />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {flipbookEmbedUrl && (
+        <section id="classic-flipbook" className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border scroll-mt-24">
+          <div className="mx-auto max-w-6xl px-6 lg:px-8">
+            <div className="mb-10 flex flex-col gap-6 text-center">
+              <div className="mx-auto flex max-w-3xl flex-col items-center">
+                <Badge className="mb-5 bg-accent text-white border-none uppercase tracking-[0.22em] text-[10px] px-3 py-1.5">
+                  Recommended Reading Mode
+                </Badge>
+                <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-4">
+                  Classic Flipping Book
+                </h2>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                  This is the closest match to the printed magazine experience, so it now appears before the editorial and archive sections. The enhanced digital reader remains available below as an alternative route.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button asChild size="lg" className="bg-[#A3413A] hover:bg-[#8c362f] text-white rounded-none">
+                  <Link href={flipbookIssue?.flipbookUrl || flipbookEmbedUrl}>
+                    Open In Issuu
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="rounded-none">
+                  <Link href={`/magazine/issue/${liveIssue.id}`}>
+                    Launch Enhanced Digital Reader
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+              <div 
+                style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
+              >
+                <iframe 
+                  title={flipbookIssue?.title || "Classic Flipping Book"}
+                  allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
+                  allowFullScreen={true} 
+                  style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
+                  src={flipbookEmbedUrl}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="border-b border-border bg-[#0b0b0b] py-12 text-white">
+        <div className="mx-auto max-w-5xl px-6 lg:px-8">
+          <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-white/[0.03] p-8 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-accent mb-3">Alternative View</p>
+              <h2 className="font-serif text-2xl sm:text-3xl font-medium">
+                Prefer The Enhanced Digital Reader?
+              </h2>
+              <p className="mt-3 text-white/65 leading-relaxed">
+                The web reader is still available for anyone who wants the more cinematic version with custom layouts and a richer on-screen experience.
+              </p>
+            </div>
+            <Button asChild size="lg" className="bg-white text-[#050505] hover:bg-accent hover:text-white rounded-none">
+              <Link href={`/magazine/issue/${liveIssue.id}`}>
+                Open Digital Reader
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -158,31 +236,6 @@ export default async function NewEditionPage() {
             </div>
           </div>
         </section>
-      )}
-
-      {/* Issuu Flipping Book Section */}
-      {flipbookEmbedUrl && (
-        <section className="py-24 bg-zinc-50 dark:bg-zinc-950 border-y border-border">
-        <div className="mx-auto max-w-6xl px-6 lg:px-8 text-center">
-          <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-12">
-            Classic Flipping Book
-          </h2>
-
-          <div className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-            <div 
-              style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
-            >
-              <iframe 
-                title={flipbookIssue?.title || "Classic Flipping Book"}
-                allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture" 
-                allowFullScreen={true} 
-                style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }} 
-                src={flipbookEmbedUrl}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
       )}
 
       {/* CTA Section */}
