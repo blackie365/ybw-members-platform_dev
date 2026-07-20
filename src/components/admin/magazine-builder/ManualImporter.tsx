@@ -214,6 +214,7 @@ export function ManualImporter({
       includedInPremiumReader: true,
       premiumReaderPriority: 40,
       premiumReaderContentType: 'feature',
+      premiumReaderPlacementPreference: 'auto',
       imageFileNames: Array.isArray(imageFileNames) ? imageFileNames : undefined,
       source: fromIdml
         ? { type: 'idml', fileName: idmlFileName || undefined, path: fromIdml.path }

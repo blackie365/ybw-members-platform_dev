@@ -10,6 +10,15 @@ import {
 } from 'lucide-react';
 import type { StoryContentType } from '@/features/magazine/domain/types';
 
+export type PremiumReaderPlacementPreference =
+  | 'auto'
+  | 'cover'
+  | 'contents_highlight'
+  | 'feature_primary'
+  | 'feature_secondary'
+  | 'feature_supporting_1'
+  | 'feature_supporting_2';
+
 export const PAGE_TYPES = [
   { id: 'cover', label: 'Main Cover', icon: ImageIcon },
   { id: 'editorial', label: 'Editor\'s Note', icon: Type },
@@ -42,6 +51,7 @@ export interface StoryLibraryItem {
   includedInPremiumReader?: boolean;
   premiumReaderPriority?: number;
   premiumReaderContentType?: StoryContentType;
+  premiumReaderPlacementPreference?: PremiumReaderPlacementPreference;
   imageFileNames?: string[];
   source?: {
     type: 'idml' | 'icml' | 'xml' | 'manual';

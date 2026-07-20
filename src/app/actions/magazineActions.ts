@@ -21,6 +21,7 @@ import { applyEditionPreset } from '@/features/magazine/server/preset-service';
 import { getMagazinePreset } from '@/features/magazine/domain/presets';
 import { getMagazineV2LegacyMatchSummary } from '@/features/magazine/server/public-reader';
 import type { Edition, FlatplanPage, MagazineAuditEvent, Slot, Story, StoryContentType } from '@/features/magazine/domain/types';
+import type { PremiumReaderPlacementPreference } from '@/components/admin/magazine-builder/types';
 
 export async function getGhostPostsAction(options?: any) {
   try {
@@ -333,6 +334,7 @@ type LegacyIssueWithLibrary = MagazineIssue & {
     includedInPremiumReader?: boolean;
     premiumReaderPriority?: number;
     premiumReaderContentType?: StoryContentType;
+    premiumReaderPlacementPreference?: PremiumReaderPlacementPreference;
     imageFileNames?: string[];
     source?: {
       type?: 'idml' | 'icml' | 'xml' | 'manual';
@@ -430,6 +432,21 @@ function getDefaultPriorityForContentType(contentType: StoryContentType): number
   }
 }
 
+function getPlacementPreference(value: unknown): PremiumReaderPlacementPreference | undefined {
+  switch (value) {
+    case 'auto':
+    case 'cover':
+    case 'contents_highlight':
+    case 'feature_primary':
+    case 'feature_secondary':
+    case 'feature_supporting_1':
+    case 'feature_supporting_2':
+      return value;
+    default:
+      return undefined;
+  }
+}
+
 const MONTH_LOOKUP = new Map<string, number>([
   ['january', 0],
   ['february', 1],
@@ -493,6 +510,7 @@ function createLegacyStory(args: {
   includedInEditionCandidatePool?: boolean;
   editorialConfidence?: number;
   placementConfidence?: number;
+  manualNotes?: string;
 }): Story {
   const now = new Date().toISOString();
 
@@ -511,6 +529,7 @@ function createLegacyStory(args: {
     editorialConfidence: args.editorialConfidence ?? 1,
     placementConfidence: args.placementConfidence,
     issueTags: args.issueTags,
+    manualNotes: args.manualNotes,
     heroImage: args.heroImage
       ? {
           src: args.heroImage,
@@ -707,6 +726,9 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         includedInEditionCandidatePool: true,
         editorialConfidence: 0.8,
         placementConfidence: Math.min(0.95, 0.55 + priority / 200),
+        manualNotes: getPlacementPreference(entry.premiumReaderPlacementPreference)
+          ? `placement:${getPlacementPreference(entry.premiumReaderPlacementPreference)}`
+          : undefined,
       }),
     );
   });
@@ -878,6 +900,79 @@ function applyLegacyPreviewOverrides(
     }
 
     return slot;
+  });
+}
+
+function getPlacementPreferenceForStory(story: Story): PremiumReaderPlacementPreference | null {
+  if (!story.manualNotes?.startsWith('placement:')) return null;
+  return getPlacementPreference(story.manualNotes.slice('placement:'.length)) ?? null;
+}
+
+function applyExplicitStoryPlacements(pages: FlatplanPage[], slots: Slot[], stories: Story[]): Slot[] {
+  const now = new Date().toISOString();
+  const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const supportingPages = pages
+    .filter((page) => page.intent === 'feature_supporting')
+    .sort((left, right) => left.position - right.position);
+  const usedStoryIds = new Set(
+    slots.map((slot) => slot.binding?.storyId).filter((storyId): storyId is string => Boolean(storyId)),
+  );
+
+  const preferredStories = stories
+    .map((story) => ({
+      story,
+      preference: getPlacementPreferenceForStory(story),
+    }))
+    .filter(
+      (entry): entry is { story: Story; preference: PremiumReaderPlacementPreference } =>
+        Boolean(entry.preference) && entry.preference !== 'auto',
+    )
+    .sort((left, right) => (right.story.priority ?? 0) - (left.story.priority ?? 0));
+
+  function slotMatchesPreference(slot: Slot, preference: PremiumReaderPlacementPreference) {
+    const page = pageMap.get(slot.flatplanPageId);
+    if (!page) return false;
+    if (slot.contentType !== 'story' && slot.contentType !== 'editorial_note') return false;
+
+    switch (preference) {
+      case 'cover':
+        return page.intent === 'cover' && slot.key === 'heroStory';
+      case 'contents_highlight':
+        return page.intent === 'contents' && slot.key === 'contentsHighlight';
+      case 'feature_primary':
+        return page.intent === 'feature_primary' && slot.key === 'primaryStory';
+      case 'feature_secondary':
+        return page.intent === 'feature_secondary' && slot.key === 'primaryStory';
+      case 'feature_supporting_1':
+        return page.id === supportingPages[0]?.id && slot.key === 'primaryStory';
+      case 'feature_supporting_2':
+        return page.id === supportingPages[1]?.id && slot.key === 'primaryStory';
+      default:
+        return false;
+    }
+  }
+
+  return slots.map((slot) => {
+    if (slot.binding?.storyId) return slot;
+
+    const match = preferredStories.find(
+      ({ story, preference }) => !usedStoryIds.has(story.id) && slotMatchesPreference(slot, preference),
+    );
+
+    if (!match) return slot;
+
+    usedStoryIds.add(match.story.id);
+    return {
+      ...slot,
+      bindingMode: 'locked' as const,
+      binding: {
+        ...slot.binding,
+        storyId: match.story.id,
+      },
+      automationConfidence: 100,
+      reviewReason: undefined,
+      updatedAt: now,
+    };
   });
 }
 
@@ -1057,7 +1152,7 @@ async function buildPremiumReaderFromLatestLocalIssue() {
 
   const autoFilled = autoFillSlots({
     pages,
-    slots,
+    slots: applyExplicitStoryPlacements(pages, slots, stories),
     stories,
   });
   const enrichedSlots = applyLegacyPreviewOverrides(latestIssue, legacyPages, pages, stories, autoFilled.slots);
@@ -1268,6 +1363,7 @@ export async function saveLatestPremiumReaderStorySelectionAction(storyLibrary: 
                 getDefaultPriorityForContentType(contentType),
               ),
               premiumReaderContentType: contentType,
+              premiumReaderPlacementPreference: getPlacementPreference(entry?.premiumReaderPlacementPreference) ?? 'auto',
               imageFileNames: Array.isArray(entry?.imageFileNames)
                 ? entry?.imageFileNames.map((value) => getText(value)).filter(Boolean)
                 : undefined,
