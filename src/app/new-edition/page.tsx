@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
-import { getMagazineV2ReaderUrlForIssue } from '@/lib/magazine-v2-reader';
 import { checkAdmin } from '@/lib/server/auth-utils';
+
+const FORCED_PREMIUM_READER_URL =
+  'https://v2.yorkshirebusinesswoman.co.uk/magazine/v2/yorkshire-business-woman-june-2026-edition';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -31,7 +33,7 @@ export default async function NewEditionPage() {
     mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
   const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
-  const v2LatestReaderUrl = getMagazineV2ReaderUrlForIssue(liveIssue);
+  const v2LatestReaderUrl = FORCED_PREMIUM_READER_URL;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -194,13 +196,6 @@ export default async function NewEditionPage() {
                       {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Latest Edition'}
                     </Link>
                   </Button>
-                  {flipbookIssue?.flipbookUrl ? (
-                    <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-[#d8c8b5] px-8 py-5 text-base">
-                      <Link href={flipbookIssue.flipbookUrl}>
-                        Open In Issuu
-                      </Link>
-                    </Button>
-                  ) : null}
                 </div>
               </div>
             </div>
