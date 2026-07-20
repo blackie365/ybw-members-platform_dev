@@ -79,7 +79,7 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
               {author ? <span>By {author}</span> : null}
             </div>
             <h2 className="mt-5 max-w-4xl font-serif text-5xl font-medium leading-[0.95] lg:text-7xl">{title}</h2>
-            {standfirst ? <p className="mt-6 max-w-3xl text-lg leading-relaxed text-zinc-200">{standfirst}</p> : null}
+            {standfirst ? <p className="mt-6 max-w-3xl font-serif text-xl leading-relaxed text-zinc-200">{standfirst}</p> : null}
           </div>
           {pullQuote ? (
             <blockquote className="mt-8 max-w-2xl border-l border-[#C9956A]/50 bg-black/20 py-2 pl-6 text-xl font-light italic leading-relaxed text-white/90 backdrop-blur-sm">
@@ -90,7 +90,7 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
           {bodyParagraphs.length > 0 ? (
             <div className="mt-8 max-w-3xl rounded-[1.6rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
               <p className="text-[10px] uppercase tracking-[0.26em] text-[#C9956A]">Editorial Summary</p>
-              <div className="mt-4 grid gap-4 text-sm leading-7 text-white/80 lg:grid-cols-2">
+              <div className="mt-4 grid gap-4 font-serif text-base leading-8 text-white/82 lg:grid-cols-2">
                 {bodyParagraphs.slice(0, 2).map((paragraph) => (
                   <p key={paragraph}>{paragraph}</p>
                 ))}
@@ -138,13 +138,13 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
             <p className="text-[10px] uppercase tracking-[0.28em] text-[#A3413A]">{storyLabel}</p>
           </div>
           <h2 className="mt-6 font-serif text-4xl font-medium leading-[1.02] lg:text-6xl">{title}</h2>
-          {standfirst ? <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#5e4d40]">{standfirst}</p> : null}
+          {standfirst ? <p className="mt-5 max-w-2xl font-serif text-xl leading-relaxed text-[#5e4d40]">{standfirst}</p> : null}
           {bodyParagraphs.length > 0 ? (
             <div className="mt-8 space-y-4">
               {bodyParagraphs.slice(0, 2).map((paragraph, index) => (
                 <p
                   key={`${paragraph}-${index}`}
-                  className={index === 0 ? 'text-lg leading-8 text-[#2d2019]' : 'text-base leading-8 text-[#4d3a30]'}
+                  className={index === 0 ? 'font-serif text-xl leading-8 text-[#2d2019]' : 'font-serif text-lg leading-8 text-[#4d3a30]'}
                 >
                   {paragraph}
                 </p>
