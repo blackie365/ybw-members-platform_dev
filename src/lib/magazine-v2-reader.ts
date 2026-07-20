@@ -1,5 +1,7 @@
 import slugify from '@sindresorhus/slugify';
 
+const DEFAULT_V2_READER_BASE_URL = 'https://v2.yorkshirebusinesswoman.co.uk';
+
 type IssueForV2Bridge = {
   title: string;
 };
@@ -15,7 +17,9 @@ function normalizeBaseUrl(url?: string | null): string | null {
 
 export function getMagazineV2ReaderBaseUrl(): string | null {
   return normalizeBaseUrl(
-    process.env.NEXT_PUBLIC_V2_READER_BASE_URL || process.env.V2_READER_BASE_URL || null,
+    process.env.NEXT_PUBLIC_V2_READER_BASE_URL ||
+      process.env.V2_READER_BASE_URL ||
+      DEFAULT_V2_READER_BASE_URL,
   );
 }
 
