@@ -89,6 +89,8 @@ const createStoryId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
+
 export function ManualImporter({
   onImport,
   isImporting,
@@ -116,6 +118,7 @@ export function ManualImporter({
   const [activeLibraryId, setActiveLibraryId] = useState<string>('');
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
+  const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -198,6 +201,7 @@ export function ManualImporter({
       title: cleanTitle || 'Untitled Story',
       author: String(author || '').trim() || undefined,
       text: cleanText,
+      includedInPremiumReader: true,
       imageFileNames: Array.isArray(imageFileNames) ? imageFileNames : undefined,
       source: fromIdml
         ? { type: 'idml', fileName: idmlFileName || undefined, path: fromIdml.path }
@@ -223,6 +227,24 @@ export function ManualImporter({
       toast.success('Removed from Story Library');
     } catch {
       toast.error('Failed to remove story');
+    }
+  };
+
+  const handleTogglePremiumReaderInclusion = async (storyId: string) => {
+    const next = safeStoryLibrary.map((item) =>
+      item.id === storyId
+        ? {
+            ...item,
+            includedInPremiumReader: !isIncludedInPremiumReader(item),
+          }
+        : item,
+    );
+
+    try {
+      await saveStoryLibrary(next);
+      toast.success('Premium reader inclusion updated');
+    } catch {
+      toast.error('Failed to update premium reader inclusion');
     }
   };
 
@@ -780,7 +802,7 @@ export function ManualImporter({
             <div className="space-y-1 min-w-0">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Story Library</p>
               <p className="text-[10px] text-muted-foreground">
-                Save stories once, then load them into the editor (and integrate into spreads) without re-uploading files.
+                Save stories once, then choose exactly which ones feed the premium flatplan without re-uploading files.
               </p>
             </div>
             <Button
@@ -809,11 +831,18 @@ export function ManualImporter({
             />
           </div>
 
+          <div className="rounded-md border border-border bg-muted/10 px-3 py-2">
+            <p className="text-[10px] font-mono text-muted-foreground">
+              Included in premium flatplan: {includedStoryCount} / {safeStoryLibrary.length}
+            </p>
+          </div>
+
           {filteredStoryLibrary.length > 0 ? (
             <div className="space-y-2 max-h-[320px] overflow-auto pr-1">
               {filteredStoryLibrary.map((s) => {
                 const isActive = s.id === activeLibraryId;
                 const subtitle = String(s.author || '').trim() || (s.source?.fileName ? s.source.fileName : '');
+                const isIncluded = isIncludedInPremiumReader(s);
                 return (
                   <div
                     key={s.id}
@@ -831,7 +860,19 @@ export function ManualImporter({
                       {subtitle ? (
                         <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
                       ) : null}
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {isIncluded ? 'Included in premium flatplan' : 'Excluded from premium flatplan'}
+                      </p>
                     </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 px-2 text-[10px] shrink-0"
+                      onClick={() => handleTogglePremiumReaderInclusion(s.id)}
+                      disabled={isImporting || !onSaveStoryLibrary || !issueId || issueId === 'new'}
+                    >
+                      {isIncluded ? 'Exclude' : 'Include'}
+                    </Button>
                     <Button
                       type="button"
                       variant="ghost"

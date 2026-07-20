@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   buildPremiumReaderFromLatestIssueAction,
   deleteMagazineIssueAction,
+  getLatestPremiumReaderCurationSummaryAction,
   getLatestPremiumReaderStatusAction,
   getMagazineIssuesAction,
 } from "@/app/actions/adminActions";
@@ -26,12 +27,30 @@ interface PremiumReaderStatus {
   previewHref?: string | null;
 }
 
+interface PremiumReaderCurationSummary {
+  legacyIssueId: string;
+  legacyIssueTitle: string;
+  hasFlipbook: boolean;
+  flipbookHref?: string | null;
+  presetLabel: string;
+  flatplanPageCount: number;
+  mappedStoryCount: number;
+  availablePageTypes: string[];
+  flatplan: Array<{
+    position: number;
+    intent: string;
+    template: string;
+  }>;
+}
+
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [premiumReaderStatus, setPremiumReaderStatus] = useState<PremiumReaderStatus | null>(null)
+  const [premiumReaderCurationSummary, setPremiumReaderCurationSummary] = useState<PremiumReaderCurationSummary | null>(null)
   const [loadingPremiumReaderStatus, setLoadingPremiumReaderStatus] = useState(true)
+  const [loadingPremiumReaderCurationSummary, setLoadingPremiumReaderCurationSummary] = useState(true)
   const [buildingPremiumReader, setBuildingPremiumReader] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -47,6 +66,15 @@ export default function AdminMagazinePage() {
     setLoadingPremiumReaderStatus(false)
   }
 
+  const loadPremiumReaderCurationSummary = async () => {
+    setLoadingPremiumReaderCurationSummary(true)
+    const result = await getLatestPremiumReaderCurationSummaryAction()
+    if (result.success) {
+      setPremiumReaderCurationSummary(result.data ?? null)
+    }
+    setLoadingPremiumReaderCurationSummary(false)
+  }
+
   const loadIssues = async () => {
     setLoading(true)
     const result = await getMagazineIssuesAction()
@@ -59,6 +87,7 @@ export default function AdminMagazinePage() {
   useEffect(() => {
     loadIssues()
     loadPremiumReaderStatus()
+    loadPremiumReaderCurationSummary()
   }, [])
 
   const handleDelete = async (id: string) => {
@@ -96,6 +125,7 @@ export default function AdminMagazinePage() {
         previewHref: result.data.previewHref,
       })
       await loadIssues()
+      await loadPremiumReaderCurationSummary()
       router.refresh()
     } else {
       toast.error(result.error || "Failed to build premium reader")
@@ -218,6 +248,36 @@ export default function AdminMagazinePage() {
                         </a>
                       </Button>
                     ) : null}
+                  </div>
+                  <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flatplan Source</p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      Uses the flipbook as the layout guide and the recovered issue content as the slot-fill source.
+                    </p>
+                    {loadingPremiumReaderCurationSummary ? (
+                      <p className="mt-3 text-xs text-zinc-500">Loading flatplan summary...</p>
+                    ) : premiumReaderCurationSummary ? (
+                      <div className="mt-3 space-y-3 text-xs text-zinc-700">
+                        <div className="grid gap-1 font-mono sm:grid-cols-2">
+                          <p>Source: {premiumReaderCurationSummary.hasFlipbook ? "flipbook-led" : "local pages only"}</p>
+                          <p>Preset: {premiumReaderCurationSummary.presetLabel}</p>
+                          <p>Flatplan pages: {premiumReaderCurationSummary.flatplanPageCount}</p>
+                          <p>Mapped stories: {premiumReaderCurationSummary.mappedStoryCount}</p>
+                        </div>
+                        <p className="font-mono">
+                          Page types: {premiumReaderCurationSummary.availablePageTypes.length > 0 ? premiumReaderCurationSummary.availablePageTypes.join(", ") : "none found"}
+                        </p>
+                        <div className="rounded border border-zinc-200 bg-zinc-50 p-2 font-mono text-[11px] leading-5">
+                          {premiumReaderCurationSummary.flatplan.map((page) => (
+                            <p key={`${page.position}-${page.intent}`}>
+                              {String(page.position).padStart(2, "0")} {page.intent} - {page.template}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-zinc-500">No curation summary is available for the current live issue.</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 pt-2">

@@ -37,6 +37,7 @@ export interface StoryLibraryItem {
   title: string;
   author?: string;
   text: string;
+  includedInPremiumReader?: boolean;
   imageFileNames?: string[];
   source?: {
     type: 'idml' | 'icml' | 'xml' | 'manual';
