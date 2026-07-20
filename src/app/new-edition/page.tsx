@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
+import { getMagazineV2ReaderUrlForIssue } from '@/lib/magazine-v2-reader';
 import { checkAdmin } from '@/lib/server/auth-utils';
 
 export const revalidate = 0; // Disable cache for debugging
@@ -30,6 +31,7 @@ export default async function NewEditionPage() {
     mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
   const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
+  const v2LatestReaderUrl = getMagazineV2ReaderUrlForIssue(liveIssue);
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -134,10 +136,14 @@ export default async function NewEditionPage() {
                     </p>
                   </div>
                   <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Digital-First</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">
+                      {v2LatestReaderUrl ? 'Digital-First · New Reader' : 'Digital-First'}
+                    </p>
                     <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Experience</h2>
                     <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                      An immersive web-native reader with richer layouts and a more cinematic on-screen feel.
+                      {v2LatestReaderUrl
+                        ? 'An immersive web-native reader with richer layouts and a more cinematic on-screen feel, now available through our new reader.'
+                        : 'An immersive web-native reader with richer layouts and a more cinematic on-screen feel.'}
                     </p>
                   </div>
                 </div>
@@ -203,21 +209,23 @@ export default async function NewEditionPage() {
               <div className="flex h-full flex-col justify-between p-8 sm:p-10">
                 <div>
                   <Badge className="border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                    Enhanced Web Reader
+                    {v2LatestReaderUrl ? 'New V2 Reader' : 'Enhanced Web Reader'}
                   </Badge>
                   <h3 className="mt-6 font-serif text-3xl font-medium">
                     Digital Experience
                   </h3>
                   <p className="mt-4 text-base leading-relaxed text-zinc-300">
-                    A richer digital presentation built for readers who prefer a more immersive on-screen experience.
+                    {v2LatestReaderUrl
+                      ? 'A richer digital presentation built for readers who prefer a more immersive on-screen experience, now opening in the new reader.'
+                      : 'A richer digital presentation built for readers who prefer a more immersive on-screen experience.'}
                   </p>
                 </div>
 
                 <div className="mt-8">
                   <Button asChild size="lg" className="h-auto rounded-none border border-white/10 bg-white text-[#16110f] px-8 py-5 text-base hover:bg-accent hover:text-white">
-                    <Link href={`/magazine/issue/${liveIssue.id}`}>
+                    <Link href={v2LatestReaderUrl || `/magazine/issue/${liveIssue.id}`}>
                       <Monitor className="mr-2 h-5 w-5" />
-                      Open Digital Experience
+                      {v2LatestReaderUrl ? 'Open New Digital Experience' : 'Open Digital Experience'}
                     </Link>
                   </Button>
                 </div>
@@ -382,8 +390,8 @@ export default async function NewEditionPage() {
                     
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link href={`/magazine/issue/${issue.id}`}>
-                          Reader
+                        <Link href={issue.isLatest ? v2LatestReaderUrl || `/magazine/issue/${issue.id}` : `/magazine/issue/${issue.id}`}>
+                          {issue.isLatest && v2LatestReaderUrl ? 'V2 Reader' : 'Reader'}
                         </Link>
                       </Button>
                       {issue.downloadUrl ? (
