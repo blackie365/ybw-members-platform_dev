@@ -35,6 +35,15 @@ const normalizeWhitespace = (value: string) => {
     .trim();
 };
 
+const deriveStandfirst = (value: string) => {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return '';
+
+  const sentence = normalized.split(/\n{2,}/)[0]?.split(/(?<=[.!?])\s+/)[0]?.trim();
+  if (!sentence) return '';
+  return sentence.length <= 180 ? sentence : `${sentence.slice(0, 180).trimEnd()}...`;
+};
+
 const extractInDesignTextAndImageHints = (xml: string) => {
   const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
   const rawPieces = contentMatches.map((m) => decodeXmlEntities(m[1] || '').trim()).filter(Boolean);
@@ -200,8 +209,11 @@ export function ManualImporter({
       id: createStoryId(),
       title: cleanTitle || 'Untitled Story',
       author: String(author || '').trim() || undefined,
+      standfirst: deriveStandfirst(cleanText) || undefined,
       text: cleanText,
       includedInPremiumReader: true,
+      premiumReaderPriority: 40,
+      premiumReaderContentType: 'feature',
       imageFileNames: Array.isArray(imageFileNames) ? imageFileNames : undefined,
       source: fromIdml
         ? { type: 'idml', fileName: idmlFileName || undefined, path: fromIdml.path }
@@ -557,7 +569,7 @@ export function ManualImporter({
           </>
         )}
 
-        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
+        <div id="story-library" className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
             <p className="text-[10px] text-muted-foreground">
