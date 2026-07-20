@@ -12,26 +12,107 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
     typeof viewModel.standfirst === 'string' ? viewModel.standfirst : edition.description || edition.subtitle || '';
   const coverImage =
     typeof viewModel.coverImage === 'string' ? viewModel.coverImage : edition.coverImage;
+  const publishLabel = new Date(edition.publishDate).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
-    <section className="relative overflow-hidden bg-[#050505] text-white">
-      <div className="grid min-h-[80vh] gap-10 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-12">
+    <section className="relative isolate overflow-hidden bg-[#050505] text-white">
+      {coverImage ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.16),transparent_28%)]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/88 to-[#050505]/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/35" />
+        </>
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.16),transparent_28%)]" />
+      )}
+
+      <div className="absolute inset-y-10 left-6 hidden w-px bg-gradient-to-b from-transparent via-[#A3413A] to-transparent lg:block" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:26px_26px] opacity-[0.16]" />
+
+      <div className="relative z-10 grid min-h-[84vh] gap-10 px-6 py-10 lg:grid-cols-[1.08fr_0.92fr] lg:px-12 lg:py-14">
         <div className="flex flex-col justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[#C9956A]">Digital Edition</p>
-            <h1 className="mt-6 max-w-3xl font-serif text-5xl font-medium leading-tight lg:text-7xl">{title}</h1>
-            {standfirst ? <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-300">{standfirst}</p> : null}
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/[0.05] px-4 py-1.5 backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#C9956A]" />
+              <span className="text-[10px] uppercase tracking-[0.26em] text-white/75">Premium Digital Edition</span>
+            </div>
+
+            <div className="mt-8">
+              <p className="text-[clamp(2.75rem,7vw,6.5rem)] font-serif font-medium leading-[0.9] tracking-tight text-white">
+                Yorkshire
+                <br />
+                <span className="text-[#C9956A]">Business</span>
+                <br />
+                Woman
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.28em] text-[#C9956A]">Lead Story</p>
+                <h1 className="mt-4 max-w-2xl font-serif text-4xl font-medium leading-tight lg:text-6xl">{title}</h1>
+                {standfirst ? (
+                  <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-300 lg:text-lg">{standfirst}</p>
+                ) : null}
+              </div>
+              <div className="border-l border-white/10 pl-5 text-right">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-white/45">Issue</p>
+                <p className="mt-3 font-serif text-xl text-white/90">{publishLabel}</p>
+              </div>
+            </div>
           </div>
-          <div className="text-sm uppercase tracking-[0.3em] text-zinc-500">Page {page.position}</div>
+
+          <div className="mt-10 flex flex-col gap-6 lg:mt-0">
+            <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur-md">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Reading Mode</p>
+                <p className="mt-3 font-serif text-2xl text-white">Swipe and Scroll</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/65">
+                  Page-led navigation with room for longer editorial reading inside each composition.
+                </p>
+              </div>
+              <div className="rounded-[1.4rem] border border-white/10 bg-black/20 p-5">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Edition Status</p>
+                <p className="mt-3 font-serif text-2xl text-white">{edition.isLive ? 'Live' : 'Preview'}</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/65">
+                  Art-directed templates assembled from the new premium flatplan pipeline.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs uppercase tracking-[0.28em] text-white/40">
+              <span>Page {String(page.position).padStart(2, '0')}</span>
+              <span>{edition.themeVariant.replace(/_/g, ' ')}</span>
+            </div>
+          </div>
         </div>
 
         <div className="relative flex items-center justify-center">
-          <div className="relative aspect-[3/4] w-full max-w-[420px] overflow-hidden border border-white/10 bg-black/20 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
+          <div className="absolute inset-x-12 bottom-10 top-12 rounded-[2rem] bg-[#A3413A]/18 blur-[90px]" />
+          <div className="relative aspect-[3/4] w-full max-w-[460px] overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
             {coverImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={coverImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
             ) : null}
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-black/10 to-white/5" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-black/10 to-white/5" />
+            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent" />
+            <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-white/80 backdrop-blur-sm">
+              Cover Story
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 p-6">
+              <div className="rounded-[1.4rem] border border-white/10 bg-black/35 p-5 backdrop-blur-md">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Inside This Edition</p>
+                <p className="mt-3 font-serif text-2xl leading-tight text-white">{title}</p>
+                {standfirst ? (
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-white/70">{standfirst}</p>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </div>

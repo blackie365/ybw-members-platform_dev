@@ -201,6 +201,8 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         standfirst: story?.standfirst ?? fallbackStandfirst,
         body: story?.body ?? fallbackBody,
         heroImage: fallbackImage,
+        author: story?.author,
+        contentType: story?.contentType,
         pullQuote: getOverrideString(quoteSlot, 'quote'),
         pullQuoteAttribution: getOverrideString(quoteSlot, 'attribution'),
         galleryImages: manualGallery,

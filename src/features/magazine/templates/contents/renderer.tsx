@@ -19,36 +19,56 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
   const closingBody = typeof viewModel.closingBody === 'string' ? viewModel.closingBody : '';
   const closingCtaLabel = typeof viewModel.closingCtaLabel === 'string' ? viewModel.closingCtaLabel : '';
   const closingCtaHref = typeof viewModel.closingCtaHref === 'string' ? viewModel.closingCtaHref : '';
+  const highlightTitle = typeof viewModel.highlightTitle === 'string' ? viewModel.highlightTitle : '';
+  const publishLabel = new Date(edition.publishDate).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   if (mode === 'closing') {
     return (
-      <section className="bg-[#16110f] text-white">
-        <div className="mx-auto grid min-h-[70vh] max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[0.75fr_1.25fr] lg:px-12">
+      <section className="relative overflow-hidden bg-[#16110f] text-white">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.16),transparent_28%)]" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9956A] to-transparent" />
+
+        <div className="relative mx-auto grid min-h-[70vh] max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[0.72fr_1.28fr] lg:px-12">
           <div className="flex flex-col justify-between border-b border-white/10 pb-8 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-10">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-[#C9956A]">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[#C9956A]">
                 {closingEyebrow || 'Closing Note'}
               </p>
-              <h2 className="mt-6 font-serif text-4xl font-medium lg:text-5xl">
+              <h2 className="mt-6 font-serif text-4xl font-medium leading-tight lg:text-5xl">
                 {closingTitle || edition.title}
               </h2>
+              <p className="mt-6 max-w-sm text-sm leading-relaxed text-white/55">
+                Closing pages can carry a final editorial note, a sponsor thank-you, or a polished call to action without breaking the magazine rhythm.
+              </p>
             </div>
-            <div className="text-sm uppercase tracking-[0.3em] text-white/45">Page {page.position}</div>
+            <div className="space-y-2 text-sm uppercase tracking-[0.24em] text-white/45">
+              <div>Page {String(page.position).padStart(2, '0')}</div>
+              <div>{publishLabel}</div>
+            </div>
           </div>
           <div className="flex flex-col justify-center">
-            <p className="max-w-2xl text-lg leading-relaxed text-white/78">
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-[0_26px_90px_rgba(0,0,0,0.24)] backdrop-blur-sm">
+              <p className="max-w-2xl text-lg leading-relaxed text-white/78">
               {closingBody || 'Add a closing editorial note, a sponsor message, or a final call to action for this edition.'}
-            </p>
-            {closingCtaLabel && closingCtaHref ? (
-              <div className="mt-8">
-                <a
-                  href={closingCtaHref}
-                  className="inline-flex items-center border border-white/15 bg-white/10 px-6 py-3 text-sm uppercase tracking-[0.22em] text-white transition hover:bg-white hover:text-[#16110f]"
-                >
-                  {closingCtaLabel}
-                </a>
+              </p>
+              <div className="mt-8 flex items-center gap-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-[#C9956A] to-transparent" />
+                <span className="text-[10px] uppercase tracking-[0.28em] text-white/40">End Matter</span>
               </div>
-            ) : null}
+              {closingCtaLabel && closingCtaHref ? (
+                <div className="mt-8">
+                  <a
+                    href={closingCtaHref}
+                    className="inline-flex items-center border border-white/15 bg-white/10 px-6 py-3 text-sm uppercase tracking-[0.22em] text-white transition hover:bg-white hover:text-[#16110f]"
+                  >
+                    {closingCtaLabel}
+                  </a>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>
@@ -56,25 +76,56 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
   }
 
   return (
-    <section className="bg-[#f6f1ea] text-[#16110f]">
-      <div className="mx-auto grid min-h-[80vh] max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[0.6fr_1.4fr] lg:px-12">
+    <section className="relative overflow-hidden bg-[#f6f1ea] text-[#16110f]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(163,65,58,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(201,149,106,0.10),transparent_28%)]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#A3413A] to-transparent" />
+
+      <div className="relative mx-auto grid min-h-[80vh] max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[0.54fr_1.46fr] lg:px-12 lg:py-12">
         <div className="flex flex-col justify-between border-b border-[#d8c8b5] pb-8 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[#A3413A]">Contents</p>
-            <h2 className="mt-6 font-serif text-4xl font-medium lg:text-5xl">{edition.title}</h2>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-[#A3413A]">Contents</p>
+            <h2 className="mt-6 font-serif text-4xl font-medium leading-tight lg:text-5xl">{edition.title}</h2>
+            <p className="mt-6 max-w-sm text-sm leading-relaxed text-[#6e5949]">
+              A curated route through the issue, balancing long-form reading with premium page rhythm.
+            </p>
           </div>
-          <div className="text-sm uppercase tracking-[0.3em] text-[#7f6a57]">Page {page.position}</div>
+
+          <div className="space-y-5">
+            {highlightTitle ? (
+              <div className="rounded-[1.5rem] border border-[#d8c8b5] bg-white/60 p-5 shadow-[0_18px_50px_rgba(0,0,0,0.06)]">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#A3413A]">Lead Highlight</p>
+                <p className="mt-3 font-serif text-2xl leading-tight text-[#16110f]">{highlightTitle}</p>
+              </div>
+            ) : null}
+            <div className="space-y-2 text-sm uppercase tracking-[0.24em] text-[#7f6a57]">
+              <div>{publishLabel}</div>
+              <div>Page {String(page.position).padStart(2, '0')}</div>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-5">
-          {entries.map((entry) => (
-            <div key={`${entry.pageLabel}-${entry.title}`} className="flex items-end justify-between gap-4 border-b border-[#d8c8b5] pb-3">
-              <div className="font-serif text-2xl">{entry.title}</div>
-              <div className="text-sm uppercase tracking-[0.25em] text-[#7f6a57]">{entry.pageLabel}</div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {entries.map((entry, index) => (
+            <div
+              key={`${entry.pageLabel}-${entry.title}`}
+              className="group relative overflow-hidden rounded-[1.5rem] border border-[#d8c8b5] bg-white/70 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.09)]"
+            >
+              <div className="absolute right-0 top-0 h-20 w-20 bg-[radial-gradient(circle_at_top_right,rgba(163,65,58,0.10),transparent_65%)]" />
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-[#A3413A]">Story {String(index + 1).padStart(2, '0')}</p>
+                  <div className="mt-4 font-serif text-2xl leading-tight text-[#16110f]">{entry.title}</div>
+                </div>
+                <div className="font-serif text-4xl leading-none text-[#A3413A]/70">{entry.pageLabel}</div>
+              </div>
+              <div className="mt-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-gradient-to-r from-[#A3413A] to-transparent transition-all duration-300 group-hover:from-[#7e2f2a]" />
+                <div className="text-[10px] uppercase tracking-[0.24em] text-[#7f6a57]">Open To {entry.pageLabel}</div>
+              </div>
             </div>
           ))}
           {entries.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#d8c8b5] p-8 text-[#7f6a57]">
+            <div className="rounded-[1.8rem] border border-dashed border-[#d8c8b5] bg-white/50 p-8 text-[#7f6a57]">
               Contents will auto-generate from approved placed stories.
             </div>
           ) : null}
