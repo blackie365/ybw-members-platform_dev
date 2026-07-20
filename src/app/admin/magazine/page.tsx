@@ -5,20 +5,47 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { getMagazineIssuesAction, deleteMagazineIssueAction } from "@/app/actions/adminActions";
+import {
+  buildPremiumReaderFromLatestIssueAction,
+  deleteMagazineIssueAction,
+  getLatestPremiumReaderStatusAction,
+  getMagazineIssuesAction,
+} from "@/app/actions/adminActions";
  import Link from"next/link";
 import { toast } from "sonner";
  import Image from"next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
+interface PremiumReaderStatus {
+  legacyIssueId: string;
+  legacyIssueTitle: string;
+  state: "legacy_only" | "v2_assembling" | "v2_ready" | "v2_live";
+  detail: string;
+  editionId?: string;
+  editionTitle?: string;
+  previewHref?: string | null;
+}
+
 export default function AdminMagazinePage() {
   const [issues, setIssues] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [premiumReaderStatus, setPremiumReaderStatus] = useState<PremiumReaderStatus | null>(null)
+  const [loadingPremiumReaderStatus, setLoadingPremiumReaderStatus] = useState(true)
+  const [buildingPremiumReader, setBuildingPremiumReader] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const deleteParam = searchParams.get("delete")
   const deleteHandledRef = useRef(false)
+
+  const loadPremiumReaderStatus = async () => {
+    setLoadingPremiumReaderStatus(true)
+    const result = await getLatestPremiumReaderStatusAction()
+    if (result.success) {
+      setPremiumReaderStatus(result.data ?? null)
+    }
+    setLoadingPremiumReaderStatus(false)
+  }
 
   const loadIssues = async () => {
     setLoading(true)
@@ -31,6 +58,7 @@ export default function AdminMagazinePage() {
 
   useEffect(() => {
     loadIssues()
+    loadPremiumReaderStatus()
   }, [])
 
   const handleDelete = async (id: string) => {
@@ -43,6 +71,37 @@ export default function AdminMagazinePage() {
         toast.error("Failed to delete issue")
       }
     }
+  }
+
+  const handleBuildPremiumReader = async () => {
+    setBuildingPremiumReader(true)
+    const result = await buildPremiumReaderFromLatestIssueAction()
+
+    if (result.success && result.data) {
+      toast.success(
+        result.data.unresolvedSlots > 0
+          ? `Premium reader refreshed with ${result.data.unresolvedSlots} slots still needing manual polish`
+          : "Premium reader refreshed successfully",
+      )
+      setPremiumReaderStatus({
+        legacyIssueId: result.data.legacyIssueId,
+        legacyIssueTitle: result.data.legacyIssueTitle,
+        state: "v2_assembling",
+        detail:
+          result.data.unresolvedSlots > 0
+            ? "The premium reader preview is built and ready to review, with a few slots still awaiting manual refinement."
+            : "The premium reader preview is built and ready to review.",
+        editionId: result.data.editionId,
+        editionTitle: result.data.editionTitle,
+        previewHref: result.data.previewHref,
+      })
+      await loadIssues()
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to build premium reader")
+    }
+
+    setBuildingPremiumReader(false)
   }
 
   useEffect(() => {
@@ -115,6 +174,51 @@ export default function AdminMagazinePage() {
                      Published: {new Date(liveIssue.publishDate).toLocaleDateString()}
                    </div>
                    <Badge variant="secondary" className="bg-white/50">{liveIssue.tags?.length || 0} Spreads Built</Badge>
+                </div>
+                <div className="rounded-xl border border-accent/20 bg-white/70 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">Premium Reader</p>
+                      <p className="mt-2 text-sm text-zinc-700">
+                        {loadingPremiumReaderStatus
+                          ? "Checking premium reader status..."
+                          : premiumReaderStatus?.detail || "Build the premium reader from the current live issue to review the new digital experience in V1."}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-white">
+                      {loadingPremiumReaderStatus
+                        ? "Loading"
+                        : premiumReaderStatus?.state === "legacy_only"
+                          ? "Not Built"
+                          : premiumReaderStatus?.state === "v2_assembling"
+                            ? "In Review"
+                            : premiumReaderStatus?.state === "v2_live"
+                              ? "Live"
+                              : "Preview Ready"}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <Button
+                      className="bg-accent text-white hover:bg-accent/90"
+                      disabled={buildingPremiumReader}
+                      onClick={() => void handleBuildPremiumReader()}
+                    >
+                      {buildingPremiumReader ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      {premiumReaderStatus?.previewHref ? "Refresh Premium Reader" : "Build Premium Reader"}
+                    </Button>
+                    {premiumReaderStatus?.previewHref ? (
+                      <Button variant="outline" asChild>
+                        <a href={premiumReaderStatus.previewHref} target="_blank">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Open Premium Reader
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 pt-2">
                   <Button className="bg-black text-white hover:bg-zinc-800" asChild>
