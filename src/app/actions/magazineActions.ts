@@ -11,14 +11,16 @@ import { autoFillSlots } from '@/features/magazine/domain/slot-fill';
 import {
   listFlatplanPages,
   listSlots,
+  upsertFlatplanPages,
   upsertEdition,
   upsertSlots,
   upsertStories,
+  writeMagazineAuditEvent,
 } from '@/features/magazine/server/edition-repository';
 import { applyEditionPreset } from '@/features/magazine/server/preset-service';
 import { getMagazinePreset } from '@/features/magazine/domain/presets';
 import { getMagazineV2LegacyMatchSummary } from '@/features/magazine/server/public-reader';
-import type { Edition, Slot, Story } from '@/features/magazine/domain/types';
+import type { Edition, FlatplanPage, MagazineAuditEvent, Slot, Story, StoryContentType } from '@/features/magazine/domain/types';
 
 export async function getGhostPostsAction(options?: any) {
   try {
@@ -403,20 +405,32 @@ function createLegacyStory(args: {
   body?: string;
   author?: string;
   tags: string[];
+  issueTags?: string[];
   heroImage?: string;
   pullQuotes?: string[];
+  contentType?: StoryContentType;
+  priority?: number;
+  includedInEditionCandidatePool?: boolean;
+  editorialConfidence?: number;
+  placementConfidence?: number;
 }): Story {
   const now = new Date().toISOString();
 
   return {
     id: `${args.issueId}-${args.storyId}`,
     source: 'legacy',
-    sourceRef: args.issueId,
+    sourceRef: `${args.issueId}:${args.storyId}`,
     title: args.title,
     standfirst: args.standfirst,
     body: args.body,
     author: args.author,
     tags: args.tags,
+    priority: args.priority,
+    contentType: args.contentType,
+    includedInEditionCandidatePool: args.includedInEditionCandidatePool ?? true,
+    editorialConfidence: args.editorialConfidence ?? 1,
+    placementConfidence: args.placementConfidence,
+    issueTags: args.issueTags,
     heroImage: args.heroImage
       ? {
           src: args.heroImage,
@@ -435,6 +449,7 @@ function isStoryLibraryEntryIncludedInPremiumReader(entry: LegacyStoryLibraryEnt
 }
 
 function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazinePage[]): Story[] {
+  const issueTags = Array.isArray(issue.tags) ? issue.tags.filter(Boolean) : [];
   const coverPage = pages.find((page) => page.type === 'cover');
   const editorialPage = pages.find((page) => page.type === 'editorial');
   const primaryFeaturePage = pages.find((page) => page.type === 'feature-left');
@@ -458,7 +473,11 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
       title: getText(coverContent.headline) || issue.title,
       standfirst: getText(coverContent.subheadline) || issue.description,
       tags: ['cover', 'lead', 'featured'],
+      issueTags,
       heroImage: getText(coverContent.image) || issue.coverImage,
+      contentType: 'lead',
+      priority: 90,
+      placementConfidence: 0.95,
     }),
   ];
 
@@ -472,8 +491,12 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         body: getText(editorialContent.text),
         author: getText(editorialContent.author),
         tags: ['editorial', 'cover', 'highlight'],
+        issueTags,
         heroImage: getText(editorialContent.image),
         pullQuotes: [getText(editorialContent.quote)],
+        contentType: 'editorial',
+        priority: 80,
+        placementConfidence: 0.9,
       }),
     );
   }
@@ -490,7 +513,11 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         title: primaryFeatureTitle || issue.title,
         standfirst: getText(primaryFeatureContent.intro),
         tags: ['feature', 'lead', 'interview'],
+        issueTags,
         heroImage: getText(primaryFeatureContent.image),
+        contentType: 'lead',
+        priority: 100,
+        placementConfidence: 0.95,
       }),
     );
   }
@@ -504,8 +531,12 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         standfirst: getText(secondaryFeatureContent.quote),
         body: getText(secondaryFeatureContent.text),
         tags: ['feature', 'secondary'],
+        issueTags,
         heroImage: getText(secondaryFeatureContent.image),
         pullQuotes: [getText(secondaryFeatureContent.quote)],
+        contentType: 'feature',
+        priority: 70,
+        placementConfidence: 0.8,
       }),
     );
   }
@@ -521,7 +552,11 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         body: [getText(columnContent.text), ...tips.map((tip) => `• ${tip}`)].filter(Boolean).join('\n\n'),
         author: getText(columnContent.author),
         tags: ['feature', 'supporting', 'expert'],
+        issueTags,
         heroImage: getText(columnContent.image),
+        contentType: 'column',
+        priority: 55,
+        placementConfidence: 0.75,
       }),
     );
   }
@@ -538,7 +573,11 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
           .filter(Boolean)
           .join('\n\n'),
         tags: ['feature', 'supporting', 'lifestyle'],
+        issueTags,
         heroImage: getText(lifestyleContent.image),
+        contentType: 'feature',
+        priority: 50,
+        placementConfidence: 0.7,
       }),
     );
   }
@@ -552,8 +591,12 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         standfirst: getText(spotlightContent.role),
         body: getText(spotlightContent.bio),
         tags: ['feature', 'supporting', 'profile'],
+        issueTags,
         heroImage: getText(spotlightContent.image),
         pullQuotes: [getText(spotlightContent.message)],
+        contentType: 'profile',
+        priority: 60,
+        placementConfidence: 0.78,
       }),
     );
   }
@@ -573,6 +616,12 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         body: text,
         author: getText(entry.author),
         tags: ['feature', 'supporting', 'imported'],
+        issueTags,
+        contentType: 'feature',
+        priority: 40,
+        includedInEditionCandidatePool: true,
+        editorialConfidence: 0.8,
+        placementConfidence: 0.65,
       }),
     );
   });
@@ -580,11 +629,39 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
   return stories;
 }
 
-function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: MagazinePage[], slots: Slot[]): Slot[] {
+function buildGeneratedContentsEntries(flatplanPages: FlatplanPage[], slots: Slot[], stories: Story[]) {
+  const storyMap = new Map(stories.map((story) => [story.id, story]));
+  const pageMap = new Map(flatplanPages.map((page) => [page.id, page]));
+  const seenStoryIds = new Set<string>();
+
+  return slots
+    .filter((slot) => slot.contentType === 'story' || slot.contentType === 'editorial_note')
+    .map((slot) => {
+      const storyId = slot.binding?.storyId;
+      const story = storyId ? storyMap.get(storyId) : null;
+      const page = pageMap.get(slot.flatplanPageId);
+      if (!story || !page || seenStoryIds.has(story.id)) return null;
+      seenStoryIds.add(story.id);
+      return {
+        title: story.title,
+        pageLabel: String(page.position),
+      };
+    })
+    .filter((entry): entry is { title: string; pageLabel: string } => Boolean(entry));
+}
+
+function applyLegacyPreviewOverrides(
+  issue: LegacyIssueWithLibrary,
+  pages: MagazinePage[],
+  flatplanPages: FlatplanPage[],
+  stories: Story[],
+  slots: Slot[],
+): Slot[] {
   const now = new Date().toISOString();
   const contentsContent = getLegacyPageContent(pages.find((page) => page.type === 'contents'));
   const partnerContent = getLegacyPageContent(pages.find((page) => page.type === 'partner'));
   const backCoverContent = getLegacyPageContent(pages.find((page) => page.type === 'back-cover'));
+  const generatedContentsEntries = buildGeneratedContentsEntries(flatplanPages, slots, stories);
 
   const contentsEntries = Array.isArray(contentsContent.items)
     ? contentsContent.items
@@ -595,7 +672,7 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
           return title && pageLabel ? { title, pageLabel } : null;
         })
         .filter((entry): entry is { title: string; pageLabel: string } => Boolean(entry))
-    : [];
+    : generatedContentsEntries;
 
   const quotePool = [
     getText(getLegacyPageContent(pages.find((page) => page.type === 'editorial')).quote),
@@ -619,10 +696,14 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
     if (slot.contentType === 'contents' && contentsEntries.length > 0) {
       return {
         ...slot,
+        bindingMode: 'manual',
         binding: {
           ...slot.binding,
           generatedContentId: `${issue.id}-contents`,
         },
+        manualOverride: true,
+        automationConfidence: 100,
+        reviewReason: undefined,
         overrideData: {
           entries: contentsEntries,
         },
@@ -635,6 +716,10 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
       quoteIndex += 1;
       return {
         ...slot,
+        bindingMode: 'manual',
+        manualOverride: true,
+        automationConfidence: 100,
+        reviewReason: undefined,
         overrideData: {
           quote,
           attribution: issue.title,
@@ -648,6 +733,10 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
       galleryIndex += 1;
       return {
         ...slot,
+        bindingMode: 'manual',
+        manualOverride: true,
+        automationConfidence: 100,
+        reviewReason: undefined,
         overrideData: {
           items: [
             {
@@ -663,10 +752,14 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
     if (slot.contentType === 'ad' && (getText(partnerContent.headline) || getText(partnerContent.offer))) {
       return {
         ...slot,
+        bindingMode: 'manual',
         binding: {
           ...slot.binding,
           adPlacementId: `${issue.id}-legacy-partner`,
         },
+        manualOverride: true,
+        automationConfidence: 100,
+        reviewReason: undefined,
         overrideData: {
           advertiserName: getText(partnerContent.brand) || 'Partner Feature',
           headline: getText(partnerContent.headline) || issue.title,
@@ -682,6 +775,10 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
     if (slot.contentType === 'static_copy' && (getText(backCoverContent.title) || getText(backCoverContent.cta))) {
       return {
         ...slot,
+        bindingMode: 'manual',
+        manualOverride: true,
+        automationConfidence: 100,
+        reviewReason: undefined,
         overrideData: {
           eyebrow: 'Closing Note',
           title: getText(backCoverContent.title) || issue.title,
@@ -697,6 +794,107 @@ function applyLegacyPreviewOverrides(issue: LegacyIssueWithLibrary, pages: Magaz
 
     return slot;
   });
+}
+
+function slotHasRenderableContent(slot: Slot): boolean {
+  if (slot.binding?.storyId || slot.binding?.generatedContentId || slot.binding?.sponsorId || slot.binding?.adPlacementId) {
+    return true;
+  }
+
+  if (Array.isArray(slot.binding?.assetIds) && slot.binding.assetIds.length > 0) {
+    return true;
+  }
+
+  return Boolean(slot.overrideData && Object.keys(slot.overrideData).length > 0);
+}
+
+function summarizeSlotReviewState(slots: Slot[]) {
+  const unresolvedSlotIds = slots
+    .filter((slot) => slot.isRequired && !slotHasRenderableContent(slot))
+    .map((slot) => slot.id);
+
+  const warnings = Array.from(
+    new Set(
+      slots
+        .map((slot) => slot.reviewReason)
+        .filter((reason): reason is string => Boolean(reason)),
+    ),
+  );
+
+  return {
+    unresolvedSlotIds,
+    warnings,
+  };
+}
+
+function deriveFlatplanPages(pages: FlatplanPage[], slots: Slot[]): FlatplanPage[] {
+  const slotMap = new Map<string, Slot[]>();
+  slots.forEach((slot) => {
+    const existing = slotMap.get(slot.flatplanPageId) ?? [];
+    existing.push(slot);
+    slotMap.set(slot.flatplanPageId, existing);
+  });
+
+  const now = new Date().toISOString();
+
+  return pages.map((page) => {
+    const pageSlots = slotMap.get(page.id) ?? [];
+    const hasReviewIssue = pageSlots.some((slot) => Boolean(slot.reviewReason));
+    const requiredSlots = pageSlots.filter((slot) => slot.isRequired);
+    const allRequiredFilled = requiredSlots.every((slot) => slotHasRenderableContent(slot));
+    const anyFilled = pageSlots.some((slot) => slotHasRenderableContent(slot));
+
+    let status: FlatplanPage['status'] = 'empty';
+    if (hasReviewIssue || (requiredSlots.length > 0 && !allRequiredFilled)) {
+      status = 'needs_review';
+    } else if (allRequiredFilled) {
+      status = 'filled';
+    } else if (anyFilled) {
+      status = 'filled';
+    }
+
+    return {
+      ...page,
+      status,
+      updatedAt: now,
+    };
+  });
+}
+
+function derivePlacedStories(stories: Story[], slots: Slot[]): Story[] {
+  const now = new Date().toISOString();
+  const slotMap = new Map(
+    slots
+      .filter((slot) => Boolean(slot.binding?.storyId))
+      .map((slot) => [slot.binding?.storyId as string, slot]),
+  );
+
+  return stories.map((story) => {
+    const matchingSlot = slotMap.get(story.id);
+    return {
+      ...story,
+      status: matchingSlot ? 'placed' : story.status,
+      placementConfidence: matchingSlot?.automationConfidence
+        ? Math.max(0, Math.min(1, matchingSlot.automationConfidence / 100))
+        : story.placementConfidence,
+      updatedAt: now,
+    };
+  });
+}
+
+function buildAuditEvent(
+  editionId: string,
+  type: MagazineAuditEvent['type'],
+  details?: Record<string, unknown>,
+): MagazineAuditEvent {
+  return {
+    id: `${type}-${editionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    editionId,
+    type,
+    actorType: 'system',
+    details,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function buildLegacyEditionShell(issue: LegacyIssueWithLibrary): Edition {
@@ -761,7 +959,7 @@ async function buildPremiumReaderFromLatestLocalIssue() {
       ...presetResult.edition,
       status: 'assembling',
       readerMode: 'issuu_fallback',
-      isLive: false,
+      isLive: edition.isLive,
       updatedAt: new Date().toISOString(),
     };
     await upsertEdition(edition);
@@ -777,18 +975,64 @@ async function buildPremiumReaderFromLatestLocalIssue() {
     slots,
     stories,
   });
-  const enrichedSlots = applyLegacyPreviewOverrides(latestIssue, legacyPages, autoFilled.slots);
-  await upsertSlots(edition.id, enrichedSlots);
+  const enrichedSlots = applyLegacyPreviewOverrides(latestIssue, legacyPages, pages, stories, autoFilled.slots);
+  const nextPages = deriveFlatplanPages(pages, enrichedSlots);
+  const nextStories = derivePlacedStories(stories, enrichedSlots);
+  const finalReviewState = summarizeSlotReviewState(enrichedSlots);
+  await Promise.all([
+    upsertStories(nextStories),
+    upsertFlatplanPages(edition.id, nextPages),
+    upsertSlots(edition.id, enrichedSlots),
+  ]);
+
+  const unresolvedSlotCount = finalReviewState.unresolvedSlotIds.length;
+  const buildWarnings = finalReviewState.warnings.length;
+  const nextStatus: Edition['status'] = edition.isLive
+    ? 'live'
+    : unresolvedSlotCount > 0 || buildWarnings > 0
+      ? 'review_changes_requested'
+      : 'ready_for_review';
 
   const finalEdition: Edition = {
     ...edition,
     publishDate: resolveLegacyIssuePublishDate(latestIssue),
-    status: 'assembling',
+    status: nextStatus,
     readerMode: 'issuu_fallback',
-    isLive: false,
+    isLive: edition.isLive,
     updatedAt: new Date().toISOString(),
   };
   await upsertEdition(finalEdition);
+  await Promise.all([
+    writeMagazineAuditEvent(
+      buildAuditEvent(finalEdition.id, 'slot_auto_filled', {
+        filledSlots: autoFilled.result.filledSlots,
+        autoFilledUnresolvedSlotIds: autoFilled.result.unresolvedSlots,
+        autoFillWarnings: autoFilled.result.warnings,
+        finalUnresolvedSlotIds: finalReviewState.unresolvedSlotIds,
+        finalWarnings: finalReviewState.warnings,
+      }),
+    ),
+    writeMagazineAuditEvent(
+      buildAuditEvent(finalEdition.id, 'contents_generated', {
+        generatedEntries: enrichedSlots.find((slot) => slot.contentType === 'contents')?.overrideData?.entries ?? [],
+      }),
+    ),
+    writeMagazineAuditEvent(
+      buildAuditEvent(finalEdition.id, 'manual_override_saved', {
+        overriddenSlotIds: enrichedSlots.filter((slot) => slot.manualOverride).map((slot) => slot.id),
+      }),
+    ),
+    ...(nextStatus === 'review_changes_requested'
+      ? [
+          writeMagazineAuditEvent(
+            buildAuditEvent(finalEdition.id, 'review_requested', {
+              unresolvedSlotIds: finalReviewState.unresolvedSlotIds,
+              warnings: finalReviewState.warnings,
+            }),
+          ),
+        ]
+      : []),
+  ]);
 
   revalidatePath('/admin/magazine');
   revalidatePath('/new-edition');
@@ -801,10 +1045,10 @@ async function buildPremiumReaderFromLatestLocalIssue() {
     editionId: finalEdition.id,
     editionTitle: finalEdition.title,
     previewHref: `/magazine/v2/${finalEdition.slug}`,
-    importedStories: stories.length,
-    pageCount: pages.length,
+    importedStories: nextStories.length,
+    pageCount: nextPages.length,
     slotCount: enrichedSlots.length,
-    unresolvedSlots: autoFilled.result.unresolvedSlots.length,
+    unresolvedSlots: unresolvedSlotCount,
   };
 }
 

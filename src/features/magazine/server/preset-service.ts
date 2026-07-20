@@ -48,6 +48,8 @@ export function buildFlatplanFromPreset(
         key: slotDefinition.key,
         contentType: slotDefinition.contentType,
         isRequired: slotDefinition.isRequired,
+        bindingMode: 'auto',
+        automationConfidence: 0,
         placementRules: slotDefinition.placementRules,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -67,8 +69,10 @@ export async function applyEditionPreset(edition: Edition, presetId: string): Pr
   pages: FlatplanPage[];
   slots: Slot[];
 }> {
-  if (edition.status !== 'draft' && edition.status !== 'assembling') {
-    throw new Error(`Preset application is only allowed for draft or assembling editions. Received: ${edition.status}`);
+  if (!['draft', 'assembling', 'review_changes_requested', 'ready_for_review'].includes(edition.status)) {
+    throw new Error(
+      `Preset application is only allowed for draft, assembling, review, or ready editions. Received: ${edition.status}`,
+    );
   }
 
   const { pages, slots, themeVariant } = buildFlatplanFromPreset(edition.id, presetId);

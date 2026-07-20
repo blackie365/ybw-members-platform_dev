@@ -298,7 +298,7 @@ export async function listCandidateStories(limitCount = 50): Promise<Story[]> {
   const db = requireAdminDb();
   const snapshot = await db
     .collection(STORY_LIBRARY_COLLECTION)
-    .where('status', 'in', ['candidate', 'approved'])
+    .where('status', 'in', ['candidate', 'approved', 'placed'])
     .limit(limitCount)
     .get();
 
