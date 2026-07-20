@@ -808,6 +808,25 @@ function slotHasRenderableContent(slot: Slot): boolean {
   return Boolean(slot.overrideData && Object.keys(slot.overrideData).length > 0);
 }
 
+function summarizeSlotReviewState(slots: Slot[]) {
+  const unresolvedSlotIds = slots
+    .filter((slot) => slot.isRequired && !slotHasRenderableContent(slot))
+    .map((slot) => slot.id);
+
+  const warnings = Array.from(
+    new Set(
+      slots
+        .map((slot) => slot.reviewReason)
+        .filter((reason): reason is string => Boolean(reason)),
+    ),
+  );
+
+  return {
+    unresolvedSlotIds,
+    warnings,
+  };
+}
+
 function deriveFlatplanPages(pages: FlatplanPage[], slots: Slot[]): FlatplanPage[] {
   const slotMap = new Map<string, Slot[]>();
   slots.forEach((slot) => {
@@ -959,14 +978,15 @@ async function buildPremiumReaderFromLatestLocalIssue() {
   const enrichedSlots = applyLegacyPreviewOverrides(latestIssue, legacyPages, pages, stories, autoFilled.slots);
   const nextPages = deriveFlatplanPages(pages, enrichedSlots);
   const nextStories = derivePlacedStories(stories, enrichedSlots);
+  const finalReviewState = summarizeSlotReviewState(enrichedSlots);
   await Promise.all([
     upsertStories(nextStories),
     upsertFlatplanPages(edition.id, nextPages),
     upsertSlots(edition.id, enrichedSlots),
   ]);
 
-  const unresolvedSlotCount = autoFilled.result.unresolvedSlots.length;
-  const buildWarnings = autoFilled.result.warnings.length;
+  const unresolvedSlotCount = finalReviewState.unresolvedSlotIds.length;
+  const buildWarnings = finalReviewState.warnings.length;
   const nextStatus: Edition['status'] = edition.isLive
     ? 'live'
     : unresolvedSlotCount > 0 || buildWarnings > 0
@@ -986,8 +1006,10 @@ async function buildPremiumReaderFromLatestLocalIssue() {
     writeMagazineAuditEvent(
       buildAuditEvent(finalEdition.id, 'slot_auto_filled', {
         filledSlots: autoFilled.result.filledSlots,
-        unresolvedSlotIds: autoFilled.result.unresolvedSlots,
-        warnings: autoFilled.result.warnings,
+        autoFilledUnresolvedSlotIds: autoFilled.result.unresolvedSlots,
+        autoFillWarnings: autoFilled.result.warnings,
+        finalUnresolvedSlotIds: finalReviewState.unresolvedSlotIds,
+        finalWarnings: finalReviewState.warnings,
       }),
     ),
     writeMagazineAuditEvent(
@@ -1004,8 +1026,8 @@ async function buildPremiumReaderFromLatestLocalIssue() {
       ? [
           writeMagazineAuditEvent(
             buildAuditEvent(finalEdition.id, 'review_requested', {
-              unresolvedSlotCount,
-              buildWarnings,
+              unresolvedSlotIds: finalReviewState.unresolvedSlotIds,
+              warnings: finalReviewState.warnings,
             }),
           ),
         ]
