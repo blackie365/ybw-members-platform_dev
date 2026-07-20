@@ -72,13 +72,13 @@ export default async function NewEditionPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="flex flex-col items-start text-left">
               <Badge className="bg-accent text-white border-none mb-6 px-4 py-1.5 uppercase tracking-widest text-[10px] animate-pulse">
-                Start Here
+                Signature Magazine Experience
               </Badge>
               <h1 className="font-serif text-5xl sm:text-7xl font-medium tracking-tight mb-8 leading-tight">
                 Open The <span className="italic text-accent">Magazine</span> <br />In Its Classic Form
               </h1>
               <p className="text-xl text-zinc-400 leading-relaxed font-light mb-12 max-w-xl">
-                Start with the page-turning flipping book so readers land in the familiar magazine experience straight away. The enhanced digital reader remains available as a secondary option.
+                Discover the latest edition in a format that stays closest to the printed magazine, with elegant page turns and a more familiar editorial presentation. For readers who prefer a more immersive web experience, the enhanced digital reader remains available alongside it.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -123,7 +123,7 @@ export default async function NewEditionPage() {
                   </div>
                   <div className="absolute left-5 top-5">
                     <Badge className="bg-white text-[#050505] border-none px-3 py-1 uppercase tracking-[0.18em] text-[10px]">
-                      Default Magazine View
+                      Featured Edition Format
                     </Badge>
                   </div>
                 </div>
@@ -140,13 +140,13 @@ export default async function NewEditionPage() {
             <div className="mb-10 flex flex-col gap-6 text-center">
               <div className="mx-auto flex max-w-3xl flex-col items-center">
                 <Badge className="mb-5 bg-accent text-white border-none uppercase tracking-[0.22em] text-[10px] px-3 py-1.5">
-                  Recommended Reading Mode
+                  Editorial Presentation
                 </Badge>
                 <h2 className="font-serif text-3xl sm:text-4xl font-medium mb-4">
                   Classic Flipping Book
                 </h2>
                 <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-                  This is the closest match to the printed magazine experience, so it now appears before the editorial and archive sections. The enhanced digital reader remains available below as an alternative route.
+                  Designed to mirror the feel of the printed edition, this presentation offers a familiar, polished way to browse the magazine while still keeping the enhanced digital reader available for those who prefer a richer on-screen format.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -184,7 +184,7 @@ export default async function NewEditionPage() {
         <div className="mx-auto max-w-5xl px-6 lg:px-8">
           <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-white/[0.03] p-8 md:flex-row md:items-center md:justify-between">
             <div className="max-w-2xl">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-accent mb-3">Alternative View</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-accent mb-3">Digital Experience</p>
               <h2 className="font-serif text-2xl sm:text-3xl font-medium">
                 Prefer The Enhanced Digital Reader?
               </h2>
