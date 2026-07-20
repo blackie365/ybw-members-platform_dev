@@ -328,9 +328,17 @@ type LegacyIssueWithLibrary = MagazineIssue & {
     id?: string;
     title?: string;
     author?: string;
+    standfirst?: string;
     text?: string;
     includedInPremiumReader?: boolean;
+    premiumReaderPriority?: number;
+    premiumReaderContentType?: StoryContentType;
     imageFileNames?: string[];
+    source?: {
+      type?: 'idml' | 'icml' | 'xml' | 'manual';
+      fileName?: string;
+      path?: string;
+    };
     createdAt?: string;
   }>;
 };
@@ -348,6 +356,78 @@ function getText(value: unknown): string {
 function getStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((entry) => getText(entry)).filter(Boolean);
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function getStoryContentType(value: unknown): StoryContentType | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  switch (value) {
+    case 'lead':
+    case 'feature':
+    case 'profile':
+    case 'column':
+    case 'editorial':
+    case 'partner':
+    case 'utility':
+      return value;
+    default:
+      return undefined;
+  }
+}
+
+function clampPriority(value: unknown, fallback = 40): number {
+  const parsed = getNumber(value);
+  if (typeof parsed !== 'number') return fallback;
+  return Math.max(1, Math.min(100, Math.round(parsed)));
+}
+
+function deriveStandfirstFromText(value: string, maxLength = 180): string {
+  const normalized = value
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (!normalized) return '';
+
+  const sentence = normalized
+    .split(/\n{2,}/)[0]
+    ?.split(/(?<=[.!?])\s+/)[0]
+    ?.trim();
+
+  if (!sentence) return '';
+  if (sentence.length <= maxLength) return sentence;
+  return `${sentence.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getDefaultPriorityForContentType(contentType: StoryContentType): number {
+  switch (contentType) {
+    case 'lead':
+      return 85;
+    case 'editorial':
+      return 75;
+    case 'profile':
+      return 65;
+    case 'column':
+      return 58;
+    case 'partner':
+      return 52;
+    case 'utility':
+      return 35;
+    case 'feature':
+    default:
+      return 48;
+  }
 }
 
 const MONTH_LOOKUP = new Map<string, number>([
@@ -608,20 +688,25 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
     const title = getText(entry.title);
     if (!text && !title) return;
 
+    const contentType = getStoryContentType(entry.premiumReaderContentType) ?? 'feature';
+    const priority = clampPriority(entry.premiumReaderPriority, getDefaultPriorityForContentType(contentType));
+    const standfirst = getText(entry.standfirst) || deriveStandfirstFromText(text);
+
     stories.push(
       createLegacyStory({
         issueId: issue.id,
         storyId: `library-${entry.id || index + 1}`,
         title: title || `Imported Story ${index + 1}`,
+        standfirst,
         body: text,
         author: getText(entry.author),
-        tags: ['feature', 'supporting', 'imported'],
+        tags: Array.from(new Set([contentType, 'supporting', 'imported'])),
         issueTags,
-        contentType: 'feature',
-        priority: 40,
+        contentType,
+        priority,
         includedInEditionCandidatePool: true,
         editorialConfidence: 0.8,
-        placementConfidence: 0.65,
+        placementConfidence: Math.min(0.95, 0.55 + priority / 200),
       }),
     );
   });
@@ -1125,6 +1210,8 @@ export async function getLatestPremiumReaderCurationSummaryAction() {
         presetLabel: preset.label,
         flatplanPageCount: preset.pages.length,
         mappedStoryCount: mappedStories.length,
+        selectedStoryCount: (latestIssue.storyLibrary ?? []).filter((entry) => isStoryLibraryEntryIncludedInPremiumReader(entry)).length,
+        availableStoryCount: (latestIssue.storyLibrary ?? []).length,
         availablePageTypes,
         flatplan: preset.pages.map((page) => ({
           position: page.position,
@@ -1146,6 +1233,84 @@ export async function buildPremiumReaderFromLatestIssueAction() {
     return { success: true, data };
   } catch (error: any) {
     console.error('Error in buildPremiumReaderFromLatestIssueAction:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function saveLatestPremiumReaderStorySelectionAction(storyLibrary: LegacyIssueWithLibrary['storyLibrary']) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+
+    const latestIssue = (await getLatestIssueServer()) as LegacyIssueWithLibrary | null;
+    if (!latestIssue) {
+      throw new Error('No live issue is available.');
+    }
+
+    const sanitizedStoryLibrary = Array.isArray(storyLibrary)
+      ? storyLibrary
+          .map((entry, index) => {
+            const title = getText(entry?.title);
+            const text = getText(entry?.text);
+            if (!title && !text) return null;
+
+            const contentType = getStoryContentType(entry?.premiumReaderContentType) ?? 'feature';
+
+            return {
+              id: getText(entry?.id) || `${latestIssue.id}-library-${index + 1}`,
+              title: title || `Imported Story ${index + 1}`,
+              author: getText(entry?.author) || undefined,
+              standfirst: getText(entry?.standfirst) || deriveStandfirstFromText(text) || undefined,
+              text,
+              includedInPremiumReader: entry?.includedInPremiumReader !== false,
+              premiumReaderPriority: clampPriority(
+                entry?.premiumReaderPriority,
+                getDefaultPriorityForContentType(contentType),
+              ),
+              premiumReaderContentType: contentType,
+              imageFileNames: Array.isArray(entry?.imageFileNames)
+                ? entry?.imageFileNames.map((value) => getText(value)).filter(Boolean)
+                : undefined,
+              source:
+                entry?.source && typeof entry.source === 'object'
+                  ? {
+                      type:
+                        entry.source.type === 'idml' ||
+                        entry.source.type === 'icml' ||
+                        entry.source.type === 'xml' ||
+                        entry.source.type === 'manual'
+                          ? entry.source.type
+                          : 'manual',
+                      fileName: getText(entry.source.fileName) || undefined,
+                      path: getText(entry.source.path) || undefined,
+                    }
+                  : undefined,
+              createdAt: getText(entry?.createdAt) || new Date().toISOString(),
+            };
+          })
+          .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+          .slice(0, 100)
+      : [];
+
+    await adminDb.collection('magazine_issues').doc(latestIssue.id).update({
+      storyLibrary: sanitizedStoryLibrary,
+      updatedAt: new Date().toISOString(),
+    });
+
+    revalidatePath('/admin/magazine');
+    revalidatePath(`/admin/magazine/builder/${latestIssue.id}`);
+    revalidatePath('/new-edition');
+
+    return {
+      success: true,
+      data: {
+        issueId: latestIssue.id,
+        selectedStoryCount: sanitizedStoryLibrary.filter((entry) => entry.includedInPremiumReader !== false).length,
+        availableStoryCount: sanitizedStoryLibrary.length,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error in saveLatestPremiumReaderStorySelectionAction:', error);
     return { success: false, error: error.message };
   }
 }

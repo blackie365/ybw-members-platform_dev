@@ -5,17 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   buildPremiumReaderFromLatestIssueAction,
   deleteMagazineIssueAction,
   getLatestPremiumReaderCurationSummaryAction,
   getLatestPremiumReaderStatusAction,
   getMagazineIssuesAction,
+  saveLatestPremiumReaderStorySelectionAction,
 } from "@/app/actions/adminActions";
  import Link from"next/link";
 import { toast } from "sonner";
  import Image from"next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { StoryLibraryItem } from "@/components/admin/magazine-builder/types";
+import type { StoryContentType } from "@/features/magazine/domain/types";
 
 interface PremiumReaderStatus {
   legacyIssueId: string;
@@ -35,12 +46,60 @@ interface PremiumReaderCurationSummary {
   presetLabel: string;
   flatplanPageCount: number;
   mappedStoryCount: number;
+  selectedStoryCount: number;
+  availableStoryCount: number;
   availablePageTypes: string[];
   flatplan: Array<{
     position: number;
     intent: string;
     template: string;
   }>;
+}
+
+const PREMIUM_READER_TYPE_OPTIONS: Array<{ value: StoryContentType; label: string }> = [
+  { value: "lead", label: "Lead" },
+  { value: "feature", label: "Feature" },
+  { value: "profile", label: "Profile" },
+  { value: "column", label: "Column" },
+  { value: "partner", label: "Partner" },
+  { value: "editorial", label: "Editorial" },
+  { value: "utility", label: "Utility" },
+];
+
+const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
+
+function normalizeStoryLibraryItem(item: StoryLibraryItem): StoryLibraryItem {
+  const text = String(item.text || "").trim();
+  const standfirst = String(item.standfirst || "").trim();
+  const priority = Number.isFinite(Number(item.premiumReaderPriority))
+    ? Math.max(1, Math.min(100, Math.round(Number(item.premiumReaderPriority))))
+    : 40;
+
+  return {
+    ...item,
+    title: String(item.title || "").trim() || "Untitled Story",
+    author: String(item.author || "").trim() || undefined,
+    standfirst: standfirst || undefined,
+    text,
+    includedInPremiumReader: isIncludedInPremiumReader(item),
+    premiumReaderPriority: priority,
+    premiumReaderContentType: item.premiumReaderContentType || "feature",
+  };
+}
+
+function serializeStoryLibrary(items: StoryLibraryItem[]) {
+  return JSON.stringify(
+    items.map((item) => ({
+      id: item.id,
+      includedInPremiumReader: isIncludedInPremiumReader(item),
+      premiumReaderPriority: item.premiumReaderPriority ?? 40,
+      premiumReaderContentType: item.premiumReaderContentType || "feature",
+      title: item.title,
+      author: item.author || "",
+      standfirst: item.standfirst || "",
+      text: item.text,
+    })),
+  );
 }
 
 export default function AdminMagazinePage() {
@@ -52,6 +111,9 @@ export default function AdminMagazinePage() {
   const [loadingPremiumReaderStatus, setLoadingPremiumReaderStatus] = useState(true)
   const [loadingPremiumReaderCurationSummary, setLoadingPremiumReaderCurationSummary] = useState(true)
   const [buildingPremiumReader, setBuildingPremiumReader] = useState(false)
+  const [storySelectionDraft, setStorySelectionDraft] = useState<StoryLibraryItem[]>([])
+  const [storySelectionQuery, setStorySelectionQuery] = useState("")
+  const [savingStorySelection, setSavingStorySelection] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const deleteParam = searchParams.get("delete")
@@ -159,6 +221,63 @@ export default function AdminMagazinePage() {
 
   const liveIssue = issues.find(i => i.isLatest);
   const archiveIssues = issues.filter(i => !i.isLatest && i.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  const liveIssueStoryLibrary = Array.isArray(liveIssue?.storyLibrary)
+    ? (liveIssue.storyLibrary as StoryLibraryItem[]).map(normalizeStoryLibraryItem)
+    : [];
+  const normalizedStorySelectionDraft = storySelectionDraft.map(normalizeStoryLibraryItem);
+  const includedStoryCount = normalizedStorySelectionDraft.filter(isIncludedInPremiumReader).length;
+  const filteredStorySelectionDraft = normalizedStorySelectionDraft
+    .filter((story) => {
+      const query = storySelectionQuery.trim().toLowerCase();
+      if (!query) return true;
+      return [story.title, story.author, story.source?.fileName, story.premiumReaderContentType]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    })
+    .sort((left, right) => {
+      const includedDelta = Number(isIncludedInPremiumReader(right)) - Number(isIncludedInPremiumReader(left));
+      if (includedDelta !== 0) return includedDelta;
+      const priorityDelta = (right.premiumReaderPriority ?? 40) - (left.premiumReaderPriority ?? 40);
+      if (priorityDelta !== 0) return priorityDelta;
+      return String(left.title).localeCompare(String(right.title));
+    });
+  const hasPendingStorySelectionChanges =
+    serializeStoryLibrary(liveIssueStoryLibrary) !== serializeStoryLibrary(normalizedStorySelectionDraft);
+
+  useEffect(() => {
+    setStorySelectionDraft(liveIssueStoryLibrary);
+  }, [liveIssue?.id, serializeStoryLibrary(liveIssueStoryLibrary)])
+
+  const updateStorySelectionItem = (storyId: string, patch: Partial<StoryLibraryItem>) => {
+    setStorySelectionDraft((current) =>
+      current.map((item) =>
+        item.id === storyId
+          ? normalizeStoryLibraryItem({
+              ...item,
+              ...patch,
+            })
+          : normalizeStoryLibraryItem(item),
+      ),
+    )
+  }
+
+  const handleSaveStorySelection = async () => {
+    if (!liveIssue) return
+
+    setSavingStorySelection(true)
+    const result = await saveLatestPremiumReaderStorySelectionAction(normalizedStorySelectionDraft)
+
+    if (result.success && result.data) {
+      toast.success(`Saved article selection for premium reader: ${result.data.selectedStoryCount} selected`)
+      await loadIssues()
+      await loadPremiumReaderCurationSummary()
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to save premium reader article selection")
+    }
+
+    setSavingStorySelection(false)
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-12">
@@ -248,6 +367,12 @@ export default function AdminMagazinePage() {
                         </a>
                       </Button>
                     ) : null}
+                    <Button variant="outline" asChild>
+                      <Link href={`/admin/magazine/builder/${liveIssue.id}#story-library`}>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Open Story Library
+                      </Link>
+                    </Button>
                   </div>
                   <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flatplan Source</p>
@@ -263,6 +388,7 @@ export default function AdminMagazinePage() {
                           <p>Preset: {premiumReaderCurationSummary.presetLabel}</p>
                           <p>Flatplan pages: {premiumReaderCurationSummary.flatplanPageCount}</p>
                           <p>Mapped stories: {premiumReaderCurationSummary.mappedStoryCount}</p>
+                          <p>Selected articles: {premiumReaderCurationSummary.selectedStoryCount} / {premiumReaderCurationSummary.availableStoryCount}</p>
                         </div>
                         <p className="font-mono">
                           Page types: {premiumReaderCurationSummary.availablePageTypes.length > 0 ? premiumReaderCurationSummary.availablePageTypes.join(", ") : "none found"}
@@ -277,6 +403,129 @@ export default function AdminMagazinePage() {
                       </div>
                     ) : (
                       <p className="mt-3 text-xs text-zinc-500">No curation summary is available for the current live issue.</p>
+                    )}
+                  </div>
+                  <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Selected Articles</p>
+                        <p className="mt-2 max-w-2xl text-sm text-zinc-700">
+                          Choose exactly which saved stories feed the premium reader, and set their editorial importance before you build.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary" className="bg-zinc-100 text-zinc-700">
+                          {includedStoryCount} selected
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          disabled={!hasPendingStorySelectionChanges || savingStorySelection}
+                          onClick={() => void handleSaveStorySelection()}
+                        >
+                          {savingStorySelection ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Save Article Selection
+                        </Button>
+                      </div>
+                    </div>
+
+                    {liveIssueStoryLibrary.length > 0 ? (
+                      <>
+                        <div className="mt-4 max-w-sm">
+                          <Label className="text-[10px] uppercase tracking-widest text-zinc-500">Search saved stories</Label>
+                          <Input
+                            className="mt-2"
+                            value={storySelectionQuery}
+                            onChange={(event) => setStorySelectionQuery(event.target.value)}
+                            placeholder="Search by title, author, file, or type..."
+                          />
+                        </div>
+                        <div className="mt-4 space-y-3">
+                          {filteredStorySelectionDraft.map((story) => (
+                            <div key={story.id} className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+                              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="truncate font-semibold text-zinc-900">{story.title}</p>
+                                    <Badge variant="secondary" className={isIncludedInPremiumReader(story) ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-600"}>
+                                      {isIncludedInPremiumReader(story) ? "Included" : "Excluded"}
+                                    </Badge>
+                                    <Badge variant="secondary" className="bg-white text-zinc-700">
+                                      {story.premiumReaderContentType || "feature"}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-1 text-xs text-zinc-500">
+                                    {[story.author, story.source?.fileName].filter(Boolean).join(" · ") || "Saved story"}
+                                  </p>
+                                  {story.standfirst ? (
+                                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-700">{story.standfirst}</p>
+                                  ) : null}
+                                </div>
+
+                                <div className="grid gap-3 md:grid-cols-[auto_120px_160px] xl:min-w-[440px]">
+                                  <Button
+                                    variant={isIncludedInPremiumReader(story) ? "default" : "outline"}
+                                    className={isIncludedInPremiumReader(story) ? "bg-accent text-white hover:bg-accent/90" : ""}
+                                    onClick={() =>
+                                      updateStorySelectionItem(story.id, {
+                                        includedInPremiumReader: !isIncludedInPremiumReader(story),
+                                      })
+                                    }
+                                  >
+                                    {isIncludedInPremiumReader(story) ? "Use Article" : "Ignore Article"}
+                                  </Button>
+
+                                  <div>
+                                    <Label className="text-[10px] uppercase tracking-widest text-zinc-500">Priority</Label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      value={story.premiumReaderPriority ?? 40}
+                                      onChange={(event) =>
+                                        updateStorySelectionItem(story.id, {
+                                          premiumReaderPriority: Number(event.target.value || 40),
+                                        })
+                                      }
+                                      className="mt-2"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <Label className="text-[10px] uppercase tracking-widest text-zinc-500">Story Type</Label>
+                                    <Select
+                                      value={story.premiumReaderContentType || "feature"}
+                                      onValueChange={(value) =>
+                                        updateStorySelectionItem(story.id, {
+                                          premiumReaderContentType: value as StoryContentType,
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger className="mt-2 bg-white">
+                                        <SelectValue placeholder="Select story type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {PREMIUM_READER_TYPE_OPTIONS.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-4 rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-4">
+                        <p className="text-sm text-zinc-600">
+                          No saved stories are available yet. Add stories in the story library first, then choose which ones the premium reader should use.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
