@@ -5,7 +5,9 @@ import IssuuReader from '@/components/magazine/IssuuReader';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { siteContent } from '@/lib/site-content';
+import { getPrimaryMagazineV2HrefForLegacyIssue } from '@/features/magazine/server/public-reader';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -37,6 +39,13 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
       : null;
 
   const resolvedIssue: any = issue ?? fallbackIssue;
+
+  if (resolvedIssue) {
+    const premiumReaderHref = await getPrimaryMagazineV2HrefForLegacyIssue(resolvedIssue);
+    if (premiumReaderHref) {
+      redirect(premiumReaderHref);
+    }
+  }
 
   if (!resolvedIssue) {
     return (
