@@ -2,6 +2,8 @@ export type EditionStatus =
   | 'draft'
   | 'assembling'
   | 'ready_for_review'
+  | 'review_changes_requested'
+  | 'approved'
   | 'scheduled'
   | 'live'
   | 'archived';
@@ -17,6 +19,19 @@ export type SlotContentType =
   | 'quote'
   | 'gallery'
   | 'static_copy';
+
+export type StoryStatus = 'candidate' | 'approved' | 'placed' | 'archived';
+
+export type StoryContentType =
+  | 'lead'
+  | 'feature'
+  | 'profile'
+  | 'column'
+  | 'editorial'
+  | 'partner'
+  | 'utility';
+
+export type SlotBindingMode = 'auto' | 'manual' | 'locked';
 
 export interface IssuuSource {
   publicationId?: string;
@@ -84,6 +99,7 @@ export interface SlotBinding {
   sponsorId?: string;
   adPlacementId?: string;
   generatedContentId?: string;
+  staticBlockId?: string;
 }
 
 export interface Slot {
@@ -93,8 +109,12 @@ export interface Slot {
   key: string;
   contentType: SlotContentType;
   isRequired: boolean;
+  bindingMode?: SlotBindingMode;
   placementRules?: SlotPlacementRules;
   binding?: SlotBinding;
+  automationConfidence?: number;
+  reviewReason?: string;
+  manualOverride?: boolean;
   overrideData?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -117,10 +137,17 @@ export interface Story {
   body?: string;
   author?: string;
   tags: string[];
+  priority?: number;
+  contentType?: StoryContentType;
+  includedInEditionCandidatePool?: boolean;
+  editorialConfidence?: number;
+  placementConfidence?: number;
+  issueTags?: string[];
+  manualNotes?: string;
   heroImage?: StoryAssetRef;
   gallery?: StoryAssetRef[];
   pullQuotes?: string[];
-  status: 'candidate' | 'approved' | 'placed' | 'archived';
+  status: StoryStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -132,6 +159,39 @@ export interface MagazineAsset {
   src: string;
   alt?: string;
   caption?: string;
+  editionId?: string;
+  storagePath?: string;
+  width?: number;
+  height?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SponsorBlock {
+  id: string;
+  editionId?: string;
+  sponsorName: string;
+  headline?: string;
+  body?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  imageSrc?: string;
+  placementTags?: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdPlacement {
+  id: string;
+  editionId?: string;
+  advertiserName: string;
+  headline?: string;
+  body?: string;
+  imageSrc?: string;
+  targetHref?: string;
+  placementTags?: string[];
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -183,9 +243,12 @@ export interface MagazineAuditEvent {
     | 'preset_applied'
     | 'slot_auto_filled'
     | 'slot_overridden'
+    | 'manual_override_saved'
     | 'contents_generated'
     | 'edition_published'
-    | 'edition_unpublished';
+    | 'edition_unpublished'
+    | 'edition_live_switched'
+    | 'review_requested';
   actorType: 'system' | 'admin';
   actorId?: string;
   details?: Record<string, unknown>;

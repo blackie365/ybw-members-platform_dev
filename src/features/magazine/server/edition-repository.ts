@@ -1,14 +1,20 @@
 import { adminDb } from '@/lib/firebase-admin';
 import type {
+  AdPlacement,
   Edition,
   FlatplanPage,
+  MagazineAsset,
   MagazineAuditEvent,
   Slot,
+  SponsorBlock,
   Story,
 } from '../domain/types';
 
 const EDITIONS_COLLECTION = 'magazine_editions';
 const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
+const ASSETS_COLLECTION = 'magazine_assets';
+const SPONSORS_COLLECTION = 'magazine_sponsor_blocks';
+const AD_PLACEMENTS_COLLECTION = 'magazine_ad_placements';
 const AUDIT_COLLECTION = 'magazine_audit_log';
 
 function requireAdminDb() {
@@ -86,6 +92,28 @@ export async function listEditions(limitCount = 24): Promise<Edition[]> {
 export async function upsertEdition(edition: Edition): Promise<void> {
   const db = requireAdminDb();
   await db.collection(EDITIONS_COLLECTION).doc(edition.id).set(edition, { merge: true });
+}
+
+export async function upsertFlatplanPages(editionId: string, pages: FlatplanPage[]): Promise<void> {
+  if (pages.length === 0) return;
+
+  const db = requireAdminDb();
+  const collectionRef = db.collection(EDITIONS_COLLECTION).doc(editionId).collection('flatplan_pages');
+  const batch = db.batch();
+
+  pages.forEach((page) => {
+    batch.set(collectionRef.doc(page.id), page, { merge: true });
+  });
+
+  batch.set(
+    db.collection(EDITIONS_COLLECTION).doc(editionId),
+    {
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+
+  await batch.commit();
 }
 
 export async function replaceFlatplan(
@@ -176,6 +204,96 @@ export async function upsertStories(stories: Story[]): Promise<void> {
   await batch.commit();
 }
 
+export async function listMagazineAssets(editionId?: string, limitCount = 100): Promise<MagazineAsset[]> {
+  const db = requireAdminDb();
+  let query = db.collection(ASSETS_COLLECTION).limit(limitCount);
+
+  if (editionId) {
+    query = query.where('editionId', '==', editionId);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map((doc) =>
+    serializeRecord({
+      id: doc.id,
+      ...doc.data(),
+    } as MagazineAsset),
+  );
+}
+
+export async function upsertMagazineAssets(assets: MagazineAsset[]): Promise<void> {
+  if (assets.length === 0) return;
+
+  const db = requireAdminDb();
+  const batch = db.batch();
+
+  assets.forEach((asset) => {
+    batch.set(db.collection(ASSETS_COLLECTION).doc(asset.id), asset, { merge: true });
+  });
+
+  await batch.commit();
+}
+
+export async function listSponsorBlocks(editionId?: string, limitCount = 50): Promise<SponsorBlock[]> {
+  const db = requireAdminDb();
+  let query = db.collection(SPONSORS_COLLECTION).limit(limitCount);
+
+  if (editionId) {
+    query = query.where('editionId', '==', editionId);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map((doc) =>
+    serializeRecord({
+      id: doc.id,
+      ...doc.data(),
+    } as SponsorBlock),
+  );
+}
+
+export async function upsertSponsorBlocks(blocks: SponsorBlock[]): Promise<void> {
+  if (blocks.length === 0) return;
+
+  const db = requireAdminDb();
+  const batch = db.batch();
+
+  blocks.forEach((block) => {
+    batch.set(db.collection(SPONSORS_COLLECTION).doc(block.id), block, { merge: true });
+  });
+
+  await batch.commit();
+}
+
+export async function listAdPlacements(editionId?: string, limitCount = 50): Promise<AdPlacement[]> {
+  const db = requireAdminDb();
+  let query = db.collection(AD_PLACEMENTS_COLLECTION).limit(limitCount);
+
+  if (editionId) {
+    query = query.where('editionId', '==', editionId);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map((doc) =>
+    serializeRecord({
+      id: doc.id,
+      ...doc.data(),
+    } as AdPlacement),
+  );
+}
+
+export async function upsertAdPlacements(placements: AdPlacement[]): Promise<void> {
+  if (placements.length === 0) return;
+
+  const db = requireAdminDb();
+  const batch = db.batch();
+
+  placements.forEach((placement) => {
+    batch.set(db.collection(AD_PLACEMENTS_COLLECTION).doc(placement.id), placement, { merge: true });
+  });
+
+  await batch.commit();
+}
+
 export async function listCandidateStories(limitCount = 50): Promise<Story[]> {
   const db = requireAdminDb();
   const snapshot = await db
@@ -195,4 +313,25 @@ export async function listCandidateStories(limitCount = 50): Promise<Story[]> {
 export async function writeMagazineAuditEvent(event: MagazineAuditEvent): Promise<void> {
   const db = requireAdminDb();
   await db.collection(AUDIT_COLLECTION).doc(event.id).set(event, { merge: false });
+}
+
+export async function listMagazineAuditEvents(options?: {
+  editionId?: string;
+  limitCount?: number;
+}): Promise<MagazineAuditEvent[]> {
+  const db = requireAdminDb();
+  const limitCount = options?.limitCount ?? 50;
+  let query = db.collection(AUDIT_COLLECTION).orderBy('createdAt', 'desc').limit(limitCount);
+
+  if (options?.editionId) {
+    query = query.where('editionId', '==', options.editionId).orderBy('createdAt', 'desc').limit(limitCount);
+  }
+
+  const snapshot = await query.get();
+  return snapshot.docs.map((doc) =>
+    serializeRecord({
+      id: doc.id,
+      ...doc.data(),
+    } as MagazineAuditEvent),
+  );
 }
