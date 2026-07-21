@@ -4,10 +4,11 @@ import {
   listCandidateStories,
   listEditions,
   listFlatplanPages,
+  listMagazineAssets,
   listSlots,
 } from './edition-repository';
 import type { MagazineIssue } from '@/lib/magazine-service';
-import type { Edition, FlatplanPage, Slot, Story } from '../domain/types';
+import type { Edition, FlatplanPage, MagazineAsset, Slot, Story } from '../domain/types';
 
 export interface MagazineV2ReaderPage extends FlatplanPage {
   slots: Slot[];
@@ -17,6 +18,7 @@ export interface MagazineV2ReaderData {
   edition: Edition;
   pages: MagazineV2ReaderPage[];
   stories: Story[];
+  assets: MagazineAsset[];
 }
 
 export interface MagazineV2LegacyMatchSummary {
@@ -148,10 +150,11 @@ async function getBestEditionMatchForLegacyIssue(issue: LegacyIssueMatchable): P
 }
 
 async function buildReaderData(edition: Edition): Promise<MagazineV2ReaderData | null> {
-  const [pages, slots, stories] = await Promise.all([
+  const [pages, slots, stories, assets] = await Promise.all([
     listFlatplanPages(edition.id),
     listSlots(edition.id),
     listCandidateStories(250),
+    listMagazineAssets(edition.id, 250),
   ]);
 
   if (!hasRenderableReader(pages, slots)) {
@@ -172,6 +175,7 @@ async function buildReaderData(edition: Edition): Promise<MagazineV2ReaderData |
       slots: (pageSlotsMap.get(page.id) ?? []).sort((left, right) => left.key.localeCompare(right.key)),
     })),
     stories: stories.filter((story) => relevantStoryIds.has(story.id)),
+    assets,
   };
 }
 
