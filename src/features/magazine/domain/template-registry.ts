@@ -304,7 +304,6 @@ const coverEntry: TemplateRegistryEntry = {
       safeImageUrl(asset?.src) ??
       safeImageUrl(manualGallery[0]?.src) ??
       safeImageUrl(story?.heroImage?.src) ?? '';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gallery = buildSafeGalleryItems((story?.gallery as any) ?? []);
 
     return {

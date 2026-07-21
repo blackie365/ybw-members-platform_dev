@@ -142,8 +142,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
   const progress = renderedPages.length > 0 ? ((currentPage + 1) / renderedPages.length) * 100 : 0;
   const currentSpreadLabel = current ? formatSpreadLabel(current.page) : 'Page';
 
-  // Gen 1 page-flip variants (dark to match the brand)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Gen 1 page-flip variants — typed as any to allow custom() functions (Framer Motion)
   const variants: any = {
     enter: (dir: number) => ({
       x: dir > 0 ? '100%' : '-100%',
