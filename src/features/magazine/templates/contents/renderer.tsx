@@ -24,6 +24,8 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
     month: 'long',
     year: 'numeric',
   });
+  const leadEntry = entries[0];
+  const secondaryEntries = entries.slice(1);
 
   if (mode === 'closing') {
     return (
@@ -41,7 +43,7 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
                 {closingTitle || edition.title}
               </h2>
               <p className="mt-6 max-w-sm text-sm leading-relaxed text-white/55">
-                Closing pages can carry a final editorial note, a sponsor thank-you, or a polished call to action without breaking the magazine rhythm.
+                A final spread should close the issue with the same editorial confidence as the opening pages, whether that is a note, a thank-you, or a next-issue cue.
               </p>
             </div>
             <div className="space-y-2 text-sm uppercase tracking-[0.24em] text-white/45">
@@ -51,8 +53,8 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
           </div>
           <div className="flex flex-col justify-center">
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-[0_26px_90px_rgba(0,0,0,0.24)] backdrop-blur-sm">
-              <p className="max-w-2xl text-lg leading-relaxed text-white/78">
-              {closingBody || 'Add a closing editorial note, a sponsor message, or a final call to action for this edition.'}
+              <p className="max-w-2xl font-serif text-[1.35rem] leading-relaxed text-white/78">
+                {closingBody || `Thank you for reading ${edition.title}. Continue the conversation, discover more members, and watch for the next issue.`}
               </p>
               <div className="mt-8 flex items-center gap-4">
                 <div className="h-px flex-1 bg-gradient-to-r from-[#C9956A] to-transparent" />
@@ -85,9 +87,11 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
           <div>
             <p className="text-[10px] uppercase tracking-[0.3em] text-[#A3413A]">Contents</p>
             <h2 className="mt-6 font-serif text-4xl font-medium leading-tight lg:text-5xl">{edition.title}</h2>
-            <p className="mt-6 max-w-sm text-sm leading-relaxed text-[#6e5949]">
-              A curated route through the issue, balancing long-form reading with premium page rhythm.
-            </p>
+            <div className="mt-6 max-w-sm border-l-2 border-[#A3413A]/55 pl-5">
+              <p className="font-serif text-lg leading-relaxed text-[#6e5949]">
+                A curated route through the issue, balancing long-form reading with stronger editorial pacing.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-5">
@@ -97,6 +101,16 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
                 <p className="mt-3 font-serif text-2xl leading-tight text-[#16110f]">{highlightTitle}</p>
               </div>
             ) : null}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.3rem] border border-[#d8c8b5] bg-white/55 p-4 shadow-[0_12px_35px_rgba(0,0,0,0.04)]">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[#A3413A]">Edition</p>
+                <p className="mt-3 font-serif text-xl leading-tight text-[#16110f]">{publishLabel}</p>
+              </div>
+              <div className="rounded-[1.3rem] border border-[#d8c8b5] bg-white/55 p-4 shadow-[0_12px_35px_rgba(0,0,0,0.04)]">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[#A3413A]">Stories</p>
+                <p className="mt-3 font-serif text-xl leading-tight text-[#16110f]}">{String(entries.length).padStart(2, '0')} selected</p>
+              </div>
+            </div>
             <div className="space-y-2 text-sm uppercase tracking-[0.24em] text-[#7f6a57]">
               <div>{publishLabel}</div>
               <div>Page {String(page.position).padStart(2, '0')}</div>
@@ -105,7 +119,24 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {entries.map((entry, index) => (
+          {leadEntry ? (
+            <div className="group relative overflow-hidden rounded-[1.8rem] border border-[#cfae95] bg-[#1a1310] p-6 text-white shadow-[0_24px_70px_rgba(0,0,0,0.18)] sm:col-span-2">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(201,149,106,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(163,65,58,0.14),transparent_28%)]" />
+              <div className="relative flex h-full flex-col justify-between gap-8 lg:flex-row lg:items-end">
+                <div className="max-w-3xl">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Lead Highlight</p>
+                  <h3 className="mt-4 font-serif text-3xl leading-tight lg:text-4xl">{leadEntry.title}</h3>
+                </div>
+                <div className="flex items-end gap-5">
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Open To</p>
+                    <p className="mt-3 font-serif text-5xl leading-none text-[#C9956A]">{leadEntry.pageLabel}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {secondaryEntries.map((entry, index) => (
             <div
               key={`${entry.pageLabel}-${entry.title}`}
               className="group relative overflow-hidden rounded-[1.5rem] border border-[#d8c8b5] bg-white/70 p-5 shadow-[0_16px_45px_rgba(0,0,0,0.05)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(0,0,0,0.09)]"
@@ -113,8 +144,8 @@ export default function ContentsTemplate({ edition, page, viewModel }: ContentsT
               <div className="absolute right-0 top-0 h-20 w-20 bg-[radial-gradient(circle_at_top_right,rgba(163,65,58,0.10),transparent_65%)]" />
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-[#A3413A]">Story {String(index + 1).padStart(2, '0')}</p>
-                  <div className="mt-4 font-serif text-2xl leading-tight text-[#16110f]">{entry.title}</div>
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-[#A3413A]">Story {String(index + 2).padStart(2, '0')}</p>
+                  <div className="mt-4 font-serif text-[1.7rem] leading-tight text-[#16110f]">{entry.title}</div>
                 </div>
                 <div className="font-serif text-4xl leading-none text-[#A3413A]/70">{entry.pageLabel}</div>
               </div>

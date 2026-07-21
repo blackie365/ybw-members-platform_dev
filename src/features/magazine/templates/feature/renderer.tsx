@@ -87,6 +87,70 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
   const spreadLabel = formatSpreadLabel(page);
   const introParagraph = standfirst || bodyParagraphs[0] || '';
   const supportingParagraphs = standfirst ? bodyParagraphs : bodyParagraphs.slice(1);
+  const isBackCover = page.intent === 'back_cover';
+
+  if (isBackCover) {
+    return (
+      <section className="relative min-h-[84vh] overflow-hidden bg-[#120d0b] text-white">
+        {safeHeroImage ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={safeHeroImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-34" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#090706] via-[#120d0b]/80 to-[#120d0b]/38" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-transparent to-black/18" />
+          </>
+        ) : null}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.18),transparent_28%)]" />
+
+        <div className="relative mx-auto grid min-h-[84vh] max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[1.06fr_0.94fr] lg:px-12">
+          <div className="flex flex-col justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-4 text-[10px] uppercase tracking-[0.28em] text-white/60">
+                <span className="text-[#C9956A]">Closing Spread</span>
+                <span>{spreadLabel}</span>
+                <span>{publishLabel}</span>
+              </div>
+              <h2 className="mt-6 max-w-4xl font-serif text-5xl font-medium leading-[0.95] lg:text-7xl">{renderTitleArt(title)}</h2>
+              {introParagraph ? (
+                <div className="mt-6 max-w-3xl border-l border-[#C9956A]/60 pl-5">
+                  <p className="font-serif text-xl leading-relaxed text-zinc-200 lg:text-[1.4rem]">{introParagraph}</p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-8 max-w-2xl rounded-[1.7rem] border border-white/10 bg-black/30 p-6 backdrop-blur-sm">
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-[#C9956A] to-transparent" />
+                <span className="text-[10px] uppercase tracking-[0.22em] text-white/42">Until Next Issue</span>
+              </div>
+              <p className="mt-5 font-serif text-lg leading-relaxed text-white/80">
+                {supportingParagraphs[0] || `Thank you for reading ${edition.title}. Discover more stories, events, and members across Yorkshire Business Woman.`}
+              </p>
+              {ctaLabel && ctaHref ? (
+                <div className="mt-7">
+                  <a
+                    href={ctaHref}
+                    className="inline-flex items-center border border-white/20 bg-white/10 px-6 py-3 text-sm uppercase tracking-[0.22em] text-white transition hover:bg-white hover:text-[#120d0b]"
+                  >
+                    {ctaLabel}
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="relative flex items-end justify-end">
+            <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.06] p-7 shadow-[0_24px_70px_rgba(0,0,0,0.24)] backdrop-blur-md">
+              <p className="text-[10px] uppercase tracking-[0.26em] text-[#C9956A]">Issue Close</p>
+              <p className="mt-4 font-serif text-2xl leading-tight text-white">
+                A strong ending should feel deliberate, warm, and visibly connected to the issue you have just read.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (fullBleed) {
     return (
