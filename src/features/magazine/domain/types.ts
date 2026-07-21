@@ -66,12 +66,13 @@ export interface Edition {
 
 export type FlatplanIntent =
   | 'cover'
+  | 'editor_note'
   | 'contents'
   | 'feature_primary'
   | 'feature_secondary'
   | 'feature_supporting'
   | 'ad'
-  | 'closing';
+  | 'back_cover';
 
 export interface FlatplanPage {
   id: string;

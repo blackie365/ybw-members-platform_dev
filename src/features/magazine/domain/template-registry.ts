@@ -2,6 +2,9 @@ import type { ComponentType } from 'react';
 import CoverTemplate from '../templates/cover/renderer';
 import ContentsTemplate from '../templates/contents/renderer';
 import FeatureTemplate from '../templates/feature/renderer';
+import EditorNoteTemplate from '../templates/editor-note/renderer';
+import AdTemplate from '../templates/ad/renderer';
+import BackCoverTemplate from '../templates/back-cover/renderer';
 import type {
   Edition,
   EditionPresetPage,
@@ -130,7 +133,7 @@ const contentsEntry: TemplateRegistryEntry = {
     const staticCopySlot = findSlotByContentType(slots, 'static_copy');
 
     return {
-      mode: staticCopySlot ? 'closing' : 'contents',
+      mode: page.intent === 'back_cover' ? 'closing' : 'contents',
       pageLabel: page.position,
       highlightTitle: story?.title,
       entries: Array.isArray(generatedEntries) ? generatedEntries : [],
@@ -142,6 +145,90 @@ const contentsEntry: TemplateRegistryEntry = {
     };
   },
   render: ContentsTemplate,
+};
+
+const editorNoteEntry: TemplateRegistryEntry = {
+  definition: {
+    family: 'editor-note',
+    variant: 'standard',
+    label: 'Editor Note',
+    editorSchemaKey: 'editor-note.standard',
+    rendererKey: 'editor-note/standard',
+    allowedSlots: [{ key: 'primaryStory', contentType: 'story', isRequired: true }],
+  },
+  buildDefaultSlots: () => [{ key: 'primaryStory', contentType: 'story', isRequired: true }],
+  buildViewModel: ({ edition, slots, stories }) => {
+    const story = findBoundStory(slots, stories);
+
+    return {
+      title: story?.title ?? `From the editor: ${edition.title}`,
+      standfirst: story?.standfirst,
+      body: story?.body,
+      author: story?.author,
+      heroImage: story?.heroImage?.src,
+      pullQuote: story?.pullQuotes?.[0],
+      pullQuoteAttribution: story?.author,
+    };
+  },
+  render: EditorNoteTemplate,
+};
+
+const adEntry: TemplateRegistryEntry = {
+  definition: {
+    family: 'ad',
+    variant: 'standard',
+    label: 'Advertisement',
+    editorSchemaKey: 'ad.standard',
+    rendererKey: 'ad/standard',
+    allowedSlots: [{ key: 'adPanel', contentType: 'ad', isRequired: true }],
+  },
+  buildDefaultSlots: () => [{ key: 'adPanel', contentType: 'ad', isRequired: true }],
+  buildViewModel: ({ edition, slots }) => {
+    const adSlot = findSlotByContentType(slots, 'ad');
+
+    return {
+      label: getOverrideString(adSlot, 'label') ?? 'Advertisement',
+      advertiserName: getOverrideString(adSlot, 'advertiserName'),
+      headline: getOverrideString(adSlot, 'headline') ?? edition.title,
+      body: getOverrideString(adSlot, 'body'),
+      imageSrc: getOverrideString(adSlot, 'imageSrc'),
+      ctaLabel: getOverrideString(adSlot, 'ctaLabel'),
+      ctaHref: getOverrideString(adSlot, 'ctaHref'),
+    };
+  },
+  render: AdTemplate,
+};
+
+const backCoverEntry: TemplateRegistryEntry = {
+  definition: {
+    family: 'back-cover',
+    variant: 'editorial',
+    label: 'Back Cover',
+    editorSchemaKey: 'back-cover.editorial',
+    rendererKey: 'back-cover/editorial',
+    allowedSlots: [
+      { key: 'closingNote', contentType: 'static_copy', isRequired: true },
+      { key: 'coverAsset', contentType: 'gallery', isRequired: false },
+    ],
+  },
+  buildDefaultSlots: () => [
+    { key: 'closingNote', contentType: 'static_copy', isRequired: true },
+    { key: 'coverAsset', contentType: 'gallery', isRequired: false },
+  ],
+  buildViewModel: ({ edition, slots }) => {
+    const staticCopySlot = findSlotByContentType(slots, 'static_copy');
+    const manualGallery = findManualGalleryItems(slots);
+
+    return {
+      eyebrow: getOverrideString(staticCopySlot, 'eyebrow') ?? 'Back Cover',
+      title: getOverrideString(staticCopySlot, 'title') ?? edition.title,
+      body: getOverrideString(staticCopySlot, 'body') ?? edition.description,
+      ctaLabel: getOverrideString(staticCopySlot, 'ctaLabel'),
+      ctaHref: getOverrideString(staticCopySlot, 'ctaHref'),
+      imageSrc: manualGallery[0]?.src ?? getOverrideString(staticCopySlot, 'imageSrc') ?? edition.coverImage,
+    };
+  },
+  render: BackCoverTemplate,
 };
 
 function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'): TemplateRegistryEntry {
@@ -203,9 +290,9 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         heroImage: fallbackImage,
         author: story?.author,
         contentType: story?.contentType,
-        pullQuote: getOverrideString(quoteSlot, 'quote'),
-        pullQuoteAttribution: getOverrideString(quoteSlot, 'attribution'),
-        galleryImages: manualGallery,
+        pullQuote: getOverrideString(quoteSlot, 'quote') ?? story?.pullQuotes?.[0],
+        pullQuoteAttribution: getOverrideString(quoteSlot, 'attribution') ?? story?.author,
+        galleryImages: manualGallery.length > 0 ? manualGallery : story?.gallery ?? [],
         ctaLabel:
           getOverrideString(adSlot, 'ctaLabel') ??
           getOverrideString(sponsorSlot, 'ctaLabel') ??
@@ -222,10 +309,13 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
 
 export const MAGAZINE_TEMPLATE_REGISTRY: Record<string, TemplateRegistryEntry> = {
   'cover:editorial': coverEntry,
+  'editor-note:standard': editorNoteEntry,
   'contents:standard': contentsEntry,
   'feature:left-media': makeFeatureEntry('left-media'),
   'feature:right-media': makeFeatureEntry('right-media'),
   'feature:full-bleed': makeFeatureEntry('full-bleed'),
+  'ad:standard': adEntry,
+  'back-cover:editorial': backCoverEntry,
 };
 
 export function getTemplateRegistryKey(family: string, variant: string): string {
