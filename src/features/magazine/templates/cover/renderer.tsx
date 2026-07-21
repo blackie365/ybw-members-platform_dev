@@ -7,6 +7,14 @@ interface CoverTemplateProps {
   viewModel: Record<string, unknown>;
 }
 
+function sanitizeEditionSupportCopy(value?: string): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^imported from /i.test(trimmed) || /\.(indd|idml|icml)$/i.test(trimmed)) return '';
+  return trimmed;
+}
+
 export default function CoverTemplate({ edition, page, viewModel }: CoverTemplateProps) {
   const title = typeof viewModel.title === 'string' ? viewModel.title : edition.title;
   const standfirst =
@@ -18,7 +26,10 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
     month: 'long',
     year: 'numeric',
   });
-  const issueDescriptor = edition.subtitle || edition.description || 'A premium digital issue assembled from the live edition source.';
+  const issueDescriptor =
+    sanitizeEditionSupportCopy(edition.subtitle) ||
+    sanitizeEditionSupportCopy(edition.description) ||
+    'A premium digital issue assembled from the live edition source.';
 
   return (
     <section className="relative isolate overflow-hidden bg-[#050505] text-white">

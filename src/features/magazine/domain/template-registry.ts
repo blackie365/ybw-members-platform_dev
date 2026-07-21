@@ -40,6 +40,118 @@ interface ManualGalleryItem {
   caption?: string;
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function looksLikeImportArtifact(value?: string): boolean {
+  if (!value) return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+
+  return (
+    /^<\?ACE 18\?>$/i.test(normalized) ||
+    /\.(indd|idml|icml)$/i.test(normalized) ||
+    /^imported from /i.test(normalized) ||
+    /^printed by[:\s]/i.test(normalized)
+  );
+}
+
+function looksLikeGenericMagazineTitle(value?: string): boolean {
+  if (!value) return false;
+  return /^(ybw|yorkshire)[-\s]*business[-\s]*woman$/i.test(value.trim());
+}
+
+function extractMeaningfulParagraphs(value?: string): string[] {
+  if (!value) return [];
+  return normalizeWhitespace(value)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .filter((paragraph) => !looksLikeImportArtifact(paragraph));
+}
+
+function extractEditorialTitleFromBody(body?: string): string | undefined {
+  const paragraphs = extractMeaningfulParagraphs(body);
+  if (paragraphs.length === 0) return undefined;
+
+  const first = paragraphs[0];
+  if (/^editors?\s*notes?$/i.test(first.replace(/\s+/g, ' '))) return "Editor's Note";
+  if (/^cover\s*:/i.test(first) || /disclosure/i.test(first)) return 'Contents & Disclosure';
+  if (/^we have another great issue for you/i.test(first) || /by group editor/i.test(body || '')) {
+    return "Editor's Note";
+  }
+
+  const sentence = first.split(/(?<=[.!?])\s+/)[0]?.trim() ?? '';
+  const candidate = sentence.length >= 8 && sentence.length <= 90 ? sentence : first;
+  if (!candidate || looksLikeImportArtifact(candidate) || looksLikeGenericMagazineTitle(candidate)) return undefined;
+
+  return candidate;
+}
+
+function sanitizeEditorialTitle(title: string | undefined, body?: string, fallback?: string): string | undefined {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (trimmed && !looksLikeImportArtifact(trimmed) && !looksLikeGenericMagazineTitle(trimmed)) {
+    return trimmed;
+  }
+
+  return extractEditorialTitleFromBody(body) ?? fallback;
+}
+
+function sanitizeEditorialStandfirst(value: string | undefined, fallback?: string): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (trimmed && !looksLikeImportArtifact(trimmed)) return trimmed;
+
+  const fallbackTrimmed = typeof fallback === 'string' ? fallback.trim() : '';
+  if (fallbackTrimmed && !looksLikeImportArtifact(fallbackTrimmed)) return fallbackTrimmed;
+
+  return undefined;
+}
+
+function sanitizeEditorialBody(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return undefined;
+
+  return normalized
+    .replace(/^EditorsNotes\s*/i, '')
+    .replace(/^Gill x\s*/i, '')
+    .trim();
+}
+
+function getStoryPagePosition(story: Story): number | null {
+  const pageTag = story.issueTags?.find((tag) => /^page-\d+$/i.test(tag));
+  if (!pageTag) return null;
+
+  const value = Number.parseInt(pageTag.replace(/^page-/i, ''), 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+function buildGeneratedContentsEntries(stories: Story[]) {
+  return stories
+    .map((story) => ({
+      story,
+      pagePosition: getStoryPagePosition(story),
+      title: sanitizeEditorialTitle(story.title, story.body),
+    }))
+    .filter(
+      (entry): entry is { story: Story; pagePosition: number; title: string } =>
+        typeof entry.pagePosition === 'number' && Boolean(entry.title),
+    )
+    .sort((left, right) => left.pagePosition - right.pagePosition)
+    .slice(0, 8)
+    .map((entry) => ({
+      title: entry.title,
+      pageLabel: String(entry.pagePosition).padStart(2, '0'),
+    }));
+}
+
+function sanitizeEditionDescription(value?: string): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed || looksLikeImportArtifact(trimmed)) return undefined;
+  return trimmed;
+}
+
 function isLocalAssetPath(value?: string): boolean {
   if (!value) return false;
   return value.startsWith('/Users/') || value.startsWith('/Volumes/') || value.startsWith('/private/');
@@ -161,10 +273,13 @@ const coverEntry: TemplateRegistryEntry = {
     const story = findBoundStory(slots, stories);
     const asset = findBoundAsset(slots, assets);
     const manualGallery = findManualGalleryItems(slots);
+    const sanitizedStoryBody = sanitizeEditorialBody(story?.body);
 
     return {
-      title: story?.title ?? edition.title,
-      standfirst: story?.standfirst ?? edition.description,
+      title: sanitizeEditorialTitle(story?.title, sanitizedStoryBody, edition.title) ?? edition.title,
+      standfirst:
+        sanitizeEditorialStandfirst(story?.standfirst, sanitizeEditionDescription(edition.description)) ??
+        sanitizeEditionDescription(edition.description),
       coverImage:
         safeImageUrl(asset?.src) ??
         safeImageUrl(manualGallery[0]?.src) ??
@@ -196,12 +311,13 @@ const contentsEntry: TemplateRegistryEntry = {
     const story = findBoundStory(slots, stories);
     const generatedEntries = slots.find((slot) => slot.contentType === 'contents')?.overrideData?.entries;
     const staticCopySlot = findSlotByContentType(slots, 'static_copy');
+    const fallbackEntries = buildGeneratedContentsEntries(stories);
 
     return {
       mode: page.intent === 'back_cover' ? 'closing' : 'contents',
       pageLabel: page.position,
-      highlightTitle: story?.title,
-      entries: Array.isArray(generatedEntries) ? generatedEntries : [],
+      highlightTitle: sanitizeEditorialTitle(story?.title, sanitizeEditorialBody(story?.body)),
+      entries: Array.isArray(generatedEntries) && generatedEntries.length > 0 ? generatedEntries : fallbackEntries,
       closingEyebrow: getOverrideString(staticCopySlot, 'eyebrow'),
       closingTitle: getOverrideString(staticCopySlot, 'title'),
       closingBody: getOverrideString(staticCopySlot, 'body'),
@@ -224,11 +340,12 @@ const editorNoteEntry: TemplateRegistryEntry = {
   buildDefaultSlots: () => [{ key: 'primaryStory', contentType: 'story', isRequired: true }],
   buildViewModel: ({ edition, slots, stories }) => {
     const story = findBoundStory(slots, stories);
+    const sanitizedBody = sanitizeEditorialBody(story?.body);
 
     return {
-      title: story?.title ?? `From the editor: ${edition.title}`,
-      standfirst: story?.standfirst,
-      body: story?.body,
+      title: sanitizeEditorialTitle(story?.title, sanitizedBody, `From the editor: ${edition.title}`) ?? `From the editor: ${edition.title}`,
+      standfirst: sanitizeEditorialStandfirst(story?.standfirst),
+      body: sanitizedBody,
       author: story?.author,
       heroImage: safeImageUrl(story?.heroImage?.src),
       pullQuote: story?.pullQuotes?.[0],
@@ -354,11 +471,17 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         storyGallery[0]?.src,
         edition.coverImage,
       );
+      const sanitizedBody = sanitizeEditorialBody(story?.body ?? fallbackBody);
+      const sanitizedTitle = story
+        ? sanitizeEditorialTitle(story.title, sanitizedBody, fallbackTitle) ?? fallbackTitle
+        : fallbackTitle;
+      const sanitizedStandfirst =
+        sanitizeEditorialStandfirst(story?.standfirst, fallbackStandfirst) ?? sanitizeEditionDescription(edition.description) ?? fallbackStandfirst;
 
       return {
-        title: story?.title ?? fallbackTitle,
-        standfirst: story?.standfirst ?? fallbackStandfirst,
-        body: story?.body ?? fallbackBody,
+        title: sanitizedTitle,
+        standfirst: sanitizedStandfirst,
+        body: sanitizedBody ?? fallbackBody,
         heroImage: fallbackImage,
         author: story?.author,
         contentType: story?.contentType,
