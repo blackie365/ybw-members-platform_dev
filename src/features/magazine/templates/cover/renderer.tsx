@@ -1,4 +1,5 @@
 import type { Edition, FlatplanPage } from '../../domain/types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface CoverTemplateProps {
   edition: Edition;
@@ -12,6 +13,7 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
     typeof viewModel.standfirst === 'string' ? viewModel.standfirst : edition.description || edition.subtitle || '';
   const coverImage =
     typeof viewModel.coverImage === 'string' ? viewModel.coverImage : edition.coverImage;
+  const safeCoverImage = coverImage ? fixMagazineImageUrl(coverImage) : '';
   const publishLabel = new Date(edition.publishDate).toLocaleDateString('en-GB', {
     month: 'long',
     year: 'numeric',
@@ -19,10 +21,10 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
 
   return (
     <section className="relative isolate overflow-hidden bg-[#050505] text-white">
-      {coverImage ? (
+      {safeCoverImage ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-45" />
+          <img src={safeCoverImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-45" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.16),transparent_28%)]" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-[#050505]/80 to-[#050505]/24" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/30" />
@@ -100,9 +102,9 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
         <div className="relative flex items-center justify-center">
           <div className="absolute inset-x-12 bottom-10 top-12 rounded-[2rem] bg-[#A3413A]/18 blur-[90px]" />
           <div className="cover-shimmer-sweep relative aspect-[3/4] w-full max-w-[460px] overflow-hidden rounded-[2rem] border border-white/10 bg-black/20 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
-            {coverImage ? (
+            {safeCoverImage ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
+              <img src={safeCoverImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
             ) : null}
             <div className="absolute inset-0 bg-gradient-to-tr from-black/60 via-black/10 to-white/5" />
             <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent" />

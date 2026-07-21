@@ -112,6 +112,10 @@ async function uploadLocalAssetToStorage(
   return buildStoragePublicUrl(bucket.name, storagePath);
 }
 
+function getAssetFileExtension(asset: Pick<MagazineAsset, 'src' | 'storagePath' | 'id'>): string {
+  return path.extname(asset.src) || path.extname(asset.storagePath || '') || path.extname(asset.id) || '';
+}
+
 function rewriteStoryAssetRef(
   assetRef: Story['heroImage'],
   assetUrlBySource: Map<string, string>,
@@ -179,11 +183,11 @@ async function ingestBundleAssets(
   const assetUrlBySource = new Map<string, string>();
   const ingestedAssets = await Promise.all(
     bundle.assets.map(async (asset) => {
-      if (!isLocalAssetPath(asset.src) || asset.type !== 'image') {
+      if (!isLocalAssetPath(asset.src) || (asset.type !== 'image' && asset.type !== 'pdf')) {
         return asset;
       }
 
-      const extension = path.extname(asset.src) || path.extname(asset.storagePath || asset.id) || '.jpg';
+      const extension = getAssetFileExtension(asset) || (asset.type === 'pdf' ? '.pdf' : '.jpg');
       const roleSegment = sanitizeStorageSegment(asset.role);
       const fileSegment = sanitizeStorageSegment(path.basename(asset.src, path.extname(asset.src)) || asset.id);
       const storagePath = `magazine/imported-idml/${bundle.edition.slug}/${sourceStem}/${roleSegment}-${fileSegment}${extension.toLowerCase()}`;

@@ -78,6 +78,12 @@ export interface FlatplanPage {
   id: string;
   editionId: string;
   position: number;
+  spreadId?: string;
+  spreadIndex?: number;
+  pageIndexInSpread?: number;
+  spreadPageCount?: number;
+  spreadPageIds?: string[];
+  spreadPagePositions?: number[];
   templateFamily: string;
   templateVariant: string;
   intent: FlatplanIntent;

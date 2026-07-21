@@ -1,4 +1,5 @@
 import type { Edition, FlatplanPage } from '../../domain/types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface BackCoverTemplateProps {
   edition: Edition;
@@ -11,14 +12,15 @@ export default function BackCoverTemplate({ edition, page, viewModel }: BackCove
   const title = typeof viewModel.title === 'string' ? viewModel.title : edition.title;
   const body = typeof viewModel.body === 'string' ? viewModel.body : edition.description || '';
   const imageSrc = typeof viewModel.imageSrc === 'string' ? viewModel.imageSrc : '';
+  const safeImageSrc = imageSrc ? fixMagazineImageUrl(imageSrc) : '';
   const ctaLabel = typeof viewModel.ctaLabel === 'string' ? viewModel.ctaLabel : '';
   const ctaHref = typeof viewModel.ctaHref === 'string' ? viewModel.ctaHref : '';
 
   return (
     <section className="relative min-h-[84vh] overflow-hidden bg-[#11100f] text-white">
-      {imageSrc ? (
+      {safeImageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageSrc} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        <img src={safeImageSrc} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-40" />
       ) : null}
       <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/55 to-black/75" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.18),transparent_28%)]" />

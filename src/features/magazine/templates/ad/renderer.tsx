@@ -1,4 +1,5 @@
 import type { Edition, FlatplanPage } from '../../domain/types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface AdTemplateProps {
   edition: Edition;
@@ -12,14 +13,16 @@ export default function AdTemplate({ edition, page, viewModel }: AdTemplateProps
   const headline = typeof viewModel.headline === 'string' ? viewModel.headline : edition.title;
   const body = typeof viewModel.body === 'string' ? viewModel.body : '';
   const imageSrc = typeof viewModel.imageSrc === 'string' ? viewModel.imageSrc : '';
+  const safeImageSrc = imageSrc ? fixMagazineImageUrl(imageSrc) : '';
   const ctaLabel = typeof viewModel.ctaLabel === 'string' ? viewModel.ctaLabel : '';
   const ctaHref = typeof viewModel.ctaHref === 'string' ? viewModel.ctaHref : '';
+  const pdfSrc = typeof viewModel.pdfSrc === 'string' ? viewModel.pdfSrc : '';
 
   return (
     <section className="relative min-h-[84vh] overflow-hidden bg-[#120d0b] text-white">
-      {imageSrc ? (
+      {safeImageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageSrc} alt={headline} className="absolute inset-0 h-full w-full object-cover opacity-35" />
+        <img src={safeImageSrc} alt={headline} className="absolute inset-0 h-full w-full object-cover opacity-35" />
       ) : null}
       <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/35" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,149,106,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(163,65,58,0.18),transparent_28%)]" />
@@ -40,6 +43,8 @@ export default function AdTemplate({ edition, page, viewModel }: AdTemplateProps
             <div className="mt-8">
               <a
                 href={ctaHref}
+                target={pdfSrc ? '_blank' : undefined}
+                rel={pdfSrc ? 'noreferrer' : undefined}
                 className="inline-flex items-center border border-white/20 bg-white/10 px-6 py-3 text-sm uppercase tracking-[0.22em] text-white transition hover:bg-white hover:text-[#120d0b]"
               >
                 {ctaLabel}

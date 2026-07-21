@@ -1,4 +1,5 @@
 import type { Edition, FlatplanPage } from '../../domain/types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface FeatureTemplateProps {
   edition: Edition;
@@ -56,6 +57,7 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
   const author = typeof viewModel.author === 'string' ? viewModel.author : '';
   const contentType = typeof viewModel.contentType === 'string' ? viewModel.contentType : '';
   const heroImage = typeof viewModel.heroImage === 'string' ? viewModel.heroImage : '';
+  const safeHeroImage = heroImage ? fixMagazineImageUrl(heroImage) : '';
   const pullQuote = typeof viewModel.pullQuote === 'string' ? viewModel.pullQuote : '';
   const pullQuoteAttribution = typeof viewModel.pullQuoteAttribution === 'string' ? viewModel.pullQuoteAttribution : '';
   const ctaLabel = typeof viewModel.ctaLabel === 'string' ? viewModel.ctaLabel : '';
@@ -77,9 +79,9 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
   if (fullBleed) {
     return (
       <section className="relative min-h-[84vh] overflow-hidden bg-[#120d0b] text-white">
-        {heroImage ? (
+        {safeHeroImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-65" />
+          <img src={safeHeroImage} alt={title} className="absolute inset-0 h-full w-full object-cover opacity-65" />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-r from-black/82 via-black/46 to-black/18" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/68 via-black/16 to-transparent" />
@@ -137,9 +139,9 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
       <div className="grain-overlay absolute inset-0 opacity-40" />
       <div className={`relative grid min-h-[84vh] gap-10 px-6 py-10 lg:grid-cols-[0.98fr_1.02fr] lg:px-12 ${mediaFirst ? '' : 'lg:[&>*:first-child]:order-2'}`}>
         <div className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-black/5 shadow-[0_24px_80px_rgba(0,0,0,0.08)]">
-          {heroImage ? (
+          {safeHeroImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={heroImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
+            <img src={safeHeroImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
           <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/30 px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-white/80 backdrop-blur-sm">
@@ -187,7 +189,7 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
                 <div key={`${String(image.src)}-${index}`} className="relative aspect-[4/5] overflow-hidden rounded-[1rem] bg-black/5 shadow-[0_14px_35px_rgba(0,0,0,0.08)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={String(image.src)}
+                    src={fixMagazineImageUrl(String(image.src))}
                     alt={typeof image.alt === 'string' ? image.alt : title}
                     className="absolute inset-0 h-full w-full object-cover"
                   />

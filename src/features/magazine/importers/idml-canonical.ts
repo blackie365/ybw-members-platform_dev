@@ -282,6 +282,10 @@ function isDownloadAsset(asset: Pick<IdmlManifestAsset, 'fileName' | 'decodedPat
   return DOWNLOAD_ASSET_EXTENSIONS.has(getAssetExtension(asset.fileName || asset.decodedPath));
 }
 
+function isSupportedAsset(asset: Pick<IdmlManifestAsset, 'fileName' | 'decodedPath'>): boolean {
+  return isBrowserRenderableAsset(asset) || isDownloadAsset(asset);
+}
+
 function pickRenderableAsset(assets: IdmlManifestAsset[]): IdmlManifestAsset | undefined {
   return assets.find((asset) => isBrowserRenderableAsset(asset));
 }
@@ -303,7 +307,7 @@ function buildStoryAssetRefs(assets: IdmlManifestAsset[]): StoryAssetRef[] {
 function buildMagazineAssets(editionId: string, manifest: IdmlManifest): MagazineAsset[] {
   const timestamp = new Date().toISOString();
 
-  return manifest.assets.map((asset, index) => {
+  return manifest.assets.filter((asset) => isSupportedAsset(asset)).map((asset, index) => {
     const pageNumber = asset.pageNames
       .map((pageName) => Number.parseInt(pageName, 10))
       .find((page) => Number.isFinite(page));
@@ -311,7 +315,7 @@ function buildMagazineAssets(editionId: string, manifest: IdmlManifest): Magazin
     let role: MagazineAsset['role'] = 'inline';
     if (pageNumber === 1) role = 'cover';
     else if (pageNumber === manifest.document.pageCount) role = 'cover';
-    else if (isDownloadAsset(asset)) role = 'download';
+    else if (isDownloadAsset(asset)) role = pageNumber ? 'ad' : 'download';
 
     return {
       id: buildAssetId(editionId, index, asset.fileName),
@@ -412,6 +416,7 @@ function buildAdOverride(stories: IdmlManifestStory[], assets: IdmlManifestAsset
   const lead = stories[0];
   const body = normalizeWhitespace(stories.map((story) => story.text).join('\n\n'));
   const renderableAsset = pickRenderableAsset(assets);
+  const pdfAsset = assets.find((asset) => isDownloadAsset(asset));
 
   return {
     label: 'Advertisement',
@@ -419,8 +424,9 @@ function buildAdOverride(stories: IdmlManifestStory[], assets: IdmlManifestAsset
     headline: lead?.title || `Advertisement ${pageNumber}`,
     body: body || undefined,
     imageSrc: renderableAsset?.decodedPath,
-    ctaLabel: undefined,
-    ctaHref: undefined,
+    pdfSrc: pdfAsset?.decodedPath,
+    ctaLabel: pdfAsset ? 'Open Advert PDF' : undefined,
+    ctaHref: pdfAsset?.decodedPath,
   };
 }
 
@@ -575,10 +581,19 @@ export function buildCanonicalBundleFromManifest(
     .map((story) => buildStoryRecord(story, storyAssetsMap.get(story.id) || [], timestamp));
 
   const canonicalStoryMap = new Map(stories.map((story) => [story.sourceRef, story]));
+  const supportedManifestAssets = manifest.assets.filter((asset) => isSupportedAsset(asset));
   const assets = buildMagazineAssets(editionId, manifest);
-  const assetIdByManifestId = new Map(manifest.assets.map((asset, index) => [asset.id, assets[index]?.id].filter(Boolean) as [string, string]));
-
   const sortedManifestPages = [...manifest.pages].sort((left, right) => getPageNumber(left) - getPageNumber(right));
+  const spreadPagesByPath = new Map<string, IdmlManifestPage[]>();
+  sortedManifestPages.forEach((page) => {
+    const existing = spreadPagesByPath.get(page.spreadPath) ?? [];
+    existing.push(page);
+    spreadPagesByPath.set(page.spreadPath, existing);
+  });
+  const assetIdByManifestId = new Map(
+    supportedManifestAssets.map((asset, index) => [asset.id, assets[index]?.id].filter(Boolean) as [string, string]),
+  );
+
   const pages: FlatplanPage[] = [];
   const slots: Slot[] = [];
   const warnings: string[] = [];
@@ -591,11 +606,16 @@ export function buildCanonicalBundleFromManifest(
   sortedManifestPages.forEach((manifestPage) => {
     const pageNumber = getPageNumber(manifestPage);
     const context = buildPageStoryContext(manifestPage, storyMap);
-    const plan = planPageIntent(manifestPage, manifest.document.pageCount, context, featureOrdinal, intentState);
-    if (plan.intent.startsWith('feature')) featureOrdinal += 1;
-
     const pageId = buildPageId(editionId, pageNumber);
     const pageAssets = manifestPage.assetIds.map((assetId) => assetMap.get(assetId)).filter((asset): asset is IdmlManifestAsset => Boolean(asset));
+    const basePlan = planPageIntent(manifestPage, manifest.document.pageCount, context, featureOrdinal, intentState);
+    const hasDownloadAsset = pageAssets.some((asset) => isDownloadAsset(asset));
+    const hasEditorialStory = context.candidates.length > 0 || context.editorialNotes.length > 0 || context.contents.length > 0;
+    const plan =
+      hasDownloadAsset && !hasEditorialStory
+        ? ({ intent: 'ad', templateFamily: 'ad', templateVariant: 'standard' } satisfies PageIntentPlan)
+        : basePlan;
+    if (plan.intent.startsWith('feature')) featureOrdinal += 1;
     const renderablePageAssets = pickRenderableAssets(pageAssets);
     const candidateStories = context.candidates.filter((story) => canonicalStoryMap.has(story.path));
     const availableEditorialStories = context.editorialNotes.filter((story) => !intentState.assignedEditorialStoryIds.has(story.id));
@@ -824,6 +844,12 @@ export function buildCanonicalBundleFromManifest(
       id: pageId,
       editionId,
       position: pageNumber,
+      spreadId: `${editionId}-spread-${String(manifestPage.spreadIndex + 1).padStart(2, '0')}`,
+      spreadIndex: manifestPage.spreadIndex,
+      pageIndexInSpread: manifestPage.pageIndexInSpread,
+      spreadPageCount: (spreadPagesByPath.get(manifestPage.spreadPath) ?? []).length,
+      spreadPageIds: (spreadPagesByPath.get(manifestPage.spreadPath) ?? []).map((page) => buildPageId(editionId, getPageNumber(page))),
+      spreadPagePositions: (spreadPagesByPath.get(manifestPage.spreadPath) ?? []).map((page) => getPageNumber(page)),
       templateFamily: plan.templateFamily,
       templateVariant: plan.templateVariant,
       intent: plan.intent,

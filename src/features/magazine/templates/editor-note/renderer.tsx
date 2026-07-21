@@ -1,4 +1,5 @@
 import type { Edition, FlatplanPage } from '../../domain/types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 interface EditorNoteTemplateProps {
   edition: Edition;
@@ -34,6 +35,7 @@ export default function EditorNoteTemplate({ edition, page, viewModel }: EditorN
   const body = typeof viewModel.body === 'string' ? viewModel.body : '';
   const author = typeof viewModel.author === 'string' ? viewModel.author : '';
   const heroImage = typeof viewModel.heroImage === 'string' ? viewModel.heroImage : '';
+  const safeHeroImage = heroImage ? fixMagazineImageUrl(heroImage) : '';
   const pullQuote = typeof viewModel.pullQuote === 'string' ? viewModel.pullQuote : '';
   const pullQuoteAttribution = typeof viewModel.pullQuoteAttribution === 'string' ? viewModel.pullQuoteAttribution : '';
   const publishLabel = new Date(edition.publishDate).toLocaleDateString('en-GB', {
@@ -60,10 +62,10 @@ export default function EditorNoteTemplate({ edition, page, viewModel }: EditorN
           </div>
 
           <div className="space-y-5">
-            {heroImage ? (
+            {safeHeroImage ? (
               <div className="relative aspect-[4/5] overflow-hidden rounded-[1.8rem] border border-[#d9cbbb] bg-white/70 shadow-[0_18px_55px_rgba(0,0,0,0.08)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={safeHeroImage} alt={title} className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
               </div>
             ) : null}
