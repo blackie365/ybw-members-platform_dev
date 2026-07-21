@@ -50,6 +50,15 @@ function humanizeContentType(value: string) {
     .join(' ');
 }
 
+function formatSpreadLabel(page: FlatplanPage) {
+  if (!page.spreadPagePositions || page.spreadPagePositions.length <= 1) {
+    return `Page ${String(page.position).padStart(2, '0')}`;
+  }
+
+  const [first, last] = page.spreadPagePositions;
+  return `Spread ${String(first).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+}
+
 export default function FeatureTemplate({ edition, page, viewModel }: FeatureTemplateProps) {
   const title = typeof viewModel.title === 'string' ? viewModel.title : edition.title;
   const standfirst = typeof viewModel.standfirst === 'string' ? viewModel.standfirst : '';
@@ -75,6 +84,9 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
     month: 'long',
     year: 'numeric',
   });
+  const spreadLabel = formatSpreadLabel(page);
+  const introParagraph = standfirst || bodyParagraphs[0] || '';
+  const supportingParagraphs = standfirst ? bodyParagraphs : bodyParagraphs.slice(1);
 
   if (fullBleed) {
     return (
@@ -94,11 +106,16 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
           <div className="max-w-4xl rounded-[2rem] border border-white/10 bg-black/38 p-7 shadow-[0_28px_90px_rgba(0,0,0,0.4)] backdrop-blur-md lg:p-10">
             <div className="flex flex-wrap items-center gap-4 text-[10px] uppercase tracking-[0.28em] text-white/60">
               <span className="text-[#C9956A]">{storyLabel}</span>
+              <span>{spreadLabel}</span>
               <span>{publishLabel}</span>
               {author ? <span>By {author}</span> : null}
             </div>
             <h2 className="mt-5 max-w-4xl font-serif text-5xl font-medium leading-[0.95] lg:text-7xl">{renderTitleArt(title)}</h2>
-            {standfirst ? <p className="mt-6 max-w-3xl font-serif text-xl leading-relaxed text-zinc-200">{standfirst}</p> : null}
+            {introParagraph ? (
+              <div className="mt-6 max-w-3xl border-l border-[#C9956A]/60 pl-5">
+                <p className="font-serif text-xl leading-relaxed text-zinc-200 lg:text-[1.45rem]">{introParagraph}</p>
+              </div>
+            ) : null}
           </div>
           {pullQuote ? (
             <blockquote className="pull-quote mt-8 max-w-2xl bg-black/20 py-3 pr-4 text-white/90 backdrop-blur-sm">
@@ -106,12 +123,15 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
               {pullQuoteAttribution ? <footer className="mt-3 text-sm not-italic uppercase tracking-[0.25em] text-[#C9956A]">{pullQuoteAttribution}</footer> : null}
             </blockquote>
           ) : null}
-          {bodyParagraphs.length > 0 ? (
+          {supportingParagraphs.length > 0 ? (
             <div className="mt-8 max-w-3xl rounded-[1.6rem] border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
-              <p className="text-[10px] uppercase tracking-[0.26em] text-[#C9956A]">Feature Text</p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-[10px] uppercase tracking-[0.26em] text-[#C9956A]">Feature Text</p>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">{spreadLabel}</p>
+              </div>
               <div className="mt-4 grid gap-4 font-serif text-base leading-8 text-white/82 lg:grid-cols-2">
-                {bodyParagraphs.map((paragraph, index) => (
-                  <p key={`${paragraph}-${index}`} className={index === 0 ? 'editorial-dropcap' : undefined}>
+                {supportingParagraphs.map((paragraph, index) => (
+                  <p key={`${paragraph}-${index}`} className={index === 0 && !standfirst ? 'editorial-dropcap' : undefined}>
                     {paragraph}
                   </p>
                 ))}
@@ -158,17 +178,26 @@ export default function FeatureTemplate({ edition, page, viewModel }: FeatureTem
           <div className="flex items-center gap-3">
             <div className="h-px w-8 bg-[#A3413A]" />
             <p className="text-[10px] uppercase tracking-[0.28em] text-[#A3413A]">{storyLabel}</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-[#8c6a55]">{spreadLabel}</p>
           </div>
           <h2 className="text-feature-xl mt-6 font-serif font-medium text-[#18110d]">{renderTitleArt(title)}</h2>
-          {standfirst ? <p className="mt-5 max-w-2xl font-serif text-xl leading-relaxed text-[#5e4d40]">{standfirst}</p> : null}
-          {bodyParagraphs.length > 0 ? (
+          {introParagraph ? (
+            <div className="mt-5 max-w-2xl border-l-2 border-[#A3413A]/60 pl-5">
+              <p className="font-serif text-[1.35rem] leading-relaxed text-[#5e4d40]">{introParagraph}</p>
+            </div>
+          ) : null}
+          {supportingParagraphs.length > 0 ? (
             <div className="mt-8 space-y-4 rounded-[1.8rem] border border-[#dfd3c5] bg-white/70 p-6 shadow-[0_16px_40px_rgba(0,0,0,0.05)]">
-              {bodyParagraphs.map((paragraph, index) => (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#A3413A]">Opening Text</p>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[#8c6a55]">{publishLabel}</p>
+              </div>
+              {supportingParagraphs.map((paragraph, index) => (
                 <p
                   key={`${paragraph}-${index}`}
                   className={
                     index === 0
-                      ? 'editorial-dropcap font-serif text-xl leading-8 text-[#2d2019]'
+                      ? `font-serif leading-8 text-[#2d2019] ${standfirst ? 'text-lg' : 'editorial-dropcap text-xl'}`
                       : 'font-serif text-lg leading-8 text-[#4d3a30]'
                   }
                 >
