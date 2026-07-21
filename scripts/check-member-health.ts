@@ -9,6 +9,11 @@ dotenv.config({ path: '.env.local' });
 async function checkMemberHealth() {
   console.log('🔍 Checking member profile health...');
   
+  if (!adminDb) {
+    console.error('Firebase admin DB not initialized');
+    process.exit(1);
+  }
+
   const snapshot = await adminDb.collection('newMemberCollection')
     .where('userInactive', '==', false)
     .get();
