@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
+import { listEditions } from '@/features/magazine/server/edition-repository';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'
@@ -18,14 +18,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === '' ? 1 : 0.8,
   }))
 
-  // Dynamic magazine issues
-  const issues = await getMagazineIssuesServer()
-  const issueRoutes = issues.map((issue) => ({
-    url: `${baseUrl}/magazine/issue/${issue.id}`,
-    lastModified: issue.publishDate || new Date().toISOString(),
+  // Dynamic magazine editions (V2 reader URLs)
+  const editions = await listEditions(50).catch(() => [])
+  const editionRoutes = editions.map((edition) => ({
+    url: `${baseUrl}/magazine/v2/${edition.slug}`,
+    lastModified: edition.updatedAt || edition.publishDate || new Date().toISOString(),
     changeFrequency: 'monthly' as const,
-    priority: 0.7,
+    priority: edition.isLive ? 0.9 : 0.6,
   }))
 
-  return [...routes, ...issueRoutes]
+  return [...routes, ...editionRoutes]
 }

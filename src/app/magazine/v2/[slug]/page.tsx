@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import PremiumReaderShell from '@/features/magazine/components/PremiumReaderShell';
+import MagazineShell from '@/features/magazine/components/MagazineShell';
 import {
   getLatestMagazineV2ReaderPreview,
   getMagazineV2ReaderDataBySlug,
@@ -65,7 +65,7 @@ export default async function MagazineV2ReaderPage({ params }: { params: Promise
   const currentPreviewIsLatest = latestPreview?.edition.id === edition.id;
 
   return (
-    <PremiumReaderShell
+    <MagazineShell
       edition={edition}
       pages={pages}
       stories={stories}

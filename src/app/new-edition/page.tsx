@@ -4,11 +4,10 @@ import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Monitor, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
+import { listEditions } from '@/features/magazine/server/edition-repository';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { checkAdmin } from '@/lib/server/auth-utils';
-import { getPrimaryMagazineV2HrefForLegacyIssue } from '@/features/magazine/server/public-reader';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -19,23 +18,28 @@ export const metadata: Metadata = {
 
 export default async function NewEditionPage() {
   // Use server-side fetcher for reliability in server component
-  const [allIssues, ghostPosts] = await Promise.all([
-    getMagazineIssuesServer(),
+  const [editions, ghostPosts] = await Promise.all([
+    listEditions(8),
     getPosts({ limit: 1, filter: "featured:true" })
   ]);
-  
-  const mergedIssues = allIssues.slice(0, 8);
-  const liveIssue = mergedIssues.find((issue: any) => issue.isLatest) ?? mergedIssues[0];
-  const premiumReaderUrlEntries = await Promise.all(
-    mergedIssues.map(async (issue: any) => [issue.id, await getPrimaryMagazineV2HrefForLegacyIssue(issue)] as const),
+
+  // The live edition is the primary featured issue
+  const liveIssue = editions.find((e) => e.isLive) ?? editions[0] ?? null;
+
+  // Resolve Issuu embed URL from the edition's issuu metadata
+  const flipbookEdition = editions.find((e) => e.issuu?.embedUrl || e.issuu?.shareUrl) ?? null;
+  const rawFlipbookUrl = flipbookEdition?.issuu?.embedUrl || flipbookEdition?.issuu?.shareUrl || null;
+  const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
+
+  // V2 premium reader URL: editions are already V2 — link directly by slug
+  const premiumReaderUrl = liveIssue ? `/magazine/v2/${liveIssue.slug}` : null;
+
+  // Build a slug→premiumReaderUrl map for the archive grid
+  const premiumReaderUrls = new Map<string, string>(
+    editions.map((e) => [e.id, `/magazine/v2/${e.slug}`] as const)
   );
-  const premiumReaderUrls = new Map<string, string | null>(premiumReaderUrlEntries);
-  const flipbookIssue =
-    mergedIssues.find((issue: any) => issue.featureInFlipbook && issue.flipbookUrl) ??
-    mergedIssues.find((issue: any) => issue.flipbookUrl) ??
-    null;
-  const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
-  const premiumReaderUrl = liveIssue?.id ? premiumReaderUrls.get(liveIssue.id) ?? null : null;
+
+  const mergedIssues = editions;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -47,7 +51,7 @@ export default async function NewEditionPage() {
     }
   })();
   
-  console.log('[NewEditionPage] allIssues count:', allIssues.length);
+  console.log('[NewEditionPage] editions count:', editions.length);
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!liveIssue) {
@@ -107,7 +111,7 @@ export default async function NewEditionPage() {
                   <span>{new Date(liveIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
                 </div>
                 <div className="h-4 w-px bg-white/10" />
-                <p>{liveIssue.tags?.slice(0, 3).join(' · ') || 'Yorkshire BusinessWoman Magazine'}</p>
+                <p>Yorkshire BusinessWoman Magazine</p>
               </div>
             </div>
 
@@ -193,7 +197,7 @@ export default async function NewEditionPage() {
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                   <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-5 text-base text-white hover:bg-[#8c362f]">
-                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/issue/${liveIssue.id}`}>
+                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/v2/${liveIssue.slug}`}>
                       <BookOpen className="mr-2 h-5 w-5" />
                       {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Latest Edition'}
                     </Link>
@@ -249,7 +253,7 @@ export default async function NewEditionPage() {
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
                 <iframe
-                  title={flipbookIssue?.title || 'Classic Flipping Book'}
+                  title={flipbookEdition?.title || 'Classic Flipping Book'}
                   allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture"
                   allowFullScreen={true}
                   style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }}
@@ -342,7 +346,7 @@ export default async function NewEditionPage() {
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 {/* Cover Image - Entire image is now a link */}
                 <Link 
-                  href={`/magazine/issue/${issue.id}`}
+                  href={`/magazine/v2/${issue.slug}`}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -356,7 +360,7 @@ export default async function NewEditionPage() {
                       <BookOpen className="h-6 w-6 text-white" />
                     </div>
                   </div>
-                  {issue.isLatest && (
+                  {issue.isLive && (
                     <div className="absolute top-2 right-2">
                       <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">LATEST</Badge>
                     </div>
@@ -377,31 +381,21 @@ export default async function NewEditionPage() {
                   </p>
                   
                   <div className="mt-auto flex flex-col gap-2 w-full">
-                    <div className="flex flex-wrap gap-1.5 mb-4 justify-center">
-                      {issue.tags?.slice(0, 2).map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="text-[9px] font-normal uppercase tracking-wider px-1.5 py-0">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link
-                          href={issue.isLatest ? premiumReaderUrls.get(issue.id) || `/magazine/issue/${issue.id}` : `/magazine/issue/${issue.id}`}
-                        >
-                          {issue.isLatest ? 'Premium Reader' : 'Reader'}
+                        <Link href={premiumReaderUrls.get(issue.id) || `/magazine/v2/${issue.slug}`}>
+                          {issue.isLive ? 'Premium Reader' : 'Reader'}
                         </Link>
                       </Button>
-                      {issue.downloadUrl ? (
+                      {issue.issuu?.downloadUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                          <Link href={issue.downloadUrl}>PDF</Link>
+                          <Link href={issue.issuu.downloadUrl}>PDF</Link>
                         </Button>
-                      ) : (
+                      ) : issue.issuu?.shareUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                          <Link href={issue.pdfUrl || '#'}>Issuu</Link>
+                          <Link href={issue.issuu.shareUrl} target="_blank" rel="noreferrer">Issuu</Link>
                         </Button>
-                      )}
+                      ) : null}
                       {isAdmin && issue?.id && (
                         <Button
                           variant="outline"

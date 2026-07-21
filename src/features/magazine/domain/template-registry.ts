@@ -17,6 +17,13 @@ import type {
 } from './types';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
+export interface TemplateRenderProps {
+  edition: Edition;
+  page: FlatplanPage;
+  viewModel: Record<string, unknown>;
+  imageVersion?: string;
+}
+
 export interface TemplateRegistryEntry {
   definition: TemplateDefinition;
   buildDefaultSlots: () => EditionPresetPage['slotDefinitions'];
@@ -27,17 +34,125 @@ export interface TemplateRegistryEntry {
     stories: Story[];
     assets: MagazineAsset[];
   }) => Record<string, unknown>;
-  render: ComponentType<{
-    edition: Edition;
-    page: FlatplanPage;
-    viewModel: Record<string, unknown>;
-  }>;
+  render: ComponentType<TemplateRenderProps>;
 }
 
 interface ManualGalleryItem {
   src: string;
   alt?: string;
   caption?: string;
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function looksLikeImportArtifact(value?: string): boolean {
+  if (!value) return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+
+  return (
+    /^<\?ACE 18\?>$/i.test(normalized) ||
+    /\.(indd|idml|icml)$/i.test(normalized) ||
+    /^imported from /i.test(normalized) ||
+    /^printed by[:\s]/i.test(normalized)
+  );
+}
+
+function looksLikeGenericMagazineTitle(value?: string): boolean {
+  if (!value) return false;
+  return /^(ybw|yorkshire)[-\s]*business[-\s]*woman$/i.test(value.trim());
+}
+
+function extractMeaningfulParagraphs(value?: string): string[] {
+  if (!value) return [];
+  return normalizeWhitespace(value)
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .filter((paragraph) => !looksLikeImportArtifact(paragraph));
+}
+
+function extractEditorialTitleFromBody(body?: string): string | undefined {
+  const paragraphs = extractMeaningfulParagraphs(body);
+  if (paragraphs.length === 0) return undefined;
+
+  const first = paragraphs[0];
+  if (/^editors?\s*notes?$/i.test(first.replace(/\s+/g, ' '))) return "Editor's Note";
+  if (/^cover\s*:/i.test(first) || /disclosure/i.test(first)) return 'Contents & Disclosure';
+  if (/^we have another great issue for you/i.test(first) || /by group editor/i.test(body || '')) {
+    return "Editor's Note";
+  }
+
+  const sentence = first.split(/(?<=[.!?])\s+/)[0]?.trim() ?? '';
+  const candidate = sentence.length >= 8 && sentence.length <= 90 ? sentence : first;
+  if (!candidate || looksLikeImportArtifact(candidate) || looksLikeGenericMagazineTitle(candidate)) return undefined;
+
+  return candidate;
+}
+
+function sanitizeEditorialTitle(title: string | undefined, body?: string, fallback?: string): string | undefined {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (trimmed && !looksLikeImportArtifact(trimmed) && !looksLikeGenericMagazineTitle(trimmed)) {
+    return trimmed;
+  }
+
+  return extractEditorialTitleFromBody(body) ?? fallback;
+}
+
+function sanitizeEditorialStandfirst(value: string | undefined, fallback?: string): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (trimmed && !looksLikeImportArtifact(trimmed)) return trimmed;
+
+  const fallbackTrimmed = typeof fallback === 'string' ? fallback.trim() : '';
+  if (fallbackTrimmed && !looksLikeImportArtifact(fallbackTrimmed)) return fallbackTrimmed;
+
+  return undefined;
+}
+
+function sanitizeEditorialBody(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return undefined;
+
+  return normalized
+    .replace(/^EditorsNotes\s*/i, '')
+    .replace(/^Gill x\s*/i, '')
+    .trim();
+}
+
+function getStoryPagePosition(story: Story): number | null {
+  const pageTag = story.issueTags?.find((tag) => /^page-\d+$/i.test(tag));
+  if (!pageTag) return null;
+
+  const value = Number.parseInt(pageTag.replace(/^page-/i, ''), 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+function buildGeneratedContentsEntries(stories: Story[]) {
+  return stories
+    .map((story) => ({
+      story,
+      pagePosition: getStoryPagePosition(story),
+      title: sanitizeEditorialTitle(story.title, story.body),
+    }))
+    .filter(
+      (entry): entry is { story: Story; pagePosition: number; title: string } =>
+        typeof entry.pagePosition === 'number' && Boolean(entry.title),
+    )
+    .sort((left, right) => left.pagePosition - right.pagePosition)
+    .slice(0, 8)
+    .map((entry) => ({
+      title: entry.title,
+      pageLabel: String(entry.pagePosition).padStart(2, '0'),
+    }));
+}
+
+function sanitizeEditionDescription(value?: string): string | undefined {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed || looksLikeImportArtifact(trimmed)) return undefined;
+  return trimmed;
 }
 
 function isLocalAssetPath(value?: string): boolean {
@@ -140,6 +255,18 @@ function findManualGalleryItems(slots: Slot[]): ManualGalleryItem[] {
   }, []);
 }
 
+function formatPublishDate(publishDate: string): string {
+  try {
+    return new Date(publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  } catch {
+    return publishDate;
+  }
+}
+
+function humanizeContentType(value: string): string {
+  return value.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
 const coverEntry: TemplateRegistryEntry = {
   definition: {
     family: 'cover',
@@ -161,15 +288,34 @@ const coverEntry: TemplateRegistryEntry = {
     const story = findBoundStory(slots, stories);
     const asset = findBoundAsset(slots, assets);
     const manualGallery = findManualGalleryItems(slots);
+    const sanitizedBody = sanitizeEditorialBody(story?.body);
+    const headline = sanitizeEditorialTitle(story?.title, sanitizedBody, edition.title) ?? edition.title;
+    // Both edition.description and edition.subtitle can contain raw IDML import artefacts;
+    // sanitizeEditionDescription strips those before they reach the renderer.
+    const editionStandfirstFallback =
+      sanitizeEditionDescription(edition.description) ??
+      sanitizeEditionDescription(edition.subtitle);
+    const standfirst = sanitizeEditorialStandfirst(story?.standfirst, editionStandfirstFallback);
+    const coverImgSrc =
+      safeImageUrl(edition.coverImage) ??
+      safeImageUrl(asset?.src) ??
+      safeImageUrl(story?.heroImage?.src) ?? '';
+    const featureImgSrc =
+      safeImageUrl(asset?.src) ??
+      safeImageUrl(manualGallery[0]?.src) ??
+      safeImageUrl(story?.heroImage?.src) ?? '';
+    const gallery = buildSafeGalleryItems((story?.gallery as any) ?? []);
 
     return {
-      title: story?.title ?? edition.title,
-      standfirst: story?.standfirst ?? edition.description,
-      coverImage:
-        safeImageUrl(asset?.src) ??
-        safeImageUrl(manualGallery[0]?.src) ??
-        safeImageUrl(story?.heroImage?.src) ??
-        safeImageUrl(edition.coverImage),
+      // Gen 1 PageCover data shape
+      image: coverImgSrc,
+      featureImage: featureImgSrc || coverImgSrc,
+      headline,
+      subheadline: standfirst ?? '',
+      date: formatPublishDate(edition.publishDate),
+      issue: sanitizeEditionDescription(edition.subtitle) || formatPublishDate(edition.publishDate),
+      badge: story?.tags?.[0] ?? 'Lead Feature',
+      gallery,
     };
   },
   render: CoverTemplate,
@@ -192,21 +338,20 @@ const contentsEntry: TemplateRegistryEntry = {
     { key: 'contentsList', contentType: 'contents', isRequired: true },
     { key: 'contentsHighlight', contentType: 'story', isRequired: false },
   ],
-  buildViewModel: ({ page, slots, stories }) => {
-    const story = findBoundStory(slots, stories);
+  buildViewModel: ({ edition, slots, stories }) => {
     const generatedEntries = slots.find((slot) => slot.contentType === 'contents')?.overrideData?.entries;
-    const staticCopySlot = findSlotByContentType(slots, 'static_copy');
+    const fallbackEntries = buildGeneratedContentsEntries(stories);
+    const rawEntries: Array<{ title: string; pageLabel: string }> =
+      Array.isArray(generatedEntries) && generatedEntries.length > 0
+        ? (generatedEntries as Array<{ title: string; pageLabel: string }>)
+        : fallbackEntries;
 
     return {
-      mode: page.intent === 'back_cover' ? 'closing' : 'contents',
-      pageLabel: page.position,
-      highlightTitle: story?.title,
-      entries: Array.isArray(generatedEntries) ? generatedEntries : [],
-      closingEyebrow: getOverrideString(staticCopySlot, 'eyebrow'),
-      closingTitle: getOverrideString(staticCopySlot, 'title'),
-      closingBody: getOverrideString(staticCopySlot, 'body'),
-      closingCtaLabel: getOverrideString(staticCopySlot, 'ctaLabel'),
-      closingCtaHref: getOverrideString(staticCopySlot, 'ctaHref'),
+      // Gen 1 PageContents data shape
+      title: 'In This Issue',
+      kicker: formatPublishDate(edition.publishDate),
+      items: rawEntries.map((e) => ({ title: e.title, page: e.pageLabel })),
+      // news: [] → PageContents will fetch live news automatically when empty
     };
   },
   render: ContentsTemplate,
@@ -224,15 +369,22 @@ const editorNoteEntry: TemplateRegistryEntry = {
   buildDefaultSlots: () => [{ key: 'primaryStory', contentType: 'story', isRequired: true }],
   buildViewModel: ({ edition, slots, stories }) => {
     const story = findBoundStory(slots, stories);
+    const sanitizedBody = sanitizeEditorialBody(story?.body);
+    const sanitizedTitle = sanitizeEditorialTitle(story?.title, sanitizedBody, `From the editor: ${edition.title}`) ?? `From the editor: ${edition.title}`;
+    const standfirst = sanitizeEditorialStandfirst(story?.standfirst);
+    const heroImg = safeImageUrl(story?.heroImage?.src);
+    const pullQuote = story?.pullQuotes?.[0];
 
     return {
-      title: story?.title ?? `From the editor: ${edition.title}`,
-      standfirst: story?.standfirst,
-      body: story?.body,
+      // Gen 1 PageEditorial data shape
+      title: sanitizedTitle,
       author: story?.author,
-      heroImage: safeImageUrl(story?.heroImage?.src),
-      pullQuote: story?.pullQuotes?.[0],
-      pullQuoteAttribution: story?.author,
+      quote: pullQuote,
+      text: sanitizedBody ?? '',
+      intro: standfirst ?? '',
+      featureImage: heroImg,
+      image: heroImg,
+      pullQuotes: story?.pullQuotes ?? (pullQuote ? [pullQuote] : []),
     };
   },
   render: EditorNoteTemplate,
@@ -248,18 +400,20 @@ const adEntry: TemplateRegistryEntry = {
     allowedSlots: [{ key: 'adPanel', contentType: 'ad', isRequired: true }],
   },
   buildDefaultSlots: () => [{ key: 'adPanel', contentType: 'ad', isRequired: true }],
-  buildViewModel: ({ edition, slots }) => {
+  buildViewModel: ({ slots }) => {
     const adSlot = findSlotByContentType(slots, 'ad');
+    const label = getOverrideString(adSlot, 'label') ?? 'Advertisement';
+    const advertiserName = getOverrideString(adSlot, 'advertiserName');
+    const headline = getOverrideString(adSlot, 'headline');
+    const imageSrc = safeImageUrl(getOverrideString(adSlot, 'imageSrc'));
+    const ctaHref = safeLinkUrl(getOverrideString(adSlot, 'ctaHref'));
 
     return {
-      label: getOverrideString(adSlot, 'label') ?? 'Advertisement',
-      advertiserName: getOverrideString(adSlot, 'advertiserName'),
-      headline: getOverrideString(adSlot, 'headline') ?? edition.title,
-      body: getOverrideString(adSlot, 'body'),
-      imageSrc: safeImageUrl(getOverrideString(adSlot, 'imageSrc')),
-      pdfSrc: safeLinkUrl(getOverrideString(adSlot, 'pdfSrc')),
-      ctaLabel: getOverrideString(adSlot, 'ctaLabel'),
-      ctaHref: safeLinkUrl(getOverrideString(adSlot, 'ctaHref')),
+      // Gen 1 PageFullPageAd data shape
+      image: imageSrc,
+      label,
+      alt: advertiserName || headline || 'Advertisement',
+      linkUrl: ctaHref,
     };
   },
   render: AdTemplate,
@@ -284,17 +438,26 @@ const backCoverEntry: TemplateRegistryEntry = {
   buildViewModel: ({ edition, slots }) => {
     const staticCopySlot = findSlotByContentType(slots, 'static_copy');
     const manualGallery = findManualGalleryItems(slots);
+    const title = getOverrideString(staticCopySlot, 'title') ?? edition.title;
+    const body = getOverrideString(staticCopySlot, 'body') ?? edition.description ?? '';
+    const eyebrow = getOverrideString(staticCopySlot, 'eyebrow') ?? 'Until Next Time';
+    const ctaLabel = getOverrideString(staticCopySlot, 'ctaLabel');
+    const ctaHref = getOverrideString(staticCopySlot, 'ctaHref');
+    const imgSrc =
+      safeImageUrl(manualGallery[0]?.src) ??
+      safeImageUrl(getOverrideString(staticCopySlot, 'imageSrc')) ??
+      safeImageUrl(edition.coverImage) ?? '';
 
     return {
-      eyebrow: getOverrideString(staticCopySlot, 'eyebrow') ?? 'Back Cover',
-      title: getOverrideString(staticCopySlot, 'title') ?? edition.title,
-      body: getOverrideString(staticCopySlot, 'body') ?? edition.description,
-      ctaLabel: getOverrideString(staticCopySlot, 'ctaLabel'),
-      ctaHref: getOverrideString(staticCopySlot, 'ctaHref'),
-      imageSrc:
-        safeImageUrl(manualGallery[0]?.src) ??
-        safeImageUrl(getOverrideString(staticCopySlot, 'imageSrc')) ??
-        safeImageUrl(edition.coverImage),
+      // Gen 1 PageBackCover data shape
+      title,
+      text: body,
+      featureImage: imgSrc,
+      image: imgSrc,
+      kicker: eyebrow,
+      cta: ctaLabel || 'Join the Community',
+      linkUrl: ctaHref,
+      socials: [],
     };
   },
   render: BackCoverTemplate,
@@ -334,12 +497,6 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         getOverrideString(staticCopySlot, 'title') ??
         getOverrideString(sponsorSlot, 'sponsorName') ??
         edition.title;
-      const fallbackStandfirst =
-        getOverrideString(quoteSlot, 'quote') ??
-        getOverrideString(adSlot, 'advertiserName') ??
-        getOverrideString(staticCopySlot, 'eyebrow') ??
-        edition.description ??
-        '';
       const fallbackBody =
         getOverrideString(adSlot, 'body') ??
         getOverrideString(staticCopySlot, 'body') ??
@@ -354,28 +511,28 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         storyGallery[0]?.src,
         edition.coverImage,
       );
+      const sanitizedBody = sanitizeEditorialBody(story?.body ?? fallbackBody);
+      const sanitizedTitle = story
+        ? sanitizeEditorialTitle(story.title, sanitizedBody, fallbackTitle) ?? fallbackTitle
+        : fallbackTitle;
+      const pullQuote = getOverrideString(quoteSlot, 'quote') ?? story?.pullQuotes?.[0];
+      const gallery = manualGallery.length > 0 ? manualGallery : storyGallery;
+      const kicker = story?.contentType ? humanizeContentType(story.contentType) : 'Feature';
 
       return {
-        title: story?.title ?? fallbackTitle,
-        standfirst: story?.standfirst ?? fallbackStandfirst,
-        body: story?.body ?? fallbackBody,
-        heroImage: fallbackImage,
-        author: story?.author,
-        contentType: story?.contentType,
-        pullQuote: getOverrideString(quoteSlot, 'quote') ?? story?.pullQuotes?.[0],
-        pullQuoteAttribution: getOverrideString(quoteSlot, 'attribution') ?? story?.author,
-        galleryImages:
-          manualGallery.length > 0
-            ? manualGallery
-            : storyGallery,
-        ctaLabel:
-          getOverrideString(adSlot, 'ctaLabel') ??
-          getOverrideString(sponsorSlot, 'ctaLabel') ??
-          getOverrideString(staticCopySlot, 'ctaLabel'),
-        ctaHref:
-          safeLinkUrl(getOverrideString(adSlot, 'ctaHref')) ??
-          safeLinkUrl(getOverrideString(sponsorSlot, 'ctaHref')) ??
-          safeLinkUrl(getOverrideString(staticCopySlot, 'ctaHref')),
+        // Gen 1 PageFeatureLeft/Right data shape
+        // (mediaLayout: 'background' is added by the renderer for full-bleed variant)
+        title: sanitizedTitle,
+        kicker,
+        name: story?.author,
+        intro: sanitizeEditorialStandfirst(story?.standfirst) ?? '',
+        text: sanitizedBody ?? fallbackBody,
+        featureImage: safeImageUrl(fallbackImage) ?? '',
+        image: safeImageUrl(fallbackImage) ?? '',
+        quote: pullQuote ?? '',
+        pullQuotes: story?.pullQuotes ?? (pullQuote ? [pullQuote] : []),
+        gallery,
+        stats: [],
       };
     },
     render: FeatureTemplate,

@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { ArrowRight, BookOpen, Eye, X, Layers, Palette, Sparkles, Monitor, ChevronDown } from "lucide-react";
-import { MagazineIssue } from "@/lib/magazine-service";
 import { useState, useEffect } from "react";
 import { MagazineExperienceSkeleton } from "./MagazineExperienceSkeleton";
 
+interface IssueForExperienceWidget {
+  id: string;
+  title: string;
+  coverImage: string;
+  publishDate: string;
+}
+
 interface MagazineExperienceClientProps {
-  latestIssue: MagazineIssue;
+  latestIssue: IssueForExperienceWidget;
 }
 
 export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClientProps) {
