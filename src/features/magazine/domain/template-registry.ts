@@ -14,6 +14,7 @@ import type {
   Story,
   TemplateDefinition,
 } from './types';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 export interface TemplateRegistryEntry {
   definition: TemplateDefinition;
@@ -36,6 +37,13 @@ interface ManualGalleryItem {
   src: string;
   alt?: string;
   caption?: string;
+}
+
+function safeImageUrl(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return fixMagazineImageUrl(trimmed);
 }
 
 function findBoundStory(slots: Slot[], stories: Story[]): Story | null {
@@ -69,7 +77,7 @@ function findManualGalleryItems(slots: Slot[]): ManualGalleryItem[] {
       if (!src) return;
 
       accumulator.push({
-        src,
+        src: safeImageUrl(src) || src,
         alt: typeof item.alt === 'string' ? item.alt.trim() : undefined,
         caption: typeof item.caption === 'string' ? item.caption.trim() : undefined,
       });
@@ -104,7 +112,11 @@ const coverEntry: TemplateRegistryEntry = {
     return {
       title: story?.title ?? edition.title,
       standfirst: story?.standfirst ?? edition.description,
-      coverImage: asset?.src ?? manualGallery[0]?.src ?? story?.heroImage?.src ?? edition.coverImage,
+      coverImage:
+        safeImageUrl(asset?.src) ??
+        safeImageUrl(manualGallery[0]?.src) ??
+        safeImageUrl(story?.heroImage?.src) ??
+        safeImageUrl(edition.coverImage),
     };
   },
   render: CoverTemplate,
@@ -165,7 +177,7 @@ const editorNoteEntry: TemplateRegistryEntry = {
       standfirst: story?.standfirst,
       body: story?.body,
       author: story?.author,
-      heroImage: story?.heroImage?.src,
+      heroImage: safeImageUrl(story?.heroImage?.src),
       pullQuote: story?.pullQuotes?.[0],
       pullQuoteAttribution: story?.author,
     };
@@ -191,7 +203,8 @@ const adEntry: TemplateRegistryEntry = {
       advertiserName: getOverrideString(adSlot, 'advertiserName'),
       headline: getOverrideString(adSlot, 'headline') ?? edition.title,
       body: getOverrideString(adSlot, 'body'),
-      imageSrc: getOverrideString(adSlot, 'imageSrc'),
+      imageSrc: safeImageUrl(getOverrideString(adSlot, 'imageSrc')),
+      pdfSrc: getOverrideString(adSlot, 'pdfSrc'),
       ctaLabel: getOverrideString(adSlot, 'ctaLabel'),
       ctaHref: getOverrideString(adSlot, 'ctaHref'),
     };
@@ -225,7 +238,10 @@ const backCoverEntry: TemplateRegistryEntry = {
       body: getOverrideString(staticCopySlot, 'body') ?? edition.description,
       ctaLabel: getOverrideString(staticCopySlot, 'ctaLabel'),
       ctaHref: getOverrideString(staticCopySlot, 'ctaHref'),
-      imageSrc: manualGallery[0]?.src ?? getOverrideString(staticCopySlot, 'imageSrc') ?? edition.coverImage,
+      imageSrc:
+        safeImageUrl(manualGallery[0]?.src) ??
+        safeImageUrl(getOverrideString(staticCopySlot, 'imageSrc')) ??
+        safeImageUrl(edition.coverImage),
     };
   },
   render: BackCoverTemplate,
@@ -276,12 +292,12 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         getOverrideString(sponsorSlot, 'body') ??
         '';
       const fallbackImage =
-        asset?.src ??
-        manualGallery[0]?.src ??
-        getOverrideString(adSlot, 'imageSrc') ??
-        getOverrideString(sponsorSlot, 'imageSrc') ??
-        story?.heroImage?.src ??
-        edition.coverImage;
+        safeImageUrl(asset?.src) ??
+        safeImageUrl(manualGallery[0]?.src) ??
+        safeImageUrl(getOverrideString(adSlot, 'imageSrc')) ??
+        safeImageUrl(getOverrideString(sponsorSlot, 'imageSrc')) ??
+        safeImageUrl(story?.heroImage?.src) ??
+        safeImageUrl(edition.coverImage);
 
       return {
         title: story?.title ?? fallbackTitle,
@@ -292,7 +308,13 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         contentType: story?.contentType,
         pullQuote: getOverrideString(quoteSlot, 'quote') ?? story?.pullQuotes?.[0],
         pullQuoteAttribution: getOverrideString(quoteSlot, 'attribution') ?? story?.author,
-        galleryImages: manualGallery.length > 0 ? manualGallery : story?.gallery ?? [],
+        galleryImages:
+          manualGallery.length > 0
+            ? manualGallery
+            : (story?.gallery ?? []).map((image) => ({
+                ...image,
+                src: safeImageUrl(image.src) || image.src,
+              })),
         ctaLabel:
           getOverrideString(adSlot, 'ctaLabel') ??
           getOverrideString(sponsorSlot, 'ctaLabel') ??

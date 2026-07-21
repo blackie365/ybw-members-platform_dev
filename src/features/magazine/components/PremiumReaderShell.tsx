@@ -31,6 +31,15 @@ function humanizeIntent(value: string) {
     .join(' ');
 }
 
+function formatSpreadLabel(page: FlatplanPage) {
+  if (!page.spreadPagePositions || page.spreadPagePositions.length <= 1) {
+    return `Page ${String(page.position).padStart(2, '0')}`;
+  }
+
+  const [first, last] = page.spreadPagePositions;
+  return `Spread ${String(first).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+}
+
 export default function PremiumReaderShell({ edition, pages, stories, assets, latestPreview }: PremiumReaderShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -155,6 +164,7 @@ export default function PremiumReaderShell({ edition, pages, stories, assets, la
 
   const current = renderedPages[currentPage];
   const progress = renderedPages.length > 0 ? ((currentPage + 1) / renderedPages.length) * 100 : 0;
+  const currentSpreadLabel = current ? formatSpreadLabel(current.page) : 'Page';
 
   return (
     <div
@@ -311,7 +321,7 @@ export default function PremiumReaderShell({ edition, pages, stories, assets, la
             <div className="flex items-center justify-between gap-4 text-[10px] uppercase tracking-[0.24em] text-white/45">
               <span>{current?.label ?? 'Page'}</span>
               <span>
-                {currentPage + 1} / {renderedPages.length}
+                {currentSpreadLabel} · {currentPage + 1} / {renderedPages.length}
               </span>
             </div>
             <div className="mt-2 h-[2px] overflow-hidden bg-white/10">
@@ -379,7 +389,7 @@ export default function PremiumReaderShell({ edition, pages, stories, assets, la
                       <div className="flex items-center justify-between gap-4">
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-[0.22em] text-[#C9956A]">
-                            Page {item.page.position} · {humanizeIntent(item.page.intent)}
+                            {formatSpreadLabel(item.page)} · {humanizeIntent(item.page.intent)}
                           </p>
                           <p className="mt-2 truncate font-serif text-lg">{item.label}</p>
                         </div>
