@@ -480,41 +480,29 @@ const backCoverEntry: TemplateRegistryEntry = {
  */
 function segmentHtmlBody(html: string, segmentIndex: number, totalSegments: number): string {
   if (totalSegments <= 1 || !html) return html;
-  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return html;
 
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const elements = Array.from(doc.body.children);
-    if (elements.length === 0) return html;
+  const paragraphs = html
+    .split(/(?:<\/p>\s*<p[^>]*>)|(?:\n\s*\n+)/i)
+    .map((segment) => segment.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '').trim())
+    .filter(Boolean);
 
-    // Word-count each block element so we split by weight, not element count
-    const wordCounts = elements.map(
-      (el) => (el.textContent ?? '').split(/\s+/).filter(Boolean).length,
-    );
-    const totalWords = wordCounts.reduce((a, b) => a + b, 0);
-    if (totalWords === 0) return html;
+  if (paragraphs.length === 0) return html;
 
-    const target = Math.max(1, Math.ceil(totalWords / totalSegments));
+  const boundedIndex = Math.min(Math.max(segmentIndex, 0), totalSegments - 1);
+  const remainingParagraphs = paragraphs.length - boundedIndex;
+  const remainingSegments = totalSegments - boundedIndex;
+  const segmentSize = Math.max(1, Math.ceil(remainingParagraphs / remainingSegments));
+  const start = Math.min(boundedIndex * segmentSize, Math.max(paragraphs.length - 1, 0));
+  const end = boundedIndex === totalSegments - 1
+    ? paragraphs.length
+    : Math.min(start + segmentSize, paragraphs.length);
+  const chosen = paragraphs.slice(start, Math.max(end, start + 1));
 
-    // Build an array of segment start element-indices: [0, i1, i2, …]
-    const boundaries: number[] = [0];
-    let cumulative = 0;
-    for (let i = 0; i < elements.length && boundaries.length < totalSegments; i++) {
-      cumulative += wordCounts[i];
-      if (cumulative >= boundaries.length * target) {
-        boundaries.push(i + 1);
-      }
-    }
-    boundaries.push(elements.length);
-
-    const start = boundaries[segmentIndex] ?? 0;
-    const end = boundaries[segmentIndex + 1] ?? elements.length;
-    if (start >= end) return '';
-
-    return elements.slice(start, end).map((el) => el.outerHTML).join('');
-  } catch {
-    return html;
+  if (chosen.length === 0) {
+    return paragraphs[paragraphs.length - 1] ? `<p>${paragraphs[paragraphs.length - 1]}</p>` : html;
   }
+
+  return chosen.map((paragraph) => `<p>${paragraph}</p>`).join('');
 }
 
 /**
