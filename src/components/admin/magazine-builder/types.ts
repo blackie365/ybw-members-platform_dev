@@ -8,16 +8,6 @@ import {
   Share2,
   List
 } from 'lucide-react';
-import type { StoryContentType } from '@/features/magazine/domain/types';
-
-export type PremiumReaderPlacementPreference =
-  | 'auto'
-  | 'cover'
-  | 'contents_highlight'
-  | 'feature_primary'
-  | 'feature_secondary'
-  | 'feature_supporting_1'
-  | 'feature_supporting_2';
 
 export const PAGE_TYPES = [
   { id: 'cover', label: 'Main Cover', icon: ImageIcon },
@@ -50,11 +40,11 @@ export interface StoryLibraryItem {
   text: string;
   includedInPremiumReader?: boolean;
   premiumReaderPriority?: number;
-  premiumReaderContentType?: StoryContentType;
-  premiumReaderPlacementPreference?: PremiumReaderPlacementPreference;
+  premiumReaderContentType?: string;
+  premiumReaderPlacementPreference?: string;
   imageFileNames?: string[];
   source?: {
-    type: 'idml' | 'icml' | 'xml' | 'manual';
+    type?: string;
     fileName?: string;
     path?: string;
   };
@@ -71,7 +61,7 @@ export interface MagazineIssue {
   downloadUrl?: string;
   isLatest: boolean;
   tags: string[];
-  ghostSyncTag?: string; // New: Tag to sync articles from Ghost
+  ghostSyncTag?: string;
   readerType?: 'custom' | 'issuu';
   autoSyncCover?: boolean;
   flipbookUrl?: string;

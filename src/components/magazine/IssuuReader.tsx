@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { X, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
@@ -60,10 +60,14 @@ export default function IssuuReader({ url, title }: IssuuReaderProps) {
   return (
     <div ref={rootRef} className="fixed inset-0 bg-[#050505] flex flex-col z-[100]">
       {/* Header */}
-      <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/50 backdrop-blur-md z-50">
+      <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-4 sm:px-6 bg-zinc-900/70 backdrop-blur-md z-50">
         <div className="flex items-center gap-4">
-          <Link href="/admin/magazine" className="text-zinc-400 hover:text-white transition-colors">
-            <X className="h-6 w-6" />
+          <Link
+            href="/new-edition"
+            className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm uppercase tracking-[0.18em]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">All Editions</span>
           </Link>
           <div className="h-6 w-px bg-zinc-800 mx-2" />
           <div className="flex items-center gap-3">
@@ -75,7 +79,7 @@ export default function IssuuReader({ url, title }: IssuuReaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -87,7 +91,8 @@ export default function IssuuReader({ url, title }: IssuuReaderProps) {
           <Button variant="outline" size="sm" asChild className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
             <a href={url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-4 w-4 mr-2" />
-              View on Issuu
+              <span className="hidden sm:inline">View on Issuu</span>
+              <span className="sm:hidden">Issuu</span>
             </a>
           </Button>
         </div>

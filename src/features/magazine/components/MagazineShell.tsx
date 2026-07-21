@@ -1,16 +1,5 @@
 'use client';
 
-/**
- * MagazineShell — the Gen 1 navigation chrome lifted into the V2 reader.
- *
- * Provides: full-screen dark container · Framer Motion slide/rotateY page
- * transitions · swipe/drag on mobile · keyboard arrow nav · footer progress
- * scrubber + dot nav · fullscreen API · sidebar quick-access nav.
- *
- * Each page is rendered by its TemplateRegistryEntry, which delegates to the
- * Gen 1 page components in shared.tsx for maximum visual quality.
- */
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
@@ -18,90 +7,49 @@ import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Menu, M
 import { Logo } from '@/components/Logo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getTemplateRegistryEntry } from '@/features/magazine/domain/template-registry';
-import type { Edition, FlatplanPage, MagazineAsset, Slot, Story } from '@/features/magazine/domain/types';
-
-type PremiumReaderPage = FlatplanPage & { slots: Slot[] };
+import type { ReaderEdition, ReaderPage } from '@/features/magazine/domain/types';
+import { getTemplateEntry, getTemplateViewModel, loadTemplateRenderers, type TemplateRenderProps } from '@/features/magazine/domain/template-registry';
 
 interface MagazineShellProps {
-  edition: Edition;
-  pages: PremiumReaderPage[];
-  stories: Story[];
-  assets: MagazineAsset[];
-  latestPreview?: { href: string; title: string } | null;
+  edition: ReaderEdition;
 }
 
-function humanizeIntent(value: string) {
-  return value.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+function humanizeTemplate(template: string): string {
+  return template.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-function formatSpreadLabel(page: FlatplanPage) {
-  if (!page.spreadPagePositions || page.spreadPagePositions.length <= 1) {
-    return `Page ${String(page.position).padStart(2, '0')}`;
-  }
-  const [first, last] = page.spreadPagePositions;
-  return `Spread ${String(first).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
-}
-
-export default function MagazineShell({ edition, pages, stories, assets, latestPreview }: MagazineShellProps) {
+export default function MagazineShell({ edition }: MagazineShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState('');
+  const [renderersLoaded, setRenderersLoaded] = useState(false);
 
-  // Generate image cache-buster once on mount (same pattern as Gen 1 MagazineReader)
   useEffect(() => {
+    loadTemplateRenderers();
+    setRenderersLoaded(true);
     setImageVersion(Date.now().toString());
   }, []);
 
-  // Build view models for all pages via the template registry.
-  // Two-pass approach so each page knows:
-  //   storyOccurrenceIndex – how many prior pages already used this story
-  //   storyTotalPages      – total pages that reference this story
-  // This lets buildViewModel segment body text and suppress re-opening spreads.
+  const pages = edition.pages;
+
   const renderedPages = useMemo(() => {
-    // Pass 1: count how many pages each story spans
-    const storyPageCount = new Map<string, number>();
-    pages.forEach((page) => {
-      const storyId = page.slots.find((s) => s.binding?.storyId)?.binding?.storyId;
-      if (storyId) storyPageCount.set(storyId, (storyPageCount.get(storyId) ?? 0) + 1);
-    });
-
-    // Pass 2: render with occurrence context
-    const storyOccurrenceIndex = new Map<string, number>();
     return pages.map((page) => {
-      const boundStoryId = page.slots.find((s) => s.binding?.storyId)?.binding?.storyId;
-      const occurrenceIndex = boundStoryId ? (storyOccurrenceIndex.get(boundStoryId) ?? 0) : 0;
-      const totalPages = boundStoryId ? (storyPageCount.get(boundStoryId) ?? 1) : 1;
-      if (boundStoryId) storyOccurrenceIndex.set(boundStoryId, occurrenceIndex + 1);
-
-      const entry = getTemplateRegistryEntry(page.templateFamily, page.templateVariant);
-      const viewModel = entry
-        ? entry.buildViewModel({
-            edition,
-            page,
-            slots: page.slots,
-            stories,
-            assets,
-            storyOccurrenceIndex: occurrenceIndex,
-            storyTotalPages: totalPages,
-          })
-        : {};
-
-      const isContinuation = Boolean(viewModel.isContinuation);
-      const label = isContinuation
-        ? `${typeof viewModel.title === 'string' ? viewModel.title : humanizeIntent(page.intent)} → cont.`
-        : (typeof viewModel?.title === 'string' && viewModel.title) ||
-          (typeof viewModel?.headline === 'string' && viewModel.headline) ||
-          humanizeIntent(page.intent);
-
-      return { page, entry, viewModel, label, isContinuation };
+      const entry = getTemplateEntry(page.template);
+      const viewModel = getTemplateViewModel(page, {
+        title: edition.title,
+        publishDate: edition.publishDate,
+        coverImage: edition.coverImage,
+        description: edition.description,
+      });
+      const label = String(viewModel.title || '') || humanizeTemplate(page.template);
+      return { page, entry, viewModel, label };
     });
-  }, [assets, edition, pages, stories]);
+  }, [pages, edition]);
 
   const nextPage = useCallback(() => {
-    setCurrentPage((prev) => {
+    setCurrentPage(prev => {
       if (prev >= renderedPages.length - 1) return prev;
       setDirection(1);
       return prev + 1;
@@ -109,7 +57,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
   }, [renderedPages.length]);
 
   const prevPage = useCallback(() => {
-    setCurrentPage((prev) => {
+    setCurrentPage(prev => {
       if (prev <= 0) return prev;
       setDirection(-1);
       return prev - 1;
@@ -117,14 +65,13 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
   }, []);
 
   const goToPage = useCallback((index: number) => {
-    setCurrentPage((prev) => {
+    setCurrentPage(prev => {
       setDirection(index > prev ? 1 : -1);
       return index;
     });
     setIsNavOpen(false);
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') nextPage();
@@ -135,7 +82,6 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nextPage, prevPage]);
 
-  // Fullscreen state sync
   useEffect(() => {
     const handleFullscreenChange = () => {
       const anyDoc = document as any;
@@ -167,9 +113,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
 
   const current = renderedPages[currentPage];
   const progress = renderedPages.length > 0 ? ((currentPage + 1) / renderedPages.length) * 100 : 0;
-  const currentSpreadLabel = current ? formatSpreadLabel(current.page) : 'Page';
 
-  // Gen 1 page-flip variants — typed as any to allow custom() functions (Framer Motion)
   const variants: any = {
     enter: (dir: number) => ({
       x: dir > 0 ? '100%' : '-100%',
@@ -203,12 +147,14 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
     }),
   };
 
+  if (!renderersLoaded) return null;
+
   return (
     <div
       id="magazine-shell-root"
       className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30"
     >
-      {/* ── Top Control Bar ── */}
+      {/* Top Control Bar */}
       <header className="h-14 sm:h-16 border-b border-white/[0.06] flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
         <div className="flex items-center gap-2 sm:gap-4">
           <Link href="/new-edition" className="text-zinc-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/5">
@@ -225,7 +171,6 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Page counter pill */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-400">
             <span className="text-white font-semibold">{currentPage + 1}</span>
             <span className="text-zinc-600">/</span>
@@ -233,22 +178,8 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
           </div>
           <div className="h-5 w-px bg-white/10 mx-1 sm:mx-2" />
 
-          {/* Issuu link if available */}
-          {edition.issuu?.shareUrl ? (
-            <a
-              href={edition.issuu.shareUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden sm:flex text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md hover:bg-white/5 transition-colors"
-              title="Open on Issuu"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          ) : null}
-
-          {/* Live / Preview badge */}
           <Badge className="hidden sm:flex border-none bg-accent px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
-            {edition.isLive ? 'Live' : 'Preview'}
+            Digital Edition
           </Badge>
 
           <button
@@ -269,32 +200,12 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
         </div>
       </header>
 
-      {/* Latest preview banner */}
-      {latestPreview ? (
-        <div className="flex flex-col gap-3 border-b border-white/10 bg-[#0c0a09] px-4 py-3 lg:flex-row lg:items-center lg:justify-between sm:px-6">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-[#C9956A]">Latest Available Preview</p>
-            <p className="mt-1 text-sm text-white/70">
-              The newest assembled reader is <span className="font-medium text-white">{latestPreview.title}</span>.
-            </p>
-          </div>
-          <Button asChild className="rounded-none bg-white text-[#050505] hover:bg-accent hover:text-white shrink-0">
-            <Link href={latestPreview.href}>
-              Open Latest Preview
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      ) : null}
-
-      {/* ── Main Reader Stage ── */}
+      {/* Main Reader Stage */}
       <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-pan-y bg-[#0c0a09]">
-        {/* Ambient glow */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="w-[60vw] h-[60vh] rounded-full bg-[#a3413a]/8 blur-[120px]" />
         </div>
 
-        {/* Navigation Arrows (Desktop) */}
         <button
           onClick={prevPage}
           disabled={currentPage === 0}
@@ -311,7 +222,6 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
           <ChevronRight className="h-5 w-5 text-zinc-300" />
         </button>
 
-        {/* Page Viewport */}
         <div className="relative w-full h-full mx-auto overflow-hidden bg-white text-zinc-900 self-center shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)]">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
@@ -335,21 +245,23 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
               }}
               className="absolute inset-0 w-full h-full will-change-transform touch-pan-y overflow-y-auto overflow-x-hidden scroll-smooth overscroll-contain"
             >
-              {current?.entry && current.viewModel ? (
+              {current?.entry && current.entry.render ? (
                 <current.entry.render
-                  edition={edition}
+                  edition={{
+                    title: edition.title,
+                    publishDate: edition.publishDate,
+                    coverImage: edition.coverImage,
+                    description: edition.description,
+                  }}
                   page={current.page}
                   viewModel={current.viewModel}
                   imageVersion={imageVersion}
                 />
               ) : current ? (
                 <section className="mx-auto max-w-6xl px-6 py-16">
-                  <div className="rounded-3xl border border-dashed border-white/15 bg-[#050505] p-8 text-center text-white">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#C9956A]">Missing Template</p>
-                    <h2 className="mt-4 font-serif text-3xl">Page {current.page.position}</h2>
-                    <p className="mt-4 text-white/60">
-                      `{current.page.templateFamily}/{current.page.templateVariant}` has no renderer yet.
-                    </p>
+                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">Page {current.page.position}</p>
+                    <h2 className="mt-4 font-serif text-3xl">{current.label}</h2>
                   </div>
                 </section>
               ) : null}
@@ -358,10 +270,8 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
         </div>
       </main>
 
-      {/* ── Footer Progress Bar + Dot Nav ── */}
+      {/* Footer Progress Bar + Dot Nav */}
       <footer className="h-[4.5rem] sm:h-20 bg-gradient-to-r from-[#0c0a09] via-[#111009] to-[#0c0a09] border-t border-white/[0.06] px-4 sm:px-6 flex items-center gap-4 sm:gap-5 z-50 shrink-0">
-
-        {/* Prev button */}
         <button
           onClick={prevPage}
           disabled={currentPage === 0}
@@ -370,9 +280,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
           ‹ Prev
         </button>
 
-        {/* Scrubber + dots */}
         <div className="flex-1 flex flex-col gap-1.5 min-w-0">
-          {/* Progress bar */}
           <div className="relative h-[3px] bg-white/[0.08] rounded-full overflow-hidden">
             <div
               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
@@ -384,7 +292,6 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
             />
           </div>
 
-          {/* Page dots */}
           <div className="flex items-center justify-between gap-0.5 overflow-hidden">
             {renderedPages.map((_, i) => {
               const isActive = currentPage === i;
@@ -418,7 +325,6 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
           </div>
         </div>
 
-        {/* Next button */}
         <button
           onClick={nextPage}
           disabled={currentPage === renderedPages.length - 1}
@@ -428,7 +334,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
         </button>
       </footer>
 
-      {/* ── Sidebar Navigation ── */}
+      {/* Sidebar Navigation */}
       <AnimatePresence>
         {isNavOpen && (
           <motion.aside
@@ -465,15 +371,10 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
                         : 'hover:bg-white/[0.04] border border-transparent',
                     ].join(' ')}
                   >
-                    {/* Page number — indented for continuation pages */}
-                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'} ${item.isContinuation ? 'opacity-50' : ''}`}>
-                      {item.isContinuation ? '↳' : String(i + 1).padStart(2, '0')}
+                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+                      {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className={`text-xs min-w-0 flex-1 truncate ${
-                      item.isContinuation
-                        ? `italic tracking-wide ${isActive ? 'text-[#a3413a]/70' : 'text-zinc-600 group-hover:text-zinc-400'}`
-                        : `font-medium uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`
-                    }`}>
+                    <span className={`text-xs min-w-0 flex-1 truncate font-medium uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
                       {item.label}
                     </span>
                     {isActive && (
@@ -485,9 +386,7 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
             </nav>
 
             <div className="mt-10 p-5 bg-gradient-to-br from-[#a3413a]/20 to-[#a3413a]/10 rounded-xl border border-[#a3413a]/20">
-              <p className="text-[10px] text-[#a3413a] uppercase tracking-widest mb-1 font-bold">
-                {edition.isLive ? 'Current Edition' : 'Preview Copy'}
-              </p>
+              <p className="text-[10px] text-[#a3413a] uppercase tracking-widest mb-1 font-bold">Digital Edition</p>
               <h4 className="text-base font-serif text-white mb-4">{edition.title}</h4>
               <Link
                 href="/membership"

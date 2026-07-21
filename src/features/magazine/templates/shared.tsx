@@ -546,6 +546,57 @@ function addClassToFirstParagraph(html: string, className: string) {
   });
 }
 
+function getFeatureTypography(weightInput: unknown) {
+  const parsedWeight = Number(weightInput);
+  const weight = parsedWeight === 1 || parsedWeight === 2 || parsedWeight === 3 || parsedWeight === 4
+    ? parsedWeight
+    : 2;
+
+  switch (weight) {
+    case 1:
+      return {
+        titleSize: 'clamp(2.35rem, 4.8vw, 3.9rem)',
+        splitTitleSize: 'calc(clamp(2rem, 4vw, 3.2rem) + 28px)',
+        quoteSize: 'clamp(1.2rem, 2.4vw, 1.7rem)',
+        introClassName: 'font-serif text-base leading-relaxed text-[#3d2b1f]/82 font-medium [&_p]:mb-2',
+        bodyLightClassName: 'font-serif text-base leading-[1.82] text-[#3d2b1f]/80 [&_p]:mb-4',
+        bodyDarkClassName: 'font-serif text-[1.05rem] text-white/92 leading-[1.82] [&_p]:mb-4 [&_p:last-child]:mb-0',
+        continuationBodyClassName: 'font-serif text-[#3d2b1f]/82 leading-[1.9] text-[1.1rem] [&_p]:mb-6',
+      };
+    case 3:
+      return {
+        titleSize: 'clamp(1.85rem, 3.7vw, 3rem)',
+        splitTitleSize: 'calc(clamp(1.5rem, 3.15vw, 2.45rem) + 16px)',
+        quoteSize: 'clamp(1rem, 1.95vw, 1.3rem)',
+        introClassName: 'font-serif text-[0.95rem] leading-relaxed text-[#3d2b1f]/78 font-medium [&_p]:mb-2',
+        bodyLightClassName: 'font-serif text-[0.95rem] leading-[1.72] text-[#3d2b1f]/74 [&_p]:mb-3',
+        bodyDarkClassName: 'font-serif text-[0.98rem] text-white/84 leading-[1.74] [&_p]:mb-4 [&_p:last-child]:mb-0',
+        continuationBodyClassName: 'font-serif text-[#3d2b1f]/78 leading-[1.78] text-[1rem] [&_p]:mb-5',
+      };
+    case 4:
+      return {
+        titleSize: 'clamp(1.7rem, 3.3vw, 2.65rem)',
+        splitTitleSize: 'calc(clamp(1.4rem, 2.85vw, 2.2rem) + 12px)',
+        quoteSize: 'clamp(0.95rem, 1.8vw, 1.2rem)',
+        introClassName: 'font-serif text-[0.9rem] leading-relaxed text-[#3d2b1f]/74 font-medium [&_p]:mb-2',
+        bodyLightClassName: 'font-serif text-[0.92rem] leading-[1.68] text-[#3d2b1f]/72 [&_p]:mb-3',
+        bodyDarkClassName: 'font-serif text-[0.95rem] text-white/80 leading-[1.7] [&_p]:mb-4 [&_p:last-child]:mb-0',
+        continuationBodyClassName: 'font-serif text-[#3d2b1f]/74 leading-[1.72] text-[0.98rem] [&_p]:mb-5',
+      };
+    case 2:
+    default:
+      return {
+        titleSize: 'clamp(2rem, 4vw, 3.25rem)',
+        splitTitleSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)',
+        quoteSize: 'clamp(1.05rem, 2vw, 1.35rem)',
+        introClassName: 'font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2',
+        bodyLightClassName: 'font-serif text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3',
+        bodyDarkClassName: 'font-serif text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0',
+        continuationBodyClassName: 'font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5',
+      };
+  }
+}
+
 export function useScrollReveal(ref: React.RefObject<HTMLElement | null>, options?: IntersectionObserverInit) {
   useEffect(() => {
     const root = ref.current;
@@ -994,10 +1045,11 @@ export const PageContents = ({ data, imageVersion }: any) => {
 // CONTINUATION PAGE (shared by FeatureLeft + FeatureRight)
 // Used when a story spans multiple pages — shows body continuation only.
 // ─────────────────────────────────────────────
-function PageContinuation({ data, imageVersion }: any) {
+function PageContinuation({ data }: any) {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
 
+  const typography = getFeatureTypography(data.weight);
   const label = String(data.continuationLabel || data.title || '').trim();
   const kicker = String(data.kicker || '').trim();
   const author = String(data.name || data.author || '').trim();
@@ -1037,7 +1089,7 @@ function PageContinuation({ data, imageVersion }: any) {
                 <SafeText
                   key={`lc-${i}`}
                   html={block}
-                  className="font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5 [&_p:first-child]:editorial-dropcap"
+                  className={`${typography.continuationBodyClassName} [&_p:first-child]:editorial-dropcap`}
                 />
               ))}
             </div>
@@ -1047,7 +1099,7 @@ function PageContinuation({ data, imageVersion }: any) {
                   <SafeText
                     key={`rc-${i}`}
                     html={block}
-                    className="font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5"
+                    className={typography.continuationBodyClassName}
                   />
                 ))}
               </div>
@@ -1075,6 +1127,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   // Continuation pages get a clean two-column text layout
   if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
+  const typography = getFeatureTypography(data.weight);
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const mediaLayout = String(data.mediaLayout || '').trim();
@@ -1113,19 +1166,19 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
               )}
               {data.name && <p className="text-xs font-semibold uppercase tracking-widest text-white/70">{data.name}</p>}
               {data.title && (
-                <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: 'clamp(2rem, 4vw, 3.25rem)' }}>
+                <h2 className="font-serif font-bold leading-tight text-white" style={{ fontSize: typography.titleSize }}>
                   {renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}
                 </h2>
               )}
               {data.quote && (
                 <div className="pl-4 py-1 border-l-[3px] border-[#a3413a]">
-                  <p className="font-serif italic leading-snug text-[#a3413a]" style={{ fontSize: 'clamp(1.05rem, 2vw, 1.35rem)' }}>
+                  <p className="font-serif italic leading-snug text-[#a3413a]" style={{ fontSize: typography.quoteSize }}>
                     &ldquo;{data.quote}&rdquo;
                   </p>
                 </div>
               )}
               {textBlocks.length > 0 && (
-                <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="dark" textClassName="font-serif text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0" />
+                <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="dark" textClassName={typography.bodyDarkClassName} />
               )}
               {remainingMedia.length > 0 && <div className="scroll-reveal scroll-reveal-delay-3"><AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" /></div>}
               {stats.length > 0 && (
@@ -1170,25 +1223,25 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
         {data.name && <p className="scroll-reveal text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#7a5c4e' }}>{data.name}</p>}
         {data.title && (
           <h2 className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-tight mb-5 text-[#1c1410]"
-            style={{ fontSize: 'calc(clamp(1.6rem, 3.5vw, 2.8rem) + 20px)' }}>
+            style={{ fontSize: typography.splitTitleSize }}>
             {renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}
           </h2>
         )}
         {data.quote && (
           <div className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]" style={{ borderColor: '#a3413a' }}>
-            <p className="font-serif italic leading-snug" style={{ color: '#a3413a', fontSize: 'clamp(1rem, 2vw, 1.3rem)' }}>
+            <p className="font-serif italic leading-snug" style={{ color: '#a3413a', fontSize: typography.quoteSize }}>
               &ldquo;{data.quote}&rdquo;
             </p>
           </div>
         )}
         {introHtml && (
           <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-            <SafeText html={introHtml} className="font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2" />
+            <SafeText html={introHtml} className={typography.introClassName} />
           </div>
         )}
         {bodyBlocks.length > 0 && (
           <div className="scroll-reveal scroll-reveal-delay-3 mb-4">
-            <InterleavedTextWithMedia blocks={bodyBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="light" textClassName="font-serif text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3" />
+            <InterleavedTextWithMedia blocks={bodyBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="light" textClassName={typography.bodyLightClassName} />
           </div>
         )}
         {remainingMedia.length > 0 && (
@@ -1226,6 +1279,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   // Continuation pages get a clean two-column text layout
   if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
+  const typography = getFeatureTypography(data.weight);
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
   const nameLabel = String(data.name || '').trim();
@@ -1266,13 +1320,13 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
               <div className="lg:col-span-7 scroll-reveal">
                 <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
                   {nameLabel && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a]">{nameLabel}</p>}
-                  {data.title && <h2 className="text-section-lg font-serif font-600 text-white">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>}
+                  {data.title && <h2 className="text-section-lg font-serif font-600 text-white" style={{ fontSize: typography.titleSize }}>{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>}
                   {data.quote && (
                     <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                      <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#a3413a]">&ldquo;{data.quote}&rdquo;</p>
+                      <p className="font-serif italic leading-[1.45] text-[#a3413a]" style={{ fontSize: typography.quoteSize }}>&ldquo;{data.quote}&rdquo;</p>
                     </div>
                   )}
-                  {textBlocks.length > 0 && <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="dark" textClassName="font-serif text-white/85 leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0" />}
+                  {textBlocks.length > 0 && <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="dark" textClassName={typography.bodyDarkClassName} />}
                   {remainingMedia.length > 0 && <div className="scroll-reveal scroll-reveal-delay-2"><AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="dark" /></div>}
                 </div>
               </div>
@@ -1310,13 +1364,13 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           <div className="lg:col-span-6 space-y-6 scroll-reveal">
             {nameLabel && <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">{nameLabel}</p>}
-            {data.title && <h2 className="text-section-lg font-serif font-600 text-[#1c1410]">{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>}
+            {data.title && <h2 className="text-section-lg font-serif font-600 text-[#1c1410]" style={{ fontSize: typography.titleSize }}>{renderTitleArt(data.title, 'font-serif italic text-[#a3413a]')}</h2>}
             {data.quote && (
               <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                <p className="font-serif italic text-[clamp(1.15rem,2.2vw,1.55rem)] leading-[1.45] text-[#a3413a]">&ldquo;{data.quote}&rdquo;</p>
+                <p className="font-serif italic leading-[1.45] text-[#a3413a]" style={{ fontSize: typography.quoteSize }}>&ldquo;{data.quote}&rdquo;</p>
               </div>
             )}
-            {textBlocks.length > 0 && <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="light" textClassName="font-serif text-[#3d2b1f]/75 leading-relaxed" />}
+            {textBlocks.length > 0 && <InterleavedTextWithMedia blocks={textBlocks} inlineMedia={inlineMedia} pullQuotes={pullQuotes} imageVersion={imageVersion} variant="light" textClassName={typography.bodyLightClassName} />}
             {remainingMedia.length > 0 && <div className="scroll-reveal scroll-reveal-delay-2"><AdditionalMediaGallery items={remainingMedia} imageVersion={imageVersion} variant="light" /></div>}
           </div>
           <div className="lg:col-span-6 scroll-reveal scroll-reveal-delay-2 space-y-4">

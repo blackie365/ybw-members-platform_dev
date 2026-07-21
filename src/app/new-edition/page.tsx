@@ -4,10 +4,10 @@ import Image from 'next/image';
 import { ArrowRight, BookOpen, Calendar, Monitor, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { listEditions } from '@/features/magazine/server/edition-repository';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { checkAdmin } from '@/lib/server/auth-utils';
+import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -17,29 +17,17 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
-  // Use server-side fetcher for reliability in server component
-  const [editions, ghostPosts] = await Promise.all([
-    listEditions(8),
+  const [issues, ghostPosts] = await Promise.all([
+    getMagazineIssuesServer(),
     getPosts({ limit: 1, filter: "featured:true" })
   ]);
 
-  // The live edition is the primary featured issue
-  const liveIssue = editions.find((e) => e.isLive) ?? editions[0] ?? null;
-
-  // Resolve Issuu embed URL from the edition's issuu metadata
-  const flipbookEdition = editions.find((e) => e.issuu?.embedUrl || e.issuu?.shareUrl) ?? null;
-  const rawFlipbookUrl = flipbookEdition?.issuu?.embedUrl || flipbookEdition?.issuu?.shareUrl || null;
+  const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
+  const flipbookIssue = issues.find((issue) => issue.flipbookUrl || issue.pdfUrl) ?? liveIssue;
+  const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-
-  // V2 premium reader URL: editions are already V2 — link directly by slug
-  const premiumReaderUrl = liveIssue ? `/magazine/v2/${liveIssue.slug}` : null;
-
-  // Build a slug→premiumReaderUrl map for the archive grid
-  const premiumReaderUrls = new Map<string, string>(
-    editions.map((e) => [e.id, `/magazine/v2/${e.slug}`] as const)
-  );
-
-  const mergedIssues = editions;
+  const digitalEditionUrl = liveIssue ? `/magazine/issue/${liveIssue.id}` : '/new-edition';
+  const mergedIssues = issues;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -51,7 +39,7 @@ export default async function NewEditionPage() {
     }
   })();
   
-  console.log('[NewEditionPage] editions count:', editions.length);
+  console.log('[NewEditionPage] issues count:', issues.length);
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!liveIssue) {
@@ -88,13 +76,13 @@ export default async function NewEditionPage() {
                 {liveIssue.title}
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
-                Discover the latest Yorkshire BusinessWoman edition in a premium editorial format, with a polished magazine presentation and a beautifully considered digital reading experience.
+                Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation built around the live issue and its full page-turning format.
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
-                  <Link href="#edition-formats">
-                    Read The Latest Edition
+                  <Link href={digitalEditionUrl}>
+                    Open The Latest Edition
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -138,20 +126,16 @@ export default async function NewEditionPage() {
                 <div className="flex flex-col justify-between gap-4">
                   <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Print-Inspired</p>
-                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Magazine View</h2>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Live Digital Edition</h2>
                     <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                      A refined page-turning presentation designed to feel closest to the printed edition.
+                      The current issue opens directly in our live digital reading path, centered on the edition readers need right now.
                     </p>
                   </div>
                   <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">
-                      {premiumReaderUrl ? 'Digital-First · Premium Reader' : 'Digital-First'}
-                    </p>
-                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Experience</h2>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Magazine View</p>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Page-Turning Format</h2>
                     <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                      {premiumReaderUrl
-                        ? 'An immersive web-native reader with richer layouts and a more cinematic on-screen feel, available directly in our premium reader on this site.'
-                        : 'An immersive web-native reader with richer layouts and a more cinematic on-screen feel.'}
+                      Browse the same issue in an inline flipbook section below, ideal for readers who want a familiar print-led presentation.
                     </p>
                   </div>
                 </div>
@@ -183,23 +167,21 @@ export default async function NewEditionPage() {
                     <Badge className="border-none bg-[#16110f] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
                       Featured Format
                     </Badge>
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-[#8b6f5a]">Most Like Print</span>
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-[#8b6f5a]">Live Now</span>
                   </div>
                   <h3 className="mt-6 font-serif text-3xl font-medium sm:text-4xl">
-                    Magazine View
+                    Digital Edition
                   </h3>
                   <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5a4a3f] sm:text-lg">
-                    {flipbookEmbedUrl
-                      ? 'Elegant page turns, a familiar editorial rhythm, and a presentation that feels closest to the physical magazine.'
-                      : 'A magazine-led presentation designed for a refined editorial feel, with the latest edition opening in our enhanced digital format when a flipbook is not available.'}
+                    Open the current Yorkshire BusinessWoman issue directly in its live digital reading route, with the latest edition always featured first.
                   </p>
                 </div>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                   <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-5 text-base text-white hover:bg-[#8c362f]">
-                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : `/magazine/v2/${liveIssue.slug}`}>
+                    <Link href={digitalEditionUrl}>
                       <BookOpen className="mr-2 h-5 w-5" />
-                      {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Latest Edition'}
+                      Open Latest Edition
                     </Link>
                   </Button>
                 </div>
@@ -210,23 +192,23 @@ export default async function NewEditionPage() {
               <div className="flex h-full flex-col justify-between p-8 sm:p-10">
                 <div>
                   <Badge className="border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                    {premiumReaderUrl ? 'Premium Reader' : 'Enhanced Web Reader'}
+                    Print-Led Format
                   </Badge>
                   <h3 className="mt-6 font-serif text-3xl font-medium">
-                    Digital Experience
+                    Magazine View
                   </h3>
                   <p className="mt-4 text-base leading-relaxed text-zinc-300">
-                    {premiumReaderUrl
-                      ? 'A richer digital presentation built for readers who prefer a more immersive on-screen experience, opening here on the Yorkshire BusinessWoman site.'
-                      : 'A richer digital presentation built for readers who prefer a more immersive on-screen experience.'}
+                    {flipbookEmbedUrl
+                      ? 'Open the live issue in the embedded page-turning presentation below for a format that feels closest to the printed magazine.'
+                      : 'The current issue can still be opened directly in the main digital edition route above.'}
                   </p>
                 </div>
 
                 <div className="mt-8">
                   <Button asChild size="lg" className="h-auto rounded-none border border-white/10 bg-white text-[#16110f] px-8 py-5 text-base hover:bg-accent hover:text-white">
-                    <Link href={premiumReaderUrl || `/magazine/issue/${liveIssue.id}`}>
+                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : digitalEditionUrl}>
                       <Monitor className="mr-2 h-5 w-5" />
-                      {premiumReaderUrl ? 'Open Premium Digital Reader' : 'Open Digital Experience'}
+                      {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Digital Edition'}
                     </Link>
                   </Button>
                 </div>
@@ -240,9 +222,7 @@ export default async function NewEditionPage() {
         <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
             <div className="mb-10 text-center">
-              <h2 className="font-serif text-3xl font-medium sm:text-4xl">
-                Magazine View
-              </h2>
+              <h2 className="font-serif text-3xl font-medium sm:text-4xl">Magazine View</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
                 Browse the edition in a polished, page-turning format designed to echo the feel of the printed publication.
               </p>
@@ -253,7 +233,7 @@ export default async function NewEditionPage() {
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
                 <iframe
-                  title={flipbookEdition?.title || 'Classic Flipping Book'}
+                  title={flipbookIssue?.title || 'Classic Flipping Book'}
                   allow="clipboard-write; autoplay; encrypted-media; fullscreen; picture-in-picture"
                   allowFullScreen={true}
                   style={{ position: 'absolute', border: 'none', width: '100%', height: '100%', left: 0, right: 0, top: 0, bottom: 0 }}
@@ -346,7 +326,7 @@ export default async function NewEditionPage() {
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 {/* Cover Image - Entire image is now a link */}
                 <Link 
-                  href={`/magazine/v2/${issue.slug}`}
+                  href={`/magazine/issue/${issue.id}`}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -360,7 +340,7 @@ export default async function NewEditionPage() {
                       <BookOpen className="h-6 w-6 text-white" />
                     </div>
                   </div>
-                  {issue.isLive && (
+                  {issue.isLatest && (
                     <div className="absolute top-2 right-2">
                       <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">LATEST</Badge>
                     </div>
@@ -383,17 +363,17 @@ export default async function NewEditionPage() {
                   <div className="mt-auto flex flex-col gap-2 w-full">
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link href={premiumReaderUrls.get(issue.id) || `/magazine/v2/${issue.slug}`}>
-                          {issue.isLive ? 'Premium Reader' : 'Reader'}
+                        <Link href={`/magazine/issue/${issue.id}`}>
+                          {issue.isLatest ? 'Open Live Issue' : 'Open Edition'}
                         </Link>
                       </Button>
-                      {issue.issuu?.downloadUrl ? (
+                      {issue.pdfUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                          <Link href={issue.issuu.downloadUrl}>PDF</Link>
+                          <Link href={issue.pdfUrl}>PDF</Link>
                         </Button>
-                      ) : issue.issuu?.shareUrl ? (
+                      ) : issue.flipbookUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                          <Link href={issue.issuu.shareUrl} target="_blank" rel="noreferrer">Issuu</Link>
+                          <Link href={issue.flipbookUrl} target="_blank" rel="noreferrer">Issuu</Link>
                         </Button>
                       ) : null}
                       {isAdmin && issue?.id && (

@@ -1,10 +1,9 @@
 import { MetadataRoute } from 'next';
-import { listEditions } from '@/features/magazine/server/edition-repository';
+import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'
 
-  // Static routes
   const routes = [
     '',
     '/membership',
@@ -18,13 +17,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === '' ? 1 : 0.8,
   }))
 
-  // Dynamic magazine editions (V2 reader URLs)
-  const editions = await listEditions(50).catch(() => [])
+  const editions = await listReaderEditions(50).catch(() => [])
   const editionRoutes = editions.map((edition) => ({
-    url: `${baseUrl}/magazine/v2/${edition.slug}`,
-    lastModified: edition.updatedAt || edition.publishDate || new Date().toISOString(),
+    url: `${baseUrl}/magazine/read/${edition.slug}`,
+    lastModified: edition.createdAt || new Date().toISOString(),
     changeFrequency: 'monthly' as const,
-    priority: edition.isLive ? 0.9 : 0.6,
+    priority: 0.9,
   }))
 
   return [...routes, ...editionRoutes]
