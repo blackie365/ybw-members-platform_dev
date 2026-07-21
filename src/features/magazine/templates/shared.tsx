@@ -1068,11 +1068,12 @@ function PageContinuation({ data, imageVersion }: any) {
 }
 
 export const PageFeatureLeft = ({ data, imageVersion }: any) => {
-  // Continuation pages get a clean two-column text layout
-  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
-
+  // Hooks must be called unconditionally (Rules of Hooks)
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
+
+  // Continuation pages get a clean two-column text layout
+  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
@@ -1218,11 +1219,12 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
 // FEATURE RIGHT (text left, image right)
 // ─────────────────────────────────────────────
 export const PageFeatureRight = ({ data, imageVersion }: any) => {
-  // Continuation pages get a clean two-column text layout
-  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
-
+  // Hooks must be called unconditionally (Rules of Hooks)
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
+
+  // Continuation pages get a clean two-column text layout
+  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
