@@ -24,6 +24,14 @@ export interface TemplateRenderProps {
   imageVersion?: string;
 }
 
+/** Context injected by MagazineShell so buildViewModel knows where a story sits across pages. */
+export interface StoryPageContext {
+  /** 0-based index: how many times this story has already appeared on prior pages. */
+  storyOccurrenceIndex: number;
+  /** Total flatplan pages that reference this story. 1 means it fits on one page. */
+  storyTotalPages: number;
+}
+
 export interface TemplateRegistryEntry {
   definition: TemplateDefinition;
   buildDefaultSlots: () => EditionPresetPage['slotDefinitions'];
@@ -33,6 +41,8 @@ export interface TemplateRegistryEntry {
     slots: Slot[];
     stories: Story[];
     assets: MagazineAsset[];
+    storyOccurrenceIndex?: number;
+    storyTotalPages?: number;
   }) => Record<string, unknown>;
   render: ComponentType<TemplateRenderProps>;
 }
@@ -463,6 +473,70 @@ const backCoverEntry: TemplateRegistryEntry = {
   render: BackCoverTemplate,
 };
 
+/**
+ * Split an HTML body string into `totalSegments` roughly equal segments
+ * so long articles can flow across multiple flatplan pages without repeating
+ * from the beginning. Uses DOMParser on the client where it is available.
+ */
+function segmentHtmlBody(html: string, segmentIndex: number, totalSegments: number): string {
+  if (totalSegments <= 1 || !html) return html;
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return html;
+
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const elements = Array.from(doc.body.children);
+    if (elements.length === 0) return html;
+
+    // Word-count each block element so we split by weight, not element count
+    const wordCounts = elements.map(
+      (el) => (el.textContent ?? '').split(/\s+/).filter(Boolean).length,
+    );
+    const totalWords = wordCounts.reduce((a, b) => a + b, 0);
+    if (totalWords === 0) return html;
+
+    const target = Math.max(1, Math.ceil(totalWords / totalSegments));
+
+    // Build an array of segment start element-indices: [0, i1, i2, …]
+    const boundaries: number[] = [0];
+    let cumulative = 0;
+    for (let i = 0; i < elements.length && boundaries.length < totalSegments; i++) {
+      cumulative += wordCounts[i];
+      if (cumulative >= boundaries.length * target) {
+        boundaries.push(i + 1);
+      }
+    }
+    boundaries.push(elements.length);
+
+    const start = boundaries[segmentIndex] ?? 0;
+    const end = boundaries[segmentIndex + 1] ?? elements.length;
+    if (start >= end) return '';
+
+    return elements.slice(start, end).map((el) => el.outerHTML).join('');
+  } catch {
+    return html;
+  }
+}
+
+/**
+ * Map a story's contentType + priority to a 1–4 importance weight.
+ * 1 = lead/most prominent, 4 = utility/least prominent.
+ */
+function storyImportanceWeight(story: Story | null): 1 | 2 | 3 | 4 {
+  if (!story) return 3;
+  const ct = story.contentType;
+  if (ct === 'lead') return 1;
+  if (ct === 'editorial' || ct === 'profile') return 2;
+  if (ct === 'column' || ct === 'partner' || ct === 'utility') return 4;
+  // 'feature' or unknown — fall back to numeric priority if set
+  if (typeof story.priority === 'number') {
+    if (story.priority >= 75) return 1;
+    if (story.priority >= 50) return 2;
+    if (story.priority >= 25) return 3;
+    return 4;
+  }
+  return 3;
+}
+
 function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'): TemplateRegistryEntry {
   return {
     definition: {
@@ -482,7 +556,7 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
       { key: 'quoteRail', contentType: 'quote', isRequired: false },
       { key: 'galleryRail', contentType: 'gallery', isRequired: false },
     ],
-    buildViewModel: ({ edition, slots, stories, assets }) => {
+    buildViewModel: ({ edition, slots, stories, assets, storyOccurrenceIndex, storyTotalPages }) => {
       const story = findBoundStory(slots, stories);
       const asset = findBoundAsset(slots, assets);
       const quoteSlot = findSlotByContentType(slots, 'quote');
@@ -519,6 +593,42 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
       const gallery = manualGallery.length > 0 ? manualGallery : storyGallery;
       const kicker = story?.contentType ? humanizeContentType(story.contentType) : 'Feature';
 
+      // ── Pagination context ──────────────────────────────────────────────
+      const occurrenceIndex = storyOccurrenceIndex ?? 0;
+      const totalPages = storyTotalPages ?? 1;
+      const isContinuation = occurrenceIndex > 0;
+
+      // Segment body text evenly across the pages this story spans.
+      // On the first page, show the opening segment; on later pages, continue.
+      const fullBody = sanitizedBody ?? fallbackBody;
+      const bodySegment = segmentHtmlBody(fullBody, occurrenceIndex, totalPages);
+
+      // Importance weight (1 = lead, 4 = utility) drives typography emphasis
+      const weight = storyImportanceWeight(story);
+
+      // ── Continuation page ───────────────────────────────────────────────
+      // Strip the opening spread elements (image, standfirst, pull-quote,
+      // gallery) so continuation pages show only body text continuation.
+      if (isContinuation) {
+        return {
+          isContinuation: true,
+          continuationLabel: sanitizedTitle,
+          title: sanitizedTitle,
+          kicker,
+          name: story?.author,
+          text: bodySegment,
+          featureImage: '',
+          image: '',
+          intro: '',
+          quote: '',
+          pullQuotes: [],
+          gallery: [],
+          stats: [],
+          weight,
+        };
+      }
+
+      // ── First page of the story ─────────────────────────────────────────
       return {
         // Gen 1 PageFeatureLeft/Right data shape
         // (mediaLayout: 'background' is added by the renderer for full-bleed variant)
@@ -526,13 +636,14 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         kicker,
         name: story?.author,
         intro: sanitizeEditorialStandfirst(story?.standfirst) ?? '',
-        text: sanitizedBody ?? fallbackBody,
+        text: bodySegment,
         featureImage: safeImageUrl(fallbackImage) ?? '',
         image: safeImageUrl(fallbackImage) ?? '',
         quote: pullQuote ?? '',
         pullQuotes: story?.pullQuotes ?? (pullQuote ? [pullQuote] : []),
         gallery,
         stats: [],
+        weight,
       };
     },
     render: FeatureTemplate,
