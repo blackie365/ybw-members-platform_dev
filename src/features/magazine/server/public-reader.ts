@@ -32,6 +32,7 @@ export interface MagazineV2LegacyMatchSummary {
 }
 
 type LegacyIssueMatchable = Pick<MagazineIssue, 'title' | 'publishDate' | 'pdfUrl' | 'flipbookUrl'>;
+const TITLE_NOISE_TOKENS = new Set(['edition', 'issue', 'magazine', 'digital', 'reader', 'preview']);
 
 function sortPages(pages: FlatplanPage[]): FlatplanPage[] {
   return [...pages].sort((left, right) => left.position - right.position);
@@ -93,6 +94,33 @@ function buildMonthKey(value?: string): string | null {
   return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+function buildIssueIdentity(value?: string): string | null {
+  if (!value) return null;
+
+  const slug = slugify(value)
+    .replace(/yorkshire-business-woman/gi, 'ybw')
+    .replace(/yorkshire-businesswoman/gi, 'ybw');
+  if (!slug) return null;
+
+  const normalized = slug
+    .replace(/([a-z]+)(\d{4})$/i, '$1-$2')
+    .split('-')
+    .filter((token) => token && !TITLE_NOISE_TOKENS.has(token))
+    .join('-');
+
+  return normalized || null;
+}
+
+function matchesIssueIdentity(edition: Edition, issueIdentity: string | null): boolean {
+  if (!issueIdentity) return false;
+
+  return [
+    buildIssueIdentity(edition.title),
+    buildIssueIdentity(edition.slug),
+    buildIssueIdentity(edition.issuu.publicationSlug),
+  ].includes(issueIdentity);
+}
+
 function getLegacyCandidateSlugs(issue: LegacyIssueMatchable): string[] {
   return Array.from(
     new Set(
@@ -110,6 +138,10 @@ function scoreEditionMatch(edition: Edition, issue: LegacyIssueMatchable, candid
   const editionSlug = edition.slug?.toLowerCase();
   const publicationSlug = edition.issuu.publicationSlug?.toLowerCase();
   const issueTitleSlug = issue.title ? slugify(issue.title).toLowerCase() : '';
+  const issueIdentity = buildIssueIdentity(issue.title);
+  const editionTitleIdentity = buildIssueIdentity(edition.title);
+  const editionSlugIdentity = buildIssueIdentity(edition.slug);
+  const publicationIdentity = buildIssueIdentity(edition.issuu.publicationSlug);
 
   candidateSlugs.forEach((slug) => {
     const lower = slug.toLowerCase();
@@ -129,6 +161,27 @@ function scoreEditionMatch(edition: Edition, issue: LegacyIssueMatchable, candid
     score += 3;
   }
 
+  if (issueIdentity) {
+    if (editionTitleIdentity === issueIdentity) score += 16;
+    if (editionSlugIdentity === issueIdentity) score += 12;
+    if (publicationIdentity === issueIdentity) score += 8;
+
+    if ((editionTitleIdentity === issueIdentity || editionSlugIdentity === issueIdentity) && edition.readerMode === 'custom') {
+      score += 18;
+    }
+  }
+
+  return score;
+}
+
+function getEditionPreferenceScore(edition: Edition): number {
+  let score = 0;
+
+  if (edition.readerMode === 'custom') score += 4;
+  if (edition.isLive) score += 3;
+  if (['ready_for_review', 'approved', 'scheduled', 'live', 'archived'].includes(edition.status)) score += 2;
+  if (edition.status === 'assembling') score += 1;
+
   return score;
 }
 
@@ -138,13 +191,23 @@ async function getBestEditionMatchForLegacyIssue(issue: LegacyIssueMatchable): P
 }> {
   const editions = await listEditions(48);
   const candidateSlugs = getLegacyCandidateSlugs(issue);
+  const issueIdentity = buildIssueIdentity(issue.title);
   const rankedEditions = editions
     .map((edition) => ({
       edition,
       score: scoreEditionMatch(edition, issue, candidateSlugs),
+      identityMatch: matchesIssueIdentity(edition, issueIdentity),
     }))
-    .filter((entry) => entry.score > 0)
-    .sort((left, right) => right.score - left.score);
+    .filter((entry) => entry.score > 0 || entry.identityMatch)
+    .sort((left, right) => {
+      const rightCustomIdentityMatch = Number(right.identityMatch && right.edition.readerMode === 'custom');
+      const leftCustomIdentityMatch = Number(left.identityMatch && left.edition.readerMode === 'custom');
+      if (rightCustomIdentityMatch !== leftCustomIdentityMatch) {
+        return rightCustomIdentityMatch - leftCustomIdentityMatch;
+      }
+      if (right.score !== left.score) return right.score - left.score;
+      return getEditionPreferenceScore(right.edition) - getEditionPreferenceScore(left.edition);
+    });
 
   return rankedEditions[0] ?? { edition: null, score: 0 };
 }

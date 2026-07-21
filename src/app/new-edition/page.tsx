@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
-import { getMagazineV2ReaderUrlForIssue } from '@/lib/magazine-v2-reader';
 import { checkAdmin } from '@/lib/server/auth-utils';
+import { getPrimaryMagazineV2HrefForLegacyIssue } from '@/features/magazine/server/public-reader';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -26,12 +26,16 @@ export default async function NewEditionPage() {
   
   const mergedIssues = allIssues.slice(0, 8);
   const liveIssue = mergedIssues.find((issue: any) => issue.isLatest) ?? mergedIssues[0];
+  const premiumReaderUrlEntries = await Promise.all(
+    mergedIssues.map(async (issue: any) => [issue.id, await getPrimaryMagazineV2HrefForLegacyIssue(issue)] as const),
+  );
+  const premiumReaderUrls = new Map<string, string | null>(premiumReaderUrlEntries);
   const flipbookIssue =
     mergedIssues.find((issue: any) => issue.featureInFlipbook && issue.flipbookUrl) ??
     mergedIssues.find((issue: any) => issue.flipbookUrl) ??
     null;
   const flipbookEmbedUrl = flipbookIssue?.flipbookUrl ? fixIssuuEmbedUrl(flipbookIssue.flipbookUrl) : null;
-  const premiumReaderUrl = getMagazineV2ReaderUrlForIssue(liveIssue);
+  const premiumReaderUrl = liveIssue?.id ? premiumReaderUrls.get(liveIssue.id) ?? null : null;
   const featuredPost = ghostPosts[0];
 
   const isAdmin = await (async () => {
@@ -384,7 +388,7 @@ export default async function NewEditionPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
                         <Link
-                          href={issue.isLatest ? getMagazineV2ReaderUrlForIssue(issue) || `/magazine/issue/${issue.id}` : `/magazine/issue/${issue.id}`}
+                          href={issue.isLatest ? premiumReaderUrls.get(issue.id) || `/magazine/issue/${issue.id}` : `/magazine/issue/${issue.id}`}
                         >
                           {issue.isLatest ? 'Premium Reader' : 'Reader'}
                         </Link>
