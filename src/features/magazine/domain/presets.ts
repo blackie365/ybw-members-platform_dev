@@ -88,7 +88,7 @@ export const STANDARD_MONTHLY_PRESET: EditionPreset = {
       position: 8,
       templateFamily: 'contents',
       templateVariant: 'standard',
-      intent: 'closing',
+      intent: 'back_cover',
       slotDefinitions: [{ key: 'closingNote', contentType: 'static_copy', isRequired: false }],
     },
   ],

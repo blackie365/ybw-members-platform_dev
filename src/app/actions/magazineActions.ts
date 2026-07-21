@@ -9,15 +9,11 @@ import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
 import { autoFillSlots } from '@/features/magazine/domain/slot-fill';
 import {
-  listFlatplanPages,
-  listSlots,
-  upsertFlatplanPages,
+  replaceFlatplan,
   upsertEdition,
-  upsertSlots,
   upsertStories,
   writeMagazineAuditEvent,
 } from '@/features/magazine/server/edition-repository';
-import { applyEditionPreset } from '@/features/magazine/server/preset-service';
 import { getMagazinePreset } from '@/features/magazine/domain/presets';
 import { getMagazineV2LegacyMatchSummary } from '@/features/magazine/server/public-reader';
 import type { Edition, FlatplanPage, MagazineAuditEvent, Slot, Story, StoryContentType } from '@/features/magazine/domain/types';
@@ -611,9 +607,13 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         storyId: 'feature-primary',
         title: primaryFeatureTitle || issue.title,
         standfirst: getText(primaryFeatureContent.intro),
+        body: [getText(primaryFeatureContent.text), getText(primaryFeatureContent.bio)]
+          .filter(Boolean)
+          .join('\n\n'),
         tags: ['feature', 'lead', 'interview'],
         issueTags,
-        heroImage: getText(primaryFeatureContent.image),
+        heroImage: getText(primaryFeatureContent.featureImage) || getText(primaryFeatureContent.image),
+        pullQuotes: [getText(primaryFeatureContent.quote), ...getStringList(primaryFeatureContent.pullQuotes)],
         contentType: 'lead',
         priority: 100,
         placementConfidence: 0.95,
@@ -631,8 +631,8 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         body: getText(secondaryFeatureContent.text),
         tags: ['feature', 'secondary'],
         issueTags,
-        heroImage: getText(secondaryFeatureContent.image),
-        pullQuotes: [getText(secondaryFeatureContent.quote)],
+        heroImage: getText(secondaryFeatureContent.featureImage) || getText(secondaryFeatureContent.image),
+        pullQuotes: [getText(secondaryFeatureContent.quote), ...getStringList(secondaryFeatureContent.pullQuotes)],
         contentType: 'feature',
         priority: 70,
         placementConfidence: 0.8,
@@ -652,7 +652,8 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         author: getText(columnContent.author),
         tags: ['feature', 'supporting', 'expert'],
         issueTags,
-        heroImage: getText(columnContent.image),
+        heroImage: getText(columnContent.featureImage) || getText(columnContent.image),
+        pullQuotes: getStringList(columnContent.pullQuotes),
         contentType: 'column',
         priority: 55,
         placementConfidence: 0.75,
@@ -673,7 +674,8 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
           .join('\n\n'),
         tags: ['feature', 'supporting', 'lifestyle'],
         issueTags,
-        heroImage: getText(lifestyleContent.image),
+        heroImage: getText(lifestyleContent.featureImage) || getText(lifestyleContent.image),
+        pullQuotes: getStringList(lifestyleContent.pullQuotes),
         contentType: 'feature',
         priority: 50,
         placementConfidence: 0.7,
@@ -691,8 +693,8 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
         body: getText(spotlightContent.bio),
         tags: ['feature', 'supporting', 'profile'],
         issueTags,
-        heroImage: getText(spotlightContent.image),
-        pullQuotes: [getText(spotlightContent.message)],
+        heroImage: getText(spotlightContent.featureImage) || getText(spotlightContent.image),
+        pullQuotes: [getText(spotlightContent.message), ...getStringList(spotlightContent.pullQuotes)],
         contentType: 'profile',
         priority: 60,
         placementConfidence: 0.78,
@@ -736,6 +738,310 @@ function buildLegacyIssueStories(issue: LegacyIssueWithLibrary, pages: MagazineP
   return stories;
 }
 
+function buildFlatplanPageId(editionId: string, position: number): string {
+  return `${editionId}-page-${String(position).padStart(2, '0')}`;
+}
+
+function buildSlotId(pageId: string, key: string): string {
+  return `${pageId}-${key}`;
+}
+
+function findStoryBySourceSuffix(stories: Story[], issueId: string, suffix: string): Story | null {
+  const sourceRef = `${issueId}:${suffix}`;
+  return stories.find((story) => story.sourceRef === sourceRef) ?? null;
+}
+
+function getSortedLegacyPages(pages: MagazinePage[]) {
+  return [...pages].sort((left, right) => Number(left.id || 0) - Number(right.id || 0));
+}
+
+function hasAnyLegacyContent(page: MagazinePage | undefined): boolean {
+  const content = getLegacyPageContent(page);
+
+  return Object.values(content).some((value) => {
+    if (typeof value === 'string') return Boolean(value.trim());
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === 'object') return Object.keys(value as Record<string, unknown>).length > 0;
+    return false;
+  });
+}
+
+function buildAdOverrideData(issue: LegacyIssueWithLibrary, page: MagazinePage): Record<string, unknown> {
+  const content = getLegacyPageContent(page);
+  const isFullPageAd = page.type === 'full-page-ad';
+
+  return {
+    label: getText(content.label) || (isFullPageAd ? 'Advertisement' : 'Partner Feature'),
+    advertiserName: getText(content.brand) || getText(content.title) || issue.title,
+    headline: getText(content.headline) || getText(content.title) || issue.title,
+    body: getText(content.text) || getText(content.offer) || issue.description,
+    imageSrc:
+      getText(content.featureImage) ||
+      getText(content.backgroundImage) ||
+      getText(content.image) ||
+      issue.coverImage,
+    ctaLabel: isFullPageAd ? 'Visit Advertiser' : 'Enquire',
+    ctaHref: getText(content.linkUrl) || '/contact',
+  };
+}
+
+function buildBackCoverOverrideData(issue: LegacyIssueWithLibrary, page: MagazinePage | undefined): Record<string, unknown> {
+  const content = getLegacyPageContent(page);
+
+  return {
+    eyebrow: getText(content.kicker) || getText(content.comingSoonLabel) || 'Back Cover',
+    title: getText(content.title) || issue.title,
+    body:
+      [getText(content.text), getText(content.nextIssue)]
+        .filter(Boolean)
+        .join(' · ') || issue.description,
+    ctaLabel: getText(content.cta) || 'Explore Membership',
+    ctaHref: '/membership',
+    imageSrc: getText(content.featureImage) || getText(content.image) || issue.coverImage,
+  };
+}
+
+function buildIssueDerivedFlatplan(
+  editionId: string,
+  issue: LegacyIssueWithLibrary,
+  legacyPages: MagazinePage[],
+  stories: Story[],
+): { pages: FlatplanPage[]; slots: Slot[] } {
+  const timestamp = new Date().toISOString();
+  const pages: FlatplanPage[] = [];
+  const slots: Slot[] = [];
+  let position = 1;
+  const sortedLegacyPages = getSortedLegacyPages(legacyPages);
+  const importedStories = stories.filter((story) => story.sourceRef?.startsWith(`${issue.id}:library-`));
+  const primaryFeatureStory = findStoryBySourceSuffix(stories, issue.id, 'feature-primary');
+  const secondaryFeatureStory = findStoryBySourceSuffix(stories, issue.id, 'feature-secondary');
+  const coverStory = findStoryBySourceSuffix(stories, issue.id, 'cover');
+  const editorialStory = findStoryBySourceSuffix(stories, issue.id, 'editorial');
+  const supportingStoryByPageType = new Map<string, Story | null>([
+    ['column', findStoryBySourceSuffix(stories, issue.id, 'column')],
+    ['lifestyle', findStoryBySourceSuffix(stories, issue.id, 'lifestyle')],
+    ['spotlight', findStoryBySourceSuffix(stories, issue.id, 'spotlight')],
+  ]);
+
+  const addPage = (definition: {
+    templateFamily: string;
+    templateVariant: string;
+    intent: FlatplanPage['intent'];
+    slotDefinitions: Array<{
+      key: string;
+      contentType: Slot['contentType'];
+      isRequired: boolean;
+      binding?: Slot['binding'];
+      bindingMode?: Slot['bindingMode'];
+      manualOverride?: boolean;
+      overrideData?: Record<string, unknown>;
+    }>;
+  }) => {
+    const pageId = buildFlatplanPageId(editionId, position);
+    const slotIds = definition.slotDefinitions.map((slotDefinition) => buildSlotId(pageId, slotDefinition.key));
+
+    pages.push({
+      id: pageId,
+      editionId,
+      position,
+      templateFamily: definition.templateFamily,
+      templateVariant: definition.templateVariant,
+      intent: definition.intent,
+      status: 'empty',
+      slotIds,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    definition.slotDefinitions.forEach((slotDefinition) => {
+      slots.push({
+        id: buildSlotId(pageId, slotDefinition.key),
+        editionId,
+        flatplanPageId: pageId,
+        key: slotDefinition.key,
+        contentType: slotDefinition.contentType,
+        isRequired: slotDefinition.isRequired,
+        bindingMode: slotDefinition.bindingMode ?? (slotDefinition.binding ? 'locked' : 'auto'),
+        binding: slotDefinition.binding,
+        manualOverride: slotDefinition.manualOverride,
+        overrideData: slotDefinition.overrideData,
+        automationConfidence: slotDefinition.binding || slotDefinition.overrideData ? 100 : 0,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    });
+
+    position += 1;
+  };
+
+  addPage({
+    templateFamily: 'cover',
+    templateVariant: 'editorial',
+    intent: 'cover',
+    slotDefinitions: [
+      {
+        key: 'heroStory',
+        contentType: 'story',
+        isRequired: true,
+        binding: coverStory ? { storyId: coverStory.id } : undefined,
+      },
+      {
+        key: 'coverAsset',
+        contentType: 'gallery',
+        isRequired: false,
+        bindingMode: 'manual',
+        manualOverride: true,
+        overrideData: {
+          items: [
+            {
+              src: issue.coverImage,
+              alt: issue.title,
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  if (editorialStory) {
+    addPage({
+      templateFamily: 'editor-note',
+      templateVariant: 'standard',
+      intent: 'editor_note',
+      slotDefinitions: [
+        {
+          key: 'primaryStory',
+          contentType: 'story',
+          isRequired: true,
+          binding: { storyId: editorialStory.id },
+        },
+      ],
+    });
+  }
+
+  addPage({
+    templateFamily: 'contents',
+    templateVariant: 'standard',
+    intent: 'contents',
+    slotDefinitions: [
+      {
+        key: 'contentsList',
+        contentType: 'contents',
+        isRequired: true,
+        bindingMode: 'manual',
+        manualOverride: true,
+        overrideData: { entries: [] },
+      },
+      {
+        key: 'contentsHighlight',
+        contentType: 'story',
+        isRequired: false,
+        binding: primaryFeatureStory ? { storyId: primaryFeatureStory.id } : undefined,
+      },
+    ],
+  });
+
+  sortedLegacyPages
+    .filter((page) => !['cover', 'editorial', 'contents', 'back-cover'].includes(page.type))
+    .forEach((page) => {
+      if (page.type === 'feature-left' && primaryFeatureStory) {
+        addPage({
+          templateFamily: 'feature',
+          templateVariant: 'left-media',
+          intent: 'feature_primary',
+          slotDefinitions: [{ key: 'primaryStory', contentType: 'story', isRequired: true, binding: { storyId: primaryFeatureStory.id } }],
+        });
+        return;
+      }
+
+      if (page.type === 'feature-right' && secondaryFeatureStory) {
+        addPage({
+          templateFamily: 'feature',
+          templateVariant: 'right-media',
+          intent: 'feature_secondary',
+          slotDefinitions: [{ key: 'primaryStory', contentType: 'story', isRequired: true, binding: { storyId: secondaryFeatureStory.id } }],
+        });
+        return;
+      }
+
+      if (['column', 'lifestyle', 'spotlight'].includes(page.type)) {
+        const story = supportingStoryByPageType.get(page.type);
+        if (!story) return;
+
+        addPage({
+          templateFamily: 'feature',
+          templateVariant: page.type === 'lifestyle' ? 'full-bleed' : 'left-media',
+          intent: 'feature_supporting',
+          slotDefinitions: [{ key: 'primaryStory', contentType: 'story', isRequired: true, binding: { storyId: story.id } }],
+        });
+        return;
+      }
+
+      if (['partner', 'full-page-ad'].includes(page.type) && hasAnyLegacyContent(page)) {
+        addPage({
+          templateFamily: 'ad',
+          templateVariant: 'standard',
+          intent: 'ad',
+          slotDefinitions: [
+            {
+              key: 'adPanel',
+              contentType: 'ad',
+              isRequired: true,
+              bindingMode: 'manual',
+              manualOverride: true,
+              overrideData: buildAdOverrideData(issue, page),
+            },
+          ],
+        });
+      }
+    });
+
+  importedStories.forEach((story, index) => {
+    addPage({
+      templateFamily: 'feature',
+      templateVariant: index % 3 === 0 ? 'left-media' : index % 3 === 1 ? 'right-media' : 'full-bleed',
+      intent: 'feature_supporting',
+      slotDefinitions: [{ key: 'primaryStory', contentType: 'story', isRequired: true, binding: { storyId: story.id } }],
+    });
+  });
+
+  addPage({
+    templateFamily: 'back-cover',
+    templateVariant: 'editorial',
+    intent: 'back_cover',
+    slotDefinitions: [
+      {
+        key: 'closingNote',
+        contentType: 'static_copy',
+        isRequired: true,
+        bindingMode: 'manual',
+        manualOverride: true,
+        overrideData: buildBackCoverOverrideData(issue, legacyPages.find((page) => page.type === 'back-cover')),
+      },
+      {
+        key: 'coverAsset',
+        contentType: 'gallery',
+        isRequired: false,
+        bindingMode: 'manual',
+        manualOverride: true,
+        overrideData: {
+          items: [
+            {
+              src:
+                getText(getLegacyPageContent(legacyPages.find((page) => page.type === 'back-cover')).featureImage) ||
+                getText(getLegacyPageContent(legacyPages.find((page) => page.type === 'back-cover')).image) ||
+                issue.coverImage,
+              alt: issue.title,
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  return { pages, slots };
+}
+
 function buildGeneratedContentsEntries(flatplanPages: FlatplanPage[], slots: Slot[], stories: Story[]) {
   const storyMap = new Map(stories.map((story) => [story.id, story]));
   const pageMap = new Map(flatplanPages.map((page) => [page.id, page]));
@@ -747,6 +1053,7 @@ function buildGeneratedContentsEntries(flatplanPages: FlatplanPage[], slots: Slo
       const storyId = slot.binding?.storyId;
       const story = storyId ? storyMap.get(storyId) : null;
       const page = pageMap.get(slot.flatplanPageId);
+      if (page?.intent === 'cover' || page?.intent === 'back_cover') return null;
       if (!story || !page || seenStoryIds.has(story.id)) return null;
       seenStoryIds.add(story.id);
       return {
@@ -856,7 +1163,11 @@ function applyLegacyPreviewOverrides(
       };
     }
 
-    if (slot.contentType === 'ad' && (getText(partnerContent.headline) || getText(partnerContent.offer))) {
+    if (
+      slot.contentType === 'ad' &&
+      !slot.overrideData &&
+      (getText(partnerContent.headline) || getText(partnerContent.offer))
+    ) {
       return {
         ...slot,
         bindingMode: 'manual',
@@ -879,7 +1190,11 @@ function applyLegacyPreviewOverrides(
       };
     }
 
-    if (slot.contentType === 'static_copy' && (getText(backCoverContent.title) || getText(backCoverContent.cta))) {
+    if (
+      slot.contentType === 'static_copy' &&
+      !slot.overrideData &&
+      (getText(backCoverContent.title) || getText(backCoverContent.cta))
+    ) {
       return {
         ...slot,
         bindingMode: 'manual',
@@ -887,13 +1202,14 @@ function applyLegacyPreviewOverrides(
         automationConfidence: 100,
         reviewReason: undefined,
         overrideData: {
-          eyebrow: 'Closing Note',
+          eyebrow: getText(backCoverContent.kicker) || getText(backCoverContent.comingSoonLabel) || 'Back Cover',
           title: getText(backCoverContent.title) || issue.title,
           body:
-            [getText(backCoverContent.nextIssue), getText(backCoverContent.cta)].filter(Boolean).join(' · ') ||
+            [getText(backCoverContent.text), getText(backCoverContent.nextIssue)].filter(Boolean).join(' · ') ||
             issue.description,
           ctaLabel: getText(backCoverContent.cta) || 'Explore Membership',
           ctaHref: '/membership',
+          imageSrc: getText(backCoverContent.featureImage) || getText(backCoverContent.image) || issue.coverImage,
         },
         updatedAt: now,
       };
@@ -1130,25 +1446,21 @@ async function buildPremiumReaderFromLatestLocalIssue() {
     await upsertEdition(edition);
   }
 
-  let pages = existingMatch.edition ? await listFlatplanPages(edition.id) : [];
-  let slots = existingMatch.edition ? await listSlots(edition.id) : [];
-
-  if (!edition.presetId || pages.length === 0 || slots.length === 0) {
-    const presetResult = await applyEditionPreset(edition, 'standard_monthly');
-    edition = {
-      ...presetResult.edition,
-      status: 'assembling',
-      readerMode: 'issuu_fallback',
-      isLive: edition.isLive,
-      updatedAt: new Date().toISOString(),
-    };
-    await upsertEdition(edition);
-    pages = presetResult.pages;
-    slots = presetResult.slots;
-  }
-
   const stories = buildLegacyIssueStories(latestIssue, legacyPages);
   await upsertStories(stories);
+  const issueDerivedFlatplan = buildIssueDerivedFlatplan(edition.id, latestIssue, legacyPages, stories);
+  const pages = issueDerivedFlatplan.pages;
+  const slots = issueDerivedFlatplan.slots;
+
+  edition = {
+    ...edition,
+    presetId: undefined,
+    status: 'assembling',
+    readerMode: 'issuu_fallback',
+    isLive: edition.isLive,
+    updatedAt: new Date().toISOString(),
+  };
+  await upsertEdition(edition);
 
   const autoFilled = autoFillSlots({
     pages,
@@ -1161,8 +1473,7 @@ async function buildPremiumReaderFromLatestLocalIssue() {
   const finalReviewState = summarizeSlotReviewState(enrichedSlots);
   await Promise.all([
     upsertStories(nextStories),
-    upsertFlatplanPages(edition.id, nextPages),
-    upsertSlots(edition.id, enrichedSlots),
+    replaceFlatplan(edition.id, nextPages, enrichedSlots),
   ]);
 
   const unresolvedSlotCount = finalReviewState.unresolvedSlotIds.length;

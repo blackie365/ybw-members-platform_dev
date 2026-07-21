@@ -31,8 +31,13 @@ function scoreStoryForSlot(story: Story, slot: Slot, page: FlatplanPage): number
 
   switch (page.intent) {
     case 'cover':
-      if (storyTags.has('editorial') || storyTags.has('editor-note')) score += 40;
-      if (storyTags.has('lead') || storyTags.has('cover')) score += 30;
+      if (storyTags.has('cover')) score += 60;
+      if (storyTags.has('lead') || storyTags.has('featured')) score += 30;
+      if (storyTags.has('editorial') || storyTags.has('editor-note')) score -= 20;
+      break;
+    case 'editor_note':
+      if (storyTags.has('editorial') || storyTags.has('editor-note')) score += 70;
+      if (storyTags.has('cover')) score += 10;
       break;
     case 'feature_primary':
       if (storyTags.has('feature') || storyTags.has('lead')) score += 40;

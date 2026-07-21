@@ -16,7 +16,6 @@ import {
 import {
   buildPremiumReaderFromLatestIssueAction,
   deleteMagazineIssueAction,
-  getLatestPremiumReaderCurationSummaryAction,
   getLatestPremiumReaderStatusAction,
   getMagazineIssuesAction,
   saveLatestPremiumReaderStorySelectionAction,
@@ -25,7 +24,7 @@ import {
 import { toast } from "sonner";
  import Image from"next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { PremiumReaderPlacementPreference, StoryLibraryItem } from "@/components/admin/magazine-builder/types";
+import type { StoryLibraryItem } from "@/components/admin/magazine-builder/types";
 import type { StoryContentType } from "@/features/magazine/domain/types";
 
 interface PremiumReaderStatus {
@@ -38,24 +37,6 @@ interface PremiumReaderStatus {
   previewHref?: string | null;
 }
 
-interface PremiumReaderCurationSummary {
-  legacyIssueId: string;
-  legacyIssueTitle: string;
-  hasFlipbook: boolean;
-  flipbookHref?: string | null;
-  presetLabel: string;
-  flatplanPageCount: number;
-  mappedStoryCount: number;
-  selectedStoryCount: number;
-  availableStoryCount: number;
-  availablePageTypes: string[];
-  flatplan: Array<{
-    position: number;
-    intent: string;
-    template: string;
-  }>;
-}
-
 const PREMIUM_READER_TYPE_OPTIONS: Array<{ value: StoryContentType; label: string }> = [
   { value: "lead", label: "Lead" },
   { value: "feature", label: "Feature" },
@@ -64,19 +45,6 @@ const PREMIUM_READER_TYPE_OPTIONS: Array<{ value: StoryContentType; label: strin
   { value: "partner", label: "Partner" },
   { value: "editorial", label: "Editorial" },
   { value: "utility", label: "Utility" },
-];
-
-const PREMIUM_READER_PLACEMENT_OPTIONS: Array<{
-  value: PremiumReaderPlacementPreference;
-  label: string;
-}> = [
-  { value: "auto", label: "Auto Place" },
-  { value: "cover", label: "Cover Story" },
-  { value: "contents_highlight", label: "Contents Highlight" },
-  { value: "feature_primary", label: "Lead Feature" },
-  { value: "feature_secondary", label: "Secondary Feature" },
-  { value: "feature_supporting_1", label: "Supporting Feature 1" },
-  { value: "feature_supporting_2", label: "Supporting Feature 2" },
 ];
 
 const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
@@ -97,7 +65,7 @@ function normalizeStoryLibraryItem(item: StoryLibraryItem): StoryLibraryItem {
     includedInPremiumReader: isIncludedInPremiumReader(item),
     premiumReaderPriority: priority,
     premiumReaderContentType: item.premiumReaderContentType || "feature",
-    premiumReaderPlacementPreference: item.premiumReaderPlacementPreference || "auto",
+    premiumReaderPlacementPreference: "auto",
   };
 }
 
@@ -108,7 +76,7 @@ function serializeStoryLibrary(items: StoryLibraryItem[]) {
       includedInPremiumReader: isIncludedInPremiumReader(item),
       premiumReaderPriority: item.premiumReaderPriority ?? 40,
       premiumReaderContentType: item.premiumReaderContentType || "feature",
-      premiumReaderPlacementPreference: item.premiumReaderPlacementPreference || "auto",
+      premiumReaderPlacementPreference: "auto",
       title: item.title,
       author: item.author || "",
       standfirst: item.standfirst || "",
@@ -122,9 +90,7 @@ export default function AdminMagazinePage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [premiumReaderStatus, setPremiumReaderStatus] = useState<PremiumReaderStatus | null>(null)
-  const [premiumReaderCurationSummary, setPremiumReaderCurationSummary] = useState<PremiumReaderCurationSummary | null>(null)
   const [loadingPremiumReaderStatus, setLoadingPremiumReaderStatus] = useState(true)
-  const [loadingPremiumReaderCurationSummary, setLoadingPremiumReaderCurationSummary] = useState(true)
   const [buildingPremiumReader, setBuildingPremiumReader] = useState(false)
   const [storySelectionDraft, setStorySelectionDraft] = useState<StoryLibraryItem[]>([])
   const [storySelectionQuery, setStorySelectionQuery] = useState("")
@@ -143,15 +109,6 @@ export default function AdminMagazinePage() {
     setLoadingPremiumReaderStatus(false)
   }
 
-  const loadPremiumReaderCurationSummary = async () => {
-    setLoadingPremiumReaderCurationSummary(true)
-    const result = await getLatestPremiumReaderCurationSummaryAction()
-    if (result.success) {
-      setPremiumReaderCurationSummary(result.data ?? null)
-    }
-    setLoadingPremiumReaderCurationSummary(false)
-  }
-
   const loadIssues = async () => {
     setLoading(true)
     const result = await getMagazineIssuesAction()
@@ -164,7 +121,6 @@ export default function AdminMagazinePage() {
   useEffect(() => {
     loadIssues()
     loadPremiumReaderStatus()
-    loadPremiumReaderCurationSummary()
   }, [])
 
   const handleDelete = async (id: string) => {
@@ -202,7 +158,6 @@ export default function AdminMagazinePage() {
         previewHref: result.data.previewHref,
       })
       await loadIssues()
-      await loadPremiumReaderCurationSummary()
       router.refresh()
     } else {
       toast.error(result.error || "Failed to build premium reader")
@@ -285,7 +240,6 @@ export default function AdminMagazinePage() {
     if (result.success && result.data) {
       toast.success(`Saved article selection for premium reader: ${result.data.selectedStoryCount} selected`)
       await loadIssues()
-      await loadPremiumReaderCurationSummary()
       router.refresh()
     } else {
       toast.error(result.error || "Failed to save premium reader article selection")
@@ -389,43 +343,12 @@ export default function AdminMagazinePage() {
                       </Link>
                     </Button>
                   </div>
-                  <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Flatplan Source</p>
-                    <p className="mt-2 text-sm text-zinc-700">
-                      Uses the flipbook as the layout guide and the recovered issue content as the slot-fill source.
-                    </p>
-                    {loadingPremiumReaderCurationSummary ? (
-                      <p className="mt-3 text-xs text-zinc-500">Loading flatplan summary...</p>
-                    ) : premiumReaderCurationSummary ? (
-                      <div className="mt-3 space-y-3 text-xs text-zinc-700">
-                        <div className="grid gap-1 font-mono sm:grid-cols-2">
-                          <p>Source: {premiumReaderCurationSummary.hasFlipbook ? "flipbook-led" : "local pages only"}</p>
-                          <p>Preset: {premiumReaderCurationSummary.presetLabel}</p>
-                          <p>Flatplan pages: {premiumReaderCurationSummary.flatplanPageCount}</p>
-                          <p>Mapped stories: {premiumReaderCurationSummary.mappedStoryCount}</p>
-                          <p>Selected articles: {premiumReaderCurationSummary.selectedStoryCount} / {premiumReaderCurationSummary.availableStoryCount}</p>
-                        </div>
-                        <p className="font-mono">
-                          Page types: {premiumReaderCurationSummary.availablePageTypes.length > 0 ? premiumReaderCurationSummary.availablePageTypes.join(", ") : "none found"}
-                        </p>
-                        <div className="rounded border border-zinc-200 bg-zinc-50 p-2 font-mono text-[11px] leading-5">
-                          {premiumReaderCurationSummary.flatplan.map((page) => (
-                            <p key={`${page.position}-${page.intent}`}>
-                              {String(page.position).padStart(2, "0")} {page.intent} - {page.template}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-zinc-500">No curation summary is available for the current live issue.</p>
-                    )}
-                  </div>
                   <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-600">Selected Articles</p>
                         <p className="mt-2 max-w-2xl text-sm text-zinc-700">
-                          Choose exactly which saved stories feed the premium reader, set their editorial importance, and pin key stories to the lead or secondary feature slots before you build.
+                          Choose exactly which saved stories feed the premium reader and set their editorial importance before you build.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -469,11 +392,6 @@ export default function AdminMagazinePage() {
                                     <Badge variant="secondary" className="bg-white text-zinc-700">
                                       {story.premiumReaderContentType || "feature"}
                                     </Badge>
-                                    {(story.premiumReaderPlacementPreference || "auto") !== "auto" ? (
-                                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                                        {PREMIUM_READER_PLACEMENT_OPTIONS.find((option) => option.value === (story.premiumReaderPlacementPreference || "auto"))?.label || "Pinned"}
-                                      </Badge>
-                                    ) : null}
                                   </div>
                                   <p className="mt-1 text-xs text-zinc-500">
                                     {[story.author, story.source?.fileName].filter(Boolean).join(" · ") || "Saved story"}
@@ -483,7 +401,7 @@ export default function AdminMagazinePage() {
                                   ) : null}
                                 </div>
 
-                                <div className="grid gap-3 md:grid-cols-[auto_110px_150px_180px] xl:min-w-[640px]">
+                                <div className="grid gap-3 md:grid-cols-[auto_110px_150px] xl:min-w-[460px]">
                                   <Button
                                     variant={isIncludedInPremiumReader(story) ? "default" : "outline"}
                                     className={isIncludedInPremiumReader(story) ? "bg-accent text-white hover:bg-accent/90" : ""}
@@ -527,29 +445,6 @@ export default function AdminMagazinePage() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {PREMIUM_READER_TYPE_OPTIONS.map((option) => (
-                                          <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div>
-                                    <Label className="text-[10px] uppercase tracking-widest text-zinc-500">Flatplan Slot</Label>
-                                    <Select
-                                      value={story.premiumReaderPlacementPreference || "auto"}
-                                      onValueChange={(value) =>
-                                        updateStorySelectionItem(story.id, {
-                                          premiumReaderPlacementPreference: value as PremiumReaderPlacementPreference,
-                                        })
-                                      }
-                                    >
-                                      <SelectTrigger className="mt-2 bg-white">
-                                        <SelectValue placeholder="Choose slot" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {PREMIUM_READER_PLACEMENT_OPTIONS.map((option) => (
                                           <SelectItem key={option.value} value={option.value}>
                                             {option.label}
                                           </SelectItem>

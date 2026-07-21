@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import type { StoryContentType } from '@/features/magazine/domain/types';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -43,6 +44,122 @@ const deriveStandfirst = (value: string) => {
   if (!sentence) return '';
   return sentence.length <= 180 ? sentence : `${sentence.slice(0, 180).trimEnd()}...`;
 };
+
+function inferPremiumReaderDefaults(input: {
+  title: string;
+  text: string;
+  path: string;
+  index: number;
+}): {
+  includedInPremiumReader: boolean;
+  premiumReaderContentType: StoryContentType;
+  premiumReaderPriority: number;
+} {
+  const haystack = `${input.title} ${input.path} ${input.text.slice(0, 240)}`.toLowerCase();
+
+  if (/\b(contents|table of contents)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: false,
+      premiumReaderContentType: 'utility',
+      premiumReaderPriority: 5,
+    };
+  }
+
+  if (/\b(advert|advertisement|sponsor|sponsored|advertorial)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: false,
+      premiumReaderContentType: 'partner',
+      premiumReaderPriority: 10,
+    };
+  }
+
+  if (/\b(editor('?s)? note|from the editor|editorial)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'editorial',
+      premiumReaderPriority: 85,
+    };
+  }
+
+  if (/\b(profile|spotlight|member spotlight)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'profile',
+      premiumReaderPriority: 58,
+    };
+  }
+
+  if (/\b(column|opinion|comment|expert)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'column',
+      premiumReaderPriority: 56,
+    };
+  }
+
+  if (input.index <= 1) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'lead',
+      premiumReaderPriority: 72,
+    };
+  }
+
+  return {
+    includedInPremiumReader: true,
+    premiumReaderContentType: 'feature',
+    premiumReaderPriority: 48,
+  };
+}
+
+function buildStoryLibraryItemFromParsedStory(
+  story: ParsedInDesignStory,
+  options: {
+    idmlFileName: string;
+    index: number;
+  },
+): StoryLibraryItem {
+  const cleanTitle = String(story.title || '').trim();
+  const cleanText = String(story.text || '').trim();
+  const defaults = inferPremiumReaderDefaults({
+    title: cleanTitle,
+    text: cleanText,
+    path: story.path,
+    index: options.index,
+  });
+
+  return {
+    id: createStoryId(),
+    title: cleanTitle || `Imported Story ${options.index + 1}`,
+    standfirst: deriveStandfirst(cleanText) || undefined,
+    text: cleanText,
+    includedInPremiumReader: defaults.includedInPremiumReader,
+    premiumReaderPriority: defaults.premiumReaderPriority,
+    premiumReaderContentType: defaults.premiumReaderContentType,
+    premiumReaderPlacementPreference: 'auto',
+    imageFileNames: story.imageFileNames,
+    source: {
+      type: 'idml',
+      fileName: options.idmlFileName || undefined,
+      path: story.path,
+    },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function mergeStoryLibraryItems(existing: StoryLibraryItem[], incoming: StoryLibraryItem[]) {
+  const incomingPaths = new Set(
+    incoming.map((item) => `${item.source?.fileName || ''}::${item.source?.path || ''}`).filter((value) => value !== '::'),
+  );
+
+  const preservedExisting = existing.filter((item) => {
+    const key = `${item.source?.fileName || ''}::${item.source?.path || ''}`;
+    if (key === '::') return true;
+    return !incomingPaths.has(key);
+  });
+
+  return [...incoming, ...preservedExisting].slice(0, 150);
+}
 
 const extractInDesignTextAndImageHints = (xml: string) => {
   const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
@@ -412,11 +529,26 @@ export function ManualImporter({
           return;
         }
 
-        const sorted = stories.sort((a, b) => b.length - a.length);
+        const sorted = [...stories].sort((a, b) =>
+          a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }),
+        );
         setIdmlStories(sorted);
         const initial = sorted[0];
         setSelectedStoryPath(initial.path);
         applyInDesignStory(initial);
+
+        if (issueId && issueId !== 'new' && onSaveStoryLibrary) {
+          const importedItems = sorted.map((story, index) =>
+            buildStoryLibraryItemFromParsedStory(story, {
+              idmlFileName: file.name,
+              index,
+            }),
+          );
+          const nextLibrary = mergeStoryLibraryItems(safeStoryLibrary, importedItems);
+          await saveStoryLibrary(nextLibrary);
+          toast.success(`Imported ${importedItems.length} IDML stories into the Story Library`);
+          return;
+        }
 
         toast.success(`Imported from IDML (${initial.path.replace('Stories/', '')})`);
         return;
@@ -574,7 +706,7 @@ export function ManualImporter({
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
             <p className="text-[10px] text-muted-foreground">
-              Export an ICML file, or unzip an IDML and choose a Stories/Story_*.xml file. Upload your linked images to match by filename.
+              Upload one IDML file and the system can pull the stories into the Story Library automatically. Linked images can still be uploaded separately by filename.
             </p>
           </div>
 
@@ -591,6 +723,9 @@ export function ManualImporter({
                   handleImportFromInDesignFile(file);
                 }}
               />
+              <p className="text-[10px] text-muted-foreground">
+                For full issue ingestion, use `IDML`. Single `ICML/XML` files are still supported for one-off imports.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -815,7 +950,7 @@ export function ManualImporter({
             <div className="space-y-1 min-w-0">
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Story Library</p>
               <p className="text-[10px] text-muted-foreground">
-                Save stories once, then choose exactly which ones feed the premium flatplan without re-uploading files.
+                Save stories once, then choose exactly which ones feed the premium reader without re-uploading files.
               </p>
             </div>
             <Button
@@ -846,7 +981,7 @@ export function ManualImporter({
 
           <div className="rounded-md border border-border bg-muted/10 px-3 py-2">
             <p className="text-[10px] font-mono text-muted-foreground">
-              Included in premium flatplan: {includedStoryCount} / {safeStoryLibrary.length}
+              Included in premium reader: {includedStoryCount} / {safeStoryLibrary.length}
             </p>
           </div>
 
@@ -874,7 +1009,7 @@ export function ManualImporter({
                         <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
                       ) : null}
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {isIncluded ? 'Included in premium flatplan' : 'Excluded from premium flatplan'}
+                        {isIncluded ? 'Included in premium reader' : 'Excluded from premium reader'}
                       </p>
                     </button>
                     <Button
@@ -902,7 +1037,7 @@ export function ManualImporter({
           ) : (
             <div className="p-4 rounded-md border border-dashed bg-muted/10">
               <p className="text-xs text-muted-foreground">
-                No saved stories yet. Upload an IDML/ICML, pick a story, then click “Save story”.
+                No saved stories yet. Upload an `IDML` file and stories will be added here automatically.
               </p>
             </div>
           )}

@@ -153,6 +153,17 @@ function normalizeWhitespace(value: string): string {
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeParagraphWhitespace(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -273,13 +284,55 @@ function isCandidateForStoryPool(kind: StoryKind, slotContentHint: SlotContentHi
   return kind === 'article' || kind === 'headline' || kind === 'snippet';
 }
 
+function extractParagraphContentBlocks(xml: string): string[] {
+  const paragraphs = Array.from(xml.matchAll(/<ParagraphStyleRange\b[\s\S]*?<\/ParagraphStyleRange>/g));
+  if (paragraphs.length === 0) return [];
+
+  return paragraphs
+    .map((match) => {
+      const paragraphXml = match[0] || '';
+      const parts: string[] = [];
+
+      for (const match of paragraphXml.matchAll(
+        /<Content>([\s\S]*?)<\/Content>|<Br\s*\/>|<Tab\s*\/>|<ForcedLineBreak\s*\/>/g,
+      )) {
+        if (typeof match[1] === 'string') {
+          parts.push(decodeXmlEntities(match[1]));
+          continue;
+        }
+
+        const token = match[0] || '';
+        if (token.startsWith('<Br') || token.startsWith('<ForcedLineBreak')) {
+          parts.push('\n');
+        } else if (token.startsWith('<Tab')) {
+          parts.push('\t');
+        }
+      }
+
+      return normalizeParagraphWhitespace(parts.join(''));
+    })
+    .filter(Boolean);
+}
+
 function extractStoryFromXml(pathName: string, xml: string, order: number): IdmlManifestStory {
   const storyAttrs = parseAttributes(xml.match(/<Story\b([^>]*)>/)?.[1] || '');
-  const contentBlocks = Array.from(xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g))
-    .map((match) => normalizeWhitespace(decodeXmlEntities(match[1] || '')))
+  const paragraphBlocks = extractParagraphContentBlocks(xml);
+  const fallbackBlocks = Array.from(
+    xml.matchAll(/<Content>([\s\S]*?)<\/Content>|<Br\s*\/>|<ForcedLineBreak\s*\/>/g),
+  )
+    .map((match) => {
+      if (typeof match[1] === 'string') {
+        return decodeXmlEntities(match[1]);
+      }
+      return '\n';
+    })
+    .join('')
+    .split(/\n{2,}/)
+    .map((block) => normalizeParagraphWhitespace(block))
     .filter(Boolean);
+  const contentBlocks = paragraphBlocks.length > 0 ? paragraphBlocks : fallbackBlocks;
 
-  const text = normalizeWhitespace(contentBlocks.join('\n').replace(/\n{2,}/g, '\n\n'));
+  const text = normalizeWhitespace(contentBlocks.join('\n\n'));
   const title = normalizeWhitespace(contentBlocks[0] || '').split('\n')[0] || path.basename(pathName, '.xml');
   const preview = text.replace(/\s+/g, ' ').slice(0, 220);
   const imageFileNames = Array.from(

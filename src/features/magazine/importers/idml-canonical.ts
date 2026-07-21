@@ -60,6 +60,9 @@ interface PageIntentState {
   assignedContentsStoryIds: Set<string>;
 }
 
+const BROWSER_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg']);
+const DOWNLOAD_ASSET_EXTENSIONS = new Set(['.pdf']);
+
 const MONTH_NAMES = [
   'january',
   'february',
@@ -268,8 +271,29 @@ function inferPullQuotes(body?: string): string[] {
   return Array.from(new Set(matches)).slice(0, 2);
 }
 
+function getAssetExtension(fileNameOrPath: string): string {
+  return path.extname(fileNameOrPath || '').toLowerCase();
+}
+
+function isBrowserRenderableAsset(asset: Pick<IdmlManifestAsset, 'fileName' | 'decodedPath'>): boolean {
+  return BROWSER_IMAGE_EXTENSIONS.has(getAssetExtension(asset.fileName || asset.decodedPath));
+}
+
+function isDownloadAsset(asset: Pick<IdmlManifestAsset, 'fileName' | 'decodedPath'>): boolean {
+  return DOWNLOAD_ASSET_EXTENSIONS.has(getAssetExtension(asset.fileName || asset.decodedPath));
+}
+
+function pickRenderableAsset(assets: IdmlManifestAsset[]): IdmlManifestAsset | undefined {
+  return assets.find((asset) => isBrowserRenderableAsset(asset));
+}
+
+function pickRenderableAssets(assets: IdmlManifestAsset[], limit?: number): IdmlManifestAsset[] {
+  const renderable = assets.filter((asset) => isBrowserRenderableAsset(asset));
+  return typeof limit === 'number' ? renderable.slice(0, limit) : renderable;
+}
+
 function buildStoryAssetRefs(assets: IdmlManifestAsset[]): StoryAssetRef[] {
-  return assets.map((asset) => ({
+  return pickRenderableAssets(assets).map((asset) => ({
     src: asset.decodedPath,
     alt: asset.altText || asset.fileName,
     width: asset.width,
@@ -288,11 +312,11 @@ function buildMagazineAssets(editionId: string, manifest: IdmlManifest): Magazin
     let role: MagazineAsset['role'] = 'inline';
     if (pageNumber === 1) role = 'cover';
     else if (pageNumber === manifest.document.pageCount) role = 'cover';
-    else if (/\.(pdf)$/i.test(asset.fileName)) role = 'download';
+    else if (isDownloadAsset(asset)) role = 'download';
 
     return {
       id: buildAssetId(editionId, index, asset.fileName),
-      type: /\.(pdf)$/i.test(asset.fileName) ? 'pdf' : 'image',
+      type: isDownloadAsset(asset) ? 'pdf' : 'image',
       role,
       src: asset.decodedPath,
       alt: asset.altText || asset.fileName,
@@ -376,24 +400,26 @@ function summarizeStaticCopy(stories: IdmlManifestStory[]): string {
 }
 
 function buildStaticCopyOverride(stories: IdmlManifestStory[], pageAssets: IdmlManifestAsset[], fallbackTitle: string) {
+  const renderableAsset = pickRenderableAsset(pageAssets);
   return {
     eyebrow: 'Imported Page',
     title: stories[0]?.title || fallbackTitle,
     body: summarizeStaticCopy(stories),
-    imageSrc: pageAssets[0]?.decodedPath,
+    imageSrc: renderableAsset?.decodedPath,
   };
 }
 
 function buildAdOverride(stories: IdmlManifestStory[], assets: IdmlManifestAsset[], pageNumber: number) {
   const lead = stories[0];
   const body = normalizeWhitespace(stories.map((story) => story.text).join('\n\n'));
+  const renderableAsset = pickRenderableAsset(assets);
 
   return {
     label: 'Advertisement',
     advertiserName: lead?.title || `Page ${pageNumber}`,
     headline: lead?.title || `Advertisement ${pageNumber}`,
     body: body || undefined,
-    imageSrc: assets[0]?.decodedPath,
+    imageSrc: renderableAsset?.decodedPath,
     ctaLabel: undefined,
     ctaHref: undefined,
   };
@@ -458,6 +484,67 @@ function buildStoryRecord(
   };
 }
 
+function getSupplementalPageStories(context: PageStoryContext, primaryStoryId?: string): IdmlManifestStory[] {
+  return context.all.filter(
+    (story) =>
+      story.id !== primaryStoryId &&
+      story.textLength > 0 &&
+      story.kind !== 'page_number' &&
+      story.kind !== 'masthead' &&
+      story.kind !== 'blank' &&
+      story.slotContentHint !== 'contents' &&
+      story.slotContentHint !== 'ad',
+  );
+}
+
+function uniqueNormalizedBlocks(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const blocks: string[] = [];
+
+  values.forEach((value) => {
+    const normalized = normalizeWhitespace(value || '');
+    if (!normalized) return;
+    const key = normalized.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    blocks.push(normalized);
+  });
+
+  return blocks;
+}
+
+function buildComposedPageStoryRecord(
+  baseStory: Story,
+  supplementalStories: IdmlManifestStory[],
+  pageNumber: number,
+  timestamp: string,
+): Story {
+  if (supplementalStories.length === 0) return baseStory;
+
+  const supplementalStandfirsts = supplementalStories
+    .map((story) => splitStandfirstAndBody(story).standfirst)
+    .filter(Boolean);
+  const supplementalBodies = supplementalStories.flatMap((story) => {
+    const { body, standfirst } = splitStandfirstAndBody(story);
+    return [body || story.text, standfirst];
+  });
+  const standfirst = uniqueNormalizedBlocks([baseStory.standfirst, ...supplementalStandfirsts])[0];
+  const bodyBlocks = uniqueNormalizedBlocks([baseStory.body, ...supplementalBodies]);
+  const body = bodyBlocks.join('\n\n') || undefined;
+
+  return {
+    ...baseStory,
+    id: `${baseStory.id}-page-${String(pageNumber).padStart(2, '0')}`,
+    standfirst,
+    body,
+    pullQuotes: body ? inferPullQuotes(body) : baseStory.pullQuotes,
+    tags: Array.from(new Set([...baseStory.tags, 'page-composed'])),
+    issueTags: Array.from(new Set([...(baseStory.issueTags || []), `page-${pageNumber}`])),
+    manualNotes: `${baseStory.manualNotes || 'Imported story'} | Page ${pageNumber} composed from ${supplementalStories.length + 1} linked story fragments`,
+    updatedAt: timestamp,
+  };
+}
+
 export function buildCanonicalBundleFromManifest(
   manifest: IdmlManifest,
   options: BuildCanonicalBundleOptions = {},
@@ -511,11 +598,19 @@ export function buildCanonicalBundleFromManifest(
 
     const pageId = buildPageId(editionId, pageNumber);
     const pageAssets = manifestPage.assetIds.map((assetId) => assetMap.get(assetId)).filter((asset): asset is IdmlManifestAsset => Boolean(asset));
+    const renderablePageAssets = pickRenderableAssets(pageAssets);
     const candidateStories = context.candidates.filter((story) => canonicalStoryMap.has(story.path));
     const availableEditorialStories = context.editorialNotes.filter((story) => !intentState.assignedEditorialStoryIds.has(story.id));
     const availableContentsStories = context.contents.filter((story) => !intentState.assignedContentsStoryIds.has(story.id));
     const primaryStory = candidateStories[0] || availableEditorialStories[0];
-    const primaryStoryRecord = primaryStory ? canonicalStoryMap.get(primaryStory.path) : null;
+    let primaryStoryRecord = primaryStory ? canonicalStoryMap.get(primaryStory.path) : null;
+    if (primaryStory && primaryStoryRecord) {
+      const supplementalStories = getSupplementalPageStories(context, primaryStory.id);
+      if (supplementalStories.length > 0) {
+        primaryStoryRecord = buildComposedPageStoryRecord(primaryStoryRecord, supplementalStories, pageNumber, timestamp);
+        stories.push(primaryStoryRecord);
+      }
+    }
     const pageSlotIds: string[] = [];
 
     const addSlot = (definition: {
@@ -557,10 +652,15 @@ export function buildCanonicalBundleFromManifest(
       });
     };
 
+    const hasStaticPageFallback =
+      (context.staticCopy.length > 0 || context.all.length === 0) &&
+      (context.all.length > 0 || renderablePageAssets.length > 0 || pageNumber <= 3);
+
     if (
       (plan.intent === 'cover' || plan.intent === 'feature_primary' || plan.intent === 'feature_secondary') &&
       !primaryStoryRecord &&
-      context.all.length === 0
+      context.all.length === 0 &&
+      !hasStaticPageFallback
     ) {
       warnings.push(`Page ${pageNumber} is missing a primary story binding.`);
     }
@@ -579,7 +679,7 @@ export function buildCanonicalBundleFromManifest(
           isRequired: false,
           manualOverride: true,
           overrideData: {
-            items: pageAssets.slice(0, 1).map((asset) => ({
+            items: renderablePageAssets.slice(0, 1).map((asset) => ({
               src: asset.decodedPath,
               alt: asset.altText || primaryStoryRecord?.title || title,
             })),
@@ -634,7 +734,7 @@ export function buildCanonicalBundleFromManifest(
             eyebrow: 'Back Cover',
             title: context.staticCopy[0]?.title || primaryStoryRecord?.title || title,
             body: summarizeStaticCopy(context.staticCopy) || primaryStoryRecord?.standfirst || manifest.document.name,
-            imageSrc: pageAssets[0]?.decodedPath,
+            imageSrc: renderablePageAssets[0]?.decodedPath,
           },
         });
         addSlot({
@@ -643,7 +743,7 @@ export function buildCanonicalBundleFromManifest(
           isRequired: false,
           manualOverride: true,
           overrideData: {
-            items: pageAssets.slice(0, 1).map((asset) => ({
+            items: renderablePageAssets.slice(0, 1).map((asset) => ({
               src: asset.decodedPath,
               alt: asset.altText || title,
             })),
@@ -651,8 +751,8 @@ export function buildCanonicalBundleFromManifest(
         });
         break;
       default: {
-        const boundAssetIds = manifestPage.assetIds
-          .map((assetId) => assetIdByManifestId.get(assetId))
+        const boundAssetIds = renderablePageAssets
+          .map((asset) => assetIdByManifestId.get(asset.id))
           .filter((assetId): assetId is string => Boolean(assetId))
           .slice(0, 3);
 
@@ -696,7 +796,7 @@ export function buildCanonicalBundleFromManifest(
           });
         }
 
-        if (pageAssets.length > 0) {
+        if (renderablePageAssets.length > 0) {
           addSlot({
             key: 'galleryRail',
             contentType: 'gallery',
@@ -704,7 +804,7 @@ export function buildCanonicalBundleFromManifest(
             bindingAssetIds: boundAssetIds,
             manualOverride: true,
             overrideData: {
-              items: pageAssets.slice(0, 3).map((asset) => ({
+              items: renderablePageAssets.slice(0, 3).map((asset) => ({
                 src: asset.decodedPath,
                 alt: asset.altText || primaryStoryRecord?.title || asset.fileName,
                 caption: asset.fileName,
@@ -749,7 +849,7 @@ export function buildCanonicalBundleFromManifest(
     }
   });
 
-  const coverAsset = manifest.assets.find((asset) => asset.pageNames.includes('1'));
+  const coverAsset = manifest.assets.find((asset) => asset.pageNames.includes('1') && isBrowserRenderableAsset(asset));
   const editorNoteStory = stories.find((story) => story.tags.includes('editor-note'));
 
   const edition: Edition = {

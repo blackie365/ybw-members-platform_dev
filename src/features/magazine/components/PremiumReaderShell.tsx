@@ -226,9 +226,12 @@ export default function PremiumReaderShell({ edition, pages, stories, assets, la
       </header>
 
       <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0c0a09]">
+        <div className="grain-overlay absolute inset-0 opacity-70" />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="h-[60vh] w-[60vw] rounded-full bg-[#a3413a]/10 blur-[120px]" />
         </div>
+        <div className="pointer-events-none absolute inset-y-12 left-6 hidden w-px bg-gradient-to-b from-transparent via-[#a3413a] to-transparent xl:block" />
+        <div className="pointer-events-none absolute inset-y-12 right-6 hidden w-px bg-gradient-to-b from-transparent via-[#c9956a] to-transparent xl:block" />
 
         <button
           type="button"
@@ -248,7 +251,7 @@ export default function PremiumReaderShell({ edition, pages, stories, assets, la
           <ChevronRight className="h-5 w-5 text-zinc-300" />
         </button>
 
-        <div className="relative mx-auto h-full w-full overflow-hidden bg-white text-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)]">
+        <div className="relative mx-auto h-full w-full overflow-hidden bg-white text-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)] lg:h-[calc(100%-2.5rem)] lg:w-[calc(100%-3rem)] lg:rounded-[1.75rem] lg:border lg:border-white/[0.08]">
           <AnimatePresence initial={false} custom={direction} mode="wait">
             <motion.div
               key={current?.page.id ?? 'empty'}
