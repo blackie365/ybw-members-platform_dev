@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Menu, Minimize2, X } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Menu, Minimize2, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getTemplateRegistryEntry } from '@/features/magazine/domain/template-registry';
-import type { Edition, FlatplanPage, Slot, Story } from '@/features/magazine/domain/types';
+import type { Edition, FlatplanPage, MagazineAsset, Slot, Story } from '@/features/magazine/domain/types';
 
 type PremiumReaderPage = FlatplanPage & {
   slots: Slot[];
@@ -17,6 +17,7 @@ interface PremiumReaderShellProps {
   edition: Edition;
   pages: PremiumReaderPage[];
   stories: Story[];
+  assets: MagazineAsset[];
   latestPreview?: {
     href: string;
     title: string;
@@ -30,7 +31,7 @@ function humanizeIntent(value: string) {
     .join(' ');
 }
 
-export default function PremiumReaderShell({ edition, pages, stories, latestPreview }: PremiumReaderShellProps) {
+export default function PremiumReaderShell({ edition, pages, stories, assets, latestPreview }: PremiumReaderShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -46,7 +47,7 @@ export default function PremiumReaderShell({ edition, pages, stories, latestPrev
               page,
               slots: page.slots,
               stories,
-              assets: [],
+              assets,
             })
           : null;
         const label =
@@ -62,7 +63,7 @@ export default function PremiumReaderShell({ edition, pages, stories, latestPrev
           label,
         };
       }),
-    [edition, pages, stories],
+    [assets, edition, pages, stories],
   );
 
   const nextPage = useCallback(() => {

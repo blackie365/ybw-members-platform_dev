@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PremiumReaderShell from '@/features/magazine/components/PremiumReaderShell';
@@ -62,7 +61,7 @@ export default async function MagazineV2ReaderPage({ params }: { params: Promise
     );
   }
 
-  const { edition, pages, stories } = readerData;
+  const { edition, pages, stories, assets } = readerData;
   const currentPreviewIsLatest = latestPreview?.edition.id === edition.id;
 
   return (
@@ -70,6 +69,7 @@ export default async function MagazineV2ReaderPage({ params }: { params: Promise
       edition={edition}
       pages={pages}
       stories={stories}
+      assets={assets}
       latestPreview={
         !currentPreviewIsLatest && latestPreview
           ? {
