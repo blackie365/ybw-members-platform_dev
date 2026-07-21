@@ -89,6 +89,55 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     setImageVersion(Date.now().toString());
   }, []);
 
+  // #region debug-point live-magazine-layout
+  useEffect(() => {
+    const report = () => {
+      try {
+        const root = document.getElementById('firebase-magazine-reader-root');
+        const header = root?.querySelector('header');
+        const main = root?.querySelector('main');
+        const footer = root?.querySelector('footer');
+        const stage = root?.querySelector('[data-debug-reader-stage="true"]');
+        const article = stage?.firstElementChild;
+        const payload = {
+          point: 'live-magazine-layout',
+          issueId: issue.id,
+          pageIndex: currentPage,
+          pageId: current?.page.id ?? null,
+          viewportHeight: window.innerHeight,
+          rootHeight: root?.clientHeight ?? null,
+          headerHeight: header instanceof HTMLElement ? header.offsetHeight : null,
+          mainHeight: main instanceof HTMLElement ? main.clientHeight : null,
+          footerHeight: footer instanceof HTMLElement ? footer.offsetHeight : null,
+          stageClientHeight: stage instanceof HTMLElement ? stage.clientHeight : null,
+          stageScrollHeight: stage instanceof HTMLElement ? stage.scrollHeight : null,
+          articleClientHeight: article instanceof HTMLElement ? article.clientHeight : null,
+          articleScrollHeight: article instanceof HTMLElement ? article.scrollHeight : null,
+          overflowDetected: Boolean(
+            (stage instanceof HTMLElement && stage.scrollHeight > stage.clientHeight) ||
+            (article instanceof HTMLElement && article.scrollHeight > article.clientHeight)
+          ),
+        };
+        void fetch('http://127.0.0.1:3897/log', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }).catch(() => undefined);
+      } catch {
+        return;
+      }
+    };
+
+    const timeout = window.setTimeout(report, 250);
+    window.addEventListener('resize', report);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('resize', report);
+    };
+  }, [currentPage, issue.id, pages]);
+  // #endregion
+
   const renderedPages = useMemo(() => {
     return [...pages]
       .sort((left, right) => left.id - right.id)
@@ -102,6 +151,8 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
         };
       });
   }, [issue, pages]);
+
+  const current = renderedPages[currentPage];
 
   const nextPage = useCallback(() => {
     setCurrentPage((prev) => Math.min(prev + 1, renderedPages.length - 1));
@@ -173,7 +224,6 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     }
   }, []);
 
-  const current = renderedPages[currentPage];
   if (!current) return null;
 
   return (
@@ -244,7 +294,10 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
           <ChevronLeft className="h-5 w-5" />
         </button>
 
-        <div className="relative h-full w-full self-center overflow-hidden lg:h-[min(92vh,980px)]">
+        <div
+          data-debug-reader-stage="true"
+          className="relative h-full w-full max-h-full self-center overflow-y-auto overflow-x-hidden overscroll-contain"
+        >
           <current.Renderer data={current.data} imageVersion={imageVersion} />
         </div>
 

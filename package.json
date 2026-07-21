@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
-    "magazine:extract-idml": "tsx scripts/extract-idml-manifest.ts",
-    "magazine:build-idml-bundle": "tsx scripts/build-idml-canonical-bundle.ts",
-    "magazine:import-idml-bundle": "tsx scripts/import-idml-canonical-bundle.ts",
+    "magazine:pdf-to-reader": "tsx scripts/pdf-to-reader.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -81,6 +79,7 @@
     "next": "15.5.19",
     "next-themes": "^0.4.6",
     "node-fetch": "^3.3.2",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.6",
     "react-day-picker": "9.13.2",
     "react-dom": "19.2.6",
@@ -107,8 +106,8 @@
   "devDependencies": {
     "@react-email/components": "^1.0.12",
     "@tailwindcss/postcss": "^4.2.0",
-    "@types/node": "^22",
     "@types/jszip": "^3.4.1",
+    "@types/node": "^22",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.5",
@@ -119,10 +118,10 @@
     "psd": "^3.4.0",
     "react-email": "^6.1.4",
     "tailwindcss": "^4.2.0",
-    "vercel": "^54.1.0",
     "tsx": "^4.22.1",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3",
+    "vercel": "^54.1.0",
     "vitest": "^4.1.5"
   },
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916"

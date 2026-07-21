@@ -7,6 +7,7 @@ import { MagazineExperienceSkeleton } from "./MagazineExperienceSkeleton";
 
 interface IssueForExperienceWidget {
   id: string;
+  slug: string;
   title: string;
   coverImage: string;
   publishDate: string;
@@ -85,7 +86,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Link
-                  href={`/magazine/issue/${latestIssue.id}`}
+                  href={`/magazine/read/${latestIssue.slug}`}
                   className="inline-flex items-center justify-center gap-2 h-14 px-8 font-semibold text-sm text-[#0c0a09] rounded-none hover:opacity-90 transition-opacity"
                   style={{ background: 'linear-gradient(135deg, #c9956a 0%, #a3413a 100%)' }}
                 >

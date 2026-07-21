@@ -1,13 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   experimental: {
     swcTraceProfiling: false,
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

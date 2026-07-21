@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
-import type { StoryContentType } from '@/features/magazine/domain/types';
+
+type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
 
 const decodeXmlEntities = (value: string) => {
   try {
