@@ -12,6 +12,7 @@ import type {
   MagazineAsset,
   Slot,
   Story,
+  StoryAssetRef,
   TemplateDefinition,
 } from './types';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
@@ -39,11 +40,63 @@ interface ManualGalleryItem {
   caption?: string;
 }
 
+function isLocalAssetPath(value?: string): boolean {
+  if (!value) return false;
+  return value.startsWith('/Users/') || value.startsWith('/Volumes/') || value.startsWith('/private/');
+}
+
 function safeImageUrl(value?: string): string | undefined {
   if (!value) return undefined;
   const trimmed = value.trim();
   if (!trimmed) return undefined;
+  if (isLocalAssetPath(trimmed)) return undefined;
   return fixMagazineImageUrl(trimmed);
+}
+
+function safeLinkUrl(value?: string): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || isLocalAssetPath(trimmed)) return undefined;
+  return trimmed;
+}
+
+function pickFirstImageUrl(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const safe = safeImageUrl(value);
+    if (safe) return safe;
+  }
+
+  return undefined;
+}
+
+function buildSafeGalleryItems(items: Array<Record<string, unknown> | null | undefined>): ManualGalleryItem[] {
+  return items.reduce<ManualGalleryItem[]>((accumulator, item) => {
+    const src = safeImageUrl(typeof item?.src === 'string' ? item.src : undefined);
+    if (!src) return accumulator;
+
+    accumulator.push({
+      src,
+      alt: typeof item?.alt === 'string' ? item.alt.trim() : undefined,
+      caption: typeof item?.caption === 'string' ? item.caption.trim() : undefined,
+    });
+
+    return accumulator;
+  }, []);
+}
+
+function buildSafeStoryGallery(items: StoryAssetRef[]): ManualGalleryItem[] {
+  return items.reduce<ManualGalleryItem[]>((accumulator, item) => {
+    const src = safeImageUrl(item?.src);
+    if (!src) return accumulator;
+
+    accumulator.push({
+      src,
+      alt: item.alt,
+      caption: item.caption,
+    });
+
+    return accumulator;
+  }, []);
 }
 
 function findBoundStory(slots: Slot[], stories: Story[]): Story | null {
@@ -73,11 +126,11 @@ function findManualGalleryItems(slots: Slot[]): ManualGalleryItem[] {
     items.forEach((item) => {
       if (!item || typeof item !== 'object') return;
 
-      const src = typeof item.src === 'string' ? item.src.trim() : '';
+      const src = safeImageUrl(typeof item.src === 'string' ? item.src : undefined);
       if (!src) return;
 
       accumulator.push({
-        src: safeImageUrl(src) || src,
+        src,
         alt: typeof item.alt === 'string' ? item.alt.trim() : undefined,
         caption: typeof item.caption === 'string' ? item.caption.trim() : undefined,
       });
@@ -204,9 +257,9 @@ const adEntry: TemplateRegistryEntry = {
       headline: getOverrideString(adSlot, 'headline') ?? edition.title,
       body: getOverrideString(adSlot, 'body'),
       imageSrc: safeImageUrl(getOverrideString(adSlot, 'imageSrc')),
-      pdfSrc: getOverrideString(adSlot, 'pdfSrc'),
+      pdfSrc: safeLinkUrl(getOverrideString(adSlot, 'pdfSrc')),
       ctaLabel: getOverrideString(adSlot, 'ctaLabel'),
-      ctaHref: getOverrideString(adSlot, 'ctaHref'),
+      ctaHref: safeLinkUrl(getOverrideString(adSlot, 'ctaHref')),
     };
   },
   render: AdTemplate,
@@ -274,6 +327,7 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
       const sponsorSlot = findSlotByContentType(slots, 'sponsor');
       const staticCopySlot = findSlotByContentType(slots, 'static_copy');
       const manualGallery = findManualGalleryItems(slots);
+      const storyGallery = buildSafeStoryGallery(story?.gallery ?? []);
 
       const fallbackTitle =
         getOverrideString(adSlot, 'headline') ??
@@ -291,13 +345,15 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         getOverrideString(staticCopySlot, 'body') ??
         getOverrideString(sponsorSlot, 'body') ??
         '';
-      const fallbackImage =
-        safeImageUrl(asset?.src) ??
-        safeImageUrl(manualGallery[0]?.src) ??
-        safeImageUrl(getOverrideString(adSlot, 'imageSrc')) ??
-        safeImageUrl(getOverrideString(sponsorSlot, 'imageSrc')) ??
-        safeImageUrl(story?.heroImage?.src) ??
-        safeImageUrl(edition.coverImage);
+      const fallbackImage = pickFirstImageUrl(
+        asset?.src,
+        manualGallery[0]?.src,
+        getOverrideString(adSlot, 'imageSrc'),
+        getOverrideString(sponsorSlot, 'imageSrc'),
+        story?.heroImage?.src,
+        storyGallery[0]?.src,
+        edition.coverImage,
+      );
 
       return {
         title: story?.title ?? fallbackTitle,
@@ -311,18 +367,15 @@ function makeFeatureEntry(variant: 'left-media' | 'right-media' | 'full-bleed'):
         galleryImages:
           manualGallery.length > 0
             ? manualGallery
-            : (story?.gallery ?? []).map((image) => ({
-                ...image,
-                src: safeImageUrl(image.src) || image.src,
-              })),
+            : storyGallery,
         ctaLabel:
           getOverrideString(adSlot, 'ctaLabel') ??
           getOverrideString(sponsorSlot, 'ctaLabel') ??
           getOverrideString(staticCopySlot, 'ctaLabel'),
         ctaHref:
-          getOverrideString(adSlot, 'ctaHref') ??
-          getOverrideString(sponsorSlot, 'ctaHref') ??
-          getOverrideString(staticCopySlot, 'ctaHref'),
+          safeLinkUrl(getOverrideString(adSlot, 'ctaHref')) ??
+          safeLinkUrl(getOverrideString(sponsorSlot, 'ctaHref')) ??
+          safeLinkUrl(getOverrideString(staticCopySlot, 'ctaHref')),
       };
     },
     render: FeatureTemplate,
