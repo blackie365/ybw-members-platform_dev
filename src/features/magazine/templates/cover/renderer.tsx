@@ -18,6 +18,7 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
     month: 'long',
     year: 'numeric',
   });
+  const issueDescriptor = edition.subtitle || edition.description || 'A premium digital issue assembled from the live edition source.';
 
   return (
     <section className="relative isolate overflow-hidden bg-[#050505] text-white">
@@ -75,19 +76,19 @@ export default function CoverTemplate({ edition, page, viewModel }: CoverTemplat
           </div>
 
           <div className="mt-10 flex flex-col gap-6 lg:mt-0">
-            <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+            <div className="grid max-w-2xl gap-4 sm:grid-cols-[1.1fr_0.9fr]">
               <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] p-5 backdrop-blur-md">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Reading Mode</p>
-                <p className="mt-3 font-serif text-2xl text-white">Swipe and Scroll</p>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Edition Note</p>
+                <p className="mt-3 font-serif text-2xl text-white">{edition.isLive ? 'Now Reading' : 'Preview Copy'}</p>
                 <p className="mt-2 text-sm leading-relaxed text-white/65">
-                  Page-led navigation with room for longer editorial reading inside each composition.
+                  {issueDescriptor}
                 </p>
               </div>
               <div className="rounded-[1.4rem] border border-white/10 bg-black/20 p-5">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Edition Status</p>
-                <p className="mt-3 font-serif text-2xl text-white">{edition.isLive ? 'Live' : 'Preview'}</p>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#C9956A]">Issue Marker</p>
+                <p className="mt-3 font-serif text-2xl text-white">{publishLabel}</p>
                 <p className="mt-2 text-sm leading-relaxed text-white/65">
-                  Art-directed templates assembled directly from the live edition source.
+                  Editorial cover, lead story, and premium page sequence.
                 </p>
               </div>
             </div>
