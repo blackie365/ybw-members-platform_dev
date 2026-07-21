@@ -55,23 +55,50 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
     setImageVersion(Date.now().toString());
   }, []);
 
-  // Build view models for all pages via the template registry
-  const renderedPages = useMemo(
-    () =>
-      pages.map((page) => {
-        const entry = getTemplateRegistryEntry(page.templateFamily, page.templateVariant);
-        const viewModel = entry
-          ? entry.buildViewModel({ edition, page, slots: page.slots, stories, assets })
-          : {};
-        const label =
-          (typeof viewModel?.title === 'string' && viewModel.title) ||
+  // Build view models for all pages via the template registry.
+  // Two-pass approach so each page knows:
+  //   storyOccurrenceIndex – how many prior pages already used this story
+  //   storyTotalPages      – total pages that reference this story
+  // This lets buildViewModel segment body text and suppress re-opening spreads.
+  const renderedPages = useMemo(() => {
+    // Pass 1: count how many pages each story spans
+    const storyPageCount = new Map<string, number>();
+    pages.forEach((page) => {
+      const storyId = page.slots.find((s) => s.binding?.storyId)?.binding?.storyId;
+      if (storyId) storyPageCount.set(storyId, (storyPageCount.get(storyId) ?? 0) + 1);
+    });
+
+    // Pass 2: render with occurrence context
+    const storyOccurrenceIndex = new Map<string, number>();
+    return pages.map((page) => {
+      const boundStoryId = page.slots.find((s) => s.binding?.storyId)?.binding?.storyId;
+      const occurrenceIndex = boundStoryId ? (storyOccurrenceIndex.get(boundStoryId) ?? 0) : 0;
+      const totalPages = boundStoryId ? (storyPageCount.get(boundStoryId) ?? 1) : 1;
+      if (boundStoryId) storyOccurrenceIndex.set(boundStoryId, occurrenceIndex + 1);
+
+      const entry = getTemplateRegistryEntry(page.templateFamily, page.templateVariant);
+      const viewModel = entry
+        ? entry.buildViewModel({
+            edition,
+            page,
+            slots: page.slots,
+            stories,
+            assets,
+            storyOccurrenceIndex: occurrenceIndex,
+            storyTotalPages: totalPages,
+          })
+        : {};
+
+      const isContinuation = Boolean(viewModel.isContinuation);
+      const label = isContinuation
+        ? `${typeof viewModel.title === 'string' ? viewModel.title : humanizeIntent(page.intent)} → cont.`
+        : (typeof viewModel?.title === 'string' && viewModel.title) ||
           (typeof viewModel?.headline === 'string' && viewModel.headline) ||
           humanizeIntent(page.intent);
 
-        return { page, entry, viewModel, label };
-      }),
-    [assets, edition, pages, stories],
-  );
+      return { page, entry, viewModel, label, isContinuation };
+    });
+  }, [assets, edition, pages, stories]);
 
   const nextPage = useCallback(() => {
     setCurrentPage((prev) => {
@@ -438,10 +465,15 @@ export default function MagazineShell({ edition, pages, stories, assets, latestP
                         : 'hover:bg-white/[0.04] border border-transparent',
                     ].join(' ')}
                   >
-                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
-                      {String(i + 1).padStart(2, '0')}
+                    {/* Page number — indented for continuation pages */}
+                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'} ${item.isContinuation ? 'opacity-50' : ''}`}>
+                      {item.isContinuation ? '↳' : String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className={`font-medium text-xs uppercase tracking-widest min-w-0 flex-1 truncate ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                    <span className={`text-xs min-w-0 flex-1 truncate ${
+                      item.isContinuation
+                        ? `italic tracking-wide ${isActive ? 'text-[#a3413a]/70' : 'text-zinc-600 group-hover:text-zinc-400'}`
+                        : `font-medium uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`
+                    }`}>
                       {item.label}
                     </span>
                     {isActive && (

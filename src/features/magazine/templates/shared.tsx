@@ -991,11 +991,89 @@ export const PageContents = ({ data, imageVersion }: any) => {
 };
 
 // ─────────────────────────────────────────────
-// FEATURE LEFT (image left, text right)
+// CONTINUATION PAGE (shared by FeatureLeft + FeatureRight)
+// Used when a story spans multiple pages — shows body continuation only.
 // ─────────────────────────────────────────────
-export const PageFeatureLeft = ({ data, imageVersion }: any) => {
+function PageContinuation({ data, imageVersion }: any) {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
+
+  const label = String(data.continuationLabel || data.title || '').trim();
+  const kicker = String(data.kicker || '').trim();
+  const author = String(data.name || data.author || '').trim();
+  const allBlocks = getHtmlBlocks(String(data.text || ''));
+
+  // Split into two equal columns for a classic magazine text-flow feel
+  const mid = Math.ceil(allBlocks.length / 2);
+  const leftBlocks = allBlocks.slice(0, mid);
+  const rightBlocks = allBlocks.slice(mid);
+
+  return (
+    <div ref={ref} className="bg-[#faf7f2] min-h-full flex flex-col">
+      {/* Continuation banner */}
+      <div className="shrink-0 border-b border-[#a3413a]/15 bg-[#f4ede0] px-6 sm:px-10 lg:px-12 py-3.5 flex items-center gap-3">
+        <span className="text-[#a3413a] text-sm" aria-hidden>↳</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#a3413a] truncate">
+          {label}
+        </span>
+        {kicker && (
+          <>
+            <span className="text-[#a3413a]/30 text-xs">·</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#7a5c4e]">{kicker}</span>
+          </>
+        )}
+        <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/15 to-transparent" />
+        {author && (
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[#7a5c4e] shrink-0">{author}</span>
+        )}
+      </div>
+
+      {/* Body text in two columns on desktop — classic magazine text flow */}
+      <div className="flex-1 px-6 sm:px-10 lg:px-12 py-12 lg:py-16">
+        {allBlocks.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-0 items-start">
+            <div className="scroll-reveal space-y-0">
+              {leftBlocks.map((block, i) => (
+                <SafeText
+                  key={`lc-${i}`}
+                  html={block}
+                  className="font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5 [&_p:first-child]:editorial-dropcap"
+                />
+              ))}
+            </div>
+            {rightBlocks.length > 0 && (
+              <div className="scroll-reveal scroll-reveal-delay-1 space-y-0">
+                {rightBlocks.map((block, i) => (
+                  <SafeText
+                    key={`rc-${i}`}
+                    html={block}
+                    className="font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="font-serif text-[#7a6e65] italic">No additional content.</p>
+        )}
+      </div>
+
+      {/* Bottom rule */}
+      <div className="shrink-0 px-6 sm:px-10 lg:px-12 pb-8 flex items-center gap-3">
+        <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/30 to-transparent" />
+        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#a3413a]">YBW</span>
+      </div>
+    </div>
+  );
+}
+
+export const PageFeatureLeft = ({ data, imageVersion }: any) => {
+  // Hooks must be called unconditionally (Rules of Hooks)
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  // Continuation pages get a clean two-column text layout
+  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
@@ -1141,8 +1219,12 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
 // FEATURE RIGHT (text left, image right)
 // ─────────────────────────────────────────────
 export const PageFeatureRight = ({ data, imageVersion }: any) => {
+  // Hooks must be called unconditionally (Rules of Hooks)
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref);
+
+  // Continuation pages get a clean two-column text layout
+  if (data.isContinuation) return <PageContinuation data={data} imageVersion={imageVersion} />;
 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const kicker = String((data.kicker || data.category) ?? '').trim();
