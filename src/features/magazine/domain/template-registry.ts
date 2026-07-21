@@ -290,7 +290,12 @@ const coverEntry: TemplateRegistryEntry = {
     const manualGallery = findManualGalleryItems(slots);
     const sanitizedBody = sanitizeEditorialBody(story?.body);
     const headline = sanitizeEditorialTitle(story?.title, sanitizedBody, edition.title) ?? edition.title;
-    const standfirst = sanitizeEditorialStandfirst(story?.standfirst, sanitizeEditionDescription(edition.description));
+    // Both edition.description and edition.subtitle can contain raw IDML import artefacts;
+    // sanitizeEditionDescription strips those before they reach the renderer.
+    const editionStandfirstFallback =
+      sanitizeEditionDescription(edition.description) ??
+      sanitizeEditionDescription(edition.subtitle);
+    const standfirst = sanitizeEditorialStandfirst(story?.standfirst, editionStandfirstFallback);
     const coverImgSrc =
       safeImageUrl(edition.coverImage) ??
       safeImageUrl(asset?.src) ??
