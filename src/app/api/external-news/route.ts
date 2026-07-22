@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       { success: true, data: articles },
       {
         headers: {
-          'Cache-Control': 's-maxage=300, stale-while-revalidate=1800',
+          'Cache-Control': 's-maxage=60, stale-while-revalidate=600',
         },
       }
     );
@@ -25,4 +25,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

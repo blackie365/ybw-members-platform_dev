@@ -1,5 +1,4 @@
 import Parser from 'rss-parser';
-import * as cheerio from 'cheerio';
 
 const parser = new Parser({
   customFields: {
@@ -17,63 +16,24 @@ export interface ExternalArticle {
   source: string;
 }
 
-async function fetchFullArticleContent(url: string): Promise<string | null> {
-  try {
-    let html = '';
-    const apiKey = process.env.BRIGHTDATA_API_KEY;
-    const zone = process.env.BRIGHTDATA_ZONE; // e.g. web_unlocker
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
-    // Use Bright Data Web Unlocker if API key AND zone are configured
-    if (apiKey && zone) {
-      const brdRes = await fetch('https://api.brightdata.com/request', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          zone: zone,
-          url: url,
-          format: 'raw'
-        })
-      });
-      if (brdRes.ok) {
-        html = await brdRes.text();
-      } else {
-        console.warn(`Bright Data request failed for ${url} (Status: ${brdRes.status}). Falling back to direct fetch.`);
-      }
-    }
+function splitGoogleNewsTitle(input: string | undefined): { title: string; source: string } {
+  const raw = String(input || '').trim();
+  if (!raw) return { title: 'Untitled', source: 'External News' };
+  const parts = raw.split(' - ').map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) return { title: raw, source: 'External News' };
+  return { title: parts.slice(0, -1).join(' - '), source: parts[parts.length - 1] };
+}
 
-    // Fallback to standard fetch if Bright Data isn't used or failed
-    if (!html) {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      });
-      if (!res.ok) return null;
-      html = await res.text();
-    }
-
-    // Use Cheerio to parse the article body
-    const $ = cheerio.load(html);
-    let text = '';
-    
-    // Most news sites including BBC wrap their article paragraphs in <article> or <main>
-    // BBC also specifically uses [data-component="text-block"]
-    $('article p, main p, [data-component="text-block"]').each((_, el) => {
-      const paragraph = $(el).text().trim();
-      // Filter out short navigation links or empty text
-      if (paragraph && paragraph.length > 20) {
-        text += paragraph + ' ';
-      }
-    });
-
-    return text.trim();
-  } catch (err) {
-    console.error(`Error fetching full article for ${url}:`, err);
-    return null;
+async function fetchRssXml(url: string): Promise<string> {
+  const res = await fetch(url, { next: { revalidate: 300 } });
+  if (!res.ok) {
+    throw new Error(`RSS responded with status: ${res.status}`);
   }
+  return await res.text();
 }
 
 export async function getExternalNews(limit = 5): Promise<ExternalArticle[]> {
@@ -81,10 +41,10 @@ export async function getExternalNews(limit = 5): Promise<ExternalArticle[]> {
     // Google News RSS query for Yorkshire businesswomen (strict to avoid sports)
     const feedUrl = 'https://news.google.com/rss/search?q=%22Yorkshire%22%20AND%20(%22businesswoman%22%20OR%20%22female%20entrepreneur%22%20OR%20%22female%20founder%22%20OR%20%22women%20in%20business%22)&hl=en-GB&gl=GB&ceid=GB:en';
     
-    const feed = await parser.parseURL(feedUrl);
+    const xml = await fetchRssXml(feedUrl);
+    const feed = await parser.parseString(xml);
     const slicedItems = feed.items.slice(0, limit);
     
-    // Fetch full articles in parallel
     const articles: ExternalArticle[] = await Promise.all(slicedItems.map(async (item, index) => {
       // Extract image if available in media tags or enclosures
       let feature_image = '';
@@ -94,30 +54,26 @@ export async function getExternalNews(limit = 5): Promise<ExternalArticle[]> {
         feature_image = item['media:content'].$.url;
       }
 
-      // Fetch the full article HTML and extract text
       const articleUrl = item.link || '';
-      const fullText = articleUrl ? await fetchFullArticleContent(articleUrl) : null;
       
-      // Default to RSS snippet if scraping fails
-      const fallbackSnippet = item.contentSnippet || item.content || item.description || '';
+      const fallbackSnippetRaw = item.contentSnippet || item.content || item.description || '';
+      const fallbackSnippet = stripHtml(String(fallbackSnippetRaw || ''));
       
-      // Create an extended excerpt from the scraped full text (e.g. ~300 characters)
       let extendedExcerpt = fallbackSnippet;
-      if (fullText && fullText.length > 20) {
-        extendedExcerpt = fullText.substring(0, 300).trim();
-        if (fullText.length > 300) {
-          extendedExcerpt += '...';
-        }
+      if (extendedExcerpt.length > 300) {
+        extendedExcerpt = `${extendedExcerpt.slice(0, 300).trim()}...`;
       }
+
+      const { title, source } = splitGoogleNewsTitle(item.title);
 
       return {
         id: `ext-${index}-${item.guid || item.link}`,
-        title: item.title || 'Untitled',
+        title,
         link: articleUrl || '#',
         published_at: item.isoDate || new Date().toISOString(),
         excerpt: extendedExcerpt,
         feature_image: feature_image || undefined,
-        source: feed.title || 'External News'
+        source
       };
     }));
 
