@@ -1,7 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getExternalNews } from '@/lib/externalNews';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function GET(request: Request) {
+  // Rate limit: 10 requests per minute per IP
+  const ip = getClientIp(request);
+  const rateLimit = checkRateLimit(`external-news:${ip}`, 10, 60_000);
+  
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { 
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+        }
+      }
+    );
+  }
   try {
     const url = new URL(request.url);
     const limitParam = url.searchParams.get('limit');
