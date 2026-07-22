@@ -1,11 +1,13 @@
 'use server';
 
+import { currentUser } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import Stripe from 'stripe';
 import { getWelcomeEmailTemplate } from '@/lib/email-templates';
+import slugify from '@sindresorhus/slugify';
 
 export async function getProfile(uid: string) {
   try {
@@ -19,13 +21,94 @@ export async function getProfile(uid: string) {
     
     if (!adminDb) throw new Error('Database not initialized');
     const docRef = adminDb.collection('newMemberCollection').doc(uid);
-    const docSnap = await docRef.get();
+    let docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      const clerkUser = await currentUser();
+      const email =
+        clerkUser?.primaryEmailAddress?.emailAddress ||
+        clerkUser?.emailAddresses?.[0]?.emailAddress ||
+        '';
+
+      if (email) {
+        const nowIso = new Date().toISOString();
+        const emailLower = email.toLowerCase();
+
+        const firstName = clerkUser?.firstName || '';
+        const lastName = clerkUser?.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        const memberSlug = slugify(fullName || email.split('@')[0]);
+        const avatarUrl = clerkUser?.imageUrl || '';
+
+        const byLower = await adminDb
+          .collection('newMemberCollection')
+          .where('emailLower', '==', emailLower)
+          .limit(1)
+          .get();
+        const byExact = byLower.empty
+          ? await adminDb
+              .collection('newMemberCollection')
+              .where('email', '==', email)
+              .limit(1)
+              .get()
+          : null;
+        const existingDoc = !byLower.empty
+          ? byLower.docs[0]
+          : byExact && !byExact.empty
+              ? byExact.docs[0]
+              : null;
+
+        if (existingDoc && existingDoc.id !== uid) {
+          const existingData = existingDoc.data() || {};
+          await docRef.set(
+            {
+              ...existingData,
+              firstName,
+              lastName,
+              displayName: fullName,
+              email,
+              emailLower,
+              memberSlug: (existingData as any).memberSlug || memberSlug,
+              avatarUrl: (existingData as any).avatarUrl || avatarUrl,
+              profileImage: (existingData as any).profileImage || avatarUrl,
+              updatedAt: nowIso,
+              status: (existingData as any).status || 'active',
+            },
+            { merge: true }
+          );
+          await existingDoc.ref.delete();
+        } else {
+          await docRef.set(
+            {
+              firstName,
+              lastName,
+              displayName: fullName,
+              email,
+              emailLower,
+              memberSlug,
+              avatarUrl,
+              profileImage: avatarUrl,
+              status: 'active',
+              membershipTier: 'free',
+              role: 'member',
+              isAdmin: false,
+              isFeatured: false,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            },
+            { merge: true }
+          );
+        }
+
+        docSnap = await docRef.get();
+      }
+    }
     
     if (docSnap.exists) {
       const data = docSnap.data() || {};
       
       // Sanitize the data to remove any Timestamps before sending to the client
-      const sanitizedData = JSON.parse(JSON.stringify(data, (key, value) => {
+      const sanitizedData = JSON.parse(JSON.stringify(data, (_key, value) => {
         if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
           return new Date(value._seconds * 1000).toISOString();
         }

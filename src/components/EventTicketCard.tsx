@@ -120,8 +120,10 @@ export function EventTicketCard({ post }: { post: any }) {
   const handleCheckout = async () => {
     // If they aren't logged in, force them to login or register first so we know who bought the ticket!
     if (!user) {
-      alert("Please sign in to purchase a ticket.");
-      router.push('/sign-in');
+      const returnUrl = typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : `/news/${post.slug}`;
+      router.push(`/sign-up?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
 

@@ -84,7 +84,7 @@ function MembershipPageClient() {
     const cycle = cycleOverride || billingCycle;
     if (!user?.uid || !user.email) {
       const returnUrl = `/membership?upgrade=1&cycle=${cycle}`;
-      router.push(`/sign-in?returnUrl=${encodeURIComponent(returnUrl)}`);
+      router.push(`/sign-up?returnUrl=${encodeURIComponent(returnUrl)}`);
       return;
     }
 
