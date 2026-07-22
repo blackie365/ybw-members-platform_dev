@@ -26,6 +26,11 @@ if (typeof setInterval !== 'undefined') {
   }, 5 * 60 * 1000);
 }
 
+/** Clear all rate limit state. Exported for testing only. */
+export function _resetRateLimitStore(): void {
+  store.clear();
+}
+
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
