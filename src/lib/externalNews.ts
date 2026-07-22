@@ -44,7 +44,6 @@ function isWithinDays(isoDate: string | undefined, maxAgeDays: number): boolean 
   if (ageMs < 0) return true;
   return ageMs <= maxAgeDays * 24 * 60 * 60 * 1000;
 }
-
 async function fetchRssXml(url: string): Promise<string> {
   const res = await fetch(url, { next: { revalidate: 300 } });
   if (!res.ok) {
@@ -62,31 +61,21 @@ export async function getExternalNews(limit = 5): Promise<ExternalArticle[]> {
     const xmlFresh = await fetchRssXml(feedUrlFresh);
     const feedFresh = await parser.parseString(xmlFresh);
     const freshItems = feedFresh.items.filter((item) => isWithinDays(item.isoDate, 30));
+    let items = freshItems.slice(0, limit);
 
-    const needsFallback = freshItems.length < limit;
-    const fallbackItems = needsFallback
-      ? (() => {
-          const already = new Set(freshItems.map((item) => sanitizeUrl(item.link)));
-          return feedFresh.items
-            .concat([])
-            .filter((item) => {
-              const key = sanitizeUrl(item.link);
-              if (!key) return false;
-              if (already.has(key)) return false;
-              already.add(key);
-              return true;
-            });
-        })()
-      : [];
-
-    const items = freshItems.concat(fallbackItems).slice(0, limit);
-
-    if (items.length === 0) {
+    if (items.length < limit) {
       const xmlAll = await fetchRssXml(feedUrlAll);
       const feedAll = await parser.parseString(xmlAll);
-      items.push(...feedAll.items.slice(0, limit));
+      const seen = new Set(items.map((item) => sanitizeUrl(item.link)).filter(Boolean));
+      const fallbackItems = feedAll.items.filter((item) => {
+        const key = sanitizeUrl(item.link);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      items = items.concat(fallbackItems).slice(0, limit);
     }
-    
+
     const articles: ExternalArticle[] = await Promise.all(items.map(async (item: any, index: number) => {
       // Extract image if available in media tags or enclosures
       let feature_image = '';
