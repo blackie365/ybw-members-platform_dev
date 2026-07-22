@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { config } from '@/lib/config';
 
 interface SendEmailParams {
   to: string | string[];
@@ -24,7 +25,7 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
 
   const resend = new Resend(RESEND_API_KEY);
 
-  const MAIL_FROM = from || process.env.EMAIL_FROM || 'Yorkshire Businesswoman <editor@yorkshirebusinesswoman.co.uk>';
+  const MAIL_FROM = from || config.emailFrom;
 
   try {
     const { data, error } = await resend.emails.send({

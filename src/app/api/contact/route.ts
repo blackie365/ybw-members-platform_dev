@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
+import { config } from '@/lib/config';
 
 export async function POST(req: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
 
     // 2. Send the email using the central email library
     const result = await sendEmail({
-      to: ['editor@yorkshirebusinesswoman.co.uk', 'dd@yorkshirebusinesswoman.co.uk'],
+      to: config.contactRecipients,
       replyTo: `${firstName} ${lastName} <${email}>`,
       subject: `Website Contact Form: ${subject}`,
       text: `You have received a new message from the Yorkshire Businesswoman contact form.\n\nName: ${firstName} ${lastName}\nEmail: ${email}\nSubject: ${subject}\n\nMessage:\n${message}`
