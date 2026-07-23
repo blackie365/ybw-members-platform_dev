@@ -421,3 +421,77 @@ export async function publishIdmlEditionAction(params: {
     return { success: false, error: error.message || 'Failed to publish edition' };
   }
 }
+
+const IDML_DRAFT_COLLECTION = 'magazine_idml_drafts';
+
+export async function saveIdmlDraft(draft: {
+  id: string;
+  pages: ReaderPage[];
+  metadata: { title: string; description: string; coverImage: string };
+  stats: { pageCount: number; storyCount: number; imageCount: number };
+  fileName: string;
+}) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Firebase Admin not configured');
+
+    await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draft.id).set({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error saving IDML draft:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function loadIdmlDraft(draftId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) return { success: false, error: 'Firebase Admin not configured' };
+
+    const doc = await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draftId).get();
+    if (!doc.exists) return { success: false, error: 'Draft not found' };
+
+    return { success: true, data: doc.data() as Record<string, any> };
+  } catch (error: any) {
+    console.error('Error loading IDML draft:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function loadLatestIdmlDraft() {
+  try {
+    await checkAdmin();
+    if (!adminDb) return { success: false, error: 'Firebase Admin not configured' };
+
+    const snapshot = await adminDb
+      .collection(IDML_DRAFT_COLLECTION)
+      .orderBy('updatedAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return { success: false, error: 'No draft found' };
+
+    const doc = snapshot.docs[0];
+    return { success: true, data: { id: doc.id, ...doc.data() } };
+  } catch (error: any) {
+    console.error('Error loading latest IDML draft:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteIdmlDraft(draftId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Firebase Admin not configured');
+
+    await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draftId).delete();
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting IDML draft:', error);
+    return { success: false, error: error.message };
+  }
+}

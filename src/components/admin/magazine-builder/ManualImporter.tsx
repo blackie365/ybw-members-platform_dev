@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft } from '@/app/actions/magazineActions';
 
 type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
 
@@ -254,9 +255,24 @@ export function ManualImporter({
   const [isServerIdmlPublishing, setIsServerIdmlPublishing] = useState(false);
   const [serverIdmlFileName, setServerIdmlFileName] = useState('');
   const [showServerIdmlPreview, setShowServerIdmlPreview] = useState(false);
+  const [serverIdmlDraftId, setServerIdmlDraftId] = useState('');
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
+
+  useEffect(() => {
+    loadLatestIdmlDraft().then((result) => {
+      if (result.success && result.data) {
+        const draft = result.data as any;
+        setServerIdmlPages(draft.pages || []);
+        setServerIdmlMeta(draft.metadata || null);
+        setServerIdmlStats(draft.stats || null);
+        setServerIdmlFileName(draft.fileName || '');
+        setServerIdmlDraftId(draft.id || '');
+        setShowServerIdmlPreview(true);
+      }
+    }).catch(() => {});
+  }, []);
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -681,12 +697,23 @@ export function ManualImporter({
 
       setServerIdmlPages(result.data!.pages);
       setServerIdmlMeta(result.data!.metadata);
-      setServerIdmlStats({
+      const stats = {
         pageCount: result.data!.pageCount,
         storyCount: result.data!.storyCount,
         imageCount: result.data!.imageCount,
-      });
+      };
+      setServerIdmlStats(stats);
       setShowServerIdmlPreview(true);
+
+      const draftId = serverIdmlDraftId || `draft-${Date.now().toString(36)}`;
+      setServerIdmlDraftId(draftId);
+      saveIdmlDraft({
+        id: draftId,
+        pages: result.data!.pages,
+        metadata: result.data!.metadata,
+        stats,
+        fileName: file.name,
+      }).catch(() => {});
 
       toast.success(`Parsed ${result.data!.pageCount} pages, ${result.data!.storyCount} stories, ${result.data!.imageCount} images`, { id: 'upload-progress' });
     } catch (e: any) {
@@ -714,10 +741,14 @@ export function ManualImporter({
       }
 
       toast.success(`Published "${serverIdmlMeta.title}" (${serverIdmlPages.length} pages)`);
+      if (serverIdmlDraftId) {
+        deleteIdmlDraft(serverIdmlDraftId).catch(() => {});
+      }
       setServerIdmlPages([]);
       setServerIdmlMeta(null);
       setServerIdmlStats(null);
       setShowServerIdmlPreview(false);
+      setServerIdmlDraftId('');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to publish edition');
     } finally {
@@ -726,7 +757,20 @@ export function ManualImporter({
   };
 
   const handleUpdateServerIdmlTitle = (newTitle: string) => {
-    setServerIdmlMeta((prev) => prev ? { ...prev, title: newTitle } : null);
+    setServerIdmlMeta((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, title: newTitle };
+      if (serverIdmlDraftId && serverIdmlPages.length > 0) {
+        saveIdmlDraft({
+          id: serverIdmlDraftId,
+          pages: serverIdmlPages,
+          metadata: next,
+          stats: serverIdmlStats || { pageCount: 0, storyCount: 0, imageCount: 0 },
+          fileName: serverIdmlFileName,
+        }).catch(() => {});
+      }
+      return next;
+    });
   };
 
   const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
