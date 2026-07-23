@@ -14,10 +14,10 @@ async function getMember(slug: string) {
   try {
     if (!adminDb) return null;
 
-    const VALID_TIERS = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium'];
+    const VALID_TIERS = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium', 'founder'];
     
     function isValidMember(data: any): boolean {
-      return data.userInactive !== true && VALID_TIERS.includes(data.membershipTier);
+      return data.userInactive !== true;
     }
 
     // 1. Try document ID (most reliable — matches Clerk UID used in fallback links)
