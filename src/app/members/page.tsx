@@ -62,8 +62,8 @@ async function getMembers() {
       // 1. MUST NOT be userInactive
       const isActiveMember = member.userInactive !== true;
       
-      // 2. MUST be one of the authorized tiers
-      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium'].includes(member.membershipTier);
+      // 2. MUST be one of the authorized tiers (or have no tier, treated as free)
+      const isValidTier = !member.membershipTier || ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium', 'founder'].includes(member.membershipTier);
       
       // 3. MUST have a name
       const hasName = member.name && member.name.trim().length > 0;
