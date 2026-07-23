@@ -2,8 +2,19 @@ import { getPage } from '@/lib/ghost';
 import { sanitizeHtml } from '@/lib/utils';
 import Image from 'next/image';
 import { ModernContactForm } from '@/components/ModernContactForm';
+import type { Metadata } from 'next';
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: 'Contact',
+  description: 'Get in touch with Yorkshire BusinessWoman. We\'d love to hear from you — whether you have a question, want to collaborate, or need support.',
+  openGraph: {
+    title: 'Contact Yorkshire BusinessWoman',
+    description: 'Get in touch with Yorkshire BusinessWoman. We\'d love to hear from you.',
+    type: 'website',
+  },
+};
 
 export default async function ContactPage() {
   const page = await getPage('contact');

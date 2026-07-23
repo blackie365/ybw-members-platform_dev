@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { currentUser } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // 1. Strict Server-Side Protection

@@ -6,8 +6,13 @@ import Link from 'next/link';
 import { Calendar, ArrowRight } from 'lucide-react';
 
 export const metadata = {
-  title: 'Events | Yorkshire Businesswoman',
+  title: 'Events',
   description: 'Discover networking events, workshops, and conferences for businesswomen in Yorkshire.',
+  openGraph: {
+    title: 'Events | Yorkshire BusinessWoman',
+    description: 'Discover networking events, workshops, and conferences for businesswomen in Yorkshire.',
+    type: 'website',
+  },
 };
 
 interface SearchParams {

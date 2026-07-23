@@ -2,7 +2,7 @@
 import CookiePolicyClient from './CookiePolicyClient';
 
 export const metadata = {
-  title: 'Cookie Policy | Yorkshire Businesswoman',
+  title: 'Cookie Policy',
   description: 'Information about how we use cookies on our platform.',
 };
 
