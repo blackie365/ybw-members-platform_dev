@@ -1,10 +1,14 @@
 'use server';
 
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import type { MagazineIssue } from '@/lib/magazine-service';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
+import { parseIdml } from '@/lib/idml-parser';
+import { mapIdmlToReaderPages, buildEditionMetadata } from '@/lib/idml-template-mapper';
+import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
+import { upsertReaderEdition } from '@/features/magazine/server/simple-reader';
 
 export async function getGhostPostsAction(options?: any) {
   try {
@@ -283,5 +287,115 @@ export async function fetchIssuuMetadataAction(url: string) {
   } catch (error: any) {
     console.error("Error in fetchIssuuMetadataAction:", error);
     return { success: false, error: error.message };
+  }
+}
+
+export async function importIdmlAction(idmlBase64: string, fileName: string) {
+  try {
+    await checkAdmin();
+
+    const buffer = Buffer.from(idmlBase64, 'base64');
+    const parsed = await parseIdml(buffer);
+
+    if (parsed.pages.length === 0) {
+      return { success: false, error: 'No readable content found in the IDML file' };
+    }
+
+    const imageUrls: Record<string, string> = {};
+
+    if (parsed.images.length > 0 && adminStorage) {
+      const bucket = adminStorage.bucket();
+      const uploadPromises = parsed.images.map(async (img) => {
+        const filePath = `magazine-import/${fileName}/${img.fileName}`;
+        const storageFile = bucket.file(filePath);
+
+        await storageFile.save(img.data, {
+          metadata: { contentType: img.mimeType },
+        });
+        await storageFile.makePublic();
+
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        return { fileName: img.fileName, url: publicUrl };
+      });
+
+      const results = await Promise.all(uploadPromises);
+      for (const r of results) {
+        imageUrls[r.fileName] = r.url;
+      }
+    }
+
+    let pages = mapIdmlToReaderPages(parsed.pages);
+
+    pages = pages.map((page) => ({
+      ...page,
+      content: {
+        ...page.content,
+        imageUrl: page.content.imageUrl
+          ? (imageUrls[page.content.imageUrl] || page.content.imageUrl)
+          : '',
+        imageUrls: (page.content.imageUrls || []).map(
+          (name) => imageUrls[name] || name,
+        ),
+      },
+    }));
+
+    const metadata = buildEditionMetadata(pages, fileName);
+
+    return {
+      success: true,
+      data: {
+        pages,
+        metadata,
+        pageCount: parsed.pageCount,
+        storyCount: parsed.pages.reduce((sum, p) => sum + p.stories.length, 0),
+        imageCount: parsed.images.length,
+        imageUrls,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error importing IDML:', error);
+    return { success: false, error: error.message || 'Failed to parse IDML file' };
+  }
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export async function publishIdmlEditionAction(params: {
+  pages: ReaderPage[];
+  title: string;
+  description: string;
+  coverImage: string;
+  publishDate?: string;
+}) {
+  try {
+    await checkAdmin();
+
+    const slug = slugify(params.title) || `edition-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const edition: ReaderEdition = {
+      id: `idml-${slug}-${Date.now().toString(36)}`,
+      slug,
+      title: params.title,
+      description: params.description,
+      coverImage: params.coverImage,
+      publishDate: params.publishDate || now,
+      pageCount: params.pages.length,
+      pages: params.pages,
+      createdAt: now,
+    };
+
+    await upsertReaderEdition(edition);
+    revalidatePath('/magazine');
+
+    return { success: true, data: { id: edition.id, slug: edition.slug } };
+  } catch (error: any) {
+    console.error('Error publishing IDML edition:', error);
+    return { success: false, error: error.message || 'Failed to publish edition' };
   }
 }
