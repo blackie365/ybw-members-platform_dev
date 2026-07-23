@@ -31,9 +31,11 @@ function normalizeAbsoluteUrl(raw: string) {
 
 export const metadata: Metadata = {
   metadataBase: new URL(normalizeAbsoluteUrl(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')),
-  title: 'Yorkshire BusinessWoman | Business Magazine for Women',
+  title: {
+    default: 'Yorkshire BusinessWoman | Business Magazine for Women',
+    template: '%s | Yorkshire BusinessWoman',
+  },
   description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.',
-  generator: 'v0.app',
   alternates: {
     canonical: '/'
   },
@@ -47,6 +49,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@YorkshireBW',
     title: 'Yorkshire BusinessWoman | Business Magazine for Women',
     description: 'Empowering businesswomen across Yorkshire with networking, support, and recognition.'
   },
@@ -109,7 +112,7 @@ export default async function RootLayout({
                 "@type": "Organization",
                 "name": "Yorkshire BusinessWoman",
                 "url": "https://yorkshirebusinesswoman.co.uk",
-                "logo": "https://img.rocket.new/generatedImages/rocket_gen_img_170351519-1780874732339.png",
+                "logo": "https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png",
                 "description": "Empowering businesswomen across Yorkshire with networking, support, and recognition.",
                 "sameAs": [
                 "https://www.facebook.com/YorkshireBusinesswoman",

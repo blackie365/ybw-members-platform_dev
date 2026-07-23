@@ -2,9 +2,20 @@ import { getPosts } from '@/lib/ghost';
 import { adminDb } from '@/lib/firebase-admin';
 import MemberOffersClient from '@/app/dashboard/offers/MemberOffersClient';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Member Offers',
+  description: 'Exclusive offers and deals from Yorkshire BusinessWoman members. Save on products and services from local businesses.',
+  openGraph: {
+    title: 'Member Offers | Yorkshire BusinessWoman',
+    description: 'Exclusive offers and deals from Yorkshire BusinessWoman members.',
+    type: 'website',
+  },
+};
 
 async function getAllActiveOffers() {
   try {

@@ -142,9 +142,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     dateModified: post.updated_at || post.published_at,
     author: [{
       '@type': 'Person',
-      name: post.primary_author?.name || 'Yorkshire Businesswoman',
+      name: post.primary_author?.name || 'Yorkshire BusinessWoman',
       url: post.primary_author?.website || `https://yorkshirebusinesswoman.co.uk`
     }],
+    publisher: {
+      '@type': 'Organization',
+      name: 'Yorkshire BusinessWoman',
+      url: 'https://yorkshirebusinesswoman.co.uk',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png',
+      },
+    },
     ...(isEvent && {
       startDate: post.published_at,
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
@@ -233,7 +242,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 )}
                 <div>
                   <p className="font-medium text-foreground">
-                    {post.primary_author?.name || 'Yorkshire Businesswoman'}
+                    {post.primary_author?.name || 'Yorkshire BusinessWoman'}
                   </p>
                   <div className="flex gap-x-2 text-sm text-muted-foreground">
                     <time dateTime={post.published_at}>
@@ -258,7 +267,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </div>
                 <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Members Only Event</h2>
                 <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                  This event details and ticket booking are reserved for registered members of Yorkshire Businesswoman.
+                  This event details and ticket booking are reserved for registered members of Yorkshire BusinessWoman.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link 

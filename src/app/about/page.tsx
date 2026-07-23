@@ -4,8 +4,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowRight, Quote, Users, BookOpen, Calendar, Award, Sparkles, Heart } from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: 'About',
+  description: 'Learn about Yorkshire BusinessWoman — our mission to empower women in business across Yorkshire through networking, support, and recognition.',
+  openGraph: {
+    title: 'About Yorkshire BusinessWoman',
+    description: 'Learn about Yorkshire BusinessWoman — our mission to empower women in business across Yorkshire.',
+    type: 'website',
+  },
+};
 
 const stats = [
   { label: 'Members', value: '200+', icon: Users },

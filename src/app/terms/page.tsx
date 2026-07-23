@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | Yorkshire Businesswoman',
-  description: 'The terms and conditions governing the use of the Yorkshire Businesswoman platform.',
+  title: 'Terms of Service',
+  description: 'The terms and conditions governing the use of the Yorkshire BusinessWoman platform.',
 };
 
 export default function TermsOfServicePage() {

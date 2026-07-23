@@ -153,6 +153,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <meta name="robots" content="noindex, nofollow" />
       {/* Black Header Section - Matches site-wide hero style */}
       <div className="relative bg-primary overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]">

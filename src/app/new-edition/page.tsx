@@ -12,8 +12,13 @@ import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 export const revalidate = 0; // Disable cache for debugging
 
 export const metadata: Metadata = {
-  title: 'Latest Edition | Yorkshire Businesswoman',
-  description: 'Read the latest edition of the Yorkshire Businesswoman magazine online.',
+  title: 'Latest Edition',
+  description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
+  openGraph: {
+    title: 'Latest Edition | Yorkshire BusinessWoman',
+    description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
+    type: 'website',
+  },
 };
 
 export default async function NewEditionPage() {

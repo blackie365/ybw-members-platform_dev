@@ -1,8 +1,19 @@
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
 import { adminDb } from '@/lib/firebase-admin';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Members Directory',
+  description: 'Discover and connect with talented businesswomen across Yorkshire in our members directory.',
+  openGraph: {
+    title: 'Members Directory | Yorkshire BusinessWoman',
+    description: 'Discover and connect with talented businesswomen across Yorkshire.',
+    type: 'website',
+  },
+};
 
 async function getMembers() {
   try {

@@ -2,8 +2,19 @@ import { getPosts } from '@/lib/ghost';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import type { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'News',
+  description: 'Latest news, stories, and updates for businesswomen across Yorkshire. Stay informed with Yorkshire BusinessWoman.',
+  openGraph: {
+    title: 'News | Yorkshire BusinessWoman',
+    description: 'Latest news, stories, and updates for businesswomen across Yorkshire.',
+    type: 'website',
+  },
+};
 
 export default async function NewsPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
