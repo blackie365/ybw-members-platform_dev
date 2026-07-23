@@ -55,6 +55,7 @@
     "@tryghost/admin-api": "^1.14.9",
     "@tryghost/content-api": "^1.12.8",
     "@vercel/analytics": "1.6.1",
+    "@xmldom/xmldom": "^0.9.10",
     "autoprefixer": "^10.4.20",
     "axios": "^1.17.0",
     "cheerio": "^1.2.0",

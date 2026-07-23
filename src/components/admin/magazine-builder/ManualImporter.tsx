@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2 } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import type { ReaderPage } from '@/features/magazine/domain/types';
+import { importIdmlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
 
 type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
 
@@ -243,6 +245,13 @@ export function ManualImporter({
   const [contentsDraftCategory, setContentsDraftCategory] = useState('');
   const [libraryQuery, setLibraryQuery] = useState('');
   const [activeLibraryId, setActiveLibraryId] = useState<string>('');
+  const [serverIdmlPages, setServerIdmlPages] = useState<ReaderPage[]>([]);
+  const [serverIdmlMeta, setServerIdmlMeta] = useState<{ title: string; description: string; coverImage: string } | null>(null);
+  const [serverIdmlStats, setServerIdmlStats] = useState<{ pageCount: number; storyCount: number; imageCount: number } | null>(null);
+  const [isServerIdmlParsing, setIsServerIdmlParsing] = useState(false);
+  const [isServerIdmlPublishing, setIsServerIdmlPublishing] = useState(false);
+  const [serverIdmlFileName, setServerIdmlFileName] = useState('');
+  const [showServerIdmlPreview, setShowServerIdmlPreview] = useState(false);
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
@@ -618,6 +627,83 @@ export function ManualImporter({
     }
   };
 
+  const handleServerIdmlImport = async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'idml') {
+      toast.error('Please select an .idml file');
+      return;
+    }
+
+    setIsServerIdmlParsing(true);
+    setServerIdmlFileName(file.name);
+    setShowServerIdmlPreview(false);
+    setServerIdmlPages([]);
+    setServerIdmlMeta(null);
+    setServerIdmlStats(null);
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      const result = await importIdmlAction(base64, file.name);
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to parse IDML');
+        return;
+      }
+
+      setServerIdmlPages(result.data!.pages);
+      setServerIdmlMeta(result.data!.metadata);
+      setServerIdmlStats({
+        pageCount: result.data!.pageCount,
+        storyCount: result.data!.storyCount,
+        imageCount: result.data!.imageCount,
+      });
+      setShowServerIdmlPreview(true);
+
+      toast.success(`Parsed ${result.data!.pageCount} pages, ${result.data!.storyCount} stories, ${result.data!.imageCount} images`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to import IDML');
+    } finally {
+      setIsServerIdmlParsing(false);
+    }
+  };
+
+  const handlePublishIdmlEdition = async () => {
+    if (serverIdmlPages.length === 0 || !serverIdmlMeta) return;
+
+    setIsServerIdmlPublishing(true);
+    try {
+      const result = await publishIdmlEditionAction({
+        pages: serverIdmlPages,
+        title: serverIdmlMeta.title,
+        description: serverIdmlMeta.description,
+        coverImage: serverIdmlMeta.coverImage,
+      });
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to publish');
+        return;
+      }
+
+      toast.success(`Published "${serverIdmlMeta.title}" (${serverIdmlPages.length} pages)`);
+      setServerIdmlPages([]);
+      setServerIdmlMeta(null);
+      setServerIdmlStats(null);
+      setShowServerIdmlPreview(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to publish edition');
+    } finally {
+      setIsServerIdmlPublishing(false);
+    }
+  };
+
+  const handleUpdateServerIdmlTitle = (newTitle: string) => {
+    setServerIdmlMeta((prev) => prev ? { ...prev, title: newTitle } : null);
+  };
+
   const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
   const filteredStoryLibrary = normalizedLibraryQuery
     ? safeStoryLibrary.filter((s) => {
@@ -942,6 +1028,109 @@ export function ManualImporter({
               {imageHints.length > 10 && (
                 <p className="text-[10px] text-muted-foreground">Showing first 10.</p>
               )}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-4">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent">Auto-Import IDML (Server-Side)</p>
+            <p className="text-[10px] text-muted-foreground">
+              Upload an IDML file for full server-side parsing. Images are extracted and uploaded automatically.
+              Pages are mapped to reader templates and can be published as a complete edition.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">IDML File</Label>
+            <Input
+              type="file"
+              accept=".idml"
+              disabled={isServerIdmlParsing || isServerIdmlPublishing}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                handleServerIdmlImport(file);
+              }}
+            />
+          </div>
+
+          {isServerIdmlParsing && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Parsing IDML file on server...
+            </div>
+          )}
+
+          {showServerIdmlPreview && serverIdmlMeta && serverIdmlStats && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-md border border-border bg-background p-3 text-center">
+                  <p className="text-2xl font-bold">{serverIdmlStats.pageCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Pages</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-3 text-center">
+                  <p className="text-2xl font-bold">{serverIdmlStats.storyCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Stories</p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-3 text-center">
+                  <p className="text-2xl font-bold">{serverIdmlStats.imageCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Images</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Edition Title</Label>
+                <Input
+                  value={serverIdmlMeta.title}
+                  onChange={(e) => handleUpdateServerIdmlTitle(e.target.value)}
+                  placeholder="Enter edition title..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Page Preview</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowServerIdmlPreview(!showServerIdmlPreview)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    {showServerIdmlPreview ? 'Hide' : 'Show'} Pages
+                  </Button>
+                </div>
+                {showServerIdmlPreview && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[300px] overflow-auto">
+                    {serverIdmlPages.map((page, idx) => (
+                      <div
+                        key={page.id}
+                        className="rounded-md border border-border bg-background p-2 text-center"
+                      >
+                        <p className="text-[10px] font-bold text-muted-foreground">Page {idx + 1}</p>
+                        <p className="text-[9px] uppercase tracking-wider text-accent mt-1">{page.template}</p>
+                        <p className="text-[9px] text-muted-foreground mt-1 truncate">
+                          {page.content.title || 'Untitled'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Button
+                className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
+                onClick={handlePublishIdmlEdition}
+                disabled={isServerIdmlPublishing || serverIdmlPages.length === 0}
+              >
+                {isServerIdmlPublishing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-2" />
+                )}
+                Publish as Magazine Edition ({serverIdmlPages.length} pages)
+              </Button>
             </div>
           )}
         </div>
