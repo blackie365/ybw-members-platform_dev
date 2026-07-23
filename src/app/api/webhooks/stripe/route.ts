@@ -4,12 +4,13 @@ import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
 import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
+import { config } from '@/lib/config';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
 
 async function getAdminRecipients(): Promise<string[]> {
-  const fallback = ['editor@yorkshirebusinesswoman.co.uk'];
+  const fallback = [config.adminEmail];
   try {
     const db = adminDb;
     if (!db) return fallback;

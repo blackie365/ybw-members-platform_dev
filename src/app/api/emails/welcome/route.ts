@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
 import { adminDb } from '@/lib/firebase-admin';
 import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
+import { config } from '@/lib/config';
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     // Send notification to all admins
-    let adminRecipients: string[] = ['editor@yorkshirebusinesswoman.co.uk'];
+    let adminRecipients: string[] = [config.adminEmail];
     try {
       if (adminDb) {
         const byRoleSnap = await adminDb

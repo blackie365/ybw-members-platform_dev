@@ -1,6 +1,7 @@
 'use server';
 
 import GhostAdminAPI from '@tryghost/admin-api';
+import { config } from '@/lib/config';
 
 function normalizeBaseUrl(raw: string | undefined) {
   const value = String(raw || '').trim();
@@ -148,14 +149,14 @@ export async function upgradeGhostMemberByEmail(email: string, tierLabel: string
       return await admin.members.edit({
         id: member.id,
         labels: newLabels,
-        tiers: [{id: '6082d481b4df7278d1fcbd1d'}]
+        tiers: config.ghostTierId ? [{id: config.ghostTierId}] : []
       });
     } else {
       // If they somehow don't exist, create them as paid
       return await admin.members.add({
         email,
         labels: ['stripe-upgrade', 'paid-member', tierLabel],
-        tiers: [{id: '6082d481b4df7278d1fcbd1d'}],
+        tiers: config.ghostTierId ? [{id: config.ghostTierId}] : [],
         newsletters: []
       });
     }

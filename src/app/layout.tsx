@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/next';
 import Script from 'next/script';
 import { Providers } from '@/app/providers';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Header } from "@/components/magazine/header";
 import { Footer } from "@/components/magazine/footer";
 import { NewsTicker } from "@/components/magazine/news-ticker";
@@ -122,7 +123,9 @@ export default async function RootLayout({
             <Header headerAd={headerAd} />
             <NewsTicker posts={trendingPosts} />
             <main className="flex-1">
-              {children}
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
             </main>
             <Footer />
             <CookieBanner />

@@ -6,6 +6,7 @@ import slugify from '@sindresorhus/slugify';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
+import { config } from '@/lib/config';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -164,7 +165,7 @@ export async function POST(req: Request) {
 
       // 2a. Admin notification email (all admins)
       try {
-        let adminRecipients: string[] = ['editor@yorkshirebusinesswoman.co.uk'];
+        let adminRecipients: string[] = [config.adminEmail];
         try {
           if (adminDb) {
             const byRoleSnap = await adminDb

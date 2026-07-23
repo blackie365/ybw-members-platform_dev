@@ -3,8 +3,25 @@ import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
+  // Rate limit: 3 requests per minute per IP
+  const ip = getClientIp(request);
+  const rateLimit = checkRateLimit(`newsletter:${ip}`, 3, 60_000);
+  
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+        }
+      }
+    );
+  }
   try {
     let body: any;
     try {

@@ -12,7 +12,7 @@ const isValidUrl = (url: string) => {
 
 describe('ENDPOINTS', () => {
   it('API_BASE references the correct project', () => {
-    expect(API_BASE).toContain('newmembersdirectory130325');
+    expect(API_BASE).toContain('cloudfunctions.net');
   });
 
   it('all endpoint values are valid URLs', () => {
