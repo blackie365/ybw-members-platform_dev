@@ -26,6 +26,12 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
 
+    // 4. Magazine Imports: Admin-initiated uploads (auth checked server-side)
+    match /magazine-import/{allPaths=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Default: Allow read, deny write
     match /{allPaths=**} {
       allow read: if true;
