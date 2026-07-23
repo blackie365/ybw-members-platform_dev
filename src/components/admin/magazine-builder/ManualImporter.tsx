@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlAction, importIdmlFromUrlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
 
 type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
 
@@ -634,6 +636,11 @@ export function ManualImporter({
       return;
     }
 
+    if (!storage) {
+      toast.error('Firebase Storage not configured');
+      return;
+    }
+
     setIsServerIdmlParsing(true);
     setServerIdmlFileName(file.name);
     setShowServerIdmlPreview(false);
@@ -642,27 +649,33 @@ export function ManualImporter({
     setServerIdmlStats(null);
 
     try {
-      toast.info('Uploading file to storage...');
+      toast.info('Uploading file to Firebase Storage...');
 
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
-      uploadFormData.append('folder', 'magazine-import');
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadFormData });
+      const filePath = `magazine-import/${file.name}`;
+      const storageRef = ref(storage, filePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      if (!uploadRes.ok) {
-        const uploadData = await uploadRes.json().catch(() => ({}));
-        throw new Error(uploadData?.error || 'Failed to upload file');
-      }
+      const fileUrl: string = await new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            toast.info(`Uploading: ${pct}%`, { id: 'upload-progress' });
+          },
+          (error) => reject(error),
+          async () => {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(url);
+          },
+        );
+      });
 
-      const { url: fileUrl } = await uploadRes.json();
-      if (!fileUrl) throw new Error('Upload returned no URL');
-
-      toast.info('Parsing IDML on server...');
+      toast.info('Parsing IDML on server...', { id: 'upload-progress' });
 
       const result = await importIdmlFromUrlAction(fileUrl, file.name);
 
       if (!result.success) {
-        toast.error(result.error || 'Failed to parse IDML');
+        toast.error(result.error || 'Failed to parse IDML', { id: 'upload-progress' });
         return;
       }
 
@@ -675,9 +688,9 @@ export function ManualImporter({
       });
       setShowServerIdmlPreview(true);
 
-      toast.success(`Parsed ${result.data!.pageCount} pages, ${result.data!.storyCount} stories, ${result.data!.imageCount} images`);
+      toast.success(`Parsed ${result.data!.pageCount} pages, ${result.data!.storyCount} stories, ${result.data!.imageCount} images`, { id: 'upload-progress' });
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to import IDML');
+      toast.error(e?.message || 'Failed to import IDML', { id: 'upload-progress' });
     } finally {
       setIsServerIdmlParsing(false);
     }
