@@ -8,6 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
+import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -22,9 +23,10 @@ export const metadata: Metadata = {
 };
 
 export default async function NewEditionPage() {
-  const [issues, ghostPosts] = await Promise.all([
+  const [issues, ghostPosts, readerEditions] = await Promise.all([
     getMagazineIssuesServer(),
-    getPosts({ limit: 1, filter: "featured:true" })
+    getPosts({ limit: 1, filter: "featured:true" }),
+    listReaderEditions()
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
@@ -34,6 +36,9 @@ export default async function NewEditionPage() {
   const digitalEditionUrl = liveIssue ? `/magazine/issue/${liveIssue.id}` : '/new-edition';
   const mergedIssues = issues;
   const featuredPost = ghostPosts[0];
+  
+  // Latest reader edition (IDML-imported) takes precedence for hero if available
+  const latestReaderEdition = readerEditions[0] ?? null;
 
   const isAdmin = await (async () => {
     try {
@@ -78,19 +83,28 @@ export default async function NewEditionPage() {
                 Latest Edition
               </Badge>
               <h1 className="font-serif text-5xl font-medium tracking-tight sm:text-7xl">
-                {liveIssue.title}
+                {latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'}
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
-                Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation built around the live issue and its full page-turning format.
+                {latestReaderEdition?.description || 'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.'}
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
-                  <Link href={digitalEditionUrl}>
-                    Open The Latest Edition
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
+                {latestReaderEdition ? (
+                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
+                    <Link href={`/magazine/read/${latestReaderEdition.slug}`}>
+                      Open The Latest Edition
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
+                    <Link href={digitalEditionUrl}>
+                      Open The Latest Edition
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                )}
                 <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-white/15 bg-transparent px-8 py-6 text-lg text-white hover:bg-white hover:text-[#050505]">
                   <Link href="#edition-archive">
                     Browse Archive
@@ -101,7 +115,7 @@ export default async function NewEditionPage() {
               <div className="mt-12 flex flex-wrap items-center gap-6 text-sm text-zinc-500">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-accent" />
-                  <span>{new Date(liveIssue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
+                  <span>{new Date(latestReaderEdition?.publishDate || liveIssue?.publishDate || Date.now()).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
                 </div>
                 <div className="h-4 w-px bg-white/10" />
                 <p>Yorkshire BusinessWoman Magazine</p>
@@ -115,8 +129,8 @@ export default async function NewEditionPage() {
                   <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] bg-black/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)}
-                      alt={`${liveIssue.title} Cover`}
+                      src={latestReaderEdition?.coverImage || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION)}
+                      alt={`${latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'} Cover`}
                       className="absolute inset-0 h-full w-full object-contain"
                     />
                     <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-transparent to-white/10" />
@@ -327,9 +341,55 @@ export default async function NewEditionPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Reader Editions (IDML-imported) */}
+            {readerEditions.map((edition) => (
+              <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
+                <Link 
+                  href={`/magazine/read/${edition.slug}`}
+                  className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={edition.coverImage}
+                    alt={edition.title}
+                    className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+                    <div className="rounded-full bg-white/10 backdrop-blur-md p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/20">
+                      <BookOpen className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">DIGITAL</Badge>
+                  </div>
+                </Link>
+
+                <div className="flex flex-1 flex-col p-6 items-center">
+                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(edition.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <h3 className="mb-2 font-serif text-lg font-medium text-foreground transition-colors group-hover:text-accent line-clamp-1">
+                    {edition.title}
+                  </h3>
+                  <p className="mb-4 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
+                    {edition.description}
+                  </p>
+                  
+                  <div className="mt-auto flex flex-col gap-2 w-full">
+                    <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
+                      <Link href={`/magazine/read/${edition.slug}`}>
+                        Open Digital Edition
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Legacy Issues (magazine_issues) */}
             {mergedIssues.map((issue: any) => (
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
-                {/* Cover Image - Entire image is now a link */}
                 <Link 
                   href={`/magazine/issue/${issue.id}`}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
@@ -352,7 +412,6 @@ export default async function NewEditionPage() {
                   )}
                 </Link>
 
-                {/* Content below cover */}
                 <div className="flex flex-1 flex-col p-6 items-center">
                   <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
                     <Calendar className="h-3 w-3" />
