@@ -295,67 +295,89 @@ export async function importIdmlAction(idmlBase64: string, fileName: string) {
     await checkAdmin();
 
     const buffer = Buffer.from(idmlBase64, 'base64');
-    const parsed = await parseIdml(buffer);
-
-    if (parsed.pages.length === 0) {
-      return { success: false, error: 'No readable content found in the IDML file' };
-    }
-
-    const imageUrls: Record<string, string> = {};
-
-    if (parsed.images.length > 0 && adminStorage) {
-      const bucket = adminStorage.bucket();
-      const uploadPromises = parsed.images.map(async (img) => {
-        const filePath = `magazine-import/${fileName}/${img.fileName}`;
-        const storageFile = bucket.file(filePath);
-
-        await storageFile.save(img.data, {
-          metadata: { contentType: img.mimeType },
-        });
-        await storageFile.makePublic();
-
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-        return { fileName: img.fileName, url: publicUrl };
-      });
-
-      const results = await Promise.all(uploadPromises);
-      for (const r of results) {
-        imageUrls[r.fileName] = r.url;
-      }
-    }
-
-    let pages = mapIdmlToReaderPages(parsed.pages);
-
-    pages = pages.map((page) => ({
-      ...page,
-      content: {
-        ...page.content,
-        imageUrl: page.content.imageUrl
-          ? (imageUrls[page.content.imageUrl] || page.content.imageUrl)
-          : '',
-        imageUrls: (page.content.imageUrls || []).map(
-          (name) => imageUrls[name] || name,
-        ),
-      },
-    }));
-
-    const metadata = buildEditionMetadata(pages, fileName);
-
-    return {
-      success: true,
-      data: {
-        pages,
-        metadata,
-        pageCount: parsed.pageCount,
-        storyCount: parsed.pages.reduce((sum, p) => sum + p.stories.length, 0),
-        imageCount: parsed.images.length,
-        imageUrls,
-      },
-    };
+    const data = await processIdmlBuffer(buffer, fileName);
+    return { success: true, data };
   } catch (error: any) {
     console.error('Error importing IDML:', error);
     return { success: false, error: error.message || 'Failed to parse IDML file' };
   }
+}
+
+export async function importIdmlFromUrlAction(fileUrl: string, fileName: string) {
+  try {
+    await checkAdmin();
+
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const data = await processIdmlBuffer(buffer, fileName);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Error importing IDML from URL:', error);
+    return { success: false, error: error.message || 'Failed to import IDML file' };
+  }
+}
+
+async function processIdmlBuffer(buffer: Buffer, fileName: string) {
+  const parsed = await parseIdml(buffer);
+
+  if (parsed.pages.length === 0) {
+    throw new Error('No readable content found in the IDML file');
+  }
+
+  const imageUrls: Record<string, string> = {};
+
+  if (parsed.images.length > 0 && adminStorage) {
+    const bucket = adminStorage.bucket();
+    const uploadPromises = parsed.images.map(async (img) => {
+      const filePath = `magazine-import/${fileName}/${img.fileName}`;
+      const storageFile = bucket.file(filePath);
+
+      await storageFile.save(img.data, {
+        metadata: { contentType: img.mimeType },
+      });
+      await storageFile.makePublic();
+
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      return { fileName: img.fileName, url: publicUrl };
+    });
+
+    const results = await Promise.all(uploadPromises);
+    for (const r of results) {
+      imageUrls[r.fileName] = r.url;
+    }
+  }
+
+  let pages = mapIdmlToReaderPages(parsed.pages);
+
+  pages = pages.map((page) => ({
+    ...page,
+    content: {
+      ...page.content,
+      imageUrl: page.content.imageUrl
+        ? (imageUrls[page.content.imageUrl] || page.content.imageUrl)
+        : '',
+      imageUrls: (page.content.imageUrls || []).map(
+        (name) => imageUrls[name] || name,
+      ),
+    },
+  }));
+
+  const metadata = buildEditionMetadata(pages, fileName);
+
+  return {
+    pages,
+    metadata,
+    pageCount: parsed.pageCount,
+    storyCount: parsed.pages.reduce((sum, p) => sum + p.stories.length, 0),
+    imageCount: parsed.images.length,
+    imageUrls,
+  };
 }
 
 function slugify(text: string): string {
