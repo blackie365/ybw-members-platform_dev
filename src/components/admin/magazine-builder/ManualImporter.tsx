@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -773,6 +773,19 @@ export function ManualImporter({
     });
   };
 
+  const handleClearIdmlDraft = async () => {
+    if (serverIdmlDraftId) {
+      await deleteIdmlDraft(serverIdmlDraftId).catch(() => {});
+    }
+    setServerIdmlPages([]);
+    setServerIdmlMeta(null);
+    setServerIdmlStats(null);
+    setShowServerIdmlPreview(false);
+    setServerIdmlDraftId('');
+    setServerIdmlFileName('');
+    toast.success('IDML draft cleared');
+  };
+
   const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
   const filteredStoryLibrary = normalizedLibraryQuery
     ? safeStoryLibrary.filter((s) => {
@@ -1188,18 +1201,28 @@ export function ManualImporter({
                 )}
               </div>
 
-              <Button
-                className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
-                onClick={handlePublishIdmlEdition}
-                disabled={isServerIdmlPublishing || serverIdmlPages.length === 0}
-              >
-                {isServerIdmlPublishing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <FileDown className="h-4 w-4 mr-2" />
-                )}
-                Publish as Magazine Edition ({serverIdmlPages.length} pages)
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
+                  onClick={handlePublishIdmlEdition}
+                  disabled={isServerIdmlPublishing || serverIdmlPages.length === 0}
+                >
+                  {isServerIdmlPublishing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <FileDown className="h-4 w-4 mr-2" />
+                  )}
+                  Publish ({serverIdmlPages.length} pages)
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="h-12 px-4"
+                  onClick={handleClearIdmlDraft}
+                  disabled={isServerIdmlPublishing}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
           )}
         </div>
