@@ -1,11 +1,21 @@
 import JSZip from 'jszip';
 import { DOMParser } from '@xmldom/xmldom';
 
+export interface ParsedFrame {
+  frameSelf: string;
+  storyId: string;
+  isTitle: boolean;
+  position: 'left' | 'right' | 'full';
+  order: number;
+}
+
 export interface ParsedIdmlStory {
+  id: string;
   path: string;
   title: string;
   text: string;
   imageHints: string[];
+  paragraphStyles: string[];
 }
 
 export interface ParsedIdmlImage {
@@ -17,6 +27,7 @@ export interface ParsedIdmlImage {
 export interface ParsedIdmlPage {
   pageNumber: number;
   spreadIndex: number;
+  frames: ParsedFrame[];
   stories: ParsedIdmlStory[];
   imageFileNames: string[];
   totalWordCount: number;
@@ -26,6 +37,7 @@ export interface ParsedIdmlPage {
 export interface ParsedIdml {
   pages: ParsedIdmlPage[];
   images: ParsedIdmlImage[];
+  storyMap: Map<string, ParsedIdmlStory>;
   pageCount: number;
 }
 
@@ -48,7 +60,12 @@ function normalizeWhitespace(value: string): string {
     .trim();
 }
 
-function extractTextFromStory(xml: string): { title: string; text: string; imageHints: string[] } {
+function extractStoryContent(xml: string): {
+  title: string;
+  text: string;
+  imageHints: string[];
+  paragraphStyles: string[];
+} {
   const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
   const rawPieces = contentMatches
     .map((m) => decodeXmlEntities(m[1] || '').trim())
@@ -64,7 +81,13 @@ function extractTextFromStory(xml: string): { title: string; text: string; image
     .map((m) => String(m[1] || '').trim())
     .filter(Boolean);
 
-  return { title, text, imageHints };
+  const paragraphStyles = [
+    ...xml.matchAll(/AppliedParagraphStyle="([^"]+)"/g),
+  ]
+    .map((m) => m[1])
+    .filter(Boolean);
+
+  return { title, text, imageHints, paragraphStyles };
 }
 
 function countWords(text: string): number {
@@ -84,108 +107,159 @@ function getFileMimeType(fileName: string): string {
   }
 }
 
-function parseSpreadPages(designmapXml: string): number {
-  try {
-    const doc = new DOMParser().parseFromString(designmapXml, 'text/xml');
-    const spreads = doc.getElementsByTagName('Spread');
-    let maxPage = 0;
+function isTitleFrame(
+  story: ParsedIdmlStory | undefined,
+  frameIndex: number,
+  totalFramesOnPage: number,
+): boolean {
+  if (!story) return false;
+  if (frameIndex !== 0) return false;
 
-    for (let i = 0; i < spreads.length; i++) {
-      const spread = spreads[i];
-      const pages = spread.getElementsByTagName('Page');
-      for (let j = 0; j < pages.length; j++) {
-        const pageSelf = pages[j].getAttribute('Self');
-        if (pageSelf) {
-          const pageMatch = pageSelf.match(/Page_(\d+)/i);
-          if (pageMatch) {
-            maxPage = Math.max(maxPage, parseInt(pageMatch[1], 10));
-          }
-        }
-      }
-    }
+  const text = (story.text || '').trim();
+  if (!text) return false;
 
-    return maxPage || 0;
-  } catch {
-    return 0;
-  }
+  const hasTitleStyle = story.paragraphStyles.some((s) =>
+    /article.?heading|title|heading|cover.?title|headline/i.test(s),
+  );
+
+  const wordCount = countWords(text);
+  const isShort = wordCount <= 15;
+
+  return hasTitleStyle || isShort;
 }
 
-function mapStoriesToPages(
-  stories: ParsedIdmlStory[],
-  totalPageCount: number,
-): ParsedIdmlPage[] {
-  if (stories.length === 0) return [];
+function parseSpreadFrames(spreadXml: string): Array<{
+  pageName: string;
+  pageTransform: { tx: number; ty: number };
+  pageBounds: { top: number; left: number; bottom: number; right: number };
+  frames: ParsedFrame[];
+}> {
+  const result: Array<{
+    pageName: string;
+    pageTransform: { tx: number; ty: number };
+    pageBounds: { top: number; left: number; bottom: number; right: number };
+    frames: ParsedFrame[];
+  }> = [];
 
-  if (stories.length >= totalPageCount && totalPageCount > 0) {
-    return stories.slice(0, totalPageCount).map((story, i) => ({
-      pageNumber: i + 1,
-      spreadIndex: Math.floor(i / 2),
-      stories: [story],
-      imageFileNames: story.imageHints,
-      totalWordCount: countWords(story.text),
-      textPreview: story.text.replace(/\s+/g, ' ').slice(0, 180),
-    }));
-  }
+  const doc = new DOMParser().parseFromString(spreadXml, 'text/xml');
 
-  const pages: ParsedIdmlPage[] = [];
-  const perPage = Math.max(1, Math.ceil(stories.length / Math.max(1, totalPageCount)));
+  const pages = doc.getElementsByTagName('Page');
+  const pageInfo: Array<{
+    self: string;
+    name: string;
+    tx: number;
+    ty: number;
+    bounds: { top: number; left: number; bottom: number; right: number };
+  }> = [];
 
-  for (let pageIdx = 0; pageIdx < totalPageCount; pageIdx++) {
-    const storyStart = pageIdx * perPage;
-    const storyEnd = Math.min(storyStart + perPage, stories.length);
-    const pageStories = stories.slice(storyStart, storyEnd);
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const self = page.getAttribute('Self') || '';
+    const name = page.getAttribute('Name') || '';
+    const transform = (page.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
+    const boundsStr = page.getAttribute('GeometricBounds') || '0 0 700 482';
+    const boundsValues = boundsStr.split(' ').map(Number);
 
-    if (pageStories.length === 0) {
-      pages.push({
-        pageNumber: pageIdx + 1,
-        spreadIndex: Math.floor(pageIdx / 2),
-        stories: [],
-        imageFileNames: [],
-        totalWordCount: 0,
-        textPreview: '',
-      });
-      continue;
-    }
-
-    const allImageHints = pageStories.flatMap((s) => s.imageHints);
-    const combinedText = pageStories.map((s) => s.text).join('\n\n');
-
-    pages.push({
-      pageNumber: pageIdx + 1,
-      spreadIndex: Math.floor(pageIdx / 2),
-      stories: pageStories,
-      imageFileNames: allImageHints,
-      totalWordCount: countWords(combinedText),
-      textPreview: combinedText.replace(/\s+/g, ' ').slice(0, 180),
+    pageInfo.push({
+      self,
+      name,
+      tx: transform[4] || 0,
+      ty: transform[5] || 0,
+      bounds: {
+        top: boundsValues[0] || 0,
+        left: boundsValues[1] || 0,
+        bottom: boundsValues[2] || 700,
+        right: boundsValues[3] || 482,
+      },
     });
   }
 
-  return pages;
+  const textFrames = doc.getElementsByTagName('TextFrame');
+  let frameOrder = 0;
+
+  for (let i = 0; i < textFrames.length; i++) {
+    const frame = textFrames[i];
+    const frameSelf = frame.getAttribute('Self') || '';
+    const parentStory = frame.getAttribute('ParentStory') || '';
+
+    const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
+    const frameX = frameTransform[4] || 0;
+
+    let position: 'left' | 'right' | 'full' = 'right';
+    let assignedPage = pageInfo[0];
+
+    if (pageInfo.length === 1) {
+      position = 'full';
+      assignedPage = pageInfo[0];
+    } else if (pageInfo.length >= 2) {
+      const page1Center = pageInfo[0].tx + (pageInfo[0].bounds.right / 2);
+      const page2Center = pageInfo[1].tx + (pageInfo[1].bounds.right / 2);
+      const frameCenter = frameX;
+
+      const distToPage1 = Math.abs(frameCenter - page1Center);
+      const distToPage2 = Math.abs(frameCenter - page2Center);
+
+      if (distToPage1 < distToPage2) {
+        position = 'left';
+        assignedPage = pageInfo[0];
+      } else {
+        position = 'right';
+        assignedPage = pageInfo[1];
+      }
+    }
+
+    const pageEntry = result.find((r) => r.pageName === assignedPage.name);
+    if (pageEntry) {
+      pageEntry.frames.push({
+        frameSelf,
+        storyId: parentStory,
+        isTitle: false,
+        position,
+        order: frameOrder++,
+      });
+    } else {
+      result.push({
+        pageName: assignedPage.name,
+        pageTransform: { tx: assignedPage.tx, ty: assignedPage.ty },
+        pageBounds: assignedPage.bounds,
+        frames: [{
+          frameSelf,
+          storyId: parentStory,
+          isTitle: false,
+          position,
+          order: frameOrder++,
+        }],
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   const zip = await JSZip.loadAsync(fileBuffer);
 
-  let designmapXml = '';
-  const designmapFile = zip.file('designmap.xml');
-  if (designmapFile) {
-    designmapXml = await designmapFile.async('text');
-  }
-
   const storyFiles = Object.keys(zip.files).filter((p) => /^Stories\/.+\.xml$/i.test(p));
   storyFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
-  const stories: ParsedIdmlStory[] = [];
+  const storyMap = new Map<string, ParsedIdmlStory>();
+
   for (const path of storyFiles) {
     const xml = await zip.files[path].async('text');
-    const parsed = extractTextFromStory(xml);
-    if (!parsed.text) continue;
+    const content = extractStoryContent(xml);
 
-    stories.push({
+    const selfMatch = xml.match(/<Story Self="([^"]+)"/);
+    const storyId = selfMatch?.[1] || path.replace(/^Stories\//, '').replace(/\.xml$/i, '');
+
+    if (!content.text && content.imageHints.length === 0) continue;
+
+    storyMap.set(storyId, {
+      id: storyId,
       path,
-      title: parsed.title,
-      text: normalizeWhitespace(parsed.text),
-      imageHints: parsed.imageHints,
+      title: content.title,
+      text: normalizeWhitespace(content.text),
+      imageHints: content.imageHints,
+      paragraphStyles: content.paragraphStyles,
     });
   }
 
@@ -206,13 +280,74 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     });
   }
 
-  let pageCount = parseSpreadPages(designmapXml);
+  const spreadFiles = Object.keys(zip.files).filter((p) => /^Spreads\/.+\.xml$/i.test(p));
+  spreadFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
-  if (pageCount === 0) {
-    pageCount = stories.length || images.length || 1;
+  const allPageData: Array<{
+    pageNumber: number;
+    spreadIndex: number;
+    frames: ParsedFrame[];
+  }> = [];
+
+  let pageNumber = 1;
+
+  for (let spreadIdx = 0; spreadIdx < spreadFiles.length; spreadIdx++) {
+    const spreadXml = await zip.files[spreadFiles[spreadIdx]].async('text');
+    const spreadData = parseSpreadFrames(spreadXml);
+
+    for (const pageData of spreadData) {
+      const pageName = parseInt(pageData.pageName, 10);
+      if (!isNaN(pageName)) {
+        pageNumber = pageName;
+      }
+
+      const framesWithTitles = pageData.frames.map((frame, idx) => {
+        const story = storyMap.get(frame.storyId);
+        return {
+          ...frame,
+          isTitle: isTitleFrame(story, idx, pageData.frames.length),
+        };
+      });
+
+      allPageData.push({
+        pageNumber,
+        spreadIndex: spreadIdx,
+        frames: framesWithTitles,
+      });
+
+      pageNumber++;
+    }
   }
 
-  const pages = mapStoriesToPages(stories, pageCount);
+  allPageData.sort((a, b) => a.pageNumber - b.pageNumber);
 
-  return { pages, images, pageCount };
+  const pages: ParsedIdmlPage[] = allPageData.map((pageData) => {
+    const storyIds = new Set(pageData.frames.map((f) => f.storyId));
+    const pageStories: ParsedIdmlStory[] = [];
+    const allImageHints: string[] = [];
+
+    for (const storyId of storyIds) {
+      const story = storyMap.get(storyId);
+      if (story) {
+        pageStories.push(story);
+        allImageHints.push(...story.imageHints);
+      }
+    }
+
+    const combinedText = pageStories.map((s) => s.text).join('\n\n');
+
+    return {
+      pageNumber: pageData.pageNumber,
+      spreadIndex: pageData.spreadIndex,
+      frames: pageData.frames,
+      stories: pageStories,
+      imageFileNames: allImageHints,
+      totalWordCount: countWords(combinedText),
+      textPreview: combinedText.replace(/\s+/g, ' ').slice(0, 180),
+    };
+  });
+
+  const maxPage = pages.length > 0 ? Math.max(...pages.map((p) => p.pageNumber)) : 0;
+
+  return { pages, images, storyMap, pageCount: maxPage };
 }

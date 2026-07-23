@@ -1,152 +1,265 @@
 import type { ReaderPage, ReaderPageTemplate, ReaderPageContent } from '@/features/magazine/domain/types';
-import type { ParsedIdmlPage } from './idml-parser';
+import type { ParsedIdmlPage, ParsedIdmlStory, ParsedFrame } from './idml-parser';
 
-function detectTemplate(page: ParsedIdmlPage, position: number, total: number): ReaderPageTemplate {
-  const { totalWordCount, stories, imageFileNames, textPreview } = page;
-  const hasImages = imageFileNames.length > 0;
-  const firstStoryTitle = stories[0]?.title?.toLowerCase() || '';
-  const previewLower = textPreview.toLowerCase();
-
-  if (position === 0) return 'cover';
-
-  if (position === total - 1) {
-    if (totalWordCount < 100) return 'back-cover';
-    return 'editor-note';
-  }
-
-  if (
-    /\b(contents|table of contents|in this issue|what(?:'s|s) inside)\b/.test(firstStoryTitle) ||
-    /\b(contents|table of contents|in this issue|what(?:'s|s) inside)\b/.test(previewLower)
-  ) {
-    return 'contents';
-  }
-
-  if (
-    /\b(advert|advertisement|sponsor|sponsored)\b/.test(firstStoryTitle) ||
-    /\b(advert|advertisement|sponsor|sponsored)\b/.test(previewLower)
-  ) {
-    if (totalWordCount < 50) return 'ad';
-  }
-
-  if (
-    /\b(editor('?s)? note|from the editor|editorial|letter from)\b/.test(firstStoryTitle) ||
-    /\b(editor('?s)? note|from the editor|editorial|letter from)\b/.test(previewLower)
-  ) {
-    return 'editor-note';
-  }
-
-  if (
-    /\b(profile|spotlight|member spotlight|interview)\b/.test(firstStoryTitle) ||
-    /\b(profile|spotlight|member spotlight|interview)\b/.test(previewLower)
-  ) {
-    return position % 2 === 0 ? 'feature-left' : 'feature-right';
-  }
-
-  if (totalWordCount > 600 && hasImages) {
-    return position % 2 === 0 ? 'feature-left' : 'feature-right';
-  }
-
-  if (totalWordCount > 400) {
-    return position % 2 === 0 ? 'feature-left' : 'feature-right';
-  }
-
-  if (totalWordCount < 30 && hasImages) {
-    return 'ad';
-  }
-
-  if (totalWordCount < 100 && hasImages) {
-    return position % 2 === 0 ? 'feature-left' : 'feature-right';
-  }
-
-  return position % 2 === 0 ? 'feature-left' : 'feature-right';
+export interface Article {
+  title: string;
+  author: string;
+  body: string;
+  images: string[];
+  startPage: number;
+  endPage: number;
+  pagePositions: Array<{ page: number; position: 'left' | 'right' | 'full' }>;
 }
 
-function buildContent(page: ParsedIdmlPage, template: ReaderPageTemplate): ReaderPageContent {
-  const combinedText = page.stories.map((s) => s.text).join('\n\n');
-  const firstTitle = page.stories[0]?.title || '';
-  const firstImage = page.imageFileNames[0] || '';
+function detectTitleFrame(
+  story: ParsedIdmlStory | undefined,
+  frameIndex: number,
+): boolean {
+  if (!story) return false;
+  if (frameIndex !== 0) return false;
 
-  switch (template) {
-    case 'cover':
-      return {
-        title: firstTitle || 'Magazine Edition',
-        body: '',
-        standfirst: page.stories.slice(1).map((s) => s.title).join(' · '),
-        imageUrl: firstImage,
-        imageUrls: page.imageFileNames,
-      };
+  const text = (story.text || '').trim();
+  if (!text) return false;
 
-    case 'contents':
-      return {
-        title: firstTitle || 'In This Issue',
-        body: '',
-        items: page.stories.map((s) => ({
-          title: s.title || 'Untitled',
-          page: '',
-        })),
-      };
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 20) return false;
 
-    case 'editor-note':
-      return {
-        title: firstTitle || "Editor's Note",
-        author: '',
-        body: combinedText,
-        imageUrl: firstImage,
-        imageUrls: page.imageFileNames,
-      };
+  const hasTitleStyle = story.paragraphStyles.some((s) =>
+    /article.?heading|title|heading|cover.?title|headline/i.test(s),
+  );
 
-    case 'ad':
-      return {
-        title: firstTitle || 'Advertisement',
-        body: '',
-        imageUrl: firstImage,
-        label: 'Advertisement',
-      };
-
-    case 'back-cover':
-      return {
-        title: firstTitle || 'Until Next Time',
-        body: combinedText,
-        imageUrl: firstImage,
-        imageUrls: page.imageFileNames,
-      };
-
-    case 'feature-left':
-    case 'feature-right':
-    case 'feature-full':
-    default:
-      return {
-        title: firstTitle || 'Feature',
-        author: '',
-        body: combinedText,
-        standfirst: combinedText.split(/\n{2,}/)[0]?.split(/(?<=[.!?])\s+/)[0]?.slice(0, 180) || '',
-        imageUrl: firstImage,
-        imageUrls: page.imageFileNames,
-        pullQuotes: [],
-      };
-  }
+  return hasTitleStyle || wordCount <= 12;
 }
 
-function createPageId(position: number): string {
-  return `idml-page-${position + 1}-${Date.now().toString(36)}`;
+function detectAdPage(page: ParsedIdmlPage): boolean {
+  return page.frames.length === 0 && page.stories.length === 0;
+}
+
+function extractArticleContent(stories: ParsedIdmlStory[]): {
+  title: string;
+  author: string;
+  body: string;
+  images: string[];
+} {
+  if (stories.length === 0) {
+    return { title: '', author: '', body: '', images: [] };
+  }
+
+  const firstStory = stories[0];
+  const title = firstStory.title || '';
+  const allImages = stories.flatMap((s) => s.imageHints);
+
+  const bodyParts = stories.map((s) => s.text).filter(Boolean);
+  const body = bodyParts.join('\n\n');
+
+  let author = '';
+  const authorMatch = body.match(/(?:by|written by|authored by)\s+([A-Z][a-z]+ [A-Z][a-z]+)/i);
+  if (authorMatch) {
+    author = authorMatch[1];
+  }
+
+  return { title, author, body, images: allImages };
+}
+
+export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
+  const articles: Article[] = [];
+  let currentArticle: {
+    title: string;
+    author: string;
+    bodyParts: string[];
+    images: string[];
+    startPage: number;
+    endPage: number;
+    pagePositions: Array<{ page: number; position: 'left' | 'right' | 'full' }>;
+  } | null = null;
+
+  for (const page of pages) {
+    if (detectAdPage(page)) {
+      if (currentArticle) {
+        articles.push({
+          title: currentArticle.title,
+          author: currentArticle.author,
+          body: currentArticle.bodyParts.join('\n\n'),
+          images: currentArticle.images,
+          startPage: currentArticle.startPage,
+          endPage: currentArticle.endPage,
+          pagePositions: currentArticle.pagePositions,
+        });
+        currentArticle = null;
+      }
+      continue;
+    }
+
+    const titleFrameIdx = page.frames.findIndex((f, idx) => {
+      const story = page.stories.find((s) => s.id === f.storyId);
+      return detectTitleFrame(story, idx);
+    });
+
+    if (titleFrameIdx >= 0) {
+      if (currentArticle) {
+        articles.push({
+          title: currentArticle.title,
+          author: currentArticle.author,
+          body: currentArticle.bodyParts.join('\n\n'),
+          images: currentArticle.images,
+          startPage: currentArticle.startPage,
+          endPage: currentArticle.endPage,
+          pagePositions: currentArticle.pagePositions,
+        });
+      }
+
+      const titleStory = page.stories.find(
+        (s) => s.id === page.frames[titleFrameIdx].storyId,
+      );
+
+      currentArticle = {
+        title: titleStory?.title || '',
+        author: '',
+        bodyParts: titleStory ? [titleStory.text] : [],
+        images: titleStory ? [...titleStory.imageHints] : [],
+        startPage: page.pageNumber,
+        endPage: page.pageNumber,
+        pagePositions: [{
+          page: page.pageNumber,
+          position: page.frames[titleFrameIdx].position,
+        }],
+      };
+    } else if (currentArticle) {
+      currentArticle.endPage = page.pageNumber;
+
+      for (const story of page.stories) {
+        currentArticle.bodyParts.push(story.text);
+        currentArticle.images.push(...story.imageHints);
+      }
+
+      for (const frame of page.frames) {
+        const existing = currentArticle.pagePositions.find(
+          (p) => p.page === page.pageNumber,
+        );
+        if (!existing) {
+          currentArticle.pagePositions.push({
+            page: page.pageNumber,
+            position: frame.position,
+          });
+        }
+      }
+    }
+  }
+
+  if (currentArticle) {
+    articles.push({
+      title: currentArticle.title,
+      author: currentArticle.author,
+      body: currentArticle.bodyParts.join('\n\n'),
+      images: currentArticle.images,
+      startPage: currentArticle.startPage,
+      endPage: currentArticle.endPage,
+      pagePositions: currentArticle.pagePositions,
+    });
+  }
+
+  return articles;
+}
+
+function buildFeatureContent(
+  article: Article,
+  pageNum: number,
+  position: 'left' | 'right' | 'full',
+): ReaderPageContent {
+  const isFirstPage = pageNum === article.startPage;
+  const bodyText = article.body;
+  const standfirst = bodyText.split(/\n{2,}/)[0]?.split(/(?<=[.!?])\s+/)[0]?.slice(0, 180) || '';
+  const imageUrl = article.images[0] || '';
+
+  return {
+    title: isFirstPage ? article.title : `${article.title} (continued)`,
+    author: isFirstPage ? article.author : undefined,
+    body: bodyText,
+    standfirst: isFirstPage ? standfirst : undefined,
+    imageUrl,
+    imageUrls: article.images,
+    pullQuotes: [],
+  };
+}
+
+function buildContentsPage(articles: Article[]): ReaderPageContent {
+  const items = articles
+    .filter((a) => a.title && !/advert|ad\b/i.test(a.title))
+    .map((a) => ({
+      title: a.title,
+      page: String(a.startPage).padStart(2, '0'),
+    }));
+
+  return {
+    title: 'In This Issue',
+    body: '',
+    items,
+  };
 }
 
 export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
-  const total = pages.length;
+  const result: ReaderPage[] = [];
+  let positionToggle = false;
 
-  return pages
-    .filter((page) => page.stories.length > 0 || page.imageFileNames.length > 0)
-    .map((page, index) => {
-      const template = detectTemplate(page, index, total);
-      const content = buildContent(page, template);
+  const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
 
-      return {
-        id: createPageId(index),
-        position: index,
-        template,
-        content,
-      };
+  const articles = detectArticles(sortedPages);
+
+  const contentsPage = sortedPages.find((p) => p.pageNumber === 4);
+  if (contentsPage) {
+    result.push({
+      id: `page-contents-${Date.now().toString(36)}`,
+      position: 2,
+      template: 'contents',
+      content: buildContentsPage(articles),
     });
+  }
+
+  const editorNotePage = sortedPages.find((p) => p.pageNumber === 5);
+  if (editorNotePage) {
+    const combinedText = editorNotePage.stories.map((s) => s.text).join('\n\n');
+    const firstTitle = editorNotePage.stories[0]?.title || '';
+
+    result.push({
+      id: `page-editor-${Date.now().toString(36)}`,
+      position: 3,
+      template: 'editor-note',
+      content: {
+        title: firstTitle || "Editor's Note",
+        author: '',
+        body: combinedText,
+        imageUrl: editorNotePage.imageFileNames[0] || '',
+        imageUrls: editorNotePage.imageFileNames,
+      },
+    });
+  }
+
+  for (const article of articles) {
+    if (article.title && /^\d+$/.test(article.title.trim())) {
+      continue;
+    }
+
+    for (let pageNum = article.startPage; pageNum <= article.endPage; pageNum++) {
+      if (pageNum === 4 || pageNum === 5) continue;
+
+      const pagePosition = article.pagePositions.find((p) => p.page === pageNum);
+      const position = pagePosition?.position || (positionToggle ? 'left' : 'right');
+      positionToggle = !positionToggle;
+
+      const template: ReaderPageTemplate = 'feature-left';
+
+      result.push({
+        id: `page-${pageNum}-${article.title.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}-${Date.now().toString(36)}`,
+        position: pageNum - 1,
+        template,
+        content: buildFeatureContent(article, pageNum, position),
+      });
+    }
+  }
+
+  result.sort((a, b) => a.position - b.position);
+
+  return result;
 }
 
 export function buildEditionMetadata(
