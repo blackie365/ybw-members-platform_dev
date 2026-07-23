@@ -13,49 +13,40 @@ export const revalidate = 0;
 async function getMember(slug: string) {
   try {
     if (!adminDb) return null;
+
+    const VALID_TIERS = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium'];
     
-    // 1. Try slug field
-    let snapshot = await adminDb.collection('newMemberCollection')
-      .where('slug', '==', slug)
-      .limit(1)
-      .get();
-      
-    if (!snapshot.empty) {
-      const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
-      const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
-      
-      if (isActiveMember && isValidTier) {
-        return member;
-      }
+    function isValidMember(data: any): boolean {
+      return data.userInactive !== true && VALID_TIERS.includes(data.membershipTier);
+    }
+
+    // 1. Try document ID (most reliable — matches Clerk UID used in fallback links)
+    const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
+    if (docRef.exists) {
+      const member = { id: docRef.id, ...docRef.data() } as any;
+      if (isValidMember(member)) return member;
     }
     
-    // 2. Try memberSlug field
-    snapshot = await adminDb.collection('newMemberCollection')
+    // 2. Try memberSlug field (set by Clerk webhook on user creation)
+    const slugSnapshot = await adminDb.collection('newMemberCollection')
       .where('memberSlug', '==', slug)
       .limit(1)
       .get();
 
-    if (!snapshot.empty) {
-      const member = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
-      const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
-      
-      if (isActiveMember && isValidTier) {
-        return member;
-      }
+    if (!slugSnapshot.empty) {
+      const member = { id: slugSnapshot.docs[0].id, ...slugSnapshot.docs[0].data() } as any;
+      if (isValidMember(member)) return member;
     }
     
-    // 3. Try document ID
-    const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
-    if (docRef.exists) {
-      const member = { id: docRef.id, ...docRef.data() } as any;
-      const isActiveMember = member.userInactive !== true;
-      const isValidTier = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary'].includes(member.membershipTier);
-      
-      if (isActiveMember && isValidTier) {
-        return member;
-      }
+    // 3. Try legacy slug field
+    const legacySnapshot = await adminDb.collection('newMemberCollection')
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+
+    if (!legacySnapshot.empty) {
+      const member = { id: legacySnapshot.docs[0].id, ...legacySnapshot.docs[0].data() } as any;
+      if (isValidMember(member)) return member;
     }
 
     return null;
