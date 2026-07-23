@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
+import { importIdmlAction, importIdmlFromUrlAction, publishIdmlEditionAction } from '@/app/actions/magazineActions';
 
 type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
 
@@ -642,12 +642,24 @@ export function ManualImporter({
     setServerIdmlStats(null);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      toast.info('Uploading file to storage...');
 
-      const result = await importIdmlAction(base64, file.name);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('folder', 'magazine-import');
+      const uploadRes = await fetch('/api/upload', { method: 'POST', body: uploadFormData });
+
+      if (!uploadRes.ok) {
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        throw new Error(uploadData?.error || 'Failed to upload file');
+      }
+
+      const { url: fileUrl } = await uploadRes.json();
+      if (!fileUrl) throw new Error('Upload returned no URL');
+
+      toast.info('Parsing IDML on server...');
+
+      const result = await importIdmlFromUrlAction(fileUrl, file.name);
 
       if (!result.success) {
         toast.error(result.error || 'Failed to parse IDML');
