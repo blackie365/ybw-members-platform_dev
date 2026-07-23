@@ -1,21 +1,45 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import Link from 'next/link';
-import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Maximize2, Menu, Minimize2, X } from 'lucide-react';
-import { Logo } from '@/components/Logo';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import type { ReaderEdition, ReaderPage } from '@/features/magazine/domain/types';
-import { getTemplateEntry, getTemplateViewModel, loadTemplateRenderers, type TemplateRenderProps } from '@/features/magazine/domain/template-registry';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Menu,
+  Minimize2,
+  X,
+} from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { Badge } from "@/components/ui/badge";
+import type { ReaderEdition } from "@/features/magazine/domain/types";
+import {
+  getTemplateEntry,
+  getTemplateViewModel,
+  loadTemplateRenderers,
+} from "@/features/magazine/domain/template-registry";
 
 interface MagazineShellProps {
   edition: ReaderEdition;
 }
 
 function humanizeTemplate(template: string): string {
-  return template.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return template
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function formatEditionDate(dateString: string): string {
+  try {
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return dateString;
+  }
 }
 
 export default function MagazineShell({ edition }: MagazineShellProps) {
@@ -23,7 +47,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   const [direction, setDirection] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [imageVersion, setImageVersion] = useState('');
+  const [imageVersion, setImageVersion] = useState("");
   const [renderersLoaded, setRenderersLoaded] = useState(false);
 
   useEffect(() => {
@@ -33,6 +57,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, []);
 
   const pages = edition.pages;
+  const editionDate = formatEditionDate(edition.publishDate);
 
   const renderedPages = useMemo(() => {
     return pages.map((page) => {
@@ -43,13 +68,14 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         coverImage: edition.coverImage,
         description: edition.description,
       });
-      const label = String(viewModel.title || '') || humanizeTemplate(page.template);
+      const label =
+        String(viewModel.title || "") || humanizeTemplate(page.template);
       return { page, entry, viewModel, label };
     });
   }, [pages, edition]);
 
   const nextPage = useCallback(() => {
-    setCurrentPage(prev => {
+    setCurrentPage((prev) => {
       if (prev >= renderedPages.length - 1) return prev;
       setDirection(1);
       return prev + 1;
@@ -57,7 +83,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, [renderedPages.length]);
 
   const prevPage = useCallback(() => {
-    setCurrentPage(prev => {
+    setCurrentPage((prev) => {
       if (prev <= 0) return prev;
       setDirection(-1);
       return prev - 1;
@@ -65,7 +91,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, []);
 
   const goToPage = useCallback((index: number) => {
-    setCurrentPage(prev => {
+    setCurrentPage((prev) => {
       setDirection(index > prev ? 1 : -1);
       return index;
     });
@@ -74,75 +100,90 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') nextPage();
-      if (e.key === 'ArrowLeft') prevPage();
-      if (e.key === 'Escape') setIsNavOpen(false);
+      if (e.key === "ArrowRight") nextPage();
+      if (e.key === "ArrowLeft") prevPage();
+      if (e.key === "Escape") setIsNavOpen(false);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [nextPage, prevPage]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       const anyDoc = document as any;
-      setIsFullscreen(Boolean(document.fullscreenElement || anyDoc.webkitFullscreenElement));
+      setIsFullscreen(
+        Boolean(document.fullscreenElement || anyDoc.webkitFullscreenElement),
+      );
     };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener(
+      "webkitfullscreenchange",
+      handleFullscreenChange as any,
+    );
     handleFullscreenChange();
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener(
+        "webkitfullscreenchange",
+        handleFullscreenChange as any,
+      );
     };
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
-    const root = document.getElementById('magazine-shell-root');
+    const root = document.getElementById("magazine-shell-root");
     const anyDoc = document as any;
     const anyRoot = root as any;
     try {
       if (!(document.fullscreenElement || anyDoc.webkitFullscreenElement)) {
-        if (root?.requestFullscreen) { await root.requestFullscreen(); return; }
-        if (anyRoot?.webkitRequestFullscreen) { await anyRoot.webkitRequestFullscreen(); }
+        if (root?.requestFullscreen) {
+          await root.requestFullscreen();
+          return;
+        }
+        if (anyRoot?.webkitRequestFullscreen) {
+          await anyRoot.webkitRequestFullscreen();
+        }
         return;
       }
-      if (document.exitFullscreen) { await document.exitFullscreen(); return; }
-      if (anyDoc.webkitExitFullscreen) { await anyDoc.webkitExitFullscreen(); }
-    } catch { return; }
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (anyDoc.webkitExitFullscreen) {
+        await anyDoc.webkitExitFullscreen();
+      }
+    } catch {
+      return;
+    }
   }, []);
 
   const current = renderedPages[currentPage];
-  const progress = renderedPages.length > 0 ? ((currentPage + 1) / renderedPages.length) * 100 : 0;
+  const progress =
+    renderedPages.length > 0
+      ? ((currentPage + 1) / renderedPages.length) * 100
+      : 0;
 
   const variants: any = {
     enter: (dir: number) => ({
-      x: dir > 0 ? '100%' : '-100%',
+      x: dir > 0 ? 36 : -36,
       opacity: 0,
-      scale: 0.9,
-      rotateY: dir > 0 ? 45 : -45,
     }),
     center: {
       zIndex: 1,
       x: 0,
       opacity: 1,
-      scale: 1,
-      rotateY: 0,
       transition: {
-        x: { type: 'spring', stiffness: 200, damping: 30 },
-        opacity: { duration: 0.4 },
-        rotateY: { duration: 0.6, ease: 'easeOut' },
+        x: { type: "spring", stiffness: 240, damping: 30 },
+        opacity: { duration: 0.28 },
       },
     },
     exit: (dir: number) => ({
       zIndex: 0,
-      x: dir < 0 ? '100%' : '-100%',
+      x: dir < 0 ? 36 : -36,
       opacity: 0,
-      scale: 1.1,
-      rotateY: dir < 0 ? 45 : -45,
       transition: {
-        x: { type: 'spring', stiffness: 200, damping: 30 },
-        opacity: { duration: 0.4 },
-        rotateY: { duration: 0.6, ease: 'easeIn' },
+        x: { duration: 0.22, ease: "easeOut" },
+        opacity: { duration: 0.18 },
       },
     }),
   };
@@ -152,31 +193,38 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   return (
     <div
       id="magazine-shell-root"
-      className="magazine-rocket-theme fixed inset-0 h-[100dvh] bg-[#0c0a09] text-zinc-100 flex flex-col z-[100] overflow-hidden perspective-1000 overscroll-none selection:bg-accent/30"
+      className="magazine-rocket-theme fixed inset-0 z-[100] flex h-[100dvh] flex-col overflow-hidden bg-[#0c0a09] text-zinc-100 overscroll-none selection:bg-accent/30"
     >
-      {/* Top Control Bar */}
-      <header className="h-14 sm:h-16 border-b border-white/[0.06] flex items-center justify-between px-4 sm:px-6 bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 backdrop-blur-xl z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
+      <header className="z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 px-4 shadow-[0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-xl sm:h-16 sm:px-6">
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link href="/new-edition" className="text-zinc-500 hover:text-white transition-colors p-1 rounded-md hover:bg-white/5">
+          <Link
+            href="/new-edition"
+            className="rounded-md p-1 text-zinc-500 transition-colors hover:bg-white/5 hover:text-white"
+          >
             <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </Link>
-          <div className="h-5 w-px bg-white/10 mx-1 sm:mx-2" />
+          <div className="mx-1 h-5 w-px bg-white/10 sm:mx-2" />
           <div className="flex items-center gap-2 sm:gap-3">
             <Logo className="h-6 sm:h-8 brightness-0 invert opacity-90" />
             <span className="text-white/20 hidden sm:block">|</span>
-            <p className="text-[10px] sm:text-xs font-semibold tracking-[0.18em] uppercase text-[#a3413a] truncate max-w-[100px] sm:max-w-none">
-              {edition.title}
-            </p>
+            <div className="min-w-0">
+              <p className="max-w-[150px] truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a3413a] sm:max-w-[340px] sm:text-xs">
+                {edition.title}
+              </p>
+              <p className="hidden text-[11px] text-zinc-500 sm:block">
+                {editionDate}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10px] font-mono text-zinc-400">
+          <div className="hidden items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.06] px-3 py-1 text-[10px] font-mono text-zinc-400 sm:flex">
             <span className="text-white font-semibold">{currentPage + 1}</span>
             <span className="text-zinc-600">/</span>
             <span>{renderedPages.length}</span>
           </div>
-          <div className="h-5 w-px bg-white/10 mx-1 sm:mx-2" />
+          <div className="mx-1 h-5 w-px bg-white/10 sm:mx-2" />
 
           <Badge className="hidden sm:flex border-none bg-accent px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-white">
             Digital Edition
@@ -185,10 +233,14 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="text-zinc-500 hover:text-white h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
-            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-white/5 hover:text-white sm:h-9 sm:w-9"
+            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
           </button>
 
           <button
@@ -200,8 +252,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         </div>
       </header>
 
-      {/* Main Reader Stage */}
-      <main className="flex-1 relative flex items-center justify-center overflow-hidden touch-pan-y bg-[#0c0a09]">
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0c0a09] px-2 py-2 sm:px-3 sm:py-3 lg:px-5 lg:py-5">
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="w-[60vw] h-[60vh] rounded-full bg-[#a3413a]/8 blur-[120px]" />
         </div>
@@ -209,7 +260,8 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         <button
           onClick={prevPage}
           disabled={currentPage === 0}
-          className="absolute left-4 xl:left-8 z-40 h-11 w-11 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-xl backdrop-blur-sm"
+          className="absolute left-4 z-40 hidden h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 shadow-xl backdrop-blur transition hover:bg-black/50 disabled:pointer-events-none disabled:opacity-25 lg:flex xl:left-8"
+          aria-label="Previous page"
         >
           <ChevronLeft className="h-5 w-5 text-zinc-300" />
         </button>
@@ -217,12 +269,13 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         <button
           onClick={nextPage}
           disabled={currentPage === renderedPages.length - 1}
-          className="absolute right-4 xl:right-8 z-40 h-11 w-11 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center hover:bg-white/[0.12] hover:border-white/20 hover:scale-105 transition-all disabled:opacity-0 disabled:pointer-events-none hidden lg:flex shadow-xl backdrop-blur-sm"
+          className="absolute right-4 z-40 hidden h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 shadow-xl backdrop-blur transition hover:bg-black/50 disabled:pointer-events-none disabled:opacity-25 lg:flex xl:right-8"
+          aria-label="Next page"
         >
           <ChevronRight className="h-5 w-5 text-zinc-300" />
         </button>
 
-        <div className="relative w-full h-full mx-auto overflow-hidden bg-white text-zinc-900 self-center shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_32px_80px_rgba(0,0,0,0.7)]">
+        <div className="relative mx-auto flex h-full w-full max-w-[1720px] overflow-hidden rounded-[1.35rem] border border-white/[0.08] bg-[#120f0d] text-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_40px_120px_rgba(0,0,0,0.55)]">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={currentPage}
@@ -234,16 +287,16 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
               drag="x"
               dragDirectionLock
               dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.5}
+              dragElastic={0.18}
               onDragEnd={(_, info) => {
                 const swipe = info.offset.x;
                 const swipeY = info.offset.y;
                 const velocity = info.velocity.x;
                 if (Math.abs(swipeY) > Math.abs(swipe) * 1.5) return;
-                if (swipe > 100 || velocity > 500) prevPage();
-                else if (swipe < -100 || velocity < -500) nextPage();
+                if (swipe > 120 || velocity > 650) prevPage();
+                else if (swipe < -120 || velocity < -650) nextPage();
               }}
-              className="absolute inset-0 w-full h-full will-change-transform touch-pan-y overflow-y-auto overflow-x-hidden scroll-smooth overscroll-contain"
+              className="absolute inset-0 h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain scroll-smooth touch-pan-y will-change-transform"
             >
               {current?.entry && current.entry.render ? (
                 <current.entry.render
@@ -260,8 +313,12 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
               ) : current ? (
                 <section className="mx-auto max-w-6xl px-6 py-16">
                   <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">Page {current.page.position}</p>
-                    <h2 className="mt-4 font-serif text-3xl">{current.label}</h2>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">
+                      Page {current.page.position}
+                    </p>
+                    <h2 className="mt-4 font-serif text-3xl">
+                      {current.label}
+                    </h2>
                   </div>
                 </section>
               ) : null}
@@ -270,84 +327,82 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         </div>
       </main>
 
-      {/* Footer Progress Bar + Dot Nav */}
-      <footer className="h-[4.5rem] sm:h-20 bg-gradient-to-r from-[#0c0a09] via-[#111009] to-[#0c0a09] border-t border-white/[0.06] px-4 sm:px-6 flex items-center gap-4 sm:gap-5 z-50 shrink-0">
-        <button
-          onClick={prevPage}
-          disabled={currentPage === 0}
-          className="shrink-0 h-8 px-3 rounded-md bg-white/[0.06] border border-white/[0.1] text-[10px] font-semibold tracking-widest uppercase text-zinc-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all disabled:opacity-25 disabled:pointer-events-none"
-        >
-          ‹ Prev
-        </button>
-
-        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
-          <div className="relative h-[3px] bg-white/[0.08] rounded-full overflow-hidden">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
-              style={{
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #a3413a 0%, #a3413a 100%)',
-                boxShadow: '0 0 8px rgba(163,65,58,0.6)',
-              }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-0.5 overflow-hidden">
-            {renderedPages.map((_, i) => {
-              const isActive = currentPage === i;
-              const isNear = Math.abs(currentPage - i) <= 2;
-              return (
-                <button
-                  key={i}
-                  onClick={() => goToPage(i)}
-                  title={`Page ${i + 1}`}
-                  className="group flex flex-col items-center gap-0.5 transition-all duration-200"
-                  style={{ minWidth: 0, flex: '1 1 0' }}
-                >
-                  <span
-                    className={[
-                      'block rounded-full transition-all duration-300',
-                      isActive
-                        ? 'w-4 h-1.5 bg-[#a3413a] shadow-[0_0_6px_rgba(163,65,58,0.8)]'
-                        : isNear
-                        ? 'w-1 h-1 bg-zinc-500 group-hover:bg-zinc-300'
-                        : 'w-0.5 h-0.5 bg-zinc-700 group-hover:bg-zinc-500',
-                    ].join(' ')}
-                  />
-                  {isActive && (
-                    <span className="text-[8px] font-mono font-bold text-[#a3413a] leading-none">
-                      {i + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+      <footer className="z-50 shrink-0 border-t border-white/[0.06] bg-gradient-to-r from-[#0c0a09]/95 via-[#141210]/95 to-[#0c0a09]/95 px-3 py-3 backdrop-blur-xl sm:px-6">
+        <div className="mb-3 h-0.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+          <div
+            className="h-full rounded-full bg-[#a3413a] transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <button
-          onClick={nextPage}
-          disabled={currentPage === renderedPages.length - 1}
-          className="shrink-0 h-8 px-3 rounded-md bg-white/[0.06] border border-white/[0.1] text-[10px] font-semibold tracking-widest uppercase text-zinc-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all disabled:opacity-25 disabled:pointer-events-none"
-        >
-          Next ›
-        </button>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={prevPage}
+            disabled={currentPage === 0}
+            className="inline-flex min-w-[92px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white/80 transition hover:bg-white/[0.07] disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Prev
+          </button>
+
+          <div className="min-w-0 flex-1 px-2 text-center">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
+              {current?.label || edition.title}
+            </p>
+            <p className="mt-1 truncate text-[11px] text-zinc-500">
+              {editionDate}
+            </p>
+          </div>
+
+          <button
+            onClick={nextPage}
+            disabled={currentPage === renderedPages.length - 1}
+            className="inline-flex min-w-[92px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white/80 transition hover:bg-white/[0.07] disabled:pointer-events-none disabled:opacity-30"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-3 hidden items-center justify-center gap-2 overflow-x-auto sm:flex">
+          {renderedPages.map((item, i) => {
+            const isActive = currentPage === i;
+            return (
+              <button
+                key={item.page.id}
+                onClick={() => goToPage(i)}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors whitespace-nowrap",
+                  isActive
+                    ? "border-[#a3413a]/40 bg-[#a3413a]/12 text-[#d98f87]"
+                    : "border-white/10 bg-white/[0.03] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200",
+                ].join(" ")}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
+        </div>
       </footer>
 
-      {/* Sidebar Navigation */}
       <AnimatePresence>
         {isNavOpen && (
           <motion.aside
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-80 bg-[#0f0d0b] z-[60] border-l border-white/[0.08] shadow-2xl p-8 overflow-y-auto"
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed bottom-0 right-0 top-0 z-[60] w-full overflow-y-auto border-l border-white/[0.08] bg-[#0f0d0b] p-8 shadow-2xl sm:w-[26rem]"
           >
-            <div className="flex items-center justify-between mb-10">
+            <div className="mb-10 flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">Page Navigator</p>
-                <h3 className="mt-2 text-lg font-serif text-white tracking-wide">{edition.title}</h3>
+                <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">
+                  Page Navigator
+                </p>
+                <h3 className="mt-2 text-lg font-serif text-white tracking-wide">
+                  {edition.title}
+                </h3>
+                <p className="mt-2 text-xs text-zinc-500">{editionDate}</p>
               </div>
               <button
                 onClick={() => setIsNavOpen(false)}
@@ -357,7 +412,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
               </button>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="space-y-1.5">
               {renderedPages.map((item, i) => {
                 const isActive = currentPage === i;
                 return (
@@ -365,40 +420,59 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
                     key={item.page.id}
                     onClick={() => goToPage(i)}
                     className={[
-                      'w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group',
+                      "group flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-all",
                       isActive
-                        ? 'bg-[#a3413a]/10 border border-[#a3413a]/20'
-                        : 'hover:bg-white/[0.04] border border-transparent',
-                    ].join(' ')}
+                        ? "bg-[#a3413a]/10 border border-[#a3413a]/20"
+                        : "hover:bg-white/[0.04] border border-transparent",
+                    ].join(" ")}
                   >
-                    <span className={`text-[10px] font-mono w-6 text-right shrink-0 ${isActive ? 'text-[#a3413a]' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
-                      {String(i + 1).padStart(2, '0')}
+                    <span
+                      className={`w-6 shrink-0 text-right font-mono text-[10px] ${isActive ? "text-[#a3413a]" : "text-zinc-600 group-hover:text-zinc-400"}`}
+                    >
+                      {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span className={`text-xs min-w-0 flex-1 truncate font-medium uppercase tracking-widest ${isActive ? 'text-[#a3413a]' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                      {item.label}
-                    </span>
-                    {isActive && (
-                      <motion.div layoutId="activeDot" className="h-1 w-1 rounded-full bg-[#a3413a] ml-auto" />
-                    )}
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`truncate text-xs font-medium uppercase tracking-widest ${isActive ? "text-[#a3413a]" : "text-zinc-300 group-hover:text-zinc-100"}`}
+                      >
+                        {item.label}
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                        {humanizeTemplate(item.page.template)}
+                      </p>
+                    </div>
+                    {isActive ? (
+                      <motion.div
+                        layoutId="activeDot"
+                        className="ml-auto mt-1 h-1.5 w-1.5 rounded-full bg-[#a3413a]"
+                      />
+                    ) : null}
                   </button>
                 );
               })}
             </nav>
 
-            <div className="mt-10 p-5 bg-gradient-to-br from-[#a3413a]/20 to-[#a3413a]/10 rounded-xl border border-[#a3413a]/20">
-              <p className="text-[10px] text-[#a3413a] uppercase tracking-widest mb-1 font-bold">Digital Edition</p>
-              <h4 className="text-base font-serif text-white mb-4">{edition.title}</h4>
+            <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-[10px] text-[#a3413a] uppercase tracking-widest mb-1 font-bold">
+                Digital Edition
+              </p>
+              <h4 className="text-base font-serif text-white mb-4">
+                {edition.title}
+              </h4>
+              <p className="mb-4 text-sm leading-relaxed text-zinc-400">
+                A screen-native reading experience styled for the web, with the
+                page-turning version available separately where needed.
+              </p>
               <Link
-                href="/membership"
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#a3413a] text-white font-semibold text-xs rounded-lg hover:bg-[#a3413a]/90 transition-colors"
+                href="/new-edition"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#a3413a] py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#a3413a]/90"
               >
-                Become a Member
-                <ArrowRight className="h-3.5 w-3.5" />
+                Back To Editions
               </Link>
             </div>
 
             <div className="mt-6 border-t border-white/10 pt-4 text-xs text-center uppercase tracking-[0.22em] text-white/30">
-              Swipe or use ← → keys to navigate
+              Use swipe or ← → keys to move through the edition
             </div>
           </motion.aside>
         )}

@@ -1,5 +1,9 @@
-import type { ReaderPage, ReaderPageTemplate, ReaderPageContent } from '@/features/magazine/domain/types';
-import type { ParsedIdmlPage, ParsedIdmlStory, ParsedFrame } from './idml-parser';
+import type {
+  ReaderPage,
+  ReaderPageTemplate,
+  ReaderPageContent,
+} from "@/features/magazine/domain/types";
+import type { ParsedIdmlPage, ParsedIdmlStory } from "./idml-parser";
 
 export interface Article {
   title: string;
@@ -8,7 +12,7 @@ export interface Article {
   images: string[];
   startPage: number;
   endPage: number;
-  pagePositions: Array<{ page: number; position: 'left' | 'right' | 'full' }>;
+  pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>;
 }
 
 function detectTitleFrame(
@@ -18,7 +22,7 @@ function detectTitleFrame(
   if (!story) return false;
   if (frameIndex !== 0) return false;
 
-  const text = (story.text || '').trim();
+  const text = (story.text || "").trim();
   if (!text) return false;
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
@@ -35,30 +39,98 @@ function detectAdPage(page: ParsedIdmlPage): boolean {
   return page.frames.length === 0 && page.stories.length === 0;
 }
 
-function extractArticleContent(stories: ParsedIdmlStory[]): {
-  title: string;
-  author: string;
-  body: string;
-  images: string[];
-} {
-  if (stories.length === 0) {
-    return { title: '', author: '', body: '', images: [] };
+function uniqueStrings(values: Array<string | undefined | null>): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    result.push(trimmed);
   }
+  return result;
+}
 
-  const firstStory = stories[0];
-  const title = firstStory.title || '';
-  const allImages = stories.flatMap((s) => s.imageHints);
+function getOrderedPageStories(page: ParsedIdmlPage): ParsedIdmlStory[] {
+  const seen = new Set<string>();
+  const ordered = [...page.frames]
+    .sort((a, b) => a.order - b.order)
+    .map((frame) => page.stories.find((story) => story.id === frame.storyId))
+    .filter((story): story is ParsedIdmlStory => Boolean(story))
+    .filter((story) => {
+      if (seen.has(story.id)) return false;
+      seen.add(story.id);
+      return true;
+    });
 
-  const bodyParts = stories.map((s) => s.text).filter(Boolean);
-  const body = bodyParts.join('\n\n');
+  if (ordered.length > 0) return ordered;
 
-  let author = '';
-  const authorMatch = body.match(/(?:by|written by|authored by)\s+([A-Z][a-z]+ [A-Z][a-z]+)/i);
-  if (authorMatch) {
-    author = authorMatch[1];
-  }
+  return page.stories.filter((story) => {
+    if (seen.has(story.id)) return false;
+    seen.add(story.id);
+    return true;
+  });
+}
 
-  return { title, author, body, images: allImages };
+function getPageTitleStoryIds(page: ParsedIdmlPage): Set<string> {
+  return new Set(
+    page.frames
+      .filter((frame) => frame.isTitle)
+      .map((frame) => frame.storyId)
+      .filter(Boolean),
+  );
+}
+
+function getPageBodyText(
+  page: ParsedIdmlPage,
+  includeTitleStories = false,
+): string {
+  const titleStoryIds = getPageTitleStoryIds(page);
+  const stories = getOrderedPageStories(page)
+    .filter((story) => Boolean(story.text?.trim()))
+    .filter((story) => includeTitleStories || !titleStoryIds.has(story.id));
+
+  const text = stories
+    .map((story) => story.text.trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+  if (text || includeTitleStories) return text;
+  return getPageBodyText(page, true);
+}
+
+function getPageImages(
+  page: ParsedIdmlPage,
+  fallbacks: string[] = [],
+): string[] {
+  return uniqueStrings([
+    ...page.imageFileNames,
+    ...getOrderedPageStories(page).flatMap((story) => story.imageHints),
+    ...fallbacks,
+  ]);
+}
+
+function getStandfirst(text: string): string {
+  const collapsed = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!collapsed) return "";
+  const firstSentence = collapsed.split(/(?<=[.!?])\s+/)[0] || collapsed;
+  return firstSentence.slice(0, 220).trim();
+}
+
+function getFeatureTemplate(
+  position: "left" | "right" | "full",
+  isContinuation: boolean,
+): ReaderPageTemplate {
+  if (!isContinuation && position === "full") return "feature-full";
+  return position === "left" ? "feature-left" : "feature-right";
+}
+
+function createPageId(prefix: string, value: string | number): string {
+  return `${prefix}-${String(value)
+    .replace(/[^a-z0-9]+/gi, "-")
+    .toLowerCase()}-${Date.now().toString(36)}`;
 }
 
 export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
@@ -70,7 +142,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
     images: string[];
     startPage: number;
     endPage: number;
-    pagePositions: Array<{ page: number; position: 'left' | 'right' | 'full' }>;
+    pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>;
   } | null = null;
 
   for (const page of pages) {
@@ -79,7 +151,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         articles.push({
           title: currentArticle.title,
           author: currentArticle.author,
-          body: currentArticle.bodyParts.join('\n\n'),
+          body: currentArticle.bodyParts.join("\n\n"),
           images: currentArticle.images,
           startPage: currentArticle.startPage,
           endPage: currentArticle.endPage,
@@ -100,7 +172,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         articles.push({
           title: currentArticle.title,
           author: currentArticle.author,
-          body: currentArticle.bodyParts.join('\n\n'),
+          body: currentArticle.bodyParts.join("\n\n"),
           images: currentArticle.images,
           startPage: currentArticle.startPage,
           endPage: currentArticle.endPage,
@@ -113,16 +185,18 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       );
 
       currentArticle = {
-        title: titleStory?.title || '',
-        author: '',
+        title: titleStory?.title || "",
+        author: "",
         bodyParts: titleStory ? [titleStory.text] : [],
         images: titleStory ? [...titleStory.imageHints] : [],
         startPage: page.pageNumber,
         endPage: page.pageNumber,
-        pagePositions: [{
-          page: page.pageNumber,
-          position: page.frames[titleFrameIdx].position,
-        }],
+        pagePositions: [
+          {
+            page: page.pageNumber,
+            position: page.frames[titleFrameIdx].position,
+          },
+        ],
       };
     } else if (currentArticle) {
       currentArticle.endPage = page.pageNumber;
@@ -150,7 +224,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
     articles.push({
       title: currentArticle.title,
       author: currentArticle.author,
-      body: currentArticle.bodyParts.join('\n\n'),
+      body: currentArticle.bodyParts.join("\n\n"),
       images: currentArticle.images,
       startPage: currentArticle.startPage,
       endPage: currentArticle.endPage,
@@ -163,22 +237,32 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
 
 function buildFeatureContent(
   article: Article,
+  page: ParsedIdmlPage,
   pageNum: number,
-  position: 'left' | 'right' | 'full',
+  position: "left" | "right" | "full",
 ): ReaderPageContent {
   const isFirstPage = pageNum === article.startPage;
-  const bodyText = article.body;
-  const standfirst = bodyText.split(/\n{2,}/)[0]?.split(/(?<=[.!?])\s+/)[0]?.slice(0, 180) || '';
-  const imageUrl = article.images[0] || '';
+  const bodyText = getPageBodyText(page);
+  const pageImages = getPageImages(page, article.images);
+  const imageUrl = pageImages[0] || article.images[0] || "";
+  const standfirst = isFirstPage ? getStandfirst(bodyText || article.body) : "";
+  const isContinuation = !isFirstPage;
 
   return {
-    title: isFirstPage ? article.title : `${article.title} (continued)`,
-    author: isFirstPage ? article.author : undefined,
+    title: article.title,
+    author: article.author || undefined,
+    name: article.author || undefined,
     body: bodyText,
     standfirst: isFirstPage ? standfirst : undefined,
     imageUrl,
-    imageUrls: article.images,
+    imageUrls: pageImages,
     pullQuotes: [],
+    kicker: isFirstPage ? "Feature" : "Continued Feature",
+    mediaLayout:
+      !isContinuation && position === "full" ? "background" : "standard",
+    weight: isFirstPage ? 3 : 2,
+    isContinuation,
+    continuationLabel: isContinuation ? article.title : undefined,
   };
 }
 
@@ -187,49 +271,77 @@ function buildContentsPage(articles: Article[]): ReaderPageContent {
     .filter((a) => a.title && !/advert|ad\b/i.test(a.title))
     .map((a) => ({
       title: a.title,
-      page: String(a.startPage).padStart(2, '0'),
+      page: String(a.startPage).padStart(2, "0"),
     }));
 
   return {
-    title: 'In This Issue',
-    body: '',
+    title: "In This Issue",
+    body: "",
     items,
   };
 }
 
 export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   const result: ReaderPage[] = [];
-  let positionToggle = false;
 
   const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
+  const pageByNumber = new Map(
+    sortedPages.map((page) => [page.pageNumber, page]),
+  );
 
   const articles = detectArticles(sortedPages);
 
-  const contentsPage = sortedPages.find((p) => p.pageNumber === 4);
-  if (contentsPage) {
+  const coverSourcePage = sortedPages[0];
+  const coverSourceArticle =
+    articles.find((article) => article.title.trim()) || null;
+  const coverBody = coverSourcePage
+    ? getPageBodyText(coverSourcePage, true)
+    : "";
+  const coverImages = coverSourcePage
+    ? getPageImages(coverSourcePage, coverSourceArticle?.images || [])
+    : [];
+
+  if (coverSourcePage) {
     result.push({
-      id: `page-contents-${Date.now().toString(36)}`,
-      position: 2,
-      template: 'contents',
+      id: createPageId("page-cover", coverSourcePage.pageNumber),
+      position: 0,
+      template: "cover",
+      content: {
+        title:
+          coverSourceArticle?.title || coverSourcePage.stories[0]?.title || "",
+        body: coverBody,
+        standfirst: getStandfirst(coverSourceArticle?.body || coverBody),
+        imageUrl: coverImages[0] || "",
+        imageUrls: coverImages,
+        kicker: "Digital Edition",
+      },
+    });
+  }
+
+  if (articles.length > 0) {
+    result.push({
+      id: createPageId("page-contents", "issue"),
+      position: 0,
+      template: "contents",
       content: buildContentsPage(articles),
     });
   }
 
   const editorNotePage = sortedPages.find((p) => p.pageNumber === 5);
   if (editorNotePage) {
-    const combinedText = editorNotePage.stories.map((s) => s.text).join('\n\n');
-    const firstTitle = editorNotePage.stories[0]?.title || '';
+    const combinedText = getPageBodyText(editorNotePage, true);
+    const firstTitle = editorNotePage.stories[0]?.title || "";
 
     result.push({
-      id: `page-editor-${Date.now().toString(36)}`,
-      position: 3,
-      template: 'editor-note',
+      id: createPageId("page-editor", editorNotePage.pageNumber),
+      position: 0,
+      template: "editor-note",
       content: {
         title: firstTitle || "Editor's Note",
-        author: '',
+        author: "",
         body: combinedText,
-        imageUrl: editorNotePage.imageFileNames[0] || '',
-        imageUrls: editorNotePage.imageFileNames,
+        imageUrl: getPageImages(editorNotePage)[0] || "",
+        imageUrls: getPageImages(editorNotePage),
       },
     });
   }
@@ -239,37 +351,87 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       continue;
     }
 
-    for (let pageNum = article.startPage; pageNum <= article.endPage; pageNum++) {
+    for (
+      let pageNum = article.startPage;
+      pageNum <= article.endPage;
+      pageNum++
+    ) {
       if (pageNum === 4 || pageNum === 5) continue;
+      if (pageNum === 1 && coverSourcePage?.pageNumber === 1) continue;
 
-      const pagePosition = article.pagePositions.find((p) => p.page === pageNum);
-      const position = pagePosition?.position || (positionToggle ? 'left' : 'right');
-      positionToggle = !positionToggle;
+      const sourcePage = pageByNumber.get(pageNum);
+      if (!sourcePage) continue;
 
-      const template: ReaderPageTemplate = 'feature-left';
+      const pagePosition = article.pagePositions.find(
+        (p) => p.page === pageNum,
+      );
+      const position =
+        pagePosition?.position || sourcePage.frames[0]?.position || "right";
+      const template = getFeatureTemplate(
+        position,
+        pageNum !== article.startPage,
+      );
 
       result.push({
-        id: `page-${pageNum}-${article.title.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}-${Date.now().toString(36)}`,
-        position: pageNum - 1,
+        id: createPageId(
+          `page-${pageNum}`,
+          article.title.slice(0, 24) || pageNum,
+        ),
+        position: 0,
         template,
-        content: buildFeatureContent(article, pageNum, position),
+        content: buildFeatureContent(article, sourcePage, pageNum, position),
       });
     }
   }
 
-  result.sort((a, b) => a.position - b.position);
+  const lastMeaningfulPage = [...sortedPages]
+    .reverse()
+    .find(
+      (page) =>
+        page.pageNumber > 5 &&
+        (page.stories.length > 0 || page.imageFileNames.length > 0),
+    );
 
-  return result;
+  if (lastMeaningfulPage) {
+    const lastImages = getPageImages(lastMeaningfulPage);
+    const lastArticle = [...articles]
+      .reverse()
+      .find((article) => article.endPage <= lastMeaningfulPage.pageNumber);
+
+    result.push({
+      id: createPageId("page-back-cover", lastMeaningfulPage.pageNumber),
+      position: 0,
+      template: "back-cover",
+      content: {
+        title: "See You Next Issue",
+        body: "Thank you for reading Yorkshire BusinessWoman in our digital reader. Browse the archive for more editions and return soon for the next issue.",
+        imageUrl: lastImages[0] || "",
+        imageUrls: lastImages,
+        kicker: "Until Next Time",
+        ctaLabel: "Browse Archive",
+        ctaHref: "/new-edition",
+        nextIssue: lastArticle?.title || "",
+      },
+    });
+  }
+
+  return result.map((page, index) => ({
+    ...page,
+    position: index + 1,
+  }));
 }
 
 export function buildEditionMetadata(
   pages: ReaderPage[],
   idmlFileName: string,
 ): { title: string; description: string; coverImage: string } {
-  const coverPage = pages.find((p) => p.template === 'cover');
-  const title = coverPage?.content.title || idmlFileName.replace(/\.idml$/i, '') || 'Untitled Edition';
-  const description = coverPage?.content.standfirst || '';
-  const coverImage = coverPage?.content.imageUrl || '';
+  const coverPage = pages.find((p) => p.template === "cover");
+  const title =
+    coverPage?.content.title ||
+    idmlFileName.replace(/\.idml$/i, "") ||
+    "Untitled Edition";
+  const description = coverPage?.content.standfirst || "";
+  const coverImage = coverPage?.content.imageUrl || "";
 
   return { title, description, coverImage };
 }

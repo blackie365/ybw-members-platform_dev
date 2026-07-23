@@ -1,8 +1,13 @@
-import type { ComponentType } from 'react';
-import type { ReaderPage, ReaderPageContent } from './types';
+import type { ComponentType } from "react";
+import type { ReaderPage } from "./types";
 
 export interface TemplateRenderProps {
-  edition: { title: string; publishDate: string; coverImage: string; description: string };
+  edition: {
+    title: string;
+    publishDate: string;
+    coverImage: string;
+    description: string;
+  };
   page: ReaderPage;
   viewModel: Record<string, unknown>;
   imageVersion?: string;
@@ -10,12 +15,18 @@ export interface TemplateRenderProps {
 
 interface TemplateRegistryEntry {
   render: ComponentType<TemplateRenderProps>;
-  buildViewModel: (page: ReaderPage, edition: TemplateRenderProps['edition']) => Record<string, unknown>;
+  buildViewModel: (
+    page: ReaderPage,
+    edition: TemplateRenderProps["edition"],
+  ) => Record<string, unknown>;
 }
 
 function formatDate(dateString: string): string {
   try {
-    return new Date(dateString).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      month: "long",
+      year: "numeric",
+    });
   } catch {
     return dateString;
   }
@@ -32,8 +43,8 @@ const coverEntry: TemplateRegistryEntry = {
       subheadline: c.standfirst || edition.description,
       date: formatDate(edition.publishDate),
       issue: formatDate(edition.publishDate),
-      badge: c.kicker || '',
-      gallery: (c.imageUrls || []).map(src => ({ src })),
+      badge: c.kicker || "",
+      gallery: (c.imageUrls || []).map((src) => ({ src })),
     };
   },
 };
@@ -43,7 +54,7 @@ const contentsEntry: TemplateRegistryEntry = {
   buildViewModel: (page, edition) => {
     const c = page.content;
     return {
-      title: c.title || 'In This Issue',
+      title: c.title || "In This Issue",
       kicker: formatDate(edition.publishDate),
       items: c.items || [],
     };
@@ -52,19 +63,26 @@ const contentsEntry: TemplateRegistryEntry = {
 
 const featureEntry: TemplateRegistryEntry = {
   render: null as any,
-  buildViewModel: (page, edition) => {
+  buildViewModel: (page) => {
     const c = page.content;
     return {
-      title: c.title || '',
-      kicker: c.kicker || 'Feature',
-      name: c.author || '',
-      intro: c.standfirst || '',
-      text: c.body || '',
-      featureImage: c.imageUrl || '',
-      image: c.imageUrl || '',
-      quote: c.quote || '',
+      title: c.title || "",
+      kicker: c.kicker || "Feature",
+      name: c.name || c.author || "",
+      intro: c.standfirst || "",
+      text: c.body || "",
+      featureImage: c.imageUrl || "",
+      image: c.imageUrl || "",
+      backgroundImage: c.backgroundImage || "",
+      videoUrl: c.videoUrl || "",
+      quote: c.quote || "",
       pullQuotes: c.pullQuotes || [],
-      gallery: (c.imageUrls || []).map(src => ({ src })),
+      mediaLayout: c.mediaLayout || "",
+      weight: c.weight,
+      isContinuation: Boolean(c.isContinuation),
+      continuationLabel: c.continuationLabel || "",
+      snapshotLabel: c.snapshotLabel || "",
+      gallery: (c.imageUrls || []).map((src) => ({ src })),
       stats: [],
     };
   },
@@ -72,16 +90,16 @@ const featureEntry: TemplateRegistryEntry = {
 
 const editorNoteEntry: TemplateRegistryEntry = {
   render: null as any,
-  buildViewModel: (page, edition) => {
+  buildViewModel: (page) => {
     const c = page.content;
     return {
       title: c.title || "Editor's Note",
-      author: c.author || '',
-      quote: c.quote || '',
-      text: c.body || '',
-      intro: c.standfirst || '',
-      featureImage: c.imageUrl || '',
-      image: c.imageUrl || '',
+      author: c.author || "",
+      quote: c.quote || "",
+      text: c.body || "",
+      intro: c.standfirst || "",
+      featureImage: c.imageUrl || "",
+      image: c.imageUrl || "",
       pullQuotes: c.pullQuotes || [],
     };
   },
@@ -92,10 +110,10 @@ const adEntry: TemplateRegistryEntry = {
   buildViewModel: (page) => {
     const c = page.content;
     return {
-      image: c.imageUrl || '',
-      label: c.label || 'Advertisement',
-      alt: c.title || 'Advertisement',
-      linkUrl: c.ctaHref || '',
+      image: c.imageUrl || "",
+      label: c.label || "Advertisement",
+      alt: c.title || "Advertisement",
+      linkUrl: c.ctaHref || "",
     };
   },
 };
@@ -106,38 +124,48 @@ const backCoverEntry: TemplateRegistryEntry = {
     const c = page.content;
     return {
       title: c.title || edition.title,
-      text: c.body || edition.description || '',
+      text: c.body || edition.description || "",
       featureImage: c.imageUrl || edition.coverImage,
       image: c.imageUrl || edition.coverImage,
-      kicker: c.kicker || 'Until Next Time',
-      cta: c.ctaLabel || 'Join the Community',
-      linkUrl: c.ctaHref || '',
+      backgroundImage: c.backgroundImage || "",
+      videoUrl: c.videoUrl || "",
+      kicker: c.kicker || "Until Next Time",
+      cta: c.ctaLabel || "Join the Community",
+      linkUrl: c.ctaHref || "",
+      nextIssue: c.nextIssue || "",
       socials: [],
     };
   },
 };
 
 const REGISTRY: Record<string, TemplateRegistryEntry> = {
-  'cover': coverEntry,
-  'contents': contentsEntry,
-  'feature-left': featureEntry,
-  'feature-right': featureEntry,
-  'feature-full': featureEntry,
-  'editor-note': editorNoteEntry,
-  'ad': adEntry,
-  'back-cover': backCoverEntry,
+  cover: coverEntry,
+  contents: contentsEntry,
+  "feature-left": featureEntry,
+  "feature-right": featureEntry,
+  "feature-full": featureEntry,
+  "editor-note": editorNoteEntry,
+  ad: adEntry,
+  "back-cover": backCoverEntry,
 };
 
-export function getTemplateEntry(template: string): TemplateRegistryEntry | null {
+export function getTemplateEntry(
+  template: string,
+): TemplateRegistryEntry | null {
   return REGISTRY[template] ?? null;
 }
 
-export function getTemplateViewModel(page: ReaderPage, edition: TemplateRenderProps['edition']): Record<string, unknown> {
+export function getTemplateViewModel(
+  page: ReaderPage,
+  edition: TemplateRenderProps["edition"],
+): Record<string, unknown> {
   const entry = getTemplateEntry(page.template);
   return entry ? entry.buildViewModel(page, edition) : {};
 }
 
-export function getTemplateComponent(template: string): ComponentType<TemplateRenderProps> | null {
+export function getTemplateComponent(
+  template: string,
+): ComponentType<TemplateRenderProps> | null {
   return REGISTRY[template]?.render ?? null;
 }
 
@@ -147,12 +175,13 @@ export function loadTemplateRenderers() {
   if (_loaded) return;
   _loaded = true;
 
-  const CoverTemplate = require('../templates/cover/renderer').default;
-  const ContentsTemplate = require('../templates/contents/renderer').default;
-  const FeatureTemplate = require('../templates/feature/renderer').default;
-  const EditorNoteTemplate = require('../templates/editor-note/renderer').default;
-  const AdTemplate = require('../templates/ad/renderer').default;
-  const BackCoverTemplate = require('../templates/back-cover/renderer').default;
+  const CoverTemplate = require("../templates/cover/renderer").default;
+  const ContentsTemplate = require("../templates/contents/renderer").default;
+  const FeatureTemplate = require("../templates/feature/renderer").default;
+  const EditorNoteTemplate =
+    require("../templates/editor-note/renderer").default;
+  const AdTemplate = require("../templates/ad/renderer").default;
+  const BackCoverTemplate = require("../templates/back-cover/renderer").default;
 
   // Override the render function on each entry
   // The template renderers still expect TemplateRenderProps with the old shape,
