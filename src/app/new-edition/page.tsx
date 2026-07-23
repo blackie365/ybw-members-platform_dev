@@ -33,12 +33,16 @@ export default async function NewEditionPage() {
   const flipbookIssue = issues.find((issue) => issue.flipbookUrl || issue.pdfUrl) ?? liveIssue;
   const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-  const digitalEditionUrl = liveIssue ? `/magazine/issue/${liveIssue.id}` : '/new-edition';
   const mergedIssues = issues;
   const featuredPost = ghostPosts[0];
-  
-  // Latest reader edition (IDML-imported) takes precedence for hero if available
+
+  // Latest reader edition (IDML-imported) takes precedence wherever we feature the current edition.
   const latestReaderEdition = readerEditions[0] ?? null;
+  const featuredEditionUrl = latestReaderEdition
+    ? `/magazine/read/${latestReaderEdition.slug}`
+    : liveIssue
+      ? `/magazine/issue/${liveIssue.id}`
+      : '/new-edition';
 
   const isAdmin = await (async () => {
     try {
@@ -89,22 +93,13 @@ export default async function NewEditionPage() {
                 {latestReaderEdition?.description || 'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.'}
               </p>
 
-              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                {latestReaderEdition ? (
+                <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                   <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
-                    <Link href={`/magazine/read/${latestReaderEdition.slug}`}>
-                      Open The Latest Edition
+                    <Link href={featuredEditionUrl}>
+                      Open Digital Reader
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
-                ) : (
-                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
-                    <Link href={digitalEditionUrl}>
-                      Open The Latest Edition
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                )}
                 <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-white/15 bg-transparent px-8 py-6 text-lg text-white hover:bg-white hover:text-[#050505]">
                   <Link href="#edition-archive">
                     Browse Archive
@@ -142,22 +137,22 @@ export default async function NewEditionPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-between gap-4">
-                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Print-Inspired</p>
-                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Live Digital Edition</h2>
-                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                      The current issue opens directly in our live digital reading path, centered on the edition readers need right now.
-                    </p>
+                  <div className="flex flex-col justify-between gap-4">
+                    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Primary Experience</p>
+                      <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Reader</h2>
+                      <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                        Open the latest edition in our premium digital reader, designed for elegant on-screen reading rather than a print replica.
+                      </p>
+                    </div>
+                    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Alternate Format</p>
+                      <h2 className="mt-3 font-serif text-xl font-medium text-white">Flipping Book</h2>
+                      <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                        The familiar page-turning version remains available below for readers who prefer a more print-led format.
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Magazine View</p>
-                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Page-Turning Format</h2>
-                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                      Browse the same issue in an inline flipbook section below, ideal for readers who want a familiar print-led presentation.
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -173,9 +168,9 @@ export default async function NewEditionPage() {
             <h2 className="mt-6 font-serif text-4xl font-medium sm:text-5xl">
               Read The Edition Your Way
             </h2>
-            <p className="mt-4 text-lg leading-relaxed text-[#5a4a3f]">
-              Both formats give access to the same latest edition, presented in two distinct ways for different reading preferences.
-            </p>
+              <p className="mt-4 text-lg leading-relaxed text-[#5a4a3f]">
+                Start with the digital reader for the best screen experience, or open the flipping book if you prefer a familiar page-turning format.
+              </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -183,24 +178,24 @@ export default async function NewEditionPage() {
               <div className="flex h-full flex-col justify-between p-8 sm:p-10">
                 <div>
                   <div className="flex items-center justify-between gap-4">
-                    <Badge className="border-none bg-[#16110f] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                      Featured Format
+                      <Badge className="border-none bg-[#16110f] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
+                        Primary Format
                     </Badge>
                     <span className="text-[11px] uppercase tracking-[0.18em] text-[#8b6f5a]">Live Now</span>
                   </div>
                   <h3 className="mt-6 font-serif text-3xl font-medium sm:text-4xl">
-                    Digital Edition
+                      Digital Reader
                   </h3>
                   <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5a4a3f] sm:text-lg">
-                    Open the current Yorkshire BusinessWoman issue directly in its live digital reading route, with the latest edition always featured first.
+                      Open the current Yorkshire BusinessWoman edition in the screen-native reading experience, with the latest edition always featured first.
                   </p>
                 </div>
 
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                   <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-5 text-base text-white hover:bg-[#8c362f]">
-                    <Link href={digitalEditionUrl}>
+                      <Link href={featuredEditionUrl}>
                       <BookOpen className="mr-2 h-5 w-5" />
-                      Open Latest Edition
+                        Open Digital Reader
                     </Link>
                   </Button>
                 </div>
@@ -211,23 +206,23 @@ export default async function NewEditionPage() {
               <div className="flex h-full flex-col justify-between p-8 sm:p-10">
                 <div>
                   <Badge className="border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                    Print-Led Format
+                      Alternate Format
                   </Badge>
                   <h3 className="mt-6 font-serif text-3xl font-medium">
-                    Magazine View
+                      Flipping Book
                   </h3>
                   <p className="mt-4 text-base leading-relaxed text-zinc-300">
                     {flipbookEmbedUrl
-                      ? 'Open the live issue in the embedded page-turning presentation below for a format that feels closest to the printed magazine.'
-                      : 'The current issue can still be opened directly in the main digital edition route above.'}
+                        ? 'Open the same edition in the familiar page-turning format if you prefer a more print-led reading experience.'
+                        : 'The digital reader remains the main experience for this edition.'}
                   </p>
                 </div>
 
                 <div className="mt-8">
                   <Button asChild size="lg" className="h-auto rounded-none border border-white/10 bg-white text-[#16110f] px-8 py-5 text-base hover:bg-accent hover:text-white">
-                    <Link href={flipbookEmbedUrl ? '#classic-flipbook' : digitalEditionUrl}>
+                      <Link href={flipbookEmbedUrl ? '#classic-flipbook' : featuredEditionUrl}>
                       <Monitor className="mr-2 h-5 w-5" />
-                      {flipbookEmbedUrl ? 'Open Magazine View' : 'Open Digital Edition'}
+                        {flipbookEmbedUrl ? 'Open Flipping Book' : 'Open Digital Reader'}
                     </Link>
                   </Button>
                 </div>
@@ -241,9 +236,9 @@ export default async function NewEditionPage() {
         <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
             <div className="mb-10 text-center">
-              <h2 className="font-serif text-3xl font-medium sm:text-4xl">Magazine View</h2>
+                <h2 className="font-serif text-3xl font-medium sm:text-4xl">Flipping Book</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Browse the edition in a polished, page-turning format designed to echo the feel of the printed publication.
+                  Prefer a page-turning presentation? The same edition is also available here in its familiar flipping-book format.
               </p>
             </div>
 
@@ -335,9 +330,9 @@ export default async function NewEditionPage() {
             <h2 className="font-serif text-3xl font-medium text-foreground sm:text-4xl">
               Edition Archive
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Access past editions and revisit your favourite articles and interviews.
-            </p>
+              <p className="mt-4 text-muted-foreground">
+                Access past editions in the digital reader, with print-led alternatives still available where they exist.
+              </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
