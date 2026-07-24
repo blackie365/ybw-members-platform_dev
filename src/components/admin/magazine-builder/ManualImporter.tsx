@@ -62,6 +62,12 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
   return btoa(binary);
 };
 
+const getFileNameFromStoragePath = (value: string) => {
+  const trimmed = String(value || '').trim().replace(/^gs:\/\//i, '');
+  const fileName = trimmed.split('/').pop()?.trim() || '';
+  return fileName || 'imported.idml';
+};
+
 const extractInDesignTextAndImageHints = (xml: string) => {
   const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
   const rawPieces = contentMatches.map((m) => decodeXmlEntities(m[1] || '').trim()).filter(Boolean);
@@ -193,6 +199,7 @@ export function ManualImporter({
   const [idmlStories, setIdmlStories] = useState<ParsedInDesignStory[]>([]);
   const [selectedStoryPath, setSelectedStoryPath] = useState<string>('');
   const [idmlFileName, setIdmlFileName] = useState<string>('');
+  const [storedIdmlPath, setStoredIdmlPath] = useState<string>('');
   const [contentsDraftItems, setContentsDraftItems] = useState<Array<{ page: string; category: string; title: string }>>([]);
   const [contentsDraftPage, setContentsDraftPage] = useState('');
   const [contentsDraftCategory, setContentsDraftCategory] = useState('');
@@ -244,6 +251,88 @@ export function ManualImporter({
     }
 
     setImageUrl(String(story.imageUrl || '').trim());
+  };
+
+  const applyIdmlImportResult = (res: any, canSaveDirectly: boolean) => {
+    if (!res.success || !res.data) {
+      toast.error(res.error || 'Failed to extract stories from IDML');
+      return false;
+    }
+
+    const importedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : [];
+    const stories: ParsedInDesignStory[] = importedItems.map((item: StoryLibraryItem) => {
+      const cleanText = normalizeWhitespace(String(item.text || ''));
+      return {
+        path: String(item.source?.path || item.sourceRef || item.title || createStoryId()),
+        title: String(item.title || '').trim(),
+        text: cleanText,
+        imageUrl: String(item.imageUrl || '').trim() || undefined,
+        imageFileNames: Array.isArray(item.imageFileNames) ? item.imageFileNames : [],
+        preview: cleanText.replace(/\s+/g, ' ').slice(0, 180),
+        length: cleanText.length,
+      };
+    });
+
+    if (stories.length === 0) {
+      toast.error('No article-level stories found in that IDML file');
+      return false;
+    }
+
+    const sorted = [...stories];
+    setIdmlStories(sorted);
+    const initial = sorted[0];
+    setSelectedStoryPath(initial.path);
+    applyInDesignStory(initial);
+
+    if (canSaveDirectly) {
+      const savedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : importedItems;
+      onStoryLibraryImported?.(savedItems);
+      toast.success(`Imported ${importedItems.length} IDML articles into the Story Library`);
+      return true;
+    }
+
+    toast.success(`Imported ${importedItems.length} IDML articles`);
+    return true;
+  };
+
+  const handleImportFromStoredPath = async () => {
+    const storagePath = String(storedIdmlPath || '').trim();
+    if (!storagePath) {
+      toast.error('Enter the stored IDML path first');
+      return;
+    }
+
+    if (!issueId || issueId === 'new' || !onSaveStoryLibrary) {
+      toast.error('Please create the edition first');
+      return;
+    }
+
+    setIsParsing(true);
+    try {
+      const fileName = getFileNameFromStoragePath(storagePath);
+      setIdmlFileName(fileName);
+      toast.info('Importing Story Library from stored IDML...', { id: 'upload-progress' });
+
+      const response = await fetch('/api/admin/magazine/story-library/import-idml', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          issueId: String(issueId),
+          storagePath,
+          fileName,
+        }),
+      });
+      const res = await response.json();
+      if (applyIdmlImportResult(res, true)) {
+        toast.dismiss('upload-progress');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to import stored IDML');
+    } finally {
+      setIsParsing(false);
+    }
   };
 
   const handleAddSelectedStoryToContents = () => {
@@ -499,44 +588,9 @@ export function ManualImporter({
         fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"A",location:"ManualImporter.tsx:handleImportFromInDesignFile:response",msg:"[DEBUG] Client received IDML import response",data:{issueId:String(issueId||""),fileName:file.name,canSaveDirectly,success:Boolean(res?.success),importedCount:Number((res as any)?.data?.importedCount||0),totalCount:Number((res as any)?.data?.totalCount||0),storyLibraryCount:Array.isArray((res as any)?.data?.storyLibrary)?(res as any).data.storyLibrary.length:0,error:String((res as any)?.error||"")},ts:Date.now()})}).catch(()=>{});
         // #endregion
 
-        if (!res.success || !res.data) {
-          toast.error(res.error || 'Failed to extract stories from IDML');
-          return;
+        if (applyIdmlImportResult(res, canSaveDirectly)) {
+          toast.dismiss('upload-progress');
         }
-
-        const importedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : [];
-        const stories: ParsedInDesignStory[] = importedItems.map((item: StoryLibraryItem) => {
-          const cleanText = normalizeWhitespace(String(item.text || ''));
-          return {
-            path: String(item.source?.path || item.sourceRef || item.title || createStoryId()),
-            title: String(item.title || '').trim(),
-            text: cleanText,
-            imageUrl: String(item.imageUrl || '').trim() || undefined,
-            imageFileNames: Array.isArray(item.imageFileNames) ? item.imageFileNames : [],
-            preview: cleanText.replace(/\s+/g, ' ').slice(0, 180),
-            length: cleanText.length,
-          };
-        });
-
-        if (stories.length === 0) {
-          toast.error('No article-level stories found in that IDML file');
-          return;
-        }
-
-        const sorted = [...stories];
-        setIdmlStories(sorted);
-        const initial = sorted[0];
-        setSelectedStoryPath(initial.path);
-        applyInDesignStory(initial);
-
-        if (canSaveDirectly) {
-          const savedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : importedItems;
-          onStoryLibraryImported?.(savedItems);
-          toast.success(`Imported ${importedItems.length} IDML articles into the Story Library`);
-          return;
-        }
-
-        toast.success(`Imported ${importedItems.length} IDML articles`);
         return;
       }
 
@@ -860,6 +914,35 @@ export function ManualImporter({
                   handleUploadImages(files);
                 }}
               />
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/10 p-3 space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Stored IDML path</Label>
+              <p className="text-[10px] text-muted-foreground">
+                Use an existing Firebase Storage object directly, for example `gs://bucket/folder/file.idml`.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                value={storedIdmlPath}
+                onChange={(e) => setStoredIdmlPath(e.target.value)}
+                placeholder="gs://newmembersdirectory130325.firebasestorage.app/magazine-import/your-file.idml"
+                disabled={isParsing || isImporting}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="sm:w-auto"
+                onClick={handleImportFromStoredPath}
+                disabled={isParsing || isImporting || !storedIdmlPath.trim() || !issueId || issueId === 'new'}
+              >
+                {isParsing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Import Stored IDML
+              </Button>
             </div>
           </div>
 

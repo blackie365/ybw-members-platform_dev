@@ -134,6 +134,28 @@ function buildStoryLibrarySourceRef(issueId: string, item: StoryLibraryItem, doc
   return `${issueId}:${legacyId}`;
 }
 
+function parseGoogleStoragePath(storagePath: string): { bucketName?: string; objectPath: string } {
+  const trimmed = String(storagePath || '').trim();
+  if (!trimmed) {
+    throw new Error('Storage path is required');
+  }
+
+  if (trimmed.startsWith('gs://')) {
+    const withoutScheme = trimmed.replace(/^gs:\/\//i, '');
+    const slashIndex = withoutScheme.indexOf('/');
+    if (slashIndex === -1) {
+      throw new Error('Storage path must include both bucket and object path');
+    }
+
+    return {
+      bucketName: withoutScheme.slice(0, slashIndex).trim(),
+      objectPath: withoutScheme.slice(slashIndex + 1).trim(),
+    };
+  }
+
+  return { objectPath: trimmed.replace(/^\/+/, '') };
+}
+
 function mapStoryLibraryItemToCollectionDoc(
   issueId: string,
   item: StoryLibraryItem,
@@ -944,6 +966,45 @@ export async function importIdmlToStoryLibraryFromUrlAction(issueId: string, fil
   } catch (error: any) {
     console.error('Error importing IDML URL into Story Library:', error);
     return { success: false, error: error.message || 'Failed to import IDML URL into Story Library' };
+  }
+}
+
+export async function importIdmlToStoryLibraryFromStoragePathAction(
+  issueId: string,
+  storagePath: string,
+  fileName?: string,
+) {
+  try {
+    await checkAdmin();
+
+    if (!adminStorage) {
+      throw new Error('Storage not initialized');
+    }
+
+    const { bucketName, objectPath } = parseGoogleStoragePath(storagePath);
+    if (!objectPath) {
+      throw new Error('Storage path must include an object path');
+    }
+
+    const bucket = bucketName ? adminStorage.bucket(bucketName) : adminStorage.bucket();
+    const [buffer] = await bucket.file(objectPath).download();
+    const resolvedFileName =
+      String(fileName || '').trim() ||
+      objectPath.split('/').pop()?.trim() ||
+      'imported.idml';
+
+    return await importIdmlBufferToStoryLibrary(
+      issueId,
+      buffer,
+      resolvedFileName,
+      'magazineActions.ts:importIdmlToStoryLibraryFromStoragePathAction',
+    );
+  } catch (error: any) {
+    console.error('Error importing IDML storage path into Story Library:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to import IDML storage path into Story Library',
+    };
   }
 }
 

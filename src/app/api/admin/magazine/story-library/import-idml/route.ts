@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { importIdmlToStoryLibraryFromUrlAction } from '@/app/actions/magazineActions';
+import {
+  importIdmlToStoryLibraryFromStoragePathAction,
+  importIdmlToStoryLibraryFromUrlAction,
+} from '@/app/actions/magazineActions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,16 +13,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const issueId = String(body?.issueId || '').trim();
     const fileUrl = String(body?.fileUrl || '').trim();
+    const storagePath = String(body?.storagePath || '').trim();
     const fileName = String(body?.fileName || '').trim();
 
-    if (!issueId || !fileUrl || !fileName) {
+    if (!issueId || (!fileUrl && !storagePath) || !fileName) {
       return NextResponse.json(
-        { success: false, error: 'issueId, fileUrl, and fileName are required' },
+        { success: false, error: 'issueId plus either fileUrl or storagePath, and fileName are required' },
         { status: 400 },
       );
     }
 
-    const result = await importIdmlToStoryLibraryFromUrlAction(issueId, fileUrl, fileName);
+    const result = storagePath
+      ? await importIdmlToStoryLibraryFromStoragePathAction(issueId, storagePath, fileName)
+      : await importIdmlToStoryLibraryFromUrlAction(issueId, fileUrl, fileName);
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (error: any) {
     return NextResponse.json(
