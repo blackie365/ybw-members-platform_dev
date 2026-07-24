@@ -1001,7 +1001,7 @@ async function importIdmlBufferToStoryLibrary(
   const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
   const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
   const existingItems = mergeStoryLibraryItems(collectionItems, issueItems);
-  const nextLibrary = mergeStoryLibraryItems(existingItems, importedItems);
+  const nextLibrary = mergeStoryLibraryItems(importedItems, existingItems);
   const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
 
   revalidatePath(`/admin/magazine/builder/${issueId}`);
