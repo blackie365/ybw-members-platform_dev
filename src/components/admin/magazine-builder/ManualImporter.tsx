@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -214,6 +214,12 @@ type ParsedInDesignStory = {
   length: number;
 };
 
+type IdmlDraftMeta = {
+  title: string;
+  description: string;
+  coverImage: string;
+};
+
 const createStoryId = () => {
   const anyCrypto = globalThis.crypto as undefined | { randomUUID?: () => string };
   const uuid = anyCrypto?.randomUUID?.();
@@ -222,6 +228,52 @@ const createStoryId = () => {
 };
 
 const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
+
+const deriveIdmlDraftStats = (pages: ReaderPage[]) => {
+  const safePages = Array.isArray(pages) ? pages : [];
+  const imageCount = safePages.reduce((count, page) => {
+    const content = page?.content || {};
+    return count + (content.imageUrl || content.backgroundImage ? 1 : 0);
+  }, 0);
+
+  const storyCount = safePages.filter((page) => {
+    const content = page?.content || {};
+    return Boolean(String(content.title || '').trim() || String(content.body || '').trim());
+  }).length;
+
+  return {
+    pageCount: safePages.length,
+    storyCount,
+    imageCount,
+  };
+};
+
+const buildFallbackIdmlDraftMeta = (pages: ReaderPage[], fileName: string): IdmlDraftMeta => {
+  const safePages = Array.isArray(pages) ? pages : [];
+  const coverPage = safePages[0];
+  const fallbackTitle =
+    String(coverPage?.content?.title || '').trim() ||
+    String(fileName || '').replace(/\.idml$/i, '').trim() ||
+    'Imported Edition';
+
+  const fallbackDescription =
+    String(coverPage?.content?.standfirst || '').trim() ||
+    String(coverPage?.content?.body || '').trim().slice(0, 180) ||
+    'Imported from IDML';
+
+  const fallbackCoverImage =
+    String(
+      coverPage?.content?.imageUrl ||
+      coverPage?.content?.backgroundImage ||
+      '',
+    ).trim();
+
+  return {
+    title: fallbackTitle,
+    description: fallbackDescription,
+    coverImage: fallbackCoverImage,
+  };
+};
 
 export function ManualImporter({
   onImport,
@@ -249,7 +301,7 @@ export function ManualImporter({
   const [libraryQuery, setLibraryQuery] = useState('');
   const [activeLibraryId, setActiveLibraryId] = useState<string>('');
   const [serverIdmlPages, setServerIdmlPages] = useState<ReaderPage[]>([]);
-  const [serverIdmlMeta, setServerIdmlMeta] = useState<{ title: string; description: string; coverImage: string } | null>(null);
+  const [serverIdmlMeta, setServerIdmlMeta] = useState<IdmlDraftMeta | null>(null);
   const [serverIdmlStats, setServerIdmlStats] = useState<{ pageCount: number; storyCount: number; imageCount: number } | null>(null);
   const [isServerIdmlParsing, setIsServerIdmlParsing] = useState(false);
   const [isServerIdmlPublishing, setIsServerIdmlPublishing] = useState(false);
@@ -259,17 +311,23 @@ export function ManualImporter({
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
+  const effectiveServerIdmlMeta =
+    serverIdmlMeta || (serverIdmlPages.length > 0 ? buildFallbackIdmlDraftMeta(serverIdmlPages, serverIdmlFileName) : null);
+  const effectiveServerIdmlStats =
+    serverIdmlStats || (serverIdmlPages.length > 0 ? deriveIdmlDraftStats(serverIdmlPages) : null);
+  const hasRecoverableServerIdmlDraft = Boolean(serverIdmlDraftId || serverIdmlFileName || serverIdmlPages.length > 0);
 
   useEffect(() => {
     loadLatestIdmlDraft().then((result) => {
       if (result.success && result.data) {
         const draft = result.data as any;
-        setServerIdmlPages(draft.pages || []);
-        setServerIdmlMeta(draft.metadata || null);
-        setServerIdmlStats(draft.stats || null);
+        const draftPages = Array.isArray(draft.pages) ? draft.pages : [];
+        setServerIdmlPages(draftPages);
+        setServerIdmlMeta(draft.metadata || (draftPages.length > 0 ? buildFallbackIdmlDraftMeta(draftPages, draft.fileName || '') : null));
+        setServerIdmlStats(draft.stats || (draftPages.length > 0 ? deriveIdmlDraftStats(draftPages) : null));
         setServerIdmlFileName(draft.fileName || '');
         setServerIdmlDraftId(draft.id || '');
-        setShowServerIdmlPreview(true);
+        setShowServerIdmlPreview(draftPages.length > 0);
       }
     }).catch(() => {});
   }, []);
@@ -724,15 +782,16 @@ export function ManualImporter({
   };
 
   const handlePublishIdmlEdition = async () => {
-    if (serverIdmlPages.length === 0 || !serverIdmlMeta) return;
+    const publishMeta = effectiveServerIdmlMeta;
+    if (serverIdmlPages.length === 0 || !publishMeta) return;
 
     setIsServerIdmlPublishing(true);
     try {
       const result = await publishIdmlEditionAction({
         pages: serverIdmlPages,
-        title: serverIdmlMeta.title,
-        description: serverIdmlMeta.description,
-        coverImage: serverIdmlMeta.coverImage,
+        title: publishMeta.title,
+        description: publishMeta.description,
+        coverImage: publishMeta.coverImage,
       });
 
       if (!result.success) {
@@ -740,7 +799,7 @@ export function ManualImporter({
         return;
       }
 
-      toast.success(`Published "${serverIdmlMeta.title}" (${serverIdmlPages.length} pages)`);
+      toast.success(`Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`);
       if (serverIdmlDraftId) {
         deleteIdmlDraft(serverIdmlDraftId).catch(() => {});
       }
@@ -758,14 +817,13 @@ export function ManualImporter({
 
   const handleUpdateServerIdmlTitle = (newTitle: string) => {
     setServerIdmlMeta((prev) => {
-      if (!prev) return null;
-      const next = { ...prev, title: newTitle };
+      const next = { ...(prev || buildFallbackIdmlDraftMeta(serverIdmlPages, serverIdmlFileName)), title: newTitle };
       if (serverIdmlDraftId && serverIdmlPages.length > 0) {
         saveIdmlDraft({
           id: serverIdmlDraftId,
           pages: serverIdmlPages,
           metadata: next,
-          stats: serverIdmlStats || { pageCount: 0, storyCount: 0, imageCount: 0 },
+          stats: effectiveServerIdmlStats || { pageCount: 0, storyCount: 0, imageCount: 0 },
           fileName: serverIdmlFileName,
         }).catch(() => {});
       }
@@ -1144,19 +1202,19 @@ export function ManualImporter({
             </div>
           )}
 
-          {showServerIdmlPreview && serverIdmlMeta && serverIdmlStats && (
+          {hasRecoverableServerIdmlDraft && effectiveServerIdmlMeta && effectiveServerIdmlStats && (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{serverIdmlStats.pageCount}</p>
+                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.pageCount}</p>
                   <p className="text-[10px] text-muted-foreground">Pages</p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{serverIdmlStats.storyCount}</p>
+                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.storyCount}</p>
                   <p className="text-[10px] text-muted-foreground">Stories</p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{serverIdmlStats.imageCount}</p>
+                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.imageCount}</p>
                   <p className="text-[10px] text-muted-foreground">Images</p>
                 </div>
               </div>
@@ -1164,7 +1222,7 @@ export function ManualImporter({
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Edition Title</Label>
                 <Input
-                  value={serverIdmlMeta.title}
+                  value={effectiveServerIdmlMeta.title}
                   onChange={(e) => handleUpdateServerIdmlTitle(e.target.value)}
                   placeholder="Enter edition title..."
                 />
