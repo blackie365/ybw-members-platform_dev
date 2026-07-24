@@ -399,12 +399,99 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
 
     return {
       fileName: img.fileName,
-      url: `https://storage.googleapis.com/${bucket.name}/${filePath}`,
+      url: buildPublicStorageUrl(bucket.name, filePath),
     };
   });
 
   const results = await Promise.all(uploadPromises);
   for (const result of results) {
+    imageUrls[result.fileName] = result.url;
+  }
+
+  return imageUrls;
+}
+
+function buildPublicStorageUrl(bucketName: string, filePath: string): string {
+  const encodedPath = String(filePath || '')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
+  return `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
+}
+
+function isPreferredStoryLibraryImageFileName(fileName: string): boolean {
+  const cleanName = String(fileName || '').trim();
+  if (!cleanName) return false;
+  if (!/\.(png|jpe?g|webp|gif)$/i.test(cleanName)) return false;
+  if (/(^|[^a-z])(logo|advert|adverts|facebook post|bbw\s*2025|bbw\s*2026)([^a-z]|$)/i.test(cleanName)) {
+    return false;
+  }
+
+  return true;
+}
+
+async function uploadStoryLibraryArticleImages(
+  parsed: Awaited<ReturnType<typeof parseIdml>>,
+  fileName: string,
+  storyLibrary: StoryLibraryItem[],
+) {
+  const imageUrls: Record<string, string> = {};
+
+  if (parsed.images.length === 0 || !adminStorage || storyLibrary.length === 0) {
+    return imageUrls;
+  }
+
+  const imagesByFileName = new Map(
+    parsed.images.map((img) => [img.fileName, img] as const),
+  );
+  const requestedFileNames = Array.from(
+    new Set(
+      storyLibrary
+        .flatMap((item) => {
+          const imageFileNames = Array.isArray(item.imageFileNames)
+            ? item.imageFileNames
+                .map((value) => String(value || '').trim())
+                .filter(Boolean)
+            : [];
+
+          const preferredFileName =
+            imageFileNames.find((value) => isPreferredStoryLibraryImageFileName(value) && imagesByFileName.has(value)) ||
+            imageFileNames.find((value) => /\.(png|jpe?g|webp|gif|svg)$/i.test(value) && imagesByFileName.has(value)) ||
+            imageFileNames.find((value) => imagesByFileName.has(value));
+
+          return preferredFileName ? [preferredFileName] : [];
+        }),
+    ),
+  );
+
+  if (requestedFileNames.length === 0) {
+    return imageUrls;
+  }
+
+  const bucket = adminStorage.bucket();
+  const uploadResults = await Promise.all(
+    requestedFileNames.map(async (requestedFileName) => {
+      const parsedImage = imagesByFileName.get(requestedFileName);
+      if (!parsedImage) return null;
+
+      const filePath = `magazine-import/${fileName}/story-library/${parsedImage.fileName}`;
+      const storageFile = bucket.file(filePath);
+
+      await storageFile.save(parsedImage.data, {
+        metadata: { contentType: parsedImage.mimeType },
+      });
+      await storageFile.makePublic();
+
+      return {
+        fileName: parsedImage.fileName,
+        url: buildPublicStorageUrl(bucket.name, filePath),
+      };
+    }),
+  );
+
+  for (const result of uploadResults) {
+    if (!result) continue;
     imageUrls[result.fileName] = result.url;
   }
 
@@ -896,9 +983,11 @@ async function importIdmlBufferToStoryLibrary(
   }
 
   // Keep Story Library ingestion fast and reliable by not blocking on
-  // the full extracted-image upload pass. The parsed image file names are
-  // still attached to each story for later enrichment.
-  const imageUrls: Record<string, string> = {};
+  // the full extracted-image upload pass. Upload only a single best-fit
+  // image per story so imports stay lightweight while still populating
+  // Story Library hero art.
+  const previewItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, {});
+  const imageUrls = await uploadStoryLibraryArticleImages(parsed, fileName, previewItems);
   const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
   // #region debug-point B:server-import-summary
   (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'B',location,msg:'[DEBUG] Extracted IDML stories on server',data:{issueId,fileName,pageCount:parsed.pageCount,parsedPagesCount:parsed.pages.length,imageCount:parsed.images.length,importedItemsCount:importedItems.length},ts:Date.now()})}).catch(()=>{})})();
