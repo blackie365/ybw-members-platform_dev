@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, importIdmlToStoryLibraryFromUrlAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -476,7 +476,18 @@ export function ManualImporter({
           });
 
           toast.info('Importing Story Library from storage URL...', { id: 'upload-progress' });
-          res = await importIdmlToStoryLibraryFromUrlAction(String(issueId), fileUrl, file.name);
+          const response = await fetch('/api/admin/magazine/story-library/import-idml', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              issueId: String(issueId),
+              fileUrl,
+              fileName: file.name,
+            }),
+          });
+          res = await response.json();
         } else {
           const fileBuffer = await file.arrayBuffer();
           const idmlBase64 = arrayBufferToBase64(fileBuffer);
