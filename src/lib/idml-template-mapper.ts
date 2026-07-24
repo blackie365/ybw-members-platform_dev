@@ -188,7 +188,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         title: titleStory?.title || "",
         author: "",
         bodyParts: titleStory ? [titleStory.text] : [],
-        images: titleStory ? [...titleStory.imageHints] : [],
+        images: getPageImages(page, titleStory ? titleStory.imageHints : []),
         startPage: page.pageNumber,
         endPage: page.pageNumber,
         pagePositions: [
@@ -203,8 +203,9 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
 
       for (const story of page.stories) {
         currentArticle.bodyParts.push(story.text);
-        currentArticle.images.push(...story.imageHints);
       }
+
+      currentArticle.images.push(...getPageImages(page));
 
       for (const frame of page.frames) {
         const existing = currentArticle.pagePositions.find(

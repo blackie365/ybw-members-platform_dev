@@ -103,14 +103,34 @@ function getFileMimeType(fileName: string): string {
     case 'gif': return 'image/gif';
     case 'webp': return 'image/webp';
     case 'svg': return 'image/svg+xml';
+    case 'pdf': return 'application/pdf';
     default: return 'application/octet-stream';
   }
+}
+
+function supportsEmbeddedImageExtraction(fileName: string): boolean {
+  return /^.+\.(png|jpe?g|gif|webp|svg)$/i.test(fileName);
+}
+
+function extractFileNameFromUri(uri: string, fallbackFormat?: string): string {
+  const cleanUri = decodeURIComponent(String(uri || '').trim())
+    .replace(/^file:/i, '')
+    .replace(/\\/g, '/');
+  const fromUri = cleanUri.split('/').pop()?.trim() || '';
+  if (fromUri) return fromUri;
+
+  const format = String(fallbackFormat || '')
+    .replace(/^\$ID\//i, '')
+    .replace(/[^a-z0-9]+/gi, '')
+    .toLowerCase();
+  if (format) return `embedded-asset.${format}`;
+
+  return 'embedded-asset.bin';
 }
 
 function isTitleFrame(
   story: ParsedIdmlStory | undefined,
   frameIndex: number,
-  totalFramesOnPage: number,
 ): boolean {
   if (!story) return false;
   if (frameIndex !== 0) return false;
@@ -133,12 +153,14 @@ function parseSpreadFrames(spreadXml: string): Array<{
   pageTransform: { tx: number; ty: number };
   pageBounds: { top: number; left: number; bottom: number; right: number };
   frames: ParsedFrame[];
+  imageFileNames: string[];
 }> {
   const result: Array<{
     pageName: string;
     pageTransform: { tx: number; ty: number };
     pageBounds: { top: number; left: number; bottom: number; right: number };
     frames: ParsedFrame[];
+    imageFileNames: string[];
   }> = [];
 
   const doc = new DOMParser().parseFromString(spreadXml, 'text/xml');
@@ -174,6 +196,57 @@ function parseSpreadFrames(spreadXml: string): Array<{
     });
   }
 
+  function getAssignedPage(frameX: number): {
+    position: 'left' | 'right' | 'full';
+    page: typeof pageInfo[number];
+  } {
+    if (pageInfo.length === 1) {
+      return {
+        position: 'full',
+        page: pageInfo[0],
+      };
+    }
+
+    if (pageInfo.length >= 2) {
+      const page1Center = pageInfo[0].tx + (pageInfo[0].bounds.right / 2);
+      const page2Center = pageInfo[1].tx + (pageInfo[1].bounds.right / 2);
+      const distToPage1 = Math.abs(frameX - page1Center);
+      const distToPage2 = Math.abs(frameX - page2Center);
+
+      if (distToPage1 < distToPage2) {
+        return { position: 'left', page: pageInfo[0] };
+      }
+
+      return { position: 'right', page: pageInfo[1] };
+    }
+
+    return {
+      position: 'full',
+      page: {
+        self: '',
+        name: '1',
+        tx: 0,
+        ty: 0,
+        bounds: { top: 0, left: 0, bottom: 700, right: 482 },
+      },
+    };
+  }
+
+  function getOrCreatePageEntry(pageName: string, assignedPage: typeof pageInfo[number]) {
+    const existing = result.find((r) => r.pageName === pageName);
+    if (existing) return existing;
+
+    const entry = {
+      pageName,
+      pageTransform: { tx: assignedPage.tx, ty: assignedPage.ty },
+      pageBounds: assignedPage.bounds,
+      frames: [],
+      imageFileNames: [],
+    };
+    result.push(entry);
+    return entry;
+  }
+
   const textFrames = doc.getElementsByTagName('TextFrame');
   let frameOrder = 0;
 
@@ -185,51 +258,43 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
     const frameX = frameTransform[4] || 0;
 
-    let position: 'left' | 'right' | 'full' = 'right';
-    let assignedPage = pageInfo[0];
+    const { position, page: assignedPage } = getAssignedPage(frameX);
+    const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
+    pageEntry.frames.push({
+      frameSelf,
+      storyId: parentStory,
+      isTitle: false,
+      position,
+      order: frameOrder++,
+    });
+  }
 
-    if (pageInfo.length === 1) {
-      position = 'full';
-      assignedPage = pageInfo[0];
-    } else if (pageInfo.length >= 2) {
-      const page1Center = pageInfo[0].tx + (pageInfo[0].bounds.right / 2);
-      const page2Center = pageInfo[1].tx + (pageInfo[1].bounds.right / 2);
-      const frameCenter = frameX;
+  const graphicTags = ['Rectangle', 'Oval', 'Polygon'];
+  for (const tagName of graphicTags) {
+    const graphicFrames = doc.getElementsByTagName(tagName);
+    for (let i = 0; i < graphicFrames.length; i++) {
+      const frame = graphicFrames[i];
+      if ((frame.getAttribute('ContentType') || '') !== 'GraphicType') continue;
 
-      const distToPage1 = Math.abs(frameCenter - page1Center);
-      const distToPage2 = Math.abs(frameCenter - page2Center);
+      const linkNodes = frame.getElementsByTagName('Link');
+      if (linkNodes.length === 0) continue;
 
-      if (distToPage1 < distToPage2) {
-        position = 'left';
-        assignedPage = pageInfo[0];
-      } else {
-        position = 'right';
-        assignedPage = pageInfo[1];
+      const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
+      const frameX = frameTransform[4] || 0;
+      const { page: assignedPage } = getAssignedPage(frameX);
+      const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
+
+      for (let linkIdx = 0; linkIdx < linkNodes.length; linkIdx++) {
+        const linkNode = linkNodes[linkIdx];
+        const fileName = extractFileNameFromUri(
+          linkNode.getAttribute('LinkResourceURI') || '',
+          linkNode.getAttribute('LinkResourceFormat') || '',
+        );
+
+        if (fileName && !pageEntry.imageFileNames.includes(fileName)) {
+          pageEntry.imageFileNames.push(fileName);
+        }
       }
-    }
-
-    const pageEntry = result.find((r) => r.pageName === assignedPage.name);
-    if (pageEntry) {
-      pageEntry.frames.push({
-        frameSelf,
-        storyId: parentStory,
-        isTitle: false,
-        position,
-        order: frameOrder++,
-      });
-    } else {
-      result.push({
-        pageName: assignedPage.name,
-        pageTransform: { tx: assignedPage.tx, ty: assignedPage.ty },
-        pageBounds: assignedPage.bounds,
-        frames: [{
-          frameSelf,
-          storyId: parentStory,
-          isTitle: false,
-          position,
-          order: frameOrder++,
-        }],
-      });
     }
   }
 
@@ -263,17 +328,17 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     });
   }
 
+  const imagesByFileName = new Map<string, ParsedIdmlImage>();
   const imageFiles = Object.keys(zip.files).filter((p) =>
     /^Graphics\/.+\.(png|jpe?g|gif|webp|svg)$/i.test(p),
   );
 
-  const images: ParsedIdmlImage[] = [];
   for (const path of imageFiles) {
     const file = zip.file(path);
     if (!file) continue;
     const data = await file.async('nodebuffer');
     const fileName = path.split('/').pop() || path;
-    images.push({
+    imagesByFileName.set(fileName, {
       fileName,
       data,
       mimeType: getFileMimeType(fileName),
@@ -287,6 +352,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     pageNumber: number;
     spreadIndex: number;
     frames: ParsedFrame[];
+    imageFileNames: string[];
   }> = [];
 
   let pageNumber = 1;
@@ -294,6 +360,45 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   for (let spreadIdx = 0; spreadIdx < spreadFiles.length; spreadIdx++) {
     const spreadXml = await zip.files[spreadFiles[spreadIdx]].async('text');
     const spreadData = parseSpreadFrames(spreadXml);
+    const spreadDoc = new DOMParser().parseFromString(spreadXml, 'text/xml');
+    const spreadImages = spreadDoc.getElementsByTagName('Image');
+
+    for (let imageIdx = 0; imageIdx < spreadImages.length; imageIdx++) {
+      const imageNode = spreadImages[imageIdx];
+      const linkNode = imageNode.getElementsByTagName('Link')[0];
+      if (!linkNode) continue;
+
+      const fileName = extractFileNameFromUri(
+        linkNode.getAttribute('LinkResourceURI') || '',
+        linkNode.getAttribute('LinkResourceFormat') || '',
+      );
+      if (!supportsEmbeddedImageExtraction(fileName) || imagesByFileName.has(fileName)) continue;
+
+      const propertiesNodes = imageNode.getElementsByTagName('Properties');
+      let encodedContents = '';
+      for (let propsIdx = 0; propsIdx < propertiesNodes.length; propsIdx++) {
+        const contentsNode = propertiesNodes[propsIdx].getElementsByTagName('Contents')[0];
+        const candidate = String(contentsNode?.textContent || '').replace(/\s+/g, '').trim();
+        if (!candidate) continue;
+        encodedContents = candidate;
+        break;
+      }
+
+      if (!encodedContents) continue;
+
+      try {
+        const data = Buffer.from(encodedContents, 'base64');
+        if (data.length === 0) continue;
+
+        imagesByFileName.set(fileName, {
+          fileName,
+          data,
+          mimeType: getFileMimeType(fileName),
+        });
+      } catch {
+        // Ignore malformed embedded content and fall back to filename hints only.
+      }
+    }
 
     for (const pageData of spreadData) {
       const pageName = parseInt(pageData.pageName, 10);
@@ -305,7 +410,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         const story = storyMap.get(frame.storyId);
         return {
           ...frame,
-          isTitle: isTitleFrame(story, idx, pageData.frames.length),
+          isTitle: isTitleFrame(story, idx),
         };
       });
 
@@ -313,6 +418,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         pageNumber,
         spreadIndex: spreadIdx,
         frames: framesWithTitles,
+        imageFileNames: pageData.imageFileNames,
       });
 
       pageNumber++;
@@ -324,7 +430,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   const pages: ParsedIdmlPage[] = allPageData.map((pageData) => {
     const storyIds = new Set(pageData.frames.map((f) => f.storyId));
     const pageStories: ParsedIdmlStory[] = [];
-    const allImageHints: string[] = [];
+    const allImageHints: string[] = [...pageData.imageFileNames];
 
     for (const storyId of storyIds) {
       const story = storyMap.get(storyId);
@@ -349,5 +455,5 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
 
   const maxPage = pages.length > 0 ? Math.max(...pages.map((p) => p.pageNumber)) : 0;
 
-  return { pages, images, storyMap, pageCount: maxPage };
+  return { pages, images: [...imagesByFileName.values()], storyMap, pageCount: maxPage };
 }
