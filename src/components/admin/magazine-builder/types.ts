@@ -38,11 +38,13 @@ export interface StoryLibraryItem {
   author?: string;
   standfirst?: string;
   text: string;
+  imageUrl?: string;
   includedInPremiumReader?: boolean;
   premiumReaderPriority?: number;
   premiumReaderContentType?: string;
   premiumReaderPlacementPreference?: string;
   imageFileNames?: string[];
+  sourceRef?: string;
   source?: {
     type?: string;
     fileName?: string;

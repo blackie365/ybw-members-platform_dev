@@ -14,9 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft } from '@/app/actions/magazineActions';
-
-type StoryContentType = 'lead' | 'feature' | 'profile' | 'column' | 'editorial' | 'partner' | 'utility';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction } from '@/app/actions/magazineActions';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -51,107 +49,18 @@ const deriveStandfirst = (value: string) => {
   return sentence.length <= 180 ? sentence : `${sentence.slice(0, 180).trimEnd()}...`;
 };
 
-function inferPremiumReaderDefaults(input: {
-  title: string;
-  text: string;
-  path: string;
-  index: number;
-}): {
-  includedInPremiumReader: boolean;
-  premiumReaderContentType: StoryContentType;
-  premiumReaderPriority: number;
-} {
-  const haystack = `${input.title} ${input.path} ${input.text.slice(0, 240)}`.toLowerCase();
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
 
-  if (/\b(contents|table of contents)\b/.test(haystack)) {
-    return {
-      includedInPremiumReader: false,
-      premiumReaderContentType: 'utility',
-      premiumReaderPriority: 5,
-    };
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
   }
 
-  if (/\b(advert|advertisement|sponsor|sponsored|advertorial)\b/.test(haystack)) {
-    return {
-      includedInPremiumReader: false,
-      premiumReaderContentType: 'partner',
-      premiumReaderPriority: 10,
-    };
-  }
-
-  if (/\b(editor('?s)? note|from the editor|editorial)\b/.test(haystack)) {
-    return {
-      includedInPremiumReader: true,
-      premiumReaderContentType: 'editorial',
-      premiumReaderPriority: 85,
-    };
-  }
-
-  if (/\b(profile|spotlight|member spotlight)\b/.test(haystack)) {
-    return {
-      includedInPremiumReader: true,
-      premiumReaderContentType: 'profile',
-      premiumReaderPriority: 58,
-    };
-  }
-
-  if (/\b(column|opinion|comment|expert)\b/.test(haystack)) {
-    return {
-      includedInPremiumReader: true,
-      premiumReaderContentType: 'column',
-      premiumReaderPriority: 56,
-    };
-  }
-
-  if (input.index <= 1) {
-    return {
-      includedInPremiumReader: true,
-      premiumReaderContentType: 'lead',
-      premiumReaderPriority: 72,
-    };
-  }
-
-  return {
-    includedInPremiumReader: true,
-    premiumReaderContentType: 'feature',
-    premiumReaderPriority: 48,
-  };
-}
-
-function buildStoryLibraryItemFromParsedStory(
-  story: ParsedInDesignStory,
-  options: {
-    idmlFileName: string;
-    index: number;
-  },
-): StoryLibraryItem {
-  const cleanTitle = String(story.title || '').trim();
-  const cleanText = String(story.text || '').trim();
-  const defaults = inferPremiumReaderDefaults({
-    title: cleanTitle,
-    text: cleanText,
-    path: story.path,
-    index: options.index,
-  });
-
-  return {
-    id: createStoryId(),
-    title: cleanTitle || `Imported Story ${options.index + 1}`,
-    standfirst: deriveStandfirst(cleanText) || undefined,
-    text: cleanText,
-    includedInPremiumReader: defaults.includedInPremiumReader,
-    premiumReaderPriority: defaults.premiumReaderPriority,
-    premiumReaderContentType: defaults.premiumReaderContentType,
-    premiumReaderPlacementPreference: 'auto',
-    imageFileNames: story.imageFileNames,
-    source: {
-      type: 'idml',
-      fileName: options.idmlFileName || undefined,
-      path: story.path,
-    },
-    createdAt: new Date().toISOString(),
-  };
-}
+  return btoa(binary);
+};
 
 function mergeStoryLibraryItems(existing: StoryLibraryItem[], incoming: StoryLibraryItem[]) {
   const incomingPaths = new Set(
@@ -209,6 +118,7 @@ type ParsedInDesignStory = {
   path: string;
   title: string;
   text: string;
+  imageUrl?: string;
   imageFileNames: string[];
   preview: string;
   length: number;
@@ -342,7 +252,12 @@ export function ManualImporter({
     setImageHints(story.imageFileNames);
 
     const firstHit = story.imageFileNames.find((name) => imageMap[name]);
-    if (firstHit) setImageUrl(imageMap[firstHit]);
+    if (firstHit) {
+      setImageUrl(imageMap[firstHit]);
+      return;
+    }
+
+    setImageUrl(String(story.imageUrl || '').trim());
   };
 
   const handleAddSelectedStoryToContents = () => {
@@ -387,7 +302,12 @@ export function ManualImporter({
     setImageHints(hints);
 
     const firstHit = hints.find((name) => imageMap[name]);
-    if (firstHit) setImageUrl(imageMap[firstHit]);
+    if (firstHit) {
+      setImageUrl(imageMap[firstHit]);
+      return;
+    }
+
+    setImageUrl(String(item.imageUrl || '').trim());
   };
 
   const saveStoryLibrary = async (next: StoryLibraryItem[]) => {
@@ -418,6 +338,7 @@ export function ManualImporter({
       author: String(author || '').trim() || undefined,
       standfirst: deriveStandfirst(cleanText) || undefined,
       text: cleanText,
+      imageUrl: String(fromIdml?.imageUrl || imageUrl || '').trim() || undefined,
       includedInPremiumReader: true,
       premiumReaderPriority: 40,
       premiumReaderContentType: 'feature',
@@ -588,59 +509,48 @@ export function ManualImporter({
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (ext === 'idml') {
         setIdmlFileName(file.name);
-        const { default: JSZip } = await import('jszip');
-        const zip = await JSZip.loadAsync(await file.arrayBuffer());
-        const storyPaths = Object.keys(zip.files).filter((p) => /^Stories\/.+\.xml$/i.test(p));
+        const fileBuffer = await file.arrayBuffer();
+        const idmlBase64 = arrayBufferToBase64(fileBuffer);
+        const res = await extractIdmlStoryLibraryAction(idmlBase64, file.name);
 
-        if (storyPaths.length === 0) {
-          toast.error('No Stories found in that IDML file');
+        if (!res.success || !res.data) {
+          toast.error(res.error || 'Failed to extract stories from IDML');
           return;
         }
 
-        const stories: ParsedInDesignStory[] = [];
-        for (const p of storyPaths) {
-          const xml = await zip.files[p].async('text');
-          const parsed = extractInDesignTextAndImageHints(xml);
-          if (!parsed.text) continue;
-          const cleaned = normalizeWhitespace(parsed.text);
-          const preview = cleaned.replace(/\s+/g, ' ').slice(0, 180);
-          stories.push({
-            path: p,
-            title: parsed.title,
-            text: cleaned,
-            imageFileNames: parsed.imageFileNames,
-            preview,
-            length: cleaned.length,
-          });
-        }
+        const importedItems = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : [];
+        const stories: ParsedInDesignStory[] = importedItems.map((item) => {
+          const cleanText = normalizeWhitespace(String(item.text || ''));
+          return {
+            path: String(item.source?.path || item.sourceRef || item.title || createStoryId()),
+            title: String(item.title || '').trim(),
+            text: cleanText,
+            imageUrl: String(item.imageUrl || '').trim() || undefined,
+            imageFileNames: Array.isArray(item.imageFileNames) ? item.imageFileNames : [],
+            preview: cleanText.replace(/\s+/g, ' ').slice(0, 180),
+            length: cleanText.length,
+          };
+        });
 
         if (stories.length === 0) {
-          toast.error('No readable story text found in that IDML file');
+          toast.error('No article-level stories found in that IDML file');
           return;
         }
 
-        const sorted = [...stories].sort((a, b) =>
-          a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }),
-        );
+        const sorted = [...stories];
         setIdmlStories(sorted);
         const initial = sorted[0];
         setSelectedStoryPath(initial.path);
         applyInDesignStory(initial);
 
         if (issueId && issueId !== 'new' && onSaveStoryLibrary) {
-          const importedItems = sorted.map((story, index) =>
-            buildStoryLibraryItemFromParsedStory(story, {
-              idmlFileName: file.name,
-              index,
-            }),
-          );
           const nextLibrary = mergeStoryLibraryItems(safeStoryLibrary, importedItems);
           await saveStoryLibrary(nextLibrary);
-          toast.success(`Imported ${importedItems.length} IDML stories into the Story Library`);
+          toast.success(`Imported ${importedItems.length} IDML articles into the Story Library`);
           return;
         }
 
-        toast.success(`Imported from IDML (${initial.path.replace('Stories/', '')})`);
+        toast.success(`Imported ${importedItems.length} IDML articles`);
         return;
       }
 
