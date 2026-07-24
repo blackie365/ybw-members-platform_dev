@@ -32,6 +32,7 @@ import dynamic from 'next/dynamic';
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
 import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
+import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
 
 // Lazy Load Heavy Admin Components
 // This prevents regular users from downloading builder code and speeds up initial admin load
@@ -55,6 +56,10 @@ const GhostImporter = dynamic<GhostImporterProps>(() => import('@/components/adm
 
 const ManualImporter = dynamic<ManualImporterProps>(() => import('@/components/admin/magazine-builder/ManualImporter').then(m => m.ManualImporter), {
   loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Manual Importer...</p></div>
+});
+
+const StoryLibraryPanel = dynamic<StoryLibraryPanelProps>(() => import('@/components/admin/magazine-builder/StoryLibraryPanel').then(m => m.StoryLibraryPanel), {
+  loading: () => <div className="h-60 bg-muted/20 animate-pulse rounded-lg" />
 });
 
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -264,6 +269,119 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to save story library');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRemoveStoryLibraryItem = async (storyId: string) => {
+    const next = (issue.storyLibrary || []).filter((story) => story.id !== storyId);
+    try {
+      await handleSaveStoryLibrary(next);
+    } catch {
+      toast.error('Failed to remove story');
+    }
+  };
+
+  const handleToggleStoryLibraryInclusion = async (storyId: string) => {
+    const next = (issue.storyLibrary || []).map((story) =>
+      story.id === storyId
+        ? { ...story, includedInPremiumReader: story.includedInPremiumReader === false }
+        : story,
+    );
+
+    try {
+      await handleSaveStoryLibrary(next);
+    } catch {
+      toast.error('Failed to update premium reader inclusion');
+    }
+  };
+
+  const buildManualContentFromStory = (story: any, pageType: string) => {
+    const storyTitle = String(story.title || '').trim();
+    const storyAuthor = String(story.author || '').trim();
+    const storyText = String(story.text || '').trim();
+    const storyImage = String(story.imageUrl || '').trim();
+
+    switch (pageType) {
+      case 'editorial':
+        return {
+          title: storyTitle || 'Editorial',
+          author: storyAuthor || 'Gill Laidler',
+          text: storyText,
+          image: storyImage,
+        };
+      case 'column':
+        return {
+          title: storyTitle || 'Expert Column',
+          author: storyAuthor || 'Guest Contributor',
+          text: storyText,
+          image: storyImage,
+        };
+      case 'feature-left':
+      case 'feature-right':
+        return {
+          name: storyAuthor || 'Featured Guest',
+          title: storyTitle || 'Feature Story',
+          text: storyText,
+          image: storyImage,
+          quote: storyText ? `${storyText.substring(0, 100)}...` : '',
+        };
+      case 'spotlight':
+        return {
+          title: storyTitle || 'Member Spotlight',
+          name: storyAuthor || 'Member Name',
+          bio: storyText,
+          image: storyImage,
+        };
+      case 'lifestyle':
+        return {
+          title: storyTitle || 'Lifestyle',
+          text: storyText,
+          image: storyImage,
+        };
+      case 'partner':
+        return {
+          title: storyTitle || 'Partner Feature',
+          brand: storyAuthor || 'Partner Name',
+          headline: storyTitle || 'Partner Feature',
+          text: storyText,
+          image: storyImage,
+        };
+      case 'back-cover':
+        return {
+          title: storyTitle || 'Next Edition',
+          text: storyText,
+          image: storyImage,
+        };
+      case 'full-page-ad':
+        return {
+          title: storyTitle || 'Advertisement',
+          image: storyImage,
+          alt: storyTitle || 'Advertisement',
+        };
+      default:
+        return {
+          title: storyTitle,
+          text: storyText,
+          image: storyImage,
+        };
+    }
+  };
+
+  const handleApplyStoryToSelectedPage = async (story: any) => {
+    const selectedPage = pages.find((page) => page.docId === selectedPageId);
+    if (!selectedPageId || !selectedPage) {
+      toast.error('Select a spread first');
+      return;
+    }
+
+    try {
+      await handleImportContent(
+        { _isManual: true, title: story.title, manualContent: buildManualContentFromStory(story, selectedPage.type) },
+        selectedPage.type,
+        selectedPageId,
+      );
+    } catch {
+      toast.error('Failed to apply story to spread');
     }
   };
 
@@ -813,6 +931,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 onMovePage={handleMovePage}
                 isSaving={saving}
               />
+              <div className="mt-6">
+                <StoryLibraryPanel
+                  stories={issue.storyLibrary || []}
+                  selectedPage={pages.find(p => p.docId === selectedPageId)}
+                  isSaving={saving}
+                  onApplyStory={handleApplyStoryToSelectedPage}
+                  onToggleInclusion={handleToggleStoryLibraryInclusion}
+                  onRemoveStory={handleRemoveStoryLibraryItem}
+                />
+              </div>
             </div>
             <div className="lg:col-span-6">
               <PageEditor 

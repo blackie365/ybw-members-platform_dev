@@ -208,8 +208,6 @@ export function ManualImporter({
   const [contentsDraftItems, setContentsDraftItems] = useState<Array<{ page: string; category: string; title: string }>>([]);
   const [contentsDraftPage, setContentsDraftPage] = useState('');
   const [contentsDraftCategory, setContentsDraftCategory] = useState('');
-  const [libraryQuery, setLibraryQuery] = useState('');
-  const [activeLibraryId, setActiveLibraryId] = useState<string>('');
   const [serverIdmlPages, setServerIdmlPages] = useState<ReaderPage[]>([]);
   const [serverIdmlMeta, setServerIdmlMeta] = useState<IdmlDraftMeta | null>(null);
   const [serverIdmlStats, setServerIdmlStats] = useState<{ pageCount: number; storyCount: number; imageCount: number } | null>(null);
@@ -292,24 +290,6 @@ export function ManualImporter({
     }
   };
 
-  const applyStoryLibraryItem = (item: StoryLibraryItem) => {
-    setActiveLibraryId(item.id);
-    setTitle(String(item.title || '').trim());
-    setAuthor(String(item.author || '').trim());
-    setRawText(String(item.text || ''));
-
-    const hints = Array.isArray(item.imageFileNames) ? item.imageFileNames.map((n) => String(n || '').trim()).filter(Boolean) : [];
-    setImageHints(hints);
-
-    const firstHit = hints.find((name) => imageMap[name]);
-    if (firstHit) {
-      setImageUrl(imageMap[firstHit]);
-      return;
-    }
-
-    setImageUrl(String(item.imageUrl || '').trim());
-  };
-
   const saveStoryLibrary = async (next: StoryLibraryItem[]) => {
     if (!onSaveStoryLibrary) {
       toast.error('Story library saving is not available here');
@@ -354,38 +334,8 @@ export function ManualImporter({
     try {
       await saveStoryLibrary(next);
       toast.success('Saved to Story Library');
-      setActiveLibraryId(item.id);
     } catch {
       toast.error('Failed to save story');
-    }
-  };
-
-  const handleRemoveFromStoryLibrary = async (storyId: string) => {
-    const next = safeStoryLibrary.filter((s) => s.id !== storyId);
-    try {
-      await saveStoryLibrary(next);
-      if (activeLibraryId === storyId) setActiveLibraryId('');
-      toast.success('Removed from Story Library');
-    } catch {
-      toast.error('Failed to remove story');
-    }
-  };
-
-  const handleTogglePremiumReaderInclusion = async (storyId: string) => {
-    const next = safeStoryLibrary.map((item) =>
-      item.id === storyId
-        ? {
-            ...item,
-            includedInPremiumReader: !isIncludedInPremiumReader(item),
-          }
-        : item,
-    );
-
-    try {
-      await saveStoryLibrary(next);
-      toast.success('Premium reader inclusion updated');
-    } catch {
-      toast.error('Failed to update premium reader inclusion');
     }
   };
 
@@ -757,14 +707,6 @@ export function ManualImporter({
     setServerIdmlFileName('');
     toast.success('IDML draft cleared');
   };
-
-  const normalizedLibraryQuery = libraryQuery.trim().toLowerCase();
-  const filteredStoryLibrary = normalizedLibraryQuery
-    ? safeStoryLibrary.filter((s) => {
-        const haystack = `${s.title || ''} ${s.author || ''}`.toLowerCase();
-        return haystack.includes(normalizedLibraryQuery);
-      })
-    : safeStoryLibrary;
 
   return (
     <Card className="border-accent/20">
@@ -1204,9 +1146,9 @@ export function ManualImporter({
         <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Story Library</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Save To Story Library</p>
               <p className="text-[10px] text-muted-foreground">
-                Save stories once, then choose exactly which ones feed the premium reader without re-uploading files.
+                Save the current imported story here, then switch to the Spread Builder tab to apply it to a chosen spread.
               </p>
             </div>
             <Button
@@ -1226,77 +1168,16 @@ export function ManualImporter({
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Search</Label>
-            <Input
-              value={libraryQuery}
-              onChange={(e) => setLibraryQuery(e.target.value)}
-              placeholder="Search by title or author…"
-            />
-          </div>
-
           <div className="rounded-md border border-border bg-muted/10 px-3 py-2">
             <p className="text-[10px] font-mono text-muted-foreground">
               Included in premium reader: {includedStoryCount} / {safeStoryLibrary.length}
             </p>
           </div>
-
-          {filteredStoryLibrary.length > 0 ? (
-            <div className="space-y-2 max-h-[320px] overflow-auto pr-1">
-              {filteredStoryLibrary.map((s) => {
-                const isActive = s.id === activeLibraryId;
-                const subtitle = String(s.author || '').trim() || (s.source?.fileName ? s.source.fileName : '');
-                const isIncluded = isIncludedInPremiumReader(s);
-                return (
-                  <div
-                    key={s.id}
-                    className={[
-                      'flex items-center gap-2 rounded-md border p-2 min-w-0',
-                      isActive ? 'border-accent/40 bg-accent/5' : 'border-border bg-muted/10',
-                    ].join(' ')}
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => applyStoryLibraryItem(s)}
-                    >
-                      <p className="text-sm font-semibold truncate">{String(s.title || '').trim() || 'Untitled Story'}</p>
-                      {subtitle ? (
-                        <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p>
-                      ) : null}
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {isIncluded ? 'Included in premium reader' : 'Excluded from premium reader'}
-                      </p>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-8 px-2 text-[10px] shrink-0"
-                      onClick={() => handleTogglePremiumReaderInclusion(s.id)}
-                      disabled={isImporting || !onSaveStoryLibrary || !issueId || issueId === 'new'}
-                    >
-                      {isIncluded ? 'Exclude' : 'Include'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-8 px-2 text-[10px] shrink-0"
-                      onClick={() => handleRemoveFromStoryLibrary(s.id)}
-                      disabled={isImporting || !onSaveStoryLibrary || !issueId || issueId === 'new'}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="p-4 rounded-md border border-dashed bg-muted/10">
-              <p className="text-xs text-muted-foreground">
-                No saved stories yet. Upload an `IDML` file and stories will be added here automatically.
-              </p>
-            </div>
-          )}
+          <div className="p-4 rounded-md border border-dashed bg-muted/10">
+            <p className="text-xs text-muted-foreground">
+              The full Story Library now lives in the Spread Builder beside your issue spreads, so you can choose a component first and then apply a story into it.
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
