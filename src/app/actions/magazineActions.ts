@@ -179,6 +179,41 @@ function mapStoryLibraryItemToCollectionDoc(
   };
 }
 
+function buildIssueStoryLibraryMirror(
+  items: StoryLibraryItem[],
+  mode: 'full' | 'light' = 'full',
+): StoryLibraryItem[] {
+  return items.map((item) => {
+    const cleanText = normalizeStoryText(item.text || '');
+    const imageFileNames = Array.isArray(item.imageFileNames)
+      ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
+
+    return {
+      id: String(item.id || '').trim(),
+      title: String(item.title || '').trim() || 'Untitled Story',
+      author: String(item.author || '').trim() || undefined,
+      standfirst: String(item.standfirst || '').trim() || deriveStandfirst(cleanText) || undefined,
+      text: mode === 'full' ? cleanText : cleanText.slice(0, 1600),
+      imageUrl: String(item.imageUrl || '').trim() || undefined,
+      includedInPremiumReader: item.includedInPremiumReader !== false,
+      premiumReaderPriority:
+        typeof item.premiumReaderPriority === 'number' ? item.premiumReaderPriority : undefined,
+      premiumReaderContentType: String(item.premiumReaderContentType || '').trim() || undefined,
+      premiumReaderPlacementPreference:
+        String(item.premiumReaderPlacementPreference || '').trim() || 'auto',
+      imageFileNames: mode === 'full' ? imageFileNames : imageFileNames.slice(0, 8),
+      sourceRef: String(item.sourceRef || '').trim() || undefined,
+      source: {
+        type: String(item.source?.type || '').trim() || undefined,
+        fileName: String(item.source?.fileName || '').trim() || undefined,
+        path: String(item.source?.path || '').trim() || undefined,
+      },
+      createdAt: String(item.createdAt || '').trim() || new Date().toISOString(),
+    };
+  });
+}
+
 async function getIssueStoryLibraryCollectionItems(issueId: string): Promise<StoryLibraryItem[]> {
   if (!adminDb) throw new Error('Database not initialized');
 
@@ -444,6 +479,7 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
     const existingItems = await getIssueStoryLibraryCollectionItems(issueId);
     const existingDocIds = new Set(existingItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
     const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
+    const now = new Date().toISOString();
 
     const batch = adminDb.batch();
 
@@ -458,16 +494,39 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
       batch.delete(adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId));
     }
 
-    batch.update(adminDb.collection('magazine_issues').doc(issueId), {
-      storyLibrary: nextItems,
-      updatedAt: new Date().toISOString(),
-    });
-
     await batch.commit();
+
+    try {
+      await adminDb.collection('magazine_issues').doc(issueId).set({
+        storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'full'),
+        storyLibraryCount: nextItems.length,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (mirrorError) {
+      console.warn('Full story library mirror failed, retrying with light mirror:', mirrorError);
+      try {
+        await adminDb.collection('magazine_issues').doc(issueId).set({
+          storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'light'),
+          storyLibraryCount: nextItems.length,
+          updatedAt: now,
+        }, { merge: true });
+      } catch (lightMirrorError) {
+        console.warn('Light story library mirror failed, keeping collection-only records:', lightMirrorError);
+        await adminDb.collection('magazine_issues').doc(issueId).set({
+          storyLibraryCount: nextItems.length,
+          updatedAt: now,
+        }, { merge: true });
+      }
+    }
+
+    const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
+    const resolvedItems = persistedItems.length > 0
+      ? mergeStoryLibraryItems(persistedItems, nextItems)
+      : nextItems;
 
     revalidatePath(`/admin/magazine/builder/${issueId}`);
     revalidatePath('/admin/magazine');
-    return { success: true, data: nextItems };
+    return { success: true, data: resolvedItems };
   } catch (error: any) {
     console.error('Error in saveMagazineStoryLibraryAction:', error);
     return { success: false, error: error.message };
