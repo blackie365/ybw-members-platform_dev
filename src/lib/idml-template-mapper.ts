@@ -24,6 +24,9 @@ function detectTitleFrame(
 
   const text = (story.text || "").trim();
   if (!text) return false;
+  if (/^\<\?ace/i.test(text)) return false;
+  if (/^yorkshire\s*business\s*woman$/i.test(text.replace(/\s+/g, " "))) return false;
+  if (/^yorkshirebusinesswoman$/i.test(text.replace(/\s+/g, ""))) return false;
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   if (wordCount > 20) return false;
@@ -187,7 +190,11 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       currentArticle = {
         title: titleStory?.title || "",
         author: "",
-        bodyParts: titleStory ? [titleStory.text] : [],
+        bodyParts: (() => {
+          const openingBody = getPageBodyText(page);
+          if (openingBody) return [openingBody];
+          return titleStory?.text ? [titleStory.text] : [];
+        })(),
         images: getPageImages(page, titleStory ? titleStory.imageHints : []),
         startPage: page.pageNumber,
         endPage: page.pageNumber,
