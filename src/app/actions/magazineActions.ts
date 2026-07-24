@@ -873,7 +873,10 @@ async function importIdmlBufferToStoryLibrary(
     throw new Error('No readable content found in the IDML file');
   }
 
-  const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
+  // Keep Story Library ingestion fast and reliable by not blocking on
+  // the full extracted-image upload pass. The parsed image file names are
+  // still attached to each story for later enrichment.
+  const imageUrls: Record<string, string> = {};
   const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
   // #region debug-point B:server-import-summary
   (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'B',location,msg:'[DEBUG] Extracted IDML stories on server',data:{issueId,fileName,pageCount:parsed.pageCount,parsedPagesCount:parsed.pages.length,imageCount:parsed.images.length,importedItemsCount:importedItems.length},ts:Date.now()})}).catch(()=>{})})();
