@@ -62,6 +62,68 @@ const StoryLibraryPanel = dynamic<StoryLibraryPanelProps>(() => import('@/compon
   loading: () => <div className="h-60 bg-muted/20 animate-pulse rounded-lg" />
 });
 
+const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
+  editorial: 'EDITORIAL',
+  'feature-left': 'FEATURE',
+  'feature-right': 'FEATURE',
+  column: 'EXPERT',
+  lifestyle: 'LIFESTYLE',
+  spotlight: 'SPOTLIGHT',
+  partner: 'PARTNER',
+};
+
+function getContentsTitleForPage(page: MagazinePage): string {
+  return String(
+    page.content?.title ||
+      page.content?.headline ||
+      page.content?.name ||
+      page.content?.brand ||
+      '',
+  ).trim();
+}
+
+function buildContentsItemsFromPages(pages: MagazinePage[]) {
+  const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+  const seen = new Set<string>();
+
+  return sortedPages.flatMap((page) => {
+    if (page.type === 'cover' || page.type === 'contents' || page.type === 'full-page-ad' || page.type === 'back-cover') {
+      return [];
+    }
+
+    const title = getContentsTitleForPage(page);
+    if (!title) return [];
+
+    // Treat feature-right as the continuation side of a feature spread when a matching
+    // feature-left page already exists, so Contents only lists the story once.
+    if (page.type === 'feature-right') {
+      const normalizedTitle = title.toLowerCase();
+      const hasMatchingFeatureLeft = sortedPages.some((candidate) =>
+        candidate.docId !== page.docId &&
+        candidate.type === 'feature-left' &&
+        getContentsTitleForPage(candidate).toLowerCase() === normalizedTitle,
+      );
+      if (hasMatchingFeatureLeft) return [];
+    }
+
+    const category = CONTENTS_CATEGORY_BY_TYPE[page.type];
+    if (!category) return [];
+
+    const pageNumber = Number(page.id || 0);
+    if (!Number.isFinite(pageNumber) || pageNumber <= 0) return [];
+
+    const key = `${pageNumber}:${category}:${title.toLowerCase()}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+
+    return [{
+      page: pageNumber,
+      category,
+      title,
+    }];
+  });
+}
+
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const isNew = id === 'new';
@@ -92,6 +154,25 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [pages, setPages] = useState<MagazinePage[]>([]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
+
+  const syncContentsPage = useCallback(async (nextPages: MagazinePage[]) => {
+    const contentsPage = nextPages.find((page) => page.type === 'contents');
+    if (!contentsPage) return;
+
+    const nextItems = buildContentsItemsFromPages(nextPages);
+    const currentItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
+
+    if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
+      return;
+    }
+
+    await updateMagazinePageAction(id, contentsPage.docId, {
+      content: {
+        ...(contentsPage.content || {}),
+        items: nextItems,
+      },
+    });
+  }, [id]);
 
   const handleBatchSync = async () => {
     if (!issue.ghostSyncTag) {
@@ -410,6 +491,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       const res = await addMagazinePageAction(id, newPage);
       if (res.success) {
+        const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
+        await syncContentsPage(nextPages);
         toast.success('Spread added successfully');
         await loadData(true);
         setSelectedPageId(res.id as string);
@@ -564,6 +647,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         // Update existing page
         const res = await updateMagazinePageAction(id, targetPageId, { content });
         if (res.success) {
+          const nextPages = pages.map((page) =>
+            page.docId === targetPageId ? { ...page, content } : page,
+          );
+          await syncContentsPage(nextPages);
           toast.success(`Updated spread with content from "${post.title}"`);
           await loadData(true);
           setActiveTab('builder');
@@ -582,6 +669,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
         const res = await addMagazinePageAction(id, newPage);
         if (res.success) {
+          const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
+          await syncContentsPage(nextPages);
           toast.success(`Smart Imported "${post.title}" as ${type}`);
           
           const coverImageToSync = String(content.featureImage || content.image || '').trim();
@@ -607,9 +696,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const handleSavePageContent = async (pageDocId: string, content: any) => {
     // Optimistically update local state to reflect changes immediately
-    setPages(prev => prev.map(p => 
-      p.docId === pageDocId ? { ...p, content } : p
-    ));
+    const nextPages = pages.map((p) =>
+      p.docId === pageDocId ? { ...p, content } : p,
+    );
+    setPages(nextPages);
     
     setSaving(true);
     try {
@@ -625,6 +715,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       const res = await updateMagazinePageAction(id, pageDocId, { content });
       if (res.success) {
+        await syncContentsPage(nextPages);
         toast.success('Spread content saved');
         // Re-load data to ensure server sync, but local state is already updated
         await loadData(false); 
@@ -642,12 +733,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleChangePageType = async (pageDocId: string, type: string) => {
-    setPages(prev => prev.map(p => (p.docId === pageDocId ? { ...p, type } : p)));
+    const nextPages = pages.map((p) => (p.docId === pageDocId ? { ...p, type } : p));
+    setPages(nextPages);
 
     setSaving(true);
     try {
       const res = await updateMagazinePageAction(id, pageDocId, { type });
       if (res.success) {
+        await syncContentsPage(nextPages);
         toast.success('Layout updated');
         await loadData(false);
       } else {
@@ -671,6 +764,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     const currentPage = pages[currentIndex];
     const targetPage = pages[targetIndex];
+    const nextPages = pages.map((page) => {
+      if (page.docId === currentPage.docId) return { ...page, id: targetPage.id };
+      if (page.docId === targetPage.docId) return { ...page, id: currentPage.id };
+      return page;
+    });
 
     setSaving(true);
     try {
@@ -678,6 +776,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         updateMagazinePageAction(id, currentPage.docId, { id: targetPage.id }),
         updateMagazinePageAction(id, targetPage.docId, { id: currentPage.id })
       ]);
+      await syncContentsPage(nextPages);
       await loadData(true);
     } catch (err) {
       toast.error('Failed to reorder pages');
@@ -692,6 +791,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     try {
       const res = await deleteMagazinePageAction(id, pageDocId);
       if (res.success) {
+        const nextPages = pages.filter((page) => page.docId !== pageDocId);
+        await syncContentsPage(nextPages);
         toast.success('Spread removed');
         if (selectedPageId === pageDocId) setSelectedPageId(null);
         await loadData(true);
