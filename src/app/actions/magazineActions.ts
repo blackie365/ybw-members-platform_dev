@@ -284,6 +284,9 @@ async function persistStoryLibraryForIssue(
   }
 
   const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
+  // #region debug-point C:persist-summary
+  (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'C',location:'magazineActions.ts:persistStoryLibraryForIssue',msg:'[DEBUG] Persisted story library for issue',data:{issueId,nextItemsCount:nextItems.length,existingItemsCount:existingItems.length,persistedItemsCount:persistedItems.length,nextDocIdsCount:nextDocIds.size},ts:Date.now()})}).catch(()=>{})})();
+  // #endregion
   return persistedItems.length > 0
     ? mergeStoryLibraryItems(persistedItems, nextItems)
     : nextItems;
@@ -521,6 +524,9 @@ export async function getMagazineStoryLibraryAction(issueId: string) {
     const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
     const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
     const merged = mergeStoryLibraryItems(collectionItems, issueItems);
+    // #region debug-point D:load-story-library
+    (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'D',location:'magazineActions.ts:getMagazineStoryLibraryAction',msg:'[DEBUG] Loaded story library data for builder',data:{issueId,issueItemsCount:issueItems.length,collectionItemsCount:collectionItems.length,mergedItemsCount:merged.length},ts:Date.now()})}).catch(()=>{})})();
+    // #endregion
 
     return { success: true, data: merged };
   } catch (error: any) {
@@ -853,49 +859,88 @@ export async function extractIdmlStoryLibraryAction(idmlBase64: string, fileName
   }
 }
 
+async function importIdmlBufferToStoryLibrary(
+  issueId: string,
+  buffer: Buffer,
+  fileName: string,
+  location: string,
+) {
+  if (!adminDb) throw new Error('Database not initialized');
+
+  const parsed = await parseIdml(buffer);
+
+  if (parsed.pages.length === 0) {
+    throw new Error('No readable content found in the IDML file');
+  }
+
+  const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
+  const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
+  // #region debug-point B:server-import-summary
+  (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'B',location,msg:'[DEBUG] Extracted IDML stories on server',data:{issueId,fileName,pageCount:parsed.pageCount,parsedPagesCount:parsed.pages.length,imageCount:parsed.images.length,importedItemsCount:importedItems.length},ts:Date.now()})}).catch(()=>{})})();
+  // #endregion
+
+  const [issueDoc, collectionItems] = await Promise.all([
+    adminDb.collection('magazine_issues').doc(issueId).get(),
+    getIssueStoryLibraryCollectionItems(issueId),
+  ]);
+
+  const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
+  const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
+  const existingItems = mergeStoryLibraryItems(collectionItems, issueItems);
+  const nextLibrary = mergeStoryLibraryItems(existingItems, importedItems);
+  const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
+
+  revalidatePath(`/admin/magazine/builder/${issueId}`);
+  revalidatePath('/admin/magazine');
+
+  return {
+    success: true,
+    data: {
+      storyLibrary: savedItems,
+      importedCount: importedItems.length,
+      totalCount: savedItems.length,
+      pageCount: parsed.pageCount,
+      storyCount: importedItems.length,
+      imageCount: parsed.images.length,
+    },
+  };
+}
+
 export async function importIdmlToStoryLibraryAction(issueId: string, idmlBase64: string, fileName: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
-
     const buffer = Buffer.from(idmlBase64, 'base64');
-    const parsed = await parseIdml(buffer);
-
-    if (parsed.pages.length === 0) {
-      throw new Error('No readable content found in the IDML file');
-    }
-
-    const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
-    const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
-
-    const [issueDoc, collectionItems] = await Promise.all([
-      adminDb.collection('magazine_issues').doc(issueId).get(),
-      getIssueStoryLibraryCollectionItems(issueId),
-    ]);
-
-    const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
-    const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
-    const existingItems = mergeStoryLibraryItems(collectionItems, issueItems);
-    const nextLibrary = mergeStoryLibraryItems(existingItems, importedItems);
-    const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
-
-    revalidatePath(`/admin/magazine/builder/${issueId}`);
-    revalidatePath('/admin/magazine');
-
-    return {
-      success: true,
-      data: {
-        storyLibrary: savedItems,
-        importedCount: importedItems.length,
-        totalCount: savedItems.length,
-        pageCount: parsed.pageCount,
-        storyCount: importedItems.length,
-        imageCount: parsed.images.length,
-      },
-    };
+    return await importIdmlBufferToStoryLibrary(
+      issueId,
+      buffer,
+      fileName,
+      'magazineActions.ts:importIdmlToStoryLibraryAction',
+    );
   } catch (error: any) {
     console.error('Error importing IDML into Story Library:', error);
     return { success: false, error: error.message || 'Failed to import IDML stories into Story Library' };
+  }
+}
+
+export async function importIdmlToStoryLibraryFromUrlAction(issueId: string, fileUrl: string, fileName: string) {
+  try {
+    await checkAdmin();
+
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return await importIdmlBufferToStoryLibrary(
+      issueId,
+      Buffer.from(arrayBuffer),
+      fileName,
+      'magazineActions.ts:importIdmlToStoryLibraryFromUrlAction',
+    );
+  } catch (error: any) {
+    console.error('Error importing IDML URL into Story Library:', error);
+    return { success: false, error: error.message || 'Failed to import IDML URL into Story Library' };
   }
 }
 

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, importIdmlToStoryLibraryFromUrlAction } from '@/app/actions/magazineActions';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -447,20 +447,54 @@ export function ManualImporter({
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (ext === 'idml') {
         setIdmlFileName(file.name);
-        const fileBuffer = await file.arrayBuffer();
-        const idmlBase64 = arrayBufferToBase64(fileBuffer);
         const canSaveDirectly = Boolean(issueId && issueId !== 'new' && onSaveStoryLibrary);
-        const res = canSaveDirectly
-          ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
-          : await extractIdmlStoryLibraryAction(idmlBase64, file.name);
+        // #region debug-point A:client-import-start
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"A",location:"ManualImporter.tsx:handleImportFromInDesignFile:start",msg:"[DEBUG] Starting IDML story library import from client",data:{issueId:String(issueId||""),fileName:file.name,canSaveDirectly,fileSize:file.size},ts:Date.now()})}).catch(()=>{});
+        // #endregion
+        let res: any;
+
+        if (canSaveDirectly && storage) {
+          toast.info('Uploading file to Firebase Storage...', { id: 'upload-progress' });
+
+          const filePath = `magazine-import/${file.name}`;
+          const storageRef = ref(storage, filePath);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+
+          const fileUrl: string = await new Promise((resolve, reject) => {
+            uploadTask.on(
+              'state_changed',
+              (snapshot) => {
+                const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                toast.info(`Uploading: ${pct}%`, { id: 'upload-progress' });
+              },
+              (error) => reject(error),
+              async () => {
+                const url = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(url);
+              },
+            );
+          });
+
+          toast.info('Importing Story Library from storage URL...', { id: 'upload-progress' });
+          res = await importIdmlToStoryLibraryFromUrlAction(String(issueId), fileUrl, file.name);
+        } else {
+          const fileBuffer = await file.arrayBuffer();
+          const idmlBase64 = arrayBufferToBase64(fileBuffer);
+          res = canSaveDirectly
+            ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
+            : await extractIdmlStoryLibraryAction(idmlBase64, file.name);
+        }
+        // #region debug-point A:client-import-response
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"A",location:"ManualImporter.tsx:handleImportFromInDesignFile:response",msg:"[DEBUG] Client received IDML import response",data:{issueId:String(issueId||""),fileName:file.name,canSaveDirectly,success:Boolean(res?.success),importedCount:Number((res as any)?.data?.importedCount||0),totalCount:Number((res as any)?.data?.totalCount||0),storyLibraryCount:Array.isArray((res as any)?.data?.storyLibrary)?(res as any).data.storyLibrary.length:0,error:String((res as any)?.error||"")},ts:Date.now()})}).catch(()=>{});
+        // #endregion
 
         if (!res.success || !res.data) {
           toast.error(res.error || 'Failed to extract stories from IDML');
           return;
         }
 
-        const importedItems = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : [];
-        const stories: ParsedInDesignStory[] = importedItems.map((item) => {
+        const importedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : [];
+        const stories: ParsedInDesignStory[] = importedItems.map((item: StoryLibraryItem) => {
           const cleanText = normalizeWhitespace(String(item.text || ''));
           return {
             path: String(item.source?.path || item.sourceRef || item.title || createStoryId()),
@@ -485,7 +519,7 @@ export function ManualImporter({
         applyInDesignStory(initial);
 
         if (canSaveDirectly) {
-          const savedItems = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : importedItems;
+          const savedItems: StoryLibraryItem[] = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : importedItems;
           onStoryLibraryImported?.(savedItems);
           toast.success(`Imported ${importedItems.length} IDML articles into the Story Library`);
           return;
