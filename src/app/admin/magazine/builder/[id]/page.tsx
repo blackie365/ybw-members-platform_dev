@@ -919,7 +919,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 isSaving={saving}
               />
             </div>
-            <div className="lg:col-span-4 min-w-[300px]">
+            <div className="lg:col-span-3 min-w-[280px]">
               <PageList 
                 pages={pages}
                 selectedPageId={selectedPageId}
@@ -931,7 +931,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 onMovePage={handleMovePage}
                 isSaving={saving}
               />
-              <div className="mt-6">
+            </div>
+            <div className="lg:col-span-3 min-w-[320px]">
+              <div className="lg:sticky lg:top-6">
                 <StoryLibraryPanel
                   stories={issue.storyLibrary || []}
                   selectedPage={pages.find(p => p.docId === selectedPageId)}
@@ -942,7 +944,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 />
               </div>
             </div>
-            <div className="lg:col-span-6">
+            <div className="lg:col-span-4">
               <PageEditor 
                 page={pages.find(p => p.docId === selectedPageId)}
                 onSave={(content) => {
