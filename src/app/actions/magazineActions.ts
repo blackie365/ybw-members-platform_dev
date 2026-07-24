@@ -1,14 +1,332 @@
 'use server';
 
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
-import type { MagazineIssue } from '@/lib/magazine-service';
+import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
-import { mapIdmlToReaderPages, buildEditionMetadata } from '@/lib/idml-template-mapper';
+import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition } from '@/features/magazine/server/simple-reader';
+
+const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
+
+type StoryLibraryCollectionDoc = {
+  title?: string;
+  author?: string;
+  standfirst?: string;
+  body?: string;
+  heroImage?: {
+    src?: string;
+    alt?: string;
+  };
+  source?: string;
+  sourceRef?: string;
+  issueId?: string;
+  issueTags?: string[];
+  tags?: string[];
+  status?: string;
+  priority?: number;
+  contentType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  includedInEditionCandidatePool?: boolean;
+  placementConfidence?: number;
+  editorialConfidence?: number;
+  manualNotes?: string;
+  pullQuotes?: string[];
+  gallery?: Array<{ src?: string; alt?: string }>;
+};
+
+function normalizeStoryText(value: string): string {
+  return String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function deriveStandfirst(value: string): string {
+  const normalized = normalizeStoryText(value).replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const sentence = normalized.split(/(?<=[.!?])\s+/)[0]?.trim() || normalized;
+  return sentence.length <= 220 ? sentence : `${sentence.slice(0, 220).trimEnd()}...`;
+}
+
+function buildStoryLibraryIdentity(item: Partial<StoryLibraryItem>): string {
+  const sourceRef = String(item.sourceRef || '').trim().toLowerCase();
+  if (sourceRef) return `source:${sourceRef}`;
+
+  const sourceType = String(item.source?.type || '').trim().toLowerCase();
+  const fileName = String(item.source?.fileName || '').trim().toLowerCase();
+  const path = String(item.source?.path || '').trim().toLowerCase();
+  if (sourceType || fileName || path) return `path:${sourceType}:${fileName}:${path}`;
+
+  const title = String(item.title || '').trim().toLowerCase();
+  const body = normalizeStoryText(String(item.text || '')).slice(0, 180).toLowerCase();
+  return `text:${title}:${body}`;
+}
+
+function mergeStoryLibraryItems(
+  collectionItems: StoryLibraryItem[],
+  issueItems: StoryLibraryItem[],
+): StoryLibraryItem[] {
+  const merged: StoryLibraryItem[] = [];
+  const seen = new Set<string>();
+
+  for (const item of [...collectionItems, ...issueItems]) {
+    const key = buildStoryLibraryIdentity(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+
+  return merged;
+}
+
+function mapCollectionDocToStoryLibraryItem(
+  docId: string,
+  data: StoryLibraryCollectionDoc,
+): StoryLibraryItem {
+  const body = normalizeStoryText(data.body || '');
+  const imageUrl =
+    String(data.heroImage?.src || '').trim() ||
+    String(data.gallery?.[0]?.src || '').trim() ||
+    undefined;
+
+  return {
+    id: docId,
+    title: String(data.title || '').trim() || 'Untitled Story',
+    author: String(data.author || '').trim() || undefined,
+    standfirst: String(data.standfirst || '').trim() || deriveStandfirst(body) || undefined,
+    text: body,
+    imageUrl,
+    includedInPremiumReader: data.includedInEditionCandidatePool !== false,
+    premiumReaderPriority: typeof data.priority === 'number' ? data.priority : undefined,
+    premiumReaderContentType: String(data.contentType || '').trim() || undefined,
+    premiumReaderPlacementPreference: 'auto',
+    imageFileNames: [],
+    sourceRef: String(data.sourceRef || '').trim() || undefined,
+    source: {
+      type: String(data.source || '').trim() || 'legacy',
+      path: String(data.sourceRef || '').trim() || undefined,
+    },
+    createdAt: String(data.createdAt || '').trim() || new Date().toISOString(),
+  };
+}
+
+function resolveStoryLibraryDocId(issueId: string, item: StoryLibraryItem): string {
+  const cleanId = String(item.id || '').trim();
+  if (cleanId.startsWith(`${issueId}-`)) return cleanId;
+  return `${issueId}-library-${cleanId.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}`;
+}
+
+function buildStoryLibrarySourceRef(issueId: string, item: StoryLibraryItem, docId: string): string {
+  const sourceRef = String(item.sourceRef || '').trim();
+  if (sourceRef) return sourceRef;
+
+  const sourcePath = String(item.source?.path || '').trim();
+  if (sourcePath) return `${issueId}:${sourcePath}`;
+
+  const legacyId = docId.startsWith(`${issueId}-`) ? docId.slice(issueId.length + 1) : docId;
+  return `${issueId}:${legacyId}`;
+}
+
+function mapStoryLibraryItemToCollectionDoc(
+  issueId: string,
+  item: StoryLibraryItem,
+  docId: string,
+): StoryLibraryCollectionDoc {
+  const cleanText = normalizeStoryText(item.text || '');
+  const title = String(item.title || '').trim() || 'Untitled Story';
+  const sourceRef = buildStoryLibrarySourceRef(issueId, item, docId);
+  const imageUrl = String(item.imageUrl || '').trim();
+  const contentType = String(item.premiumReaderContentType || '').trim() || 'feature';
+  const createdAt = String(item.createdAt || '').trim() || new Date().toISOString();
+
+  return {
+    title,
+    author: String(item.author || '').trim() || undefined,
+    standfirst: String(item.standfirst || '').trim() || deriveStandfirst(cleanText) || undefined,
+    body: cleanText,
+    heroImage: imageUrl
+      ? {
+          src: imageUrl,
+          alt: title,
+        }
+      : undefined,
+    source: String(item.source?.type || '').trim() || 'manual',
+    sourceRef,
+    issueId,
+    issueTags: [],
+    tags: ['imported', contentType],
+    status: 'approved',
+    priority:
+      typeof item.premiumReaderPriority === 'number' ? item.premiumReaderPriority : 40,
+    contentType,
+    includedInEditionCandidatePool: item.includedInPremiumReader !== false,
+    placementConfidence: 0.7,
+    editorialConfidence: 0.9,
+    manualNotes: item.source?.fileName
+      ? `Imported from ${item.source.fileName}`
+      : undefined,
+    pullQuotes: [],
+    gallery: imageUrl ? [{ src: imageUrl, alt: title }] : [],
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function getIssueStoryLibraryCollectionItems(issueId: string): Promise<StoryLibraryItem[]> {
+  if (!adminDb) throw new Error('Database not initialized');
+
+  const collectionRef = adminDb.collection(STORY_LIBRARY_COLLECTION);
+  const [sourceRefSnapshot, issueIdSnapshot] = await Promise.all([
+    collectionRef
+      .where('sourceRef', '>=', `${issueId}:`)
+      .where('sourceRef', '<', `${issueId}:\uf8ff`)
+      .get(),
+    collectionRef.where('issueId', '==', issueId).get(),
+  ]);
+
+  const docMap = new Map<string, StoryLibraryItem>();
+  for (const snapshot of [sourceRefSnapshot, issueIdSnapshot]) {
+    for (const doc of snapshot.docs) {
+      docMap.set(doc.id, mapCollectionDocToStoryLibraryItem(doc.id, doc.data() as StoryLibraryCollectionDoc));
+    }
+  }
+
+  return [...docMap.values()];
+}
+
+function inferStoryLibraryDefaults(input: {
+  title: string;
+  body: string;
+  startPage: number;
+}): Pick<StoryLibraryItem, 'includedInPremiumReader' | 'premiumReaderContentType' | 'premiumReaderPriority'> {
+  const haystack = `${input.title} ${input.body.slice(0, 240)}`.toLowerCase();
+
+  if (/\b(editor('?s)? note|from the editor|editorial)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'editorial',
+      premiumReaderPriority: 85,
+    };
+  }
+
+  if (/\b(profile|spotlight|member spotlight)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'profile',
+      premiumReaderPriority: 58,
+    };
+  }
+
+  if (/\b(column|opinion|comment|expert)\b/.test(haystack)) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'column',
+      premiumReaderPriority: 56,
+    };
+  }
+
+  if (input.startPage <= 12) {
+    return {
+      includedInPremiumReader: true,
+      premiumReaderContentType: 'lead',
+      premiumReaderPriority: 72,
+    };
+  }
+
+  return {
+    includedInPremiumReader: true,
+    premiumReaderContentType: 'feature',
+    premiumReaderPriority: 48,
+  };
+}
+
+async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdml>>, fileName: string) {
+  const imageUrls: Record<string, string> = {};
+
+  if (parsed.images.length === 0 || !adminStorage) return imageUrls;
+
+  const bucket = adminStorage.bucket();
+  const uploadPromises = parsed.images.map(async (img) => {
+    const filePath = `magazine-import/${fileName}/${img.fileName}`;
+    const storageFile = bucket.file(filePath);
+
+    await storageFile.save(img.data, {
+      metadata: { contentType: img.mimeType },
+    });
+    await storageFile.makePublic();
+
+    return {
+      fileName: img.fileName,
+      url: `https://storage.googleapis.com/${bucket.name}/${filePath}`,
+    };
+  });
+
+  const results = await Promise.all(uploadPromises);
+  for (const result of results) {
+    imageUrls[result.fileName] = result.url;
+  }
+
+  return imageUrls;
+}
+
+function buildStoryLibraryItemsFromParsedIdml(
+  parsed: Awaited<ReturnType<typeof parseIdml>>,
+  fileName: string,
+  imageUrls: Record<string, string>,
+): StoryLibraryItem[] {
+  const articles = detectArticles(parsed.pages);
+  const items: Array<StoryLibraryItem | null> = articles.map((article, index) => {
+      const cleanTitle = normalizeStoryText(article.title || '');
+      const cleanBody = normalizeStoryText(article.body || '');
+      const imageFileNames = Array.from(
+        new Set(
+          (article.images || [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean),
+        ),
+      );
+      const imageUrl = imageFileNames.find((value) => imageUrls[value]) || '';
+      const defaults = inferStoryLibraryDefaults({
+        title: cleanTitle,
+        body: cleanBody,
+        startPage: article.startPage,
+      });
+
+      if (!cleanTitle || cleanTitle === 'YorkshireBusinessWoman') return null;
+      if (/^\d+$/.test(cleanTitle)) return null;
+      if (/^\<\?ace/i.test(cleanTitle)) return null;
+      if (cleanBody.length < 120) return null;
+
+      return {
+        id: `idml-${article.startPage}-${article.endPage}-${index + 1}`,
+        title: cleanTitle,
+        standfirst: deriveStandfirst(cleanBody) || undefined,
+        text: cleanBody,
+        imageUrl: imageUrl ? imageUrls[imageUrl] : undefined,
+        imageFileNames,
+        includedInPremiumReader: defaults.includedInPremiumReader,
+        premiumReaderPriority: defaults.premiumReaderPriority,
+        premiumReaderContentType: defaults.premiumReaderContentType,
+        premiumReaderPlacementPreference: 'auto',
+        sourceRef: `${fileName}:pages-${article.startPage}-${article.endPage}`,
+        source: {
+          type: 'idml',
+          fileName,
+          path: `pages-${article.startPage}-${article.endPage}`,
+        },
+        createdAt: new Date().toISOString(),
+      } satisfies StoryLibraryItem;
+    });
+
+  return items.filter((item): item is StoryLibraryItem => item !== null);
+}
 
 export async function getGhostPostsAction(options?: any) {
   try {
@@ -76,6 +394,82 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazineIssueAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getMagazineStoryLibraryAction(issueId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+
+    const [issueDoc, collectionItems] = await Promise.all([
+      adminDb.collection('magazine_issues').doc(issueId).get(),
+      getIssueStoryLibraryCollectionItems(issueId),
+    ]);
+
+    const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
+    const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
+    const merged = mergeStoryLibraryItems(collectionItems, issueItems);
+
+    return { success: true, data: merged };
+  } catch (error: any) {
+    console.error('Error in getMagazineStoryLibraryAction:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function saveMagazineStoryLibraryAction(issueId: string, storyLibrary: StoryLibraryItem[]) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+
+    const nextItems = Array.isArray(storyLibrary)
+      ? storyLibrary
+          .filter(Boolean)
+          .map((item) => ({
+            ...item,
+            title: String(item.title || '').trim(),
+            text: normalizeStoryText(item.text || ''),
+            standfirst: String(item.standfirst || '').trim() || undefined,
+            imageUrl: String(item.imageUrl || '').trim() || undefined,
+            imageFileNames: Array.isArray(item.imageFileNames)
+              ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
+              : undefined,
+            sourceRef: String(item.sourceRef || '').trim() || undefined,
+          }))
+          .filter((item) => item.title || item.text)
+      : [];
+
+    const existingItems = await getIssueStoryLibraryCollectionItems(issueId);
+    const existingDocIds = new Set(existingItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
+    const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
+
+    const batch = adminDb.batch();
+
+    for (const item of nextItems) {
+      const docId = resolveStoryLibraryDocId(issueId, item);
+      const docRef = adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId);
+      batch.set(docRef, mapStoryLibraryItemToCollectionDoc(issueId, item, docId), { merge: true });
+    }
+
+    for (const docId of existingDocIds) {
+      if (nextDocIds.has(docId)) continue;
+      batch.delete(adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId));
+    }
+
+    batch.update(adminDb.collection('magazine_issues').doc(issueId), {
+      storyLibrary: nextItems,
+      updatedAt: new Date().toISOString(),
+    });
+
+    await batch.commit();
+
+    revalidatePath(`/admin/magazine/builder/${issueId}`);
+    revalidatePath('/admin/magazine');
+    return { success: true, data: nextItems };
+  } catch (error: any) {
+    console.error('Error in saveMagazineStoryLibraryAction:', error);
     return { success: false, error: error.message };
   }
 }
@@ -330,28 +724,7 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
     throw new Error('No readable content found in the IDML file');
   }
 
-  const imageUrls: Record<string, string> = {};
-
-  if (parsed.images.length > 0 && adminStorage) {
-    const bucket = adminStorage.bucket();
-    const uploadPromises = parsed.images.map(async (img) => {
-      const filePath = `magazine-import/${fileName}/${img.fileName}`;
-      const storageFile = bucket.file(filePath);
-
-      await storageFile.save(img.data, {
-        metadata: { contentType: img.mimeType },
-      });
-      await storageFile.makePublic();
-
-      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-      return { fileName: img.fileName, url: publicUrl };
-    });
-
-    const results = await Promise.all(uploadPromises);
-    for (const r of results) {
-      imageUrls[r.fileName] = r.url;
-    }
-  }
+  const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
 
   let pages = mapIdmlToReaderPages(parsed.pages);
 
@@ -378,6 +751,35 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
     imageCount: parsed.images.length,
     imageUrls,
   };
+}
+
+export async function extractIdmlStoryLibraryAction(idmlBase64: string, fileName: string) {
+  try {
+    await checkAdmin();
+
+    const buffer = Buffer.from(idmlBase64, 'base64');
+    const parsed = await parseIdml(buffer);
+
+    if (parsed.pages.length === 0) {
+      throw new Error('No readable content found in the IDML file');
+    }
+
+    const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
+    const storyLibrary = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
+
+    return {
+      success: true,
+      data: {
+        storyLibrary,
+        pageCount: parsed.pageCount,
+        storyCount: storyLibrary.length,
+        imageCount: parsed.images.length,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error extracting IDML story library:', error);
+    return { success: false, error: error.message || 'Failed to extract IDML stories' };
+  }
 }
 
 function slugify(text: string): string {

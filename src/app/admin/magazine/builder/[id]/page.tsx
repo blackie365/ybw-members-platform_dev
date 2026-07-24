@@ -14,7 +14,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { 
   getMagazinePagesAction, 
   getMagazineIssuesAction, 
+  getMagazineStoryLibraryAction,
   updateMagazineIssueAction,
+  saveMagazineStoryLibraryAction,
   createMagazineIssueAction,
   addMagazinePageAction,
   updateMagazinePageAction,
@@ -177,6 +179,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
       }
 
+      if (!isNew) {
+        const storyLibraryRes = await getMagazineStoryLibraryAction(id);
+        if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
+          setIssue((prev) => ({
+            ...prev,
+            storyLibrary: storyLibraryRes.data,
+          }));
+        }
+      }
+
       // Load Pages
       const pagesRes = await getMagazinePagesAction(id);
       if (pagesRes?.success && pagesRes.data) {
@@ -238,9 +250,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     setSaving(true);
     try {
-      const res = await updateMagazineIssueAction(id, { storyLibrary });
+      const res = await saveMagazineStoryLibraryAction(id, storyLibrary);
       if (res.success) {
-        setIssue((prev) => ({ ...prev, storyLibrary }));
+        setIssue((prev) => ({
+          ...prev,
+          storyLibrary: Array.isArray(res.data) ? res.data : storyLibrary,
+        }));
         toast.success('Story library saved');
       } else {
         toast.error(res.error || 'Failed to save story library');
