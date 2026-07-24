@@ -214,6 +214,81 @@ function buildIssueStoryLibraryMirror(
   });
 }
 
+function normalizeStoryLibraryItems(storyLibrary: StoryLibraryItem[]): StoryLibraryItem[] {
+  return Array.isArray(storyLibrary)
+    ? storyLibrary
+        .filter(Boolean)
+        .map((item) => ({
+          ...item,
+          title: String(item.title || '').trim(),
+          text: normalizeStoryText(item.text || ''),
+          standfirst: String(item.standfirst || '').trim() || undefined,
+          imageUrl: String(item.imageUrl || '').trim() || undefined,
+          imageFileNames: Array.isArray(item.imageFileNames)
+            ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
+            : undefined,
+          sourceRef: String(item.sourceRef || '').trim() || undefined,
+        }))
+        .filter((item) => item.title || item.text)
+    : [];
+}
+
+async function persistStoryLibraryForIssue(
+  issueId: string,
+  storyLibrary: StoryLibraryItem[],
+): Promise<StoryLibraryItem[]> {
+  if (!adminDb) throw new Error('Database not initialized');
+
+  const nextItems = normalizeStoryLibraryItems(storyLibrary);
+  const existingItems = await getIssueStoryLibraryCollectionItems(issueId);
+  const existingDocIds = new Set(existingItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
+  const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
+  const now = new Date().toISOString();
+
+  const batch = adminDb.batch();
+
+  for (const item of nextItems) {
+    const docId = resolveStoryLibraryDocId(issueId, item);
+    const docRef = adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId);
+    batch.set(docRef, mapStoryLibraryItemToCollectionDoc(issueId, item, docId), { merge: true });
+  }
+
+  for (const docId of existingDocIds) {
+    if (nextDocIds.has(docId)) continue;
+    batch.delete(adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId));
+  }
+
+  await batch.commit();
+
+  try {
+    await adminDb.collection('magazine_issues').doc(issueId).set({
+      storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'full'),
+      storyLibraryCount: nextItems.length,
+      updatedAt: now,
+    }, { merge: true });
+  } catch (mirrorError) {
+    console.warn('Full story library mirror failed, retrying with light mirror:', mirrorError);
+    try {
+      await adminDb.collection('magazine_issues').doc(issueId).set({
+        storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'light'),
+        storyLibraryCount: nextItems.length,
+        updatedAt: now,
+      }, { merge: true });
+    } catch (lightMirrorError) {
+      console.warn('Light story library mirror failed, keeping collection-only records:', lightMirrorError);
+      await adminDb.collection('magazine_issues').doc(issueId).set({
+        storyLibraryCount: nextItems.length,
+        updatedAt: now,
+      }, { merge: true });
+    }
+  }
+
+  const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
+  return persistedItems.length > 0
+    ? mergeStoryLibraryItems(persistedItems, nextItems)
+    : nextItems;
+}
+
 async function getIssueStoryLibraryCollectionItems(issueId: string): Promise<StoryLibraryItem[]> {
   if (!adminDb) throw new Error('Database not initialized');
 
@@ -459,70 +534,7 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
     await checkAdmin();
     if (!adminDb) throw new Error('Database not initialized');
 
-    const nextItems = Array.isArray(storyLibrary)
-      ? storyLibrary
-          .filter(Boolean)
-          .map((item) => ({
-            ...item,
-            title: String(item.title || '').trim(),
-            text: normalizeStoryText(item.text || ''),
-            standfirst: String(item.standfirst || '').trim() || undefined,
-            imageUrl: String(item.imageUrl || '').trim() || undefined,
-            imageFileNames: Array.isArray(item.imageFileNames)
-              ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
-              : undefined,
-            sourceRef: String(item.sourceRef || '').trim() || undefined,
-          }))
-          .filter((item) => item.title || item.text)
-      : [];
-
-    const existingItems = await getIssueStoryLibraryCollectionItems(issueId);
-    const existingDocIds = new Set(existingItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
-    const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
-    const now = new Date().toISOString();
-
-    const batch = adminDb.batch();
-
-    for (const item of nextItems) {
-      const docId = resolveStoryLibraryDocId(issueId, item);
-      const docRef = adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId);
-      batch.set(docRef, mapStoryLibraryItemToCollectionDoc(issueId, item, docId), { merge: true });
-    }
-
-    for (const docId of existingDocIds) {
-      if (nextDocIds.has(docId)) continue;
-      batch.delete(adminDb.collection(STORY_LIBRARY_COLLECTION).doc(docId));
-    }
-
-    await batch.commit();
-
-    try {
-      await adminDb.collection('magazine_issues').doc(issueId).set({
-        storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'full'),
-        storyLibraryCount: nextItems.length,
-        updatedAt: now,
-      }, { merge: true });
-    } catch (mirrorError) {
-      console.warn('Full story library mirror failed, retrying with light mirror:', mirrorError);
-      try {
-        await adminDb.collection('magazine_issues').doc(issueId).set({
-          storyLibrary: buildIssueStoryLibraryMirror(nextItems, 'light'),
-          storyLibraryCount: nextItems.length,
-          updatedAt: now,
-        }, { merge: true });
-      } catch (lightMirrorError) {
-        console.warn('Light story library mirror failed, keeping collection-only records:', lightMirrorError);
-        await adminDb.collection('magazine_issues').doc(issueId).set({
-          storyLibraryCount: nextItems.length,
-          updatedAt: now,
-        }, { merge: true });
-      }
-    }
-
-    const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
-    const resolvedItems = persistedItems.length > 0
-      ? mergeStoryLibraryItems(persistedItems, nextItems)
-      : nextItems;
+    const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
 
     revalidatePath(`/admin/magazine/builder/${issueId}`);
     revalidatePath('/admin/magazine');
@@ -838,6 +850,52 @@ export async function extractIdmlStoryLibraryAction(idmlBase64: string, fileName
   } catch (error: any) {
     console.error('Error extracting IDML story library:', error);
     return { success: false, error: error.message || 'Failed to extract IDML stories' };
+  }
+}
+
+export async function importIdmlToStoryLibraryAction(issueId: string, idmlBase64: string, fileName: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+
+    const buffer = Buffer.from(idmlBase64, 'base64');
+    const parsed = await parseIdml(buffer);
+
+    if (parsed.pages.length === 0) {
+      throw new Error('No readable content found in the IDML file');
+    }
+
+    const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
+    const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
+
+    const [issueDoc, collectionItems] = await Promise.all([
+      adminDb.collection('magazine_issues').doc(issueId).get(),
+      getIssueStoryLibraryCollectionItems(issueId),
+    ]);
+
+    const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
+    const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
+    const existingItems = mergeStoryLibraryItems(collectionItems, issueItems);
+    const nextLibrary = mergeStoryLibraryItems(existingItems, importedItems);
+    const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
+
+    revalidatePath(`/admin/magazine/builder/${issueId}`);
+    revalidatePath('/admin/magazine');
+
+    return {
+      success: true,
+      data: {
+        storyLibrary: savedItems,
+        importedCount: importedItems.length,
+        totalCount: savedItems.length,
+        pageCount: parsed.pageCount,
+        storyCount: importedItems.length,
+        imageCount: parsed.images.length,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error importing IDML into Story Library:', error);
+    return { success: false, error: error.message || 'Failed to import IDML stories into Story Library' };
   }
 }
 
