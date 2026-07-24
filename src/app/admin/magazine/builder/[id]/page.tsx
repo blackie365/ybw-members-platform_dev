@@ -186,6 +186,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       if (!isNew) {
         const storyLibraryRes = await getMagazineStoryLibraryAction(id);
+        // #region debug-point E:builder-load-response
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"E",location:"builder/[id]/page.tsx:loadData",msg:"[DEBUG] Builder received story library response",data:{issueId:id,success:Boolean(storyLibraryRes?.success),storyLibraryCount:Array.isArray(storyLibraryRes?.data)?storyLibraryRes.data.length:0},ts:Date.now()})}).catch(()=>{});
+        // #endregion
         if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
           setIssue((prev) => ({
             ...prev,
