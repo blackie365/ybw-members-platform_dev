@@ -316,6 +316,10 @@ export function ManualImporter({
   const effectiveServerIdmlStats =
     serverIdmlStats || (serverIdmlPages.length > 0 ? deriveIdmlDraftStats(serverIdmlPages) : null);
   const hasRecoverableServerIdmlDraft = Boolean(serverIdmlDraftId || serverIdmlFileName || serverIdmlPages.length > 0);
+  const canRenderServerIdmlControls = Boolean(
+    hasRecoverableServerIdmlDraft && effectiveServerIdmlMeta && serverIdmlPages.length > 0,
+  );
+  const renderableServerIdmlMeta = canRenderServerIdmlControls ? effectiveServerIdmlMeta : null;
 
   useEffect(() => {
     loadLatestIdmlDraft().then((result) => {
@@ -1202,27 +1206,29 @@ export function ManualImporter({
             </div>
           )}
 
-          {hasRecoverableServerIdmlDraft && effectiveServerIdmlMeta && effectiveServerIdmlStats && (
+          {canRenderServerIdmlControls && renderableServerIdmlMeta && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.pageCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Pages</p>
+              {effectiveServerIdmlStats ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.pageCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Pages</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.storyCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Stories</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.imageCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Images</p>
+                  </div>
                 </div>
-                <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.storyCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Stories</p>
-                </div>
-                <div className="rounded-md border border-border bg-background p-3 text-center">
-                  <p className="text-2xl font-bold">{effectiveServerIdmlStats.imageCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Images</p>
-                </div>
-              </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Edition Title</Label>
                 <Input
-                  value={effectiveServerIdmlMeta.title}
+                  value={renderableServerIdmlMeta.title}
                   onChange={(e) => handleUpdateServerIdmlTitle(e.target.value)}
                   placeholder="Enter edition title..."
                 />
