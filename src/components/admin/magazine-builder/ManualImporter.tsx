@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -62,20 +62,6 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
   return btoa(binary);
 };
 
-function mergeStoryLibraryItems(existing: StoryLibraryItem[], incoming: StoryLibraryItem[]) {
-  const incomingPaths = new Set(
-    incoming.map((item) => `${item.source?.fileName || ''}::${item.source?.path || ''}`).filter((value) => value !== '::'),
-  );
-
-  const preservedExisting = existing.filter((item) => {
-    const key = `${item.source?.fileName || ''}::${item.source?.path || ''}`;
-    if (key === '::') return true;
-    return !incomingPaths.has(key);
-  });
-
-  return [...incoming, ...preservedExisting].slice(0, 150);
-}
-
 const extractInDesignTextAndImageHints = (xml: string) => {
   const contentMatches = [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)];
   const rawPieces = contentMatches.map((m) => decodeXmlEntities(m[1] || '').trim()).filter(Boolean);
@@ -112,6 +98,7 @@ export interface ManualImporterProps {
   issueId?: string;
   storyLibrary?: StoryLibraryItem[];
   onSaveStoryLibrary?: (storyLibrary: StoryLibraryItem[]) => Promise<void>;
+  onStoryLibraryImported?: (storyLibrary: StoryLibraryItem[]) => void;
 }
 
 type ParsedInDesignStory = {
@@ -193,6 +180,7 @@ export function ManualImporter({
   issueId,
   storyLibrary,
   onSaveStoryLibrary,
+  onStoryLibraryImported,
 }: ManualImporterProps) {
   const [rawText, setRawText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -461,7 +449,10 @@ export function ManualImporter({
         setIdmlFileName(file.name);
         const fileBuffer = await file.arrayBuffer();
         const idmlBase64 = arrayBufferToBase64(fileBuffer);
-        const res = await extractIdmlStoryLibraryAction(idmlBase64, file.name);
+        const canSaveDirectly = Boolean(issueId && issueId !== 'new' && onSaveStoryLibrary);
+        const res = canSaveDirectly
+          ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
+          : await extractIdmlStoryLibraryAction(idmlBase64, file.name);
 
         if (!res.success || !res.data) {
           toast.error(res.error || 'Failed to extract stories from IDML');
@@ -493,9 +484,9 @@ export function ManualImporter({
         setSelectedStoryPath(initial.path);
         applyInDesignStory(initial);
 
-        if (issueId && issueId !== 'new' && onSaveStoryLibrary) {
-          const nextLibrary = mergeStoryLibraryItems(safeStoryLibrary, importedItems);
-          await saveStoryLibrary(nextLibrary);
+        if (canSaveDirectly) {
+          const savedItems = Array.isArray(res.data.storyLibrary) ? res.data.storyLibrary : importedItems;
+          onStoryLibraryImported?.(savedItems);
           toast.success(`Imported ${importedItems.length} IDML articles into the Story Library`);
           return;
         }

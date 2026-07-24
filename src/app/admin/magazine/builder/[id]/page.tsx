@@ -272,6 +272,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  const handleStoryLibraryImported = (storyLibrary: any[]) => {
+    setIssue((prev) => ({
+      ...prev,
+      storyLibrary: Array.isArray(storyLibrary) ? storyLibrary : prev.storyLibrary || [],
+    }));
+  };
+
   const handleRemoveStoryLibraryItem = async (storyId: string) => {
     const next = (issue.storyLibrary || []).filter((story) => story.id !== storyId);
     try {
@@ -994,6 +1001,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                     issueId={id}
                     storyLibrary={issue.storyLibrary || []}
                     onSaveStoryLibrary={handleSaveStoryLibrary}
+                    onStoryLibraryImported={handleStoryLibraryImported}
                   />
                 </div>
               </div>
