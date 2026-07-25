@@ -28,6 +28,47 @@ type AdditionalMediaItem = {
   ratio?: string;
 };
 
+function splitPlainTextIntoParagraphs(input: string): string[] {
+  const normalized = String(input || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized) return [];
+
+  const explicitParagraphs = normalized
+    .split(/\n{2,}/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (explicitParagraphs.length > 1) return explicitParagraphs;
+
+  const lines = normalized
+    .split(/\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return lines;
+
+  const paragraphs: string[] = [];
+  let current = "";
+
+  const endsParagraph = (line: string) => /[.!?:"'”’)\]]$/.test(line.trim());
+  const startsNewSentence = (line: string) => /^[A-Z0-9"'“‘(\[]/.test(line.trim());
+
+  for (const line of lines) {
+    if (!current) {
+      current = line;
+      continue;
+    }
+
+    if (endsParagraph(current) && startsNewSentence(line)) {
+      paragraphs.push(current.trim());
+      current = line;
+      continue;
+    }
+
+    current = `${current} ${line}`.replace(/\s+/g, " ").trim();
+  }
+
+  if (current) paragraphs.push(current.trim());
+  return paragraphs;
+}
+
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
@@ -43,20 +84,12 @@ export function SafeText({
 
   let content = html;
   if (!html.includes("<")) {
-    const normalized = html.replace(/\r\n/g, "\n");
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    content = lines.map((l) => `<p>${l}</p>`).join("");
+    const paragraphs = splitPlainTextIntoParagraphs(html);
+    content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
   } else if (!html.includes("<p") && !html.includes("<br")) {
-    const normalized = html.replace(/\r\n/g, "\n");
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length > 1) {
-      content = lines.map((l) => `<p>${l}</p>`).join("");
+    const paragraphs = splitPlainTextIntoParagraphs(html);
+    if (paragraphs.length > 1) {
+      content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
     } else {
       content = html.replace(/\n/g, "<br />");
     }
@@ -67,7 +100,7 @@ export function SafeText({
   return (
     <div
       className={[
-        "[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
+        "[&_p]:mb-5 [&_p+_p]:mt-5 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
         className,
       ]
         .filter(Boolean)
@@ -702,11 +735,8 @@ export function getHtmlBlocks(html: string): string[] {
   const normalizedRaw = html.replace(/\r\n/g, "\n");
 
   if (hasTags && !html.includes("<p") && normalizedRaw.includes("\n")) {
-    const lines = normalizedRaw
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length > 1) return lines.map((l) => `<p>${l}</p>`);
+    const paragraphs = splitPlainTextIntoParagraphs(normalizedRaw);
+    if (paragraphs.length > 1) return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
   }
 
   if (
@@ -754,12 +784,9 @@ export function getHtmlBlocks(html: string): string[] {
 
   const normalized = hasTags ? html : html.replace(/\r\n/g, "\n");
   if (!hasTags) {
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length === 0) return [];
-    return lines.map((l) => `<p>${l}</p>`);
+    const paragraphs = splitPlainTextIntoParagraphs(normalized);
+    if (paragraphs.length === 0) return [];
+    return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
   }
 
   const parts = normalized

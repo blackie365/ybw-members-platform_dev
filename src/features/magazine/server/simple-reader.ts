@@ -156,6 +156,108 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   };
 }
 
+function isStoryPage(page: ReaderPage | undefined): page is ReaderPage {
+  if (!page) return false;
+  return (
+    page.template === 'feature-left' ||
+    page.template === 'feature-right' ||
+    page.template === 'feature-full'
+  );
+}
+
+function joinBodyText(...parts: Array<unknown>): string {
+  return parts
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function collapseSplitStoryPages(pages: ReaderPage[]): ReaderPage[] {
+  const collapsed: ReaderPage[] = [];
+
+  for (const rawPage of pages) {
+    const page = sanitizeReaderPage(rawPage);
+    const previousPage = collapsed[collapsed.length - 1];
+    const pageTitle = normalizeText(page.content?.continuationLabel || page.content?.title);
+    const previousTitle = normalizeText(
+      previousPage?.content?.continuationLabel || previousPage?.content?.title,
+    );
+    const shouldMergeWithPrevious =
+      Boolean(pageTitle) &&
+      pageTitle === previousTitle &&
+      isStoryPage(page) &&
+      isStoryPage(previousPage) &&
+      (Boolean(page.content?.isContinuation) || Boolean(previousPage?.content?.isContinuation));
+
+    if (!shouldMergeWithPrevious || !previousPage) {
+      collapsed.push({
+        ...page,
+        content: {
+          ...page.content,
+          isContinuation: false,
+          continuationLabel: undefined,
+        },
+      });
+      continue;
+    }
+
+    const previousImageUrls = sanitizeUrlList(previousPage.content.imageUrls);
+    const mergedImageUrl = previousPage.content.imageUrl || page.content.imageUrl || '';
+    const mergedBackgroundImage =
+      previousPage.content.backgroundImage || page.content.backgroundImage || '';
+    const mergedImageUrls = [
+      ...previousImageUrls,
+      ...(previousPage.content.imageUrl ? [previousPage.content.imageUrl] : []),
+      ...(page.content.imageUrl ? [page.content.imageUrl] : []),
+      ...sanitizeUrlList(page.content.imageUrls),
+    ].filter(
+      (url, index, all) =>
+        url &&
+        url !== mergedImageUrl &&
+        url !== mergedBackgroundImage &&
+        all.indexOf(url) === index,
+    );
+
+    collapsed[collapsed.length - 1] = sanitizeReaderPage({
+      ...previousPage,
+      content: {
+        ...previousPage.content,
+        body: joinBodyText(previousPage.content.body, page.content.body),
+        standfirst: previousPage.content.standfirst || page.content.standfirst,
+        imageUrl: mergedImageUrl || undefined,
+        backgroundImage: mergedBackgroundImage || undefined,
+        imageUrls: mergedImageUrls,
+        videoUrl: previousPage.content.videoUrl || page.content.videoUrl,
+        quote: previousPage.content.quote || page.content.quote,
+        pullQuotes: [
+          ...(previousPage.content.pullQuotes || []),
+          ...(page.content.pullQuotes || []),
+        ].filter((quote, index, all) => quote && all.indexOf(quote) === index),
+        items:
+          Array.isArray(previousPage.content.items) && previousPage.content.items.length > 0
+            ? previousPage.content.items
+            : page.content.items,
+        mediaLayout:
+          previousPage.content.mediaLayout === 'background'
+            ? previousPage.content.mediaLayout
+            : previousPage.content.mediaLayout || page.content.mediaLayout,
+        isContinuation: false,
+        continuationLabel: undefined,
+      },
+    });
+  }
+
+  return collapsed.map((page, index) => ({
+    ...page,
+    position: index + 1,
+    content: {
+      ...page.content,
+      isContinuation: false,
+      continuationLabel: undefined,
+    },
+  }));
+}
+
 function mapLegacyTypeToTemplate(type: unknown): ReaderPage['template'] | null {
   switch (String(type || '').trim()) {
     case 'cover':
@@ -380,16 +482,17 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
   const pages = [...mergedPages, ...appendedLegacyPages]
     .map(sanitizeReaderPage)
     .sort((left, right) => left.position - right.position);
+  const collapsedPages = collapseSplitStoryPages(pages);
 
   return {
     ...edition,
     coverImage:
-      pages.find((page) => page.template === 'cover')?.content.imageUrl ||
+      collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
       sanitizeImageUrl(edition.coverImage) ||
       matchingIssue.coverImage ||
       '',
-    pages,
-    pageCount: pages.length,
+    pages: collapsedPages,
+    pageCount: collapsedPages.length,
   };
 }
 
