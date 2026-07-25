@@ -834,6 +834,32 @@ function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
   return quote;
 }
 
+function getDistinctFeaturePullQuotes(
+  rawPullQuotes: unknown,
+  options?: {
+    leadHtml?: string;
+    featureQuote?: string;
+  },
+) {
+  const normalizedLead = normalizeLeadComparisonText(options?.leadHtml || "");
+  const normalizedFeatureQuote = normalizeLeadComparisonText(
+    options?.featureQuote || "",
+  );
+  const seen = new Set<string>();
+
+  return normalizePullQuotes(rawPullQuotes)
+    .filter((quote) => {
+      const normalizedQuote = normalizeLeadComparisonText(quote);
+      if (!normalizedQuote) return false;
+      if (normalizedQuote === normalizedLead) return false;
+      if (normalizedQuote === normalizedFeatureQuote) return false;
+      if (seen.has(normalizedQuote)) return false;
+      seen.add(normalizedQuote);
+      return true;
+    })
+    .slice(0, 1);
+}
+
 function buildFeatureTextSections(
   data: any,
   options?: { dropCap?: boolean },
@@ -847,8 +873,8 @@ function buildFeatureTextSections(
 
   if (introSource) {
     const introBlocks = getHtmlBlocks(introSource);
-    const [firstIntroBlock = "", ...remainingIntroBlocks] = introBlocks;
-    const dedupedBodyBlocks = [...remainingIntroBlocks, ...initialBodyBlocks];
+    const [firstIntroBlock = ""] = introBlocks;
+    const dedupedBodyBlocks = [...initialBodyBlocks];
     const normalizedLead = normalizeLeadComparisonText(firstIntroBlock);
 
     while (
@@ -904,27 +930,18 @@ function FeatureCallout({
   if (!content) return null;
 
   return (
-    <div
+    <p
       className={[
-        "rounded-2xl border px-5 py-4 shadow-sm",
-        variant === "dark"
-          ? "border-white/10 bg-white/10 backdrop-blur-sm"
-          : "border-[#e8d5c0] bg-white/80",
+        "font-serif italic leading-[1.45]",
+        variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
+      style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
     >
-      <p
-        className={[
-          "font-serif italic leading-[1.45]",
-          variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
-        ].join(" ")}
-        style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
-      >
-        &ldquo;{content}&rdquo;
-      </p>
-    </div>
+      &ldquo;{content}&rdquo;
+    </p>
   );
 }
 
@@ -1760,7 +1777,10 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
     dropCap: false,
   });
   const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
-  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
+  const pullQuotes = getDistinctFeaturePullQuotes(data.pullQuotes || data.quotes, {
+    leadHtml,
+    featureQuote,
+  });
 
   if (isFullBackground) {
     return (
@@ -2061,11 +2081,14 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   );
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
-  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
   const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
     dropCap: false,
   });
   const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
+  const pullQuotes = getDistinctFeaturePullQuotes(data.pullQuotes || data.quotes, {
+    leadHtml,
+    featureQuote,
+  });
 
   if (isFullBackground) {
     return (
