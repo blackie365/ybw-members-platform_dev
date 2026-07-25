@@ -72,6 +72,13 @@ const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
   partner: 'PARTNER',
 };
 
+function normalizeBuilderIdentity(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getContentsTitleForPage(page: MagazinePage): string {
   return String(
     page.content?.title ||
@@ -122,6 +129,44 @@ function buildContentsItemsFromPages(pages: MagazinePage[]) {
       title,
     }];
   });
+}
+
+function getPageIdentityKeys(page: MagazinePage): string[] {
+  const keys = new Set<string>();
+  const storyId = String(page.storyId || page.content?.storyId || '').trim();
+  const sourceRef = String(page.sourceRef || page.content?.sourceRef || '').trim();
+  const title = normalizeBuilderIdentity(getContentsTitleForPage(page));
+
+  if (storyId) keys.add(`story:${storyId}`);
+  if (sourceRef) keys.add(`source:${normalizeBuilderIdentity(sourceRef)}`);
+  if (title) keys.add(`title:${title}`);
+
+  return [...keys];
+}
+
+function getStoryIdentityKeys(story: any): string[] {
+  const keys = new Set<string>();
+  const storyId = String(story?.id || '').trim();
+  const sourceRef = String(story?.sourceRef || '').trim();
+  const title = normalizeBuilderIdentity(story?.title);
+
+  if (storyId) keys.add(`story:${storyId}`);
+  if (sourceRef) keys.add(`source:${normalizeBuilderIdentity(sourceRef)}`);
+  if (title) keys.add(`title:${title}`);
+
+  return [...keys];
+}
+
+function inferBuilderPageTypeFromStory(story: any): string {
+  const contentType = String(story?.premiumReaderContentType || '').trim().toLowerCase();
+
+  if (contentType === 'editorial') return 'editorial';
+  if (contentType === 'profile' || contentType === 'spotlight') return 'spotlight';
+  if (contentType === 'column' || contentType === 'opinion') return 'column';
+  if (contentType === 'lifestyle') return 'lifestyle';
+  if (contentType === 'partner') return 'partner';
+
+  return 'feature-left';
 }
 
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -223,6 +268,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      let loadedStoryLibrary: any[] = [];
+      let loadedPages: MagazinePage[] = [];
+
       // Load Issue
       const issuesRes = await getMagazineIssuesAction();
       if (issuesRes?.success && issuesRes.data) {
@@ -271,6 +319,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"E",location:"builder/[id]/page.tsx:loadData",msg:"[DEBUG] Builder received story library response",data:{issueId:id,success:Boolean(storyLibraryRes?.success),storyLibraryCount:Array.isArray(storyLibraryRes?.data)?storyLibraryRes.data.length:0},ts:Date.now()})}).catch(()=>{});
         // #endregion
         if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
+          loadedStoryLibrary = storyLibraryRes.data;
           setIssue((prev) => ({
             ...prev,
             storyLibrary: storyLibraryRes.data,
@@ -281,16 +330,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // Load Pages
       const pagesRes = await getMagazinePagesAction(id);
       if (pagesRes?.success && pagesRes.data) {
-        const sortedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
-        setPages(sortedPages);
+        loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
       }
+
+      if (!isNew && loadedStoryLibrary.length > 0) {
+        loadedPages = await syncStoryLibrarySpreads(loadedStoryLibrary, loadedPages, {
+          suppressToast: silent,
+        });
+      }
+
+      setPages(loadedPages);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load magazine data');
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [id]);
+  }, [id, isNew]);
 
   useEffect(() => {
     if (!isNew) {
@@ -346,6 +402,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           storyLibrary: Array.isArray(res.data) ? res.data : storyLibrary,
         }));
         toast.success('Story library saved');
+        await loadData(true);
       } else {
         toast.error(res.error || 'Failed to save story library');
       }
@@ -356,11 +413,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleStoryLibraryImported = (storyLibrary: any[]) => {
+  const handleStoryLibraryImported = async (storyLibrary: any[]) => {
     setIssue((prev) => ({
       ...prev,
       storyLibrary: Array.isArray(storyLibrary) ? storyLibrary : prev.storyLibrary || [],
     }));
+
+    if (!isNew) {
+      await loadData(true);
+    }
   };
 
   const handleRemoveStoryLibraryItem = async (storyId: string) => {
@@ -386,48 +447,73 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const buildManualContentFromStory = (story: any, pageType: string) => {
+  function buildManualContentFromStory(story: any, pageType: string) {
     const storyTitle = String(story.title || '').trim();
     const storyAuthor = String(story.author || '').trim();
     const storyText = String(story.text || '').trim();
     const storyImage = String(story.imageUrl || '').trim();
+    const storyStandfirst = String(story.standfirst || '').trim();
+    const storyQuote = storyStandfirst || (storyText ? `${storyText.substring(0, 140).trim()}...` : '');
 
     switch (pageType) {
       case 'editorial':
         return {
           title: storyTitle || 'Editorial',
           author: storyAuthor || 'Gill Laidler',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'column':
         return {
           title: storyTitle || 'Expert Column',
           author: storyAuthor || 'Guest Contributor',
+          category: String(story.premiumReaderContentType || 'Expert Column'),
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'feature-left':
       case 'feature-right':
         return {
           name: storyAuthor || 'Featured Guest',
           title: storyTitle || 'Feature Story',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
-          quote: storyText ? `${storyText.substring(0, 100)}...` : '',
+          featureImage: storyImage,
+          quote: storyQuote,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'spotlight':
         return {
           title: storyTitle || 'Member Spotlight',
           name: storyAuthor || 'Member Name',
+          role: storyStandfirst,
           bio: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          message: storyQuote,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'lifestyle':
         return {
           title: storyTitle || 'Lifestyle',
+          kicker: 'Lifestyle',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'partner':
         return {
@@ -436,27 +522,121 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           headline: storyTitle || 'Partner Feature',
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          offer: storyStandfirst,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'back-cover':
         return {
           title: storyTitle || 'Next Edition',
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'full-page-ad':
         return {
           title: storyTitle || 'Advertisement',
           image: storyImage,
           alt: storyTitle || 'Advertisement',
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       default:
         return {
           title: storyTitle,
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
     }
-  };
+  }
+
+  async function syncStoryLibrarySpreads(
+    storyLibrary: any[],
+    currentPages: MagazinePage[],
+    options?: { suppressToast?: boolean },
+  ) {
+    if (isNew || !Array.isArray(storyLibrary) || storyLibrary.length === 0) {
+      return currentPages;
+    }
+
+    const existingKeys = new Set<string>();
+    for (const page of currentPages) {
+      for (const key of getPageIdentityKeys(page)) {
+        existingKeys.add(key);
+      }
+    }
+
+    let nextPages = [...currentPages];
+    let nextPageNumber = nextPages.reduce((max, page) => Math.max(max, page.id || 0), 0);
+    let createdCount = 0;
+
+    const candidateStories = [...storyLibrary]
+      .filter((story) => story && story.includedInPremiumReader !== false)
+      .sort((left, right) => {
+        const leftPriority = typeof left?.premiumReaderPriority === 'number' ? left.premiumReaderPriority : 999;
+        const rightPriority = typeof right?.premiumReaderPriority === 'number' ? right.premiumReaderPriority : 999;
+        if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+        return String(left?.title || '').localeCompare(String(right?.title || ''));
+      });
+
+    for (const story of candidateStories) {
+      const storyKeys = getStoryIdentityKeys(story);
+      if (storyKeys.length === 0 || storyKeys.some((key) => existingKeys.has(key))) {
+        continue;
+      }
+
+      const type = inferBuilderPageTypeFromStory(story);
+      const newPage = {
+        id: ++nextPageNumber,
+        type,
+        storyId: String(story.id || '').trim() || undefined,
+        sourceRef: String(story.sourceRef || '').trim() || undefined,
+        generatedFromStoryLibrary: true,
+        content: buildManualContentFromStory(story, type),
+        createdAt: new Date().toISOString(),
+      };
+
+      const res = await addMagazinePageAction(id, newPage);
+      if (!res.success || !res.id) {
+        toast.error(res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`);
+        continue;
+      }
+
+      const persistedPage: MagazinePage = {
+        ...newPage,
+        docId: String(res.id),
+      };
+      nextPages = [...nextPages, persistedPage];
+      createdCount += 1;
+
+      for (const key of storyKeys) {
+        existingKeys.add(key);
+      }
+      for (const key of getPageIdentityKeys(persistedPage)) {
+        existingKeys.add(key);
+      }
+    }
+
+    if (createdCount > 0) {
+      const sortedNextPages = [...nextPages].sort((left, right) => (left.id || 0) - (right.id || 0));
+      await syncContentsPage(sortedNextPages);
+
+      if (!options?.suppressToast) {
+        toast.success(`Added ${createdCount} new spread${createdCount === 1 ? '' : 's'} from the Story Library`);
+      }
+
+      return sortedNextPages;
+    }
+
+    return currentPages;
+  }
 
   const handleApplyStoryToSelectedPage = async (story: any) => {
     const selectedPage = pages.find((page) => page.docId === selectedPageId);
