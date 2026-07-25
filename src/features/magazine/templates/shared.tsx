@@ -945,6 +945,32 @@ function FeatureCallout({
   );
 }
 
+function FeatureForegroundImage({
+  src,
+  alt,
+  imageVersion,
+}: {
+  src: string;
+  alt: string;
+  imageVersion: string;
+}) {
+  const imageSrc = String(src || "").trim();
+  if (!imageSrc) return null;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
+      <div className="relative aspect-[4/3]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fixMagazineImageUrl(imageSrc, imageVersion)}
+          alt={alt}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </div>
+    </div>
+  );
+}
+
 function getFeatureTypography(weightInput: unknown) {
   const parsedWeight = Number(weightInput);
   const weight =
@@ -1840,6 +1866,13 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   )}
                 </h2>
               )}
+              {featureImage && (
+                <FeatureForegroundImage
+                  src={featureImage}
+                  alt={data.title || data.name || kicker || "Feature"}
+                  imageVersion={imageVersion}
+                />
+              )}
               {leadHtml && (
                 <SafeText
                   html={leadHtml}
@@ -2151,6 +2184,13 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                         "font-serif italic text-[#a3413a]",
                       )}
                     </h2>
+                  )}
+                  {featureImage && (
+                    <FeatureForegroundImage
+                      src={featureImage}
+                      alt={data.title || data.name || "Feature"}
+                      imageVersion={imageVersion}
+                    />
                   )}
                   {leadHtml && (
                     <SafeText
