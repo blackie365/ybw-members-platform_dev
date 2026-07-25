@@ -966,19 +966,66 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeletePage = async (pageDocId: string) => {
-    if (!confirm('Are you sure you want to delete this spread?')) return;
+    const pageToDelete = pages.find((page) => page.docId === pageDocId);
+    const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
+    const confirmMessage = isGeneratedSpread
+      ? 'Are you sure you want to delete this spread? This will also stop it being regenerated from the Story Library.'
+      : 'Are you sure you want to delete this spread?';
+
+    if (!confirm(confirmMessage)) return;
     setSaving(true);
     try {
-      const res = await deleteMagazinePageAction(id, pageDocId);
-      if (res.success) {
-        const nextPages = pages.filter((page) => page.docId !== pageDocId);
-        await syncContentsPage(nextPages);
-        toast.success('Spread removed');
-        if (selectedPageId === pageDocId) setSelectedPageId(null);
-        await loadData(true);
+      if (isGeneratedSpread && pageToDelete && Array.isArray(issue.storyLibrary)) {
+        const pageKeys = new Set(getPageIdentityKeys(pageToDelete));
+        const nextStoryLibrary = issue.storyLibrary.map((story) => {
+          const storyKeys = getStoryIdentityKeys(story);
+          const matchesDeletedPage =
+            storyKeys.length > 0 && storyKeys.some((key) => pageKeys.has(key));
+
+          if (!matchesDeletedPage || story.includedInPremiumReader === false) {
+            return story;
+          }
+
+          return {
+            ...story,
+            includedInPremiumReader: false,
+          };
+        });
+
+        const changedStoryLibrary = nextStoryLibrary.some(
+          (story, index) =>
+            story.includedInPremiumReader !== issue.storyLibrary?.[index]?.includedInPremiumReader,
+        );
+
+        if (changedStoryLibrary) {
+          const storyLibraryRes = await saveMagazineStoryLibraryAction(id, nextStoryLibrary);
+          if (!storyLibraryRes.success) {
+            throw new Error(storyLibraryRes.error || 'Failed to update Story Library inclusion');
+          }
+
+          const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
+            ? storyLibraryRes.data
+            : nextStoryLibrary;
+
+          setIssue((prev) => ({
+            ...prev,
+            storyLibrary: persistedStoryLibrary,
+          }));
+        }
       }
+
+      const res = await deleteMagazinePageAction(id, pageDocId);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to delete spread');
+      }
+
+      const nextPages = pages.filter((page) => page.docId !== pageDocId);
+      await syncContentsPage(nextPages);
+      toast.success('Spread removed');
+      if (selectedPageId === pageDocId) setSelectedPageId(null);
+      await loadData(true);
     } catch (error) {
-      toast.error('Error deleting spread');
+      toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {
       setSaving(false);
     }
