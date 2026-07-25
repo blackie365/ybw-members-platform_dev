@@ -37,11 +37,25 @@ function detectTitleFrame(
   if (wordCount > 20) return false;
 
   const hasTitleStyle = story.paragraphStyles.some((s) =>
-    /article.?heading|title|heading|cover.?title|headline/i.test(s),
+    /article.?heading|cover.?title|headline/i.test(s),
   );
 
   if (hasTitleStyle) return true;
   return frameIndex === 0 && wordCount <= 12;
+}
+
+function shouldIgnoreDecorativeStory(story: ParsedIdmlStory | undefined): boolean {
+  const text = String(story?.title || story?.text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return true;
+  if (/^\<\?ace/i.test(text)) return true;
+  if (/^yorkshire\s*business\s*woman$/i.test(text)) return true;
+  if (/^yorkshirebusinesswoman$/i.test(text.replace(/\s+/g, ""))) return true;
+  if (/^(contents|disclosure|bookcase|member profile)$/i.test(text)) return true;
+  if (/^digital copy available/i.test(text)) return true;
+  if (/^grow your business with yorkshire businesswoman/i.test(text)) return true;
+  return false;
 }
 
 function detectAdPage(page: ParsedIdmlPage): boolean {
@@ -86,7 +100,11 @@ function getOrderedPageStoryEntries(
 ): OrderedPageStoryEntry[] {
   const seen = new Set<string>();
   const orderedEntries = [...page.frames]
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => {
+      if (a.top !== b.top) return a.top - b.top;
+      if (a.left !== b.left) return a.left - b.left;
+      return a.order - b.order;
+    })
     .map((frame) => ({
       frame,
       story: page.stories.find((story) => story.id === frame.storyId),
@@ -117,6 +135,10 @@ function getOrderedPageStoryEntries(
         isTitle: false,
         position: "right" as const,
         order: Number.MAX_SAFE_INTEGER,
+        top: Number.MAX_SAFE_INTEGER,
+        left: Number.MAX_SAFE_INTEGER,
+        bottom: Number.MAX_SAFE_INTEGER,
+        right: Number.MAX_SAFE_INTEGER,
       },
       story,
     }));
@@ -157,6 +179,41 @@ function getBodyTextFromStoryEntries(
     .filter(Boolean)
     .join("\n\n")
     .trim();
+}
+
+function isArticleTitleEntry(
+  entry: OrderedPageStoryEntry | undefined,
+  frameIndex: number,
+): boolean {
+  if (!entry?.frame?.isTitle) return false;
+  if (shouldIgnoreDecorativeStory(entry.story)) return false;
+  return detectTitleFrame(entry.story, frameIndex);
+}
+
+function tokenizeArticleText(value: string): string[] {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 4);
+}
+
+function scoreStoryAgainstTitle(story: ParsedIdmlStory | undefined, title: string): number {
+  const titleTokens = new Set(tokenizeArticleText(title));
+  if (titleTokens.size === 0) return 0;
+
+  const storyTokens = new Set(
+    tokenizeArticleText(
+      [story?.title || "", String(story?.text || "").slice(0, 280)].join(" "),
+    ),
+  );
+
+  let score = 0;
+  for (const token of titleTokens) {
+    if (storyTokens.has(token)) score += 1;
+  }
+  return score;
 }
 
 function addPagePosition(
@@ -231,6 +288,38 @@ function createPageId(prefix: string, value: string | number): string {
 
 export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
   const articles: Article[] = [];
+  const articleTitlesByPage = new Map<number, string[]>();
+  for (const page of pages) {
+    const orderedEntries = getOrderedPageStoryEntries(page);
+    articleTitlesByPage.set(
+      page.pageNumber,
+      orderedEntries
+        .filter((entry, idx) => isArticleTitleEntry(entry, idx))
+        .map((entry) => String(entry.story.title || entry.story.text || "").trim())
+        .filter(Boolean),
+    );
+  }
+
+  function storyBelongsToLaterTitle(
+    story: ParsedIdmlStory | undefined,
+    currentTitle: string,
+    currentPage: number,
+  ) {
+    if (!story) return false;
+
+    const currentScore = scoreStoryAgainstTitle(story, currentTitle);
+
+    let bestLaterScore = 0;
+    for (let pageNumber = currentPage + 1; pageNumber <= currentPage + 2; pageNumber++) {
+      const titles = articleTitlesByPage.get(pageNumber) || [];
+      for (const title of titles) {
+        bestLaterScore = Math.max(bestLaterScore, scoreStoryAgainstTitle(story, title));
+      }
+    }
+
+    return bestLaterScore >= 2 && bestLaterScore > Math.max(currentScore, 0);
+  }
+
   let currentArticle: {
     title: string;
     author: string;
@@ -250,9 +339,9 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       continue;
     }
 
-      const orderedEntries: OrderedPageStoryEntry[] = getOrderedPageStoryEntries(page);
-    const titleFrameIdx = orderedEntries.findIndex(({ story }, idx) =>
-      detectTitleFrame(story, idx),
+    const orderedEntries: OrderedPageStoryEntry[] = getOrderedPageStoryEntries(page);
+    const titleFrameIdx = orderedEntries.findIndex((entry, idx) =>
+      isArticleTitleEntry(entry, idx),
     );
 
     if (titleFrameIdx >= 0) {
@@ -263,7 +352,15 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       const priorStoryIds: Set<string> = currentArticle?.storyIds || new Set<string>();
       const openingEntries: OrderedPageStoryEntry[] = orderedEntries
         .filter((entry) => entry.story.id !== titleStory?.id)
-        .filter((entry) => !priorStoryIds.has(entry.story.id));
+        .filter((entry) => !priorStoryIds.has(entry.story.id))
+        .filter((entry) => !shouldIgnoreDecorativeStory(entry.story))
+        .filter((entry) =>
+          !storyBelongsToLaterTitle(
+            entry.story,
+            String(titleStory?.title || titleStory?.text || ""),
+            page.pageNumber,
+          ),
+        );
       const openingBody = getBodyTextFromStoryEntries(openingEntries);
       const openingStoryIds: Set<string> = new Set(
         openingEntries.map((entry) => entry.story.id).filter(Boolean),
