@@ -429,10 +429,7 @@ export default async function NewEditionPage() {
             {/* Legacy Issues (magazine_issues) */}
             {mergedIssues.map((issue: any) => (
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
-                <Link 
-                  href={`/magazine/issue/${issue.id}`}
-                  className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
-                >
+                <div className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={fixMagazineImageUrl(issue.coverImage, IMAGE_VERSION)}
@@ -449,7 +446,7 @@ export default async function NewEditionPage() {
                       <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">LATEST</Badge>
                     </div>
                   )}
-                </Link>
+                </div>
 
                 <div className="flex flex-1 flex-col p-6 items-center">
                   <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
@@ -465,20 +462,19 @@ export default async function NewEditionPage() {
                   
                   <div className="mt-auto flex flex-col gap-2 w-full">
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                        <Link href={`/magazine/issue/${issue.id}`}>
-                          {issue.isLatest ? 'Open Live Issue' : 'Open Edition'}
-                        </Link>
-                      </Button>
                       {issue.pdfUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                          <Link href={issue.pdfUrl}>PDF</Link>
+                          <Link href={issue.pdfUrl} target="_blank" rel="noreferrer">PDF</Link>
                         </Button>
                       ) : issue.flipbookUrl ? (
                         <Button variant="secondary" size="sm" className="rounded-full text-[10px] h-8" asChild>
                           <Link href={issue.flipbookUrl} target="_blank" rel="noreferrer">Issuu</Link>
                         </Button>
-                      ) : null}
+                      ) : (
+                        <div className="col-span-2 rounded-full border border-dashed border-border px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          Legacy Archive
+                        </div>
+                      )}
                       {isAdmin && issue?.id && (
                         <Button
                           variant="outline"
