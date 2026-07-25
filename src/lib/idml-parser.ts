@@ -7,6 +7,10 @@ export interface ParsedFrame {
   isTitle: boolean;
   position: 'left' | 'right' | 'full';
   order: number;
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
 }
 
 export interface ParsedIdmlStory {
@@ -128,6 +132,36 @@ function extractFileNameFromUri(uri: string, fallbackFormat?: string): string {
   return 'embedded-asset.bin';
 }
 
+function getFrameBounds(frame: any): {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+} {
+  const pathPoints = frame.getElementsByTagName('PathPointType');
+  const verticals: number[] = [];
+  const horizontals: number[] = [];
+
+  for (let i = 0; i < pathPoints.length; i++) {
+    const anchor = String(pathPoints[i].getAttribute('Anchor') || '').trim();
+    if (!anchor) continue;
+    const [vertical, horizontal] = anchor.split(/\s+/).map(Number);
+    if (Number.isFinite(vertical)) verticals.push(vertical);
+    if (Number.isFinite(horizontal)) horizontals.push(horizontal);
+  }
+
+  if (verticals.length === 0 || horizontals.length === 0) {
+    return { top: 0, left: 0, bottom: 0, right: 0 };
+  }
+
+  return {
+    top: Math.min(...verticals),
+    left: Math.min(...horizontals),
+    bottom: Math.max(...verticals),
+    right: Math.max(...horizontals),
+  };
+}
+
 function isTitleFrame(
   story: ParsedIdmlStory | undefined,
   frameIndex: number,
@@ -138,7 +172,7 @@ function isTitleFrame(
   if (!text) return false;
 
   const hasTitleStyle = story.paragraphStyles.some((s) =>
-    /article.?heading|title|heading|cover.?title|headline/i.test(s),
+    /article.?heading|cover.?title|headline/i.test(s),
   );
 
   const wordCount = countWords(text);
@@ -254,6 +288,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const frame = textFrames[i];
     const frameSelf = frame.getAttribute('Self') || '';
     const parentStory = frame.getAttribute('ParentStory') || '';
+    const bounds = getFrameBounds(frame);
 
     const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
     const frameX = frameTransform[4] || 0;
@@ -266,6 +301,10 @@ function parseSpreadFrames(spreadXml: string): Array<{
       isTitle: false,
       position,
       order: frameOrder++,
+      top: bounds.top,
+      left: bounds.left,
+      bottom: bounds.bottom,
+      right: bounds.right,
     });
   }
 
