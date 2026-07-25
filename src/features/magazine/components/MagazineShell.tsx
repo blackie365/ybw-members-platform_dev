@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -44,11 +44,11 @@ function formatEditionDate(dateString: string): string {
 
 export default function MagazineShell({ edition }: MagazineShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
-  const [direction, setDirection] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState("");
   const [renderersLoaded, setRenderersLoaded] = useState(false);
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadTemplateRenderers();
@@ -102,7 +102,6 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   const nextPage = useCallback(() => {
     setCurrentPage((prev) => {
       if (prev >= renderedPages.length - 1) return prev;
-      setDirection(1);
       return prev + 1;
     });
   }, [renderedPages.length]);
@@ -110,18 +109,20 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   const prevPage = useCallback(() => {
     setCurrentPage((prev) => {
       if (prev <= 0) return prev;
-      setDirection(-1);
       return prev - 1;
     });
   }, []);
 
   const goToPage = useCallback((index: number) => {
-    setCurrentPage((prev) => {
-      setDirection(index > prev ? 1 : -1);
-      return index;
-    });
+    setCurrentPage(index);
     setIsNavOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (stageRef.current) {
+      stageRef.current.scrollTop = 0;
+    }
+  }, [currentPage]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -187,31 +188,6 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     renderedPages.length > 0
       ? ((currentPage + 1) / renderedPages.length) * 100
       : 0;
-
-  const variants: any = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 36 : -36,
-      opacity: 0,
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1,
-      transition: {
-        x: { type: "spring", stiffness: 240, damping: 30 },
-        opacity: { duration: 0.28 },
-      },
-    },
-    exit: (dir: number) => ({
-      zIndex: 0,
-      x: dir < 0 ? 36 : -36,
-      opacity: 0,
-      transition: {
-        x: { duration: 0.22, ease: "easeOut" },
-        opacity: { duration: 0.18 },
-      },
-    }),
-  };
 
   if (!renderersLoaded) return null;
 
@@ -301,54 +277,36 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
         </button>
 
         <div className="relative mx-auto flex h-full w-full max-w-[1720px] overflow-hidden rounded-[1.35rem] border border-white/[0.08] bg-[#120f0d] text-zinc-900 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_40px_120px_rgba(0,0,0,0.55)]">
-          <AnimatePresence initial={false} custom={direction}>
-            <motion.div
-              key={currentPage}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              drag="x"
-              dragDirectionLock
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.18}
-              onDragEnd={(_, info) => {
-                const swipe = info.offset.x;
-                const swipeY = info.offset.y;
-                const velocity = info.velocity.x;
-                if (Math.abs(swipeY) > Math.abs(swipe) * 1.5) return;
-                if (swipe > 120 || velocity > 650) prevPage();
-                else if (swipe < -120 || velocity < -650) nextPage();
-              }}
-              className="absolute inset-0 h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain scroll-smooth touch-pan-y will-change-transform"
-            >
-              {current?.entry && current.entry.render ? (
-                <current.entry.render
-                  edition={{
-                    title: edition.title,
-                    publishDate: edition.publishDate,
-                    coverImage: edition.coverImage,
-                    description: edition.description,
-                  }}
-                  page={current.page}
-                  viewModel={current.viewModel}
-                  imageVersion={imageVersion}
-                />
-              ) : current ? (
-                <section className="mx-auto max-w-6xl px-6 py-16">
-                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">
-                      Page {current.page.position}
-                    </p>
-                    <h2 className="mt-4 font-serif text-3xl">
-                      {current.label}
-                    </h2>
-                  </div>
-                </section>
-              ) : null}
-            </motion.div>
-          </AnimatePresence>
+          <div
+            ref={stageRef}
+            data-debug-reader-stage="true"
+            className="absolute inset-0 h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain scroll-smooth touch-pan-y"
+          >
+            {current?.entry && current.entry.render ? (
+              <current.entry.render
+                edition={{
+                  title: edition.title,
+                  publishDate: edition.publishDate,
+                  coverImage: edition.coverImage,
+                  description: edition.description,
+                }}
+                page={current.page}
+                viewModel={current.viewModel}
+                imageVersion={imageVersion}
+              />
+            ) : current ? (
+              <section className="mx-auto max-w-6xl px-6 py-16">
+                <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">
+                    Page {current.page.position}
+                  </p>
+                  <h2 className="mt-4 font-serif text-3xl">
+                    {current.label}
+                  </h2>
+                </div>
+              </section>
+            ) : null}
+          </div>
         </div>
       </main>
 
