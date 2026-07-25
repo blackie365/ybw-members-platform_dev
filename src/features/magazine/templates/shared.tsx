@@ -809,6 +809,76 @@ function addClassToFirstParagraph(html: string, className: string) {
   });
 }
 
+function buildFeatureTextSections(
+  data: any,
+  options?: { dropCap?: boolean },
+): { leadHtml: string; bodyBlocks: string[] } {
+  const dropCap = options?.dropCap ?? false;
+  const introSource = String(
+    data.intro || data.standfirst || data.subheadline || "",
+  ).trim();
+  const sourceBody = String(data.text || data.textarea || data.body || "").trim();
+  const initialBodyBlocks = getHtmlBlocks(sourceBody);
+
+  if (introSource) {
+    return {
+      leadHtml: dropCap
+        ? addClassToFirstParagraph(introSource, "editorial-dropcap")
+        : introSource,
+      bodyBlocks: initialBodyBlocks,
+    };
+  }
+
+  if (initialBodyBlocks.length === 0) {
+    return { leadHtml: "", bodyBlocks: [] };
+  }
+
+  const [firstBlock, ...remainingBlocks] = initialBodyBlocks;
+  return {
+    leadHtml: dropCap
+      ? addClassToFirstParagraph(firstBlock, "editorial-dropcap")
+      : firstBlock,
+    bodyBlocks: remainingBlocks,
+  };
+}
+
+function FeatureCallout({
+  text,
+  variant,
+  className,
+}: {
+  text: string;
+  variant: "light" | "dark";
+  className?: string;
+}) {
+  const content = String(text || "").trim();
+  if (!content) return null;
+
+  return (
+    <div
+      className={[
+        "rounded-2xl border px-5 py-4 shadow-sm",
+        variant === "dark"
+          ? "border-white/10 bg-white/10 backdrop-blur-sm"
+          : "border-[#e8d5c0] bg-white/80",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <p
+        className={[
+          "font-serif italic leading-[1.45]",
+          variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
+        ].join(" ")}
+        style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
+      >
+        &ldquo;{content}&rdquo;
+      </p>
+    </div>
+  );
+}
+
 function getFeatureTypography(weightInput: unknown) {
   const parsedWeight = Number(weightInput);
   const weight =
@@ -1637,11 +1707,10 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   );
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
-  const introHtml = String(data.intro || "").trim();
-  const bodyHtml = String(data.text || data.textarea || data.body || "").trim();
-  const textBlocks = [...getHtmlBlocks(introHtml), ...getHtmlBlocks(bodyHtml)];
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: false,
+  });
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
-  const bodyBlocks = getHtmlBlocks(bodyHtml);
 
   if (isFullBackground) {
     return (
@@ -1701,19 +1770,18 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   )}
                 </h2>
               )}
-              {data.quote && (
-                <div className="pl-4 py-1 border-l-[3px] border-[#a3413a]">
-                  <p
-                    className="font-serif italic leading-snug text-[#a3413a]"
-                    style={{ fontSize: typography.quoteSize }}
-                  >
-                    &ldquo;{data.quote}&rdquo;
-                  </p>
+              {leadHtml && (
+                <div className="rounded-2xl border border-white/10 bg-black/35 px-5 py-4">
+                  <SafeText
+                    html={leadHtml}
+                    className="font-serif text-[1.12rem] leading-[1.78] text-white/92 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                  />
                 </div>
               )}
-              {textBlocks.length > 0 && (
+              {data.quote && <FeatureCallout text={data.quote} variant="dark" />}
+              {bodyBlocks.length > 0 && (
                 <InterleavedTextWithMedia
-                  blocks={textBlocks}
+                  blocks={bodyBlocks}
                   inlineMedia={inlineMedia}
                   pullQuotes={pullQuotes}
                   imageVersion={imageVersion}
@@ -1838,22 +1906,17 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
             {renderTitleArt(data.title, "font-serif italic text-[#a3413a]")}
           </h2>
         )}
-        {data.quote && (
-          <div
-            className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]"
-            style={{ borderColor: "#a3413a" }}
-          >
-            <p
-              className="font-serif italic leading-snug"
-              style={{ color: "#a3413a", fontSize: typography.quoteSize }}
-            >
-              &ldquo;{data.quote}&rdquo;
-            </p>
+        {leadHtml && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
+            <SafeText
+              html={leadHtml}
+              className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+            />
           </div>
         )}
-        {introHtml && (
-          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-            <SafeText html={introHtml} className={typography.introClassName} />
+        {data.quote && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5">
+            <FeatureCallout text={data.quote} variant="light" />
           </div>
         )}
         {bodyBlocks.length > 0 && (
@@ -1951,7 +2014,9 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
-  const textBlocks = getHtmlBlocks(String(data.text || ""));
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: false,
+  });
 
   if (isFullBackground) {
     return (
@@ -2015,19 +2080,18 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                       )}
                     </h2>
                   )}
-                  {data.quote && (
-                    <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                      <p
-                        className="font-serif italic leading-[1.45] text-[#a3413a]"
-                        style={{ fontSize: typography.quoteSize }}
-                      >
-                        &ldquo;{data.quote}&rdquo;
-                      </p>
+                  {leadHtml && (
+                    <div className="rounded-2xl border border-white/10 bg-black/35 px-5 py-4">
+                      <SafeText
+                        html={leadHtml}
+                        className="font-serif text-[1.08rem] leading-[1.78] text-white/90 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                      />
                     </div>
                   )}
-                  {textBlocks.length > 0 && (
+                  {data.quote && <FeatureCallout text={data.quote} variant="dark" />}
+                  {bodyBlocks.length > 0 && (
                     <InterleavedTextWithMedia
-                      blocks={textBlocks}
+                      blocks={bodyBlocks}
                       inlineMedia={inlineMedia}
                       pullQuotes={pullQuotes}
                       imageVersion={imageVersion}
@@ -2107,19 +2171,16 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                 {renderTitleArt(data.title, "font-serif italic text-[#a3413a]")}
               </h2>
             )}
-            {data.quote && (
-              <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                <p
-                  className="font-serif italic leading-[1.45] text-[#a3413a]"
-                  style={{ fontSize: typography.quoteSize }}
-                >
-                  &ldquo;{data.quote}&rdquo;
-                </p>
-              </div>
+            {leadHtml && (
+              <SafeText
+                html={addClassToFirstParagraph(leadHtml, "editorial-dropcap")}
+                className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+              />
             )}
-            {textBlocks.length > 0 && (
+            {data.quote && <FeatureCallout text={data.quote} variant="light" />}
+            {bodyBlocks.length > 0 && (
               <InterleavedTextWithMedia
-                blocks={textBlocks}
+                blocks={bodyBlocks}
                 inlineMedia={inlineMedia}
                 pullQuotes={pullQuotes}
                 imageVersion={imageVersion}
