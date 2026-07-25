@@ -896,6 +896,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
   const featureImageExplicit = String(data.featureImage || "").trim();
   const featureImage = featureImageExplicit || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
+  const shouldRenderFeatureImage = Boolean(featureImage);
   const additionalMedia = getAdditionalMedia(
     data,
     String(data.headline || data.title || "Cover").trim(),
@@ -905,7 +906,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
       {backgroundMedia ? (
         <div
-          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${featureImageExplicit ? "blur-xl opacity-50 scale-110" : ""}`}
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${shouldRenderFeatureImage ? "blur-xl opacity-50 scale-110" : ""}`}
           style={{
             backgroundImage: `url('${fixMagazineImageUrl(backgroundMedia, imageVersion)}')`,
           }}
@@ -963,7 +964,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
         <div
           className={[
             "max-w-xl",
-            featureImageExplicit ? "lg:col-span-6" : "lg:col-span-12",
+            shouldRenderFeatureImage ? "lg:col-span-6" : "lg:col-span-12",
           ].join(" ")}
         >
           <div className="cover-animate opacity-0 mb-7">
@@ -1041,12 +1042,12 @@ export const PageCover = ({ data, imageVersion }: any) => {
           )}
         </div>
 
-        {featureImageExplicit ? (
+        {shouldRenderFeatureImage ? (
           <div className="hidden lg:block lg:col-span-6 cover-animate opacity-0">
             <div className="relative mx-auto w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_28px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={fixMagazineImageUrl(featureImageExplicit, imageVersion)}
+                src={fixMagazineImageUrl(featureImage, imageVersion)}
                 alt={String(
                   data.headline || data.title || "Cover Feature",
                 ).trim()}
