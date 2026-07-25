@@ -22,6 +22,38 @@ export const metadata: Metadata = {
   },
 };
 
+function normalizeEditionText(value: string | null | undefined): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getEditionMonthKey(value: string | null | undefined): string {
+  const parsed = new Date(String(value || ''));
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function editionRecordsMatch(
+  issue: { title?: string; publishDate?: string },
+  edition: { title?: string; publishDate?: string },
+): boolean {
+  const issueTitle = normalizeEditionText(issue.title);
+  const editionTitle = normalizeEditionText(edition.title);
+  const titlesMatch = Boolean(issueTitle && editionTitle) && (
+    issueTitle === editionTitle ||
+    issueTitle.includes(editionTitle) ||
+    editionTitle.includes(issueTitle)
+  );
+
+  const issueMonth = getEditionMonthKey(issue.publishDate);
+  const editionMonth = getEditionMonthKey(edition.publishDate);
+  const monthMatches = Boolean(issueMonth && editionMonth) && issueMonth === editionMonth;
+
+  return titlesMatch || monthMatches;
+}
+
 export default async function NewEditionPage() {
   const [issues, ghostPosts, readerEditions] = await Promise.all([
     getMagazineIssuesServer(),
@@ -30,14 +62,26 @@ export default async function NewEditionPage() {
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
-  const flipbookIssue = issues.find((issue) => issue.flipbookUrl || issue.pdfUrl) ?? liveIssue;
+  const latestReaderEdition = readerEditions[0] ?? null;
+  const matchedLatestLegacyIssue = latestReaderEdition
+    ? issues.find((issue) => editionRecordsMatch(issue, latestReaderEdition)) ?? null
+    : null;
+  const flipbookIssue = latestReaderEdition
+    ? matchedLatestLegacyIssue && (matchedLatestLegacyIssue.flipbookUrl || matchedLatestLegacyIssue.pdfUrl)
+      ? matchedLatestLegacyIssue
+      : null
+    : issues.find((issue) => issue.featureInFlipbook && (issue.flipbookUrl || issue.pdfUrl))
+      ?? issues.find((issue) => issue.isLatest && (issue.flipbookUrl || issue.pdfUrl))
+      ?? issues.find((issue) => issue.flipbookUrl || issue.pdfUrl)
+      ?? liveIssue;
   const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-  const mergedIssues = issues;
+  const mergedIssues = issues.filter((issue) => (
+    !readerEditions.some((edition) => editionRecordsMatch(issue, edition))
+  ));
   const featuredPost = ghostPosts[0];
 
   // Latest reader edition (IDML-imported) takes precedence wherever we feature the current edition.
-  const latestReaderEdition = readerEditions[0] ?? null;
   const featuredEditionUrl = latestReaderEdition
     ? `/magazine/read/${latestReaderEdition.slug}`
     : liveIssue
