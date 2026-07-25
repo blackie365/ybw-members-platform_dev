@@ -13,14 +13,19 @@ export interface Article {
   startPage: number;
   endPage: number;
   pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>;
+  pageBodies: Record<number, string>;
 }
+
+type OrderedPageStoryEntry = {
+  frame: ParsedIdmlPage["frames"][number];
+  story: ParsedIdmlStory;
+};
 
 function detectTitleFrame(
   story: ParsedIdmlStory | undefined,
   frameIndex: number,
 ): boolean {
   if (!story) return false;
-  if (frameIndex !== 0) return false;
 
   const text = (story.text || "").trim();
   if (!text) return false;
@@ -35,7 +40,8 @@ function detectTitleFrame(
     /article.?heading|title|heading|cover.?title|headline/i.test(s),
   );
 
-  return hasTitleStyle || wordCount <= 12;
+  if (hasTitleStyle) return true;
+  return frameIndex === 0 && wordCount <= 12;
 }
 
 function detectAdPage(page: ParsedIdmlPage): boolean {
@@ -75,6 +81,47 @@ function getOrderedPageStories(page: ParsedIdmlPage): ParsedIdmlStory[] {
   });
 }
 
+function getOrderedPageStoryEntries(
+  page: ParsedIdmlPage,
+): OrderedPageStoryEntry[] {
+  const seen = new Set<string>();
+  const orderedEntries = [...page.frames]
+    .sort((a, b) => a.order - b.order)
+    .map((frame) => ({
+      frame,
+      story: page.stories.find((story) => story.id === frame.storyId),
+    }))
+    .filter(
+      (
+        entry,
+      ): entry is OrderedPageStoryEntry => Boolean(entry.story),
+    )
+    .filter((entry) => {
+      if (seen.has(entry.story.id)) return false;
+      seen.add(entry.story.id);
+      return true;
+    });
+
+  if (orderedEntries.length > 0) return orderedEntries;
+
+  return page.stories
+    .filter((story) => {
+      if (seen.has(story.id)) return false;
+      seen.add(story.id);
+      return true;
+    })
+    .map((story) => ({
+      frame: {
+        frameSelf: `story-${story.id}`,
+        storyId: story.id,
+        isTitle: false,
+        position: "right" as const,
+        order: Number.MAX_SAFE_INTEGER,
+      },
+      story,
+    }));
+}
+
 function getPageTitleStoryIds(page: ParsedIdmlPage): Set<string> {
   return new Set(
     page.frames
@@ -100,6 +147,52 @@ function getPageBodyText(
     .trim();
   if (text || includeTitleStories) return text;
   return getPageBodyText(page, true);
+}
+
+function getBodyTextFromStoryEntries(
+  entries: Array<{ story: ParsedIdmlStory }>,
+): string {
+  return entries
+    .map((entry) => entry.story.text.trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+}
+
+function addPagePosition(
+  pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>,
+  page: number,
+  position: "left" | "right" | "full",
+) {
+  if (pagePositions.some((entry) => entry.page === page)) return;
+  pagePositions.push({ page, position });
+}
+
+function pushArticle(
+  articles: Article[],
+  article: {
+    title: string;
+    author: string;
+    bodyParts: string[];
+    images: string[];
+    startPage: number;
+    endPage: number;
+    pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>;
+    pageBodies: Record<number, string>;
+    storyIds?: Set<string>;
+  } | null,
+) {
+  if (!article) return;
+  articles.push({
+    title: article.title,
+    author: article.author,
+    body: article.bodyParts.join("\n\n"),
+    images: article.images,
+    startPage: article.startPage,
+    endPage: article.endPage,
+    pagePositions: article.pagePositions,
+    pageBodies: article.pageBodies,
+  });
 }
 
 function getPageImages(
@@ -146,52 +239,40 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
     startPage: number;
     endPage: number;
     pagePositions: Array<{ page: number; position: "left" | "right" | "full" }>;
+    pageBodies: Record<number, string>;
+    storyIds: Set<string>;
   } | null = null;
 
   for (const page of pages) {
     if (detectAdPage(page)) {
-      if (currentArticle) {
-        articles.push({
-          title: currentArticle.title,
-          author: currentArticle.author,
-          body: currentArticle.bodyParts.join("\n\n"),
-          images: currentArticle.images,
-          startPage: currentArticle.startPage,
-          endPage: currentArticle.endPage,
-          pagePositions: currentArticle.pagePositions,
-        });
-        currentArticle = null;
-      }
+      pushArticle(articles, currentArticle);
+      currentArticle = null;
       continue;
     }
 
-    const titleFrameIdx = page.frames.findIndex((f, idx) => {
-      const story = page.stories.find((s) => s.id === f.storyId);
-      return detectTitleFrame(story, idx);
-    });
+      const orderedEntries: OrderedPageStoryEntry[] = getOrderedPageStoryEntries(page);
+    const titleFrameIdx = orderedEntries.findIndex(({ story }, idx) =>
+      detectTitleFrame(story, idx),
+    );
 
     if (titleFrameIdx >= 0) {
-      if (currentArticle) {
-        articles.push({
-          title: currentArticle.title,
-          author: currentArticle.author,
-          body: currentArticle.bodyParts.join("\n\n"),
-          images: currentArticle.images,
-          startPage: currentArticle.startPage,
-          endPage: currentArticle.endPage,
-          pagePositions: currentArticle.pagePositions,
-        });
-      }
+      const titleEntry: OrderedPageStoryEntry | undefined = orderedEntries[titleFrameIdx];
+      const titleStory = titleEntry?.story;
+      pushArticle(articles, currentArticle);
 
-      const titleStory = page.stories.find(
-        (s) => s.id === page.frames[titleFrameIdx].storyId,
+      const priorStoryIds: Set<string> = currentArticle?.storyIds || new Set<string>();
+      const openingEntries: OrderedPageStoryEntry[] = orderedEntries
+        .filter((entry) => entry.story.id !== titleStory?.id)
+        .filter((entry) => !priorStoryIds.has(entry.story.id));
+      const openingBody = getBodyTextFromStoryEntries(openingEntries);
+      const openingStoryIds: Set<string> = new Set(
+        openingEntries.map((entry) => entry.story.id).filter(Boolean),
       );
 
       currentArticle = {
         title: titleStory?.title || "",
         author: "",
         bodyParts: (() => {
-          const openingBody = getPageBodyText(page);
           if (openingBody) return [openingBody];
           return titleStory?.text ? [titleStory.text] : [];
         })(),
@@ -201,44 +282,36 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         pagePositions: [
           {
             page: page.pageNumber,
-            position: page.frames[titleFrameIdx].position,
+            position: titleEntry?.frame.position || page.frames[0]?.position || "right",
           },
         ],
+        pageBodies: {
+          [page.pageNumber]: openingBody || titleStory?.text || "",
+        },
+        storyIds: openingStoryIds,
       };
     } else if (currentArticle) {
-      currentArticle.endPage = page.pageNumber;
+      const freshEntries = orderedEntries.filter(
+        (entry) => !currentArticle?.storyIds.has(entry.story.id),
+      );
+      const pageBody = getBodyTextFromStoryEntries(freshEntries);
 
-      for (const story of page.stories) {
-        currentArticle.bodyParts.push(story.text);
-      }
-
-      currentArticle.images.push(...getPageImages(page));
-
-      for (const frame of page.frames) {
-        const existing = currentArticle.pagePositions.find(
-          (p) => p.page === page.pageNumber,
-        );
-        if (!existing) {
-          currentArticle.pagePositions.push({
-            page: page.pageNumber,
-            position: frame.position,
-          });
+      if (pageBody) {
+        currentArticle.bodyParts.push(pageBody);
+        currentArticle.pageBodies[page.pageNumber] = pageBody;
+        currentArticle.endPage = page.pageNumber;
+        for (const entry of freshEntries) {
+          currentArticle.storyIds.add(entry.story.id);
+        }
+        currentArticle.images.push(...getPageImages(page));
+        for (const frame of page.frames) {
+          addPagePosition(currentArticle.pagePositions, page.pageNumber, frame.position);
         }
       }
     }
   }
 
-  if (currentArticle) {
-    articles.push({
-      title: currentArticle.title,
-      author: currentArticle.author,
-      body: currentArticle.bodyParts.join("\n\n"),
-      images: currentArticle.images,
-      startPage: currentArticle.startPage,
-      endPage: currentArticle.endPage,
-      pagePositions: currentArticle.pagePositions,
-    });
-  }
+  pushArticle(articles, currentArticle);
 
   return articles;
 }
@@ -250,7 +323,7 @@ function buildFeatureContent(
   position: "left" | "right" | "full",
 ): ReaderPageContent {
   const isFirstPage = pageNum === article.startPage;
-  const bodyText = getPageBodyText(page);
+  const bodyText = article.pageBodies[pageNum] || getPageBodyText(page);
   const pageImages = getPageImages(page, article.images);
   const imageUrl = pageImages[0] || article.images[0] || "";
   const standfirst = isFirstPage ? getStandfirst(bodyText || article.body) : "";
