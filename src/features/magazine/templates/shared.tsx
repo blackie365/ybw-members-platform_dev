@@ -85,13 +85,20 @@ export function SafeText({
   let content = html;
   if (!html.includes("<")) {
     const paragraphs = splitPlainTextIntoParagraphs(html);
-    content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
+    content = dedupeTextBlocks(
+      paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+    ).join("");
   } else if (!html.includes("<p") && !html.includes("<br")) {
-    const paragraphs = splitPlainTextIntoParagraphs(html);
-    if (paragraphs.length > 1) {
-      content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
+    const blocks = getHtmlBlocks(html);
+    if (blocks.length > 0) {
+      content = blocks.join("");
     } else {
       content = html.replace(/\n/g, "<br />");
+    }
+  } else {
+    const blocks = getHtmlBlocks(html);
+    if (blocks.length > 0) {
+      content = blocks.join("");
     }
   }
 
@@ -729,6 +736,32 @@ export function renderTitleArt(
   return <>{nodes}</>;
 }
 
+function normalizeRichTextForCompare(value: string) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeTextBlocks(blocks: string[]) {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const block of Array.isArray(blocks) ? blocks : []) {
+    const normalized = normalizeRichTextForCompare(block);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push(block);
+  }
+
+  return deduped;
+}
+
 export function getHtmlBlocks(html: string): string[] {
   if (!html) return [];
   const hasTags = html.includes("<");
@@ -736,7 +769,11 @@ export function getHtmlBlocks(html: string): string[] {
 
   if (hasTags && !html.includes("<p") && normalizedRaw.includes("\n")) {
     const paragraphs = splitPlainTextIntoParagraphs(normalizedRaw);
-    if (paragraphs.length > 1) return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+    if (paragraphs.length > 1) {
+      return dedupeTextBlocks(
+        paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+      );
+    }
   }
 
   if (
@@ -749,7 +786,9 @@ export function getHtmlBlocks(html: string): string[] {
       const body = doc.body;
       const paragraphs = Array.from(body.querySelectorAll("p"));
       if (paragraphs.length > 0)
-        return paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean);
+        return dedupeTextBlocks(
+          paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean),
+        );
 
       const blockTagNames = new Set([
         "h1",
@@ -769,7 +808,9 @@ export function getHtmlBlocks(html: string): string[] {
         blockTagNames.has(el.tagName.toLowerCase()),
       );
       if (blockChildren.length > 0)
-        return blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean);
+        return dedupeTextBlocks(
+          blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean),
+        );
 
       const inner = body.innerHTML.trim();
       if (!inner) return [];
@@ -777,8 +818,10 @@ export function getHtmlBlocks(html: string): string[] {
         .split(/(?:<br\s*\/?>\\s*){2,}/gi)
         .map((p) => p.trim())
         .filter(Boolean);
-      if (parts.length > 1) return parts.map((p) => `<p>${p}</p>`);
-      return [`<p>${inner}</p>`];
+      if (parts.length > 1) {
+        return dedupeTextBlocks(parts.map((p) => `<p>${p}</p>`));
+      }
+      return dedupeTextBlocks([`<p>${inner}</p>`]);
     } catch {}
   }
 
@@ -786,15 +829,17 @@ export function getHtmlBlocks(html: string): string[] {
   if (!hasTags) {
     const paragraphs = splitPlainTextIntoParagraphs(normalized);
     if (paragraphs.length === 0) return [];
-    return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+    return dedupeTextBlocks(
+      paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+    );
   }
 
   const parts = normalized
     .split(/\n{2,}/g)
     .map((p) => p.trim())
     .filter(Boolean);
-  if (parts.length === 0) return [html];
-  return parts;
+  if (parts.length === 0) return dedupeTextBlocks([html]);
+  return dedupeTextBlocks(parts);
 }
 
 function addClassToFirstParagraph(html: string, className: string) {
@@ -810,15 +855,7 @@ function addClassToFirstParagraph(html: string, className: string) {
 }
 
 function normalizeLeadComparisonText(value: string) {
-  return String(value || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return normalizeRichTextForCompare(value);
 }
 
 function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
@@ -970,6 +1007,9 @@ function FeatureForegroundImage({
     </div>
   );
 }
+
+const FEATURE_LEAD_CLASS_NAME =
+  'font-serif italic leading-[1.45] text-[#A3413A] text-[clamp(1.05rem,2vw,1.45rem)] [&_p]:m-0';
 
 function getFeatureTypography(weightInput: unknown) {
   const parsedWeight = Number(weightInput);
@@ -1876,7 +1916,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
               {leadHtml && (
                 <SafeText
                   html={leadHtml}
-                  className="font-serif text-[1.12rem] leading-[1.78] text-white/92 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                  className={FEATURE_LEAD_CLASS_NAME}
                 />
               )}
               {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
@@ -2011,7 +2051,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
           <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
             <SafeText
               html={leadHtml}
-              className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+              className={FEATURE_LEAD_CLASS_NAME}
             />
           </div>
         )}
@@ -2195,7 +2235,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                   {leadHtml && (
                     <SafeText
                       html={leadHtml}
-                      className="font-serif text-[1.08rem] leading-[1.78] text-white/90 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                      className={FEATURE_LEAD_CLASS_NAME}
                     />
                   )}
                   {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
@@ -2284,7 +2324,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
             {leadHtml && (
               <SafeText
                 html={leadHtml}
-                className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+                className={FEATURE_LEAD_CLASS_NAME}
               />
             )}
             {featureQuote && <FeatureCallout text={featureQuote} variant="light" />}
