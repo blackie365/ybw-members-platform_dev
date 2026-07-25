@@ -56,7 +56,32 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     setImageVersion(Date.now().toString());
   }, []);
 
-  const pages = edition.pages;
+  const pages = useMemo(() => {
+    const basePages = Array.isArray(edition.pages) ? [...edition.pages] : [];
+    const hasCoverPage = basePages.some((page) => page.template === "cover");
+
+    if (!hasCoverPage) {
+      basePages.unshift({
+        id: `cover-${edition.slug}`,
+        position: 1,
+        template: "cover",
+        content: {
+          title: edition.title,
+          body: edition.description || "",
+          standfirst: edition.description || "",
+          imageUrl: edition.coverImage || "",
+          imageUrls: edition.coverImage ? [edition.coverImage] : [],
+          kicker: "Digital Edition",
+        },
+      });
+    }
+
+    return basePages.sort((left, right) => {
+      const leftPos = typeof left.position === "number" ? left.position : 0;
+      const rightPos = typeof right.position === "number" ? right.position : 0;
+      return leftPos - rightPos;
+    });
+  }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
 
   const renderedPages = useMemo(() => {
