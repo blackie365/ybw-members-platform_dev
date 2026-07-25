@@ -809,6 +809,31 @@ function addClassToFirstParagraph(html: string, className: string) {
   });
 }
 
+function normalizeLeadComparisonText(value: string) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
+  const quote = String(rawQuote || "").trim();
+  if (!quote) return "";
+
+  const normalizedQuote = normalizeLeadComparisonText(quote);
+  const normalizedLead = normalizeLeadComparisonText(leadHtml);
+  if (normalizedQuote && normalizedQuote === normalizedLead) {
+    return "";
+  }
+
+  return quote;
+}
+
 function buildFeatureTextSections(
   data: any,
   options?: { dropCap?: boolean },
@@ -821,11 +846,24 @@ function buildFeatureTextSections(
   const initialBodyBlocks = getHtmlBlocks(sourceBody);
 
   if (introSource) {
+    const introBlocks = getHtmlBlocks(introSource);
+    const [firstIntroBlock = "", ...remainingIntroBlocks] = introBlocks;
+    const dedupedBodyBlocks = [...remainingIntroBlocks, ...initialBodyBlocks];
+    const normalizedLead = normalizeLeadComparisonText(firstIntroBlock);
+
+    while (
+      normalizedLead &&
+      dedupedBodyBlocks.length > 0 &&
+      normalizeLeadComparisonText(dedupedBodyBlocks[0]) === normalizedLead
+    ) {
+      dedupedBodyBlocks.shift();
+    }
+
     return {
       leadHtml: dropCap
-        ? addClassToFirstParagraph(introSource, "editorial-dropcap")
-        : introSource,
-      bodyBlocks: initialBodyBlocks,
+        ? addClassToFirstParagraph(firstIntroBlock, "editorial-dropcap")
+        : firstIntroBlock,
+      bodyBlocks: dedupedBodyBlocks,
     };
   }
 
@@ -834,11 +872,22 @@ function buildFeatureTextSections(
   }
 
   const [firstBlock, ...remainingBlocks] = initialBodyBlocks;
+  const dedupedRemainingBlocks = [...remainingBlocks];
+  const normalizedLead = normalizeLeadComparisonText(firstBlock);
+
+  while (
+    normalizedLead &&
+    dedupedRemainingBlocks.length > 0 &&
+    normalizeLeadComparisonText(dedupedRemainingBlocks[0]) === normalizedLead
+  ) {
+    dedupedRemainingBlocks.shift();
+  }
+
   return {
     leadHtml: dropCap
       ? addClassToFirstParagraph(firstBlock, "editorial-dropcap")
       : firstBlock,
-    bodyBlocks: remainingBlocks,
+    bodyBlocks: dedupedRemainingBlocks,
   };
 }
 
@@ -1651,7 +1700,7 @@ function PageContinuation({ data }: any) {
                 <SafeText
                   key={`lc-${i}`}
                   html={block}
-                  className={`${typography.continuationBodyClassName} [&_p:first-child]:editorial-dropcap`}
+                  className={`${typography.continuationBodyClassName}${i === 0 ? " [&_p:first-child]:editorial-dropcap" : ""}`}
                 />
               ))}
             </div>
@@ -1710,6 +1759,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
     dropCap: false,
   });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
 
   if (isFullBackground) {
@@ -1771,14 +1821,12 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                 </h2>
               )}
               {leadHtml && (
-                <div className="rounded-2xl border border-white/10 bg-black/35 px-5 py-4">
-                  <SafeText
-                    html={leadHtml}
-                    className="font-serif text-[1.12rem] leading-[1.78] text-white/92 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
-                  />
-                </div>
+                <SafeText
+                  html={leadHtml}
+                  className="font-serif text-[1.12rem] leading-[1.78] text-white/92 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                />
               )}
-              {data.quote && <FeatureCallout text={data.quote} variant="dark" />}
+              {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
               {bodyBlocks.length > 0 && (
                 <InterleavedTextWithMedia
                   blocks={bodyBlocks}
@@ -1914,9 +1962,9 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
             />
           </div>
         )}
-        {data.quote && (
+        {featureQuote && (
           <div className="scroll-reveal scroll-reveal-delay-2 mb-5">
-            <FeatureCallout text={data.quote} variant="light" />
+            <FeatureCallout text={featureQuote} variant="light" />
           </div>
         )}
         {bodyBlocks.length > 0 && (
@@ -2017,6 +2065,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
     dropCap: false,
   });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
 
   if (isFullBackground) {
     return (
@@ -2081,14 +2130,12 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                     </h2>
                   )}
                   {leadHtml && (
-                    <div className="rounded-2xl border border-white/10 bg-black/35 px-5 py-4">
-                      <SafeText
-                        html={leadHtml}
-                        className="font-serif text-[1.08rem] leading-[1.78] text-white/90 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
-                      />
-                    </div>
+                    <SafeText
+                      html={leadHtml}
+                      className="font-serif text-[1.08rem] leading-[1.78] text-white/90 [&_p]:m-0 [&_p:first-child]:text-[#f1ddd8] [&_p:first-child]:font-medium"
+                    />
                   )}
-                  {data.quote && <FeatureCallout text={data.quote} variant="dark" />}
+                  {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
                   {bodyBlocks.length > 0 && (
                     <InterleavedTextWithMedia
                       blocks={bodyBlocks}
@@ -2173,11 +2220,11 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
             )}
             {leadHtml && (
               <SafeText
-                html={addClassToFirstParagraph(leadHtml, "editorial-dropcap")}
+                html={leadHtml}
                 className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
               />
             )}
-            {data.quote && <FeatureCallout text={data.quote} variant="light" />}
+            {featureQuote && <FeatureCallout text={featureQuote} variant="light" />}
             {bodyBlocks.length > 0 && (
               <InterleavedTextWithMedia
                 blocks={bodyBlocks}
