@@ -133,7 +133,6 @@ function isTitleFrame(
   frameIndex: number,
 ): boolean {
   if (!story) return false;
-  if (frameIndex !== 0) return false;
 
   const text = (story.text || '').trim();
   if (!text) return false;
@@ -145,7 +144,8 @@ function isTitleFrame(
   const wordCount = countWords(text);
   const isShort = wordCount <= 15;
 
-  return hasTitleStyle || isShort;
+  if (hasTitleStyle) return true;
+  return frameIndex === 0 && isShort;
 }
 
 function parseSpreadFrames(spreadXml: string): Array<{
