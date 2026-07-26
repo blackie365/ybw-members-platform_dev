@@ -1885,13 +1885,13 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
               {kicker && (
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/70 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
               )}
               {data.name && (
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white">
                   {data.name}
                 </p>
               )}
@@ -1900,10 +1900,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   className="font-serif font-bold leading-tight text-white"
                   style={{ fontSize: typography.titleSize }}
                 >
-                  {renderTitleArt(
-                    data.title,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.title, "font-serif italic text-white")}
                 </h2>
               )}
               {featureImage && (
@@ -1916,10 +1913,16 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
               {leadHtml && (
                 <SafeText
                   html={leadHtml}
-                  className={FEATURE_LEAD_CLASS_NAME}
+                  className={`${FEATURE_LEAD_CLASS_NAME} [&_p]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                 />
               )}
-              {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
+              {featureQuote && (
+                <FeatureCallout
+                  text={featureQuote}
+                  variant="dark"
+                  className="[&_p]:!text-white"
+                />
+              )}
               {bodyBlocks.length > 0 && (
                 <InterleavedTextWithMedia
                   blocks={bodyBlocks}
@@ -1927,7 +1930,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   pullQuotes={pullQuotes}
                   imageVersion={imageVersion}
                   variant="dark"
-                  textClassName={typography.bodyDarkClassName}
+                  textClassName={`${typography.bodyDarkClassName} !text-white [&_p]:!text-white [&_li]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                 />
               )}
               {remainingMedia.length > 0 && (
@@ -1946,10 +1949,10 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                       key={`${stat?.label ?? "stat"}-${i}`}
                       className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm"
                     >
-                      <p className="font-serif font-bold text-2xl text-[#a3413a]">
+                      <p className="font-serif font-bold text-2xl text-white">
                         {stat?.value}
                       </p>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 mt-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white mt-1">
                         {stat?.label}
                       </p>
                     </div>
@@ -2200,7 +2203,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
               <div className="scroll-reveal mb-10">
                 <div className="flex items-center gap-4 w-full min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -2210,7 +2213,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
               <div className="lg:col-span-7 scroll-reveal">
                 <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
                   {nameLabel && (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a]">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                       {nameLabel}
                     </p>
                   )}
@@ -2219,10 +2222,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                       className="text-section-lg font-serif font-600 text-white"
                       style={{ fontSize: typography.titleSize }}
                     >
-                      {renderTitleArt(
-                        data.title,
-                        "font-serif italic text-[#a3413a]",
-                      )}
+                      {renderTitleArt(data.title, "font-serif italic text-white")}
                     </h2>
                   )}
                   {featureImage && (
@@ -2235,10 +2235,16 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                   {leadHtml && (
                     <SafeText
                       html={leadHtml}
-                      className={FEATURE_LEAD_CLASS_NAME}
+                      className={`${FEATURE_LEAD_CLASS_NAME} [&_p]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                     />
                   )}
-                  {featureQuote && <FeatureCallout text={featureQuote} variant="dark" />}
+                  {featureQuote && (
+                    <FeatureCallout
+                      text={featureQuote}
+                      variant="dark"
+                      className="[&_p]:!text-white"
+                    />
+                  )}
                   {bodyBlocks.length > 0 && (
                     <InterleavedTextWithMedia
                       blocks={bodyBlocks}
@@ -2246,7 +2252,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                       pullQuotes={pullQuotes}
                       imageVersion={imageVersion}
                       variant="dark"
-                      textClassName={typography.bodyDarkClassName}
+                      textClassName={`${typography.bodyDarkClassName} !text-white [&_p]:!text-white [&_li]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                     />
                   )}
                   {remainingMedia.length > 0 && (
@@ -2264,7 +2270,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                 <div className="lg:col-span-5 scroll-reveal scroll-reveal-delay-2">
                   <div className="rounded-3xl border border-white/10 bg-black/45 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.4)] p-7 sm:p-9">
                     {snapshotLabel && (
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white mb-4">
                         {snapshotLabel}
                       </p>
                     )}
@@ -2274,10 +2280,10 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                           key={`${stat?.label ?? "stat"}-${i}`}
                           className="rounded-2xl border border-white/10 bg-white/10 p-5 flex items-start gap-4"
                         >
-                          <span className="font-serif font-bold text-[#a3413a] text-2xl shrink-0 w-16 text-center">
+                          <span className="font-serif font-bold text-white text-2xl shrink-0 w-16 text-center">
                             {stat?.value}
                           </span>
-                          <p className="text-sm text-white/75 leading-relaxed">
+                          <p className="text-sm text-white leading-relaxed">
                             {stat?.label}
                           </p>
                         </div>
@@ -2468,7 +2474,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
               <div className="mb-8">
                 <div className="flex items-center gap-2">
                   <div className="h-px w-6 bg-[#a3413a]" />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#a3413a]">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">
                     {sectionLabel || "Member Spotlight"}
                   </span>
                 </div>
@@ -2478,21 +2484,18 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                   className="font-serif text-white font-bold leading-tight tracking-tight"
                   style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
                 >
-                  {renderTitleArt(
-                    data.name,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.name, "font-serif italic text-white")}
                 </h2>
               )}
               {data.role && (
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
                   {data.role}
                 </p>
               )}
               {data.message && (
                 <div className="mt-8">
                   <div
-                    className="font-serif text-[#a3413a] leading-none select-none mb-2"
+                    className="font-serif text-white leading-none select-none mb-2"
                     style={{
                       fontSize: "clamp(4rem, 8vw, 7rem)",
                       lineHeight: 1,
@@ -2505,7 +2508,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                   <div style={{ fontSize: "clamp(1.15rem, 2.4vw, 1.65rem)" }}>
                     <SafeText
                       html={data.message}
-                      className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p+p]:mt-3"
+                      className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p]:text-white [&_p+p]:mt-3"
                     />
                   </div>
                   <div className="mt-6 flex items-center gap-3">
@@ -2518,7 +2521,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                 <div className="mt-8">
                   <SafeText
                     html={data.bio}
-                    className="font-serif text-white/75 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
+                    className="font-serif text-white leading-relaxed text-sm [&_p]:mb-4 [&_p]:text-white [&_p:last-child]:mb-0"
                   />
                 </div>
               )}
@@ -2711,16 +2714,16 @@ export const PagePartner = ({ data, imageVersion }: any) => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
               {kicker && (
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                   {kicker}
                 </p>
               )}
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-white">
-                  {renderTitleArt(data.title || data.brand)}
+                  {renderTitleArt(data.title || data.brand, "font-serif italic text-white")}
                 </h2>
                 {data.headline && (
-                  <p className="text-white/70 font-medium mt-1 text-lg">
+                  <p className="text-white font-medium mt-1 text-lg">
                     {data.headline}
                   </p>
                 )}
@@ -2728,11 +2731,11 @@ export const PagePartner = ({ data, imageVersion }: any) => {
               {data.text ? (
                 <SafeText
                   html={data.text}
-                  className="font-serif text-white/85 leading-relaxed"
+                  className="font-serif text-white leading-relaxed [&_p]:text-white"
                 />
               ) : (
                 data.offer && (
-                  <p className="font-serif text-white/85 leading-relaxed">
+                  <p className="font-serif text-white leading-relaxed">
                     {data.offer}
                   </p>
                 )
@@ -2740,7 +2743,7 @@ export const PagePartner = ({ data, imageVersion }: any) => {
               {data.offer && (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-px bg-[#a3413a]" />
-                  <p className="text-white/70 text-sm font-medium">
+                  <p className="text-white text-sm font-medium">
                     {data.offer}
                   </p>
                 </div>
@@ -2940,25 +2943,22 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               {kicker && (
                 <div className="flex items-center gap-4 w-full min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
               )}
               <div>
                 {comingSoonLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white mb-2">
                     {comingSoonLabel}
                   </p>
                 )}
                 <h2 className="text-section-lg font-serif font-600 text-white">
-                  {renderTitleArt(
-                    data.title,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.title, "font-serif italic text-white")}
                 </h2>
                 {data.nextIssue && (
-                  <p className="text-white/70 font-medium mt-1 text-lg">
+                  <p className="text-white font-medium mt-1 text-lg">
                     {data.nextIssue}
                   </p>
                 )}
@@ -2966,7 +2966,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               {data.text && (
                 <SafeText
                   html={data.text}
-                  className="font-serif text-white/80 leading-relaxed"
+                  className="font-serif text-white leading-relaxed [&_p]:text-white"
                 />
               )}
               {additionalMedia.length > 0 && (
@@ -2995,7 +2995,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
                     {socials.slice(0, 6).map((label: any, i: number) => (
                       <span
                         key={`${label}-${i}`}
-                        className="text-white/70 text-sm font-medium"
+                        className="text-white text-sm font-medium"
                       >
                         {label}
                       </span>
