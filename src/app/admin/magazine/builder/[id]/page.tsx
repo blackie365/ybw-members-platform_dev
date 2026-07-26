@@ -200,12 +200,38 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
 
-  const syncContentsPage = useCallback(async (nextPages: MagazinePage[]) => {
+  const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
-    if (!contentsPage) return;
+    if (!contentsPage) return nextPages;
 
     const nextItems = buildContentsItemsFromPages(nextPages);
     const currentItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
+
+    if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
+      return nextPages;
+    }
+
+    return nextPages.map((page) =>
+      page.docId === contentsPage.docId
+        ? {
+            ...page,
+            content: {
+              ...(page.content || {}),
+              items: nextItems,
+            },
+          }
+        : page,
+    );
+  }, []);
+
+  const syncContentsPage = useCallback(async (nextPages: MagazinePage[]) => {
+    const pagesWithContents = applyContentsPageItems(nextPages);
+    const contentsPage = pagesWithContents.find((page) => page.type === 'contents');
+    if (!contentsPage) return;
+
+    const nextItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
+    const currentPage = nextPages.find((page) => page.docId === contentsPage.docId);
+    const currentItems = Array.isArray(currentPage?.content?.items) ? currentPage.content.items : [];
 
     if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
       return;
@@ -217,7 +243,64 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         items: nextItems,
       },
     });
-  }, [id]);
+  }, [applyContentsPageItems, id]);
+
+  const persistPageOrder = useCallback(async (orderedPages: MagazinePage[]) => {
+    const previousPages = pages;
+    const renumberedPages = orderedPages.map((page, index) => ({
+      ...page,
+      id: index + 1,
+    }));
+    const nextPages = applyContentsPageItems(renumberedPages);
+    const previousPageByDocId = new Map(previousPages.map((page) => [page.docId, page]));
+    const changedPages = nextPages.filter((page) => {
+      const previousPage = previousPageByDocId.get(page.docId);
+      if (!previousPage) return false;
+
+      const idChanged = previousPage.id !== page.id;
+      const contentChanged =
+        page.type === 'contents' &&
+        JSON.stringify(previousPage.content?.items || []) !==
+          JSON.stringify(page.content?.items || []);
+
+      return idChanged || contentChanged;
+    });
+
+    setPages(nextPages);
+    setSaving(true);
+    try {
+      const results = await Promise.all(
+        changedPages.map((page) => {
+          const previousPage = previousPageByDocId.get(page.docId);
+          const payload: { id?: number; content?: any } = {};
+
+          if (previousPage?.id !== page.id) {
+            payload.id = page.id;
+          }
+
+          if (
+            page.type === 'contents' &&
+            JSON.stringify(previousPage?.content?.items || []) !==
+              JSON.stringify(page.content?.items || [])
+          ) {
+            payload.content = page.content;
+          }
+
+          return updateMagazinePageAction(id, page.docId, payload);
+        }),
+      );
+
+      const failedUpdate = results.find((result) => !result?.success);
+      if (failedUpdate) {
+        throw new Error(failedUpdate.error || 'Failed to reorder pages');
+      }
+    } catch (err) {
+      setPages(previousPages);
+      toast.error('Failed to reorder pages');
+    } finally {
+      setSaving(false);
+    }
+  }, [applyContentsPageItems, id, pages]);
 
   const handleBatchSync = async () => {
     if (!issue.ghostSyncTag) {
@@ -936,33 +1019,33 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
-    const currentIndex = pages.findIndex(p => p.docId === pageDocId);
+    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
     if (currentIndex === -1) return;
     if (direction === 'up' && currentIndex === 0) return;
-    if (direction === 'down' && currentIndex === pages.length - 1) return;
+    if (direction === 'down' && currentIndex === sortedPages.length - 1) return;
 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const currentPage = pages[currentIndex];
-    const targetPage = pages[targetIndex];
-    const nextPages = pages.map((page) => {
-      if (page.docId === currentPage.docId) return { ...page, id: targetPage.id };
-      if (page.docId === targetPage.docId) return { ...page, id: currentPage.id };
-      return page;
-    });
+    const nextPages = [...sortedPages];
+    const [movedPage] = nextPages.splice(currentIndex, 1);
+    nextPages.splice(targetIndex, 0, movedPage);
 
-    setSaving(true);
-    try {
-      await Promise.all([
-        updateMagazinePageAction(id, currentPage.docId, { id: targetPage.id }),
-        updateMagazinePageAction(id, targetPage.docId, { id: currentPage.id })
-      ]);
-      await syncContentsPage(nextPages);
-      await loadData(true);
-    } catch (err) {
-      toast.error('Failed to reorder pages');
-    } finally {
-      setSaving(false);
-    }
+    await persistPageOrder(nextPages);
+  };
+
+  const handleMovePageToPosition = async (pageDocId: string, targetPosition: number) => {
+    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
+    if (currentIndex === -1) return;
+
+    const boundedIndex = Math.max(0, Math.min(sortedPages.length - 1, targetPosition - 1));
+    if (boundedIndex === currentIndex) return;
+
+    const nextPages = [...sortedPages];
+    const [movedPage] = nextPages.splice(currentIndex, 1);
+    nextPages.splice(boundedIndex, 0, movedPage);
+
+    await persistPageOrder(nextPages);
   };
 
   const handleDeletePage = async (pageDocId: string) => {
@@ -1267,6 +1350,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   handleChangePageType(pageDocId, type);
                 }}
                 onMovePage={handleMovePage}
+                onMovePageTo={handleMovePageToPosition}
                 isSaving={saving}
               />
             </div>
