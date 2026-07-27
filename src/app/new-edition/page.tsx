@@ -1,12 +1,11 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BookOpen, Calendar, Monitor, Trash2 } from 'lucide-react';
+import { ArrowRight, BookOpen, Calendar, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
-import { checkAdmin } from '@/lib/server/auth-utils';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
@@ -23,38 +22,69 @@ export const metadata: Metadata = {
   },
 };
 
-function normalizeEditionText(value: unknown): string {
+function normalizeEditionText(value: string | null | undefined): string {
   return String(value || '')
     .toLowerCase()
-    .replace(/&/g, ' and ')
     .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
+    .trim();
 }
 
-function getMonthKey(value: unknown): string {
-  const date = new Date(String(value || ''));
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+function getEditionMonthKey(value: string | null | undefined): string {
+  const parsed = new Date(String(value || ''));
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-function editionMatchesIssue(
-  edition: { title?: string; publishDate?: string },
+function editionRecordsMatch(
   issue: { title?: string; publishDate?: string },
+  edition: { title?: string; publishDate?: string },
 ): boolean {
-  const editionTitle = normalizeEditionText(edition.title);
   const issueTitle = normalizeEditionText(issue.title);
-  const sameTitle =
-    Boolean(editionTitle && issueTitle) &&
-    (editionTitle === issueTitle ||
-      editionTitle.includes(issueTitle) ||
-      issueTitle.includes(editionTitle));
+  const editionTitle = normalizeEditionText(edition.title);
+  const titlesMatch = Boolean(issueTitle && editionTitle) && (
+    issueTitle === editionTitle ||
+    issueTitle.includes(editionTitle) ||
+    editionTitle.includes(issueTitle)
+  );
 
-  const editionMonthKey = getMonthKey(edition.publishDate);
-  const issueMonthKey = getMonthKey(issue.publishDate);
-  const sameMonth = Boolean(editionMonthKey) && editionMonthKey === issueMonthKey;
+  const issueMonth = getEditionMonthKey(issue.publishDate);
+  const editionMonth = getEditionMonthKey(edition.publishDate);
+  const monthMatches = Boolean(issueMonth && editionMonth) && issueMonth === editionMonth;
 
-  return sameTitle || sameMonth;
+  return titlesMatch || monthMatches;
+}
+
+function isCopySlug(value: unknown): boolean {
+  return /copy/i.test(String(value || ''));
+}
+
+function getTimestamp(value: unknown): number {
+  const parsed = new Date(String(value || ''));
+  const time = parsed.getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function compareReaderEditions(left: any, right: any): number {
+  const leftIsCopy = isCopySlug(left?.slug);
+  const rightIsCopy = isCopySlug(right?.slug);
+
+  if (leftIsCopy !== rightIsCopy) {
+    return leftIsCopy ? 1 : -1;
+  }
+
+  const leftCreated = getTimestamp(left?.createdAt);
+  const rightCreated = getTimestamp(right?.createdAt);
+  if (leftCreated !== rightCreated) {
+    return rightCreated - leftCreated;
+  }
+
+  const leftPublished = getTimestamp(left?.publishDate);
+  const rightPublished = getTimestamp(right?.publishDate);
+  if (leftPublished !== rightPublished) {
+    return rightPublished - leftPublished;
+  }
+
+  return String(right?.id || '').localeCompare(String(left?.id || ''));
 }
 
 function getEditionCoverImage(edition: ReaderEdition | null, version: number): string {
@@ -74,32 +104,38 @@ export default async function NewEditionPage() {
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
-  const flipbookIssue = issues.find((issue) => issue.flipbookUrl || issue.pdfUrl) ?? liveIssue;
-  const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
-  const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-  const mergedIssues = issues;
-  const featuredPost = ghostPosts[0];
-
-  // Latest reader edition (IDML-imported) takes precedence wherever we feature the current edition.
+  const matchedEditions = liveIssue
+    ? readerEditions.filter((edition) => editionRecordsMatch(liveIssue, edition))
+    : [];
+  const preferredMatchedEdition = matchedEditions.length > 0
+    ? [...matchedEditions].sort(compareReaderEditions)[0]
+    : null;
   const latestReaderEdition =
-    (liveIssue ? readerEditions.find((edition) => editionMatchesIssue(edition, liveIssue)) : null) ??
+    preferredMatchedEdition ??
     readerEditions[0] ??
     null;
-  const featuredEditionUrl = latestReaderEdition
-    ? `/magazine/read/${latestReaderEdition.slug}`
-    : liveIssue
-      ? `/magazine/issue/${liveIssue.id}`
-      : '/new-edition';
+  const matchedLatestLegacyIssue = latestReaderEdition
+    ? issues.find((issue) => editionRecordsMatch(issue, latestReaderEdition)) ?? null
+    : null;
+  const flipbookIssue = latestReaderEdition
+    ? matchedLatestLegacyIssue && (matchedLatestLegacyIssue.flipbookUrl || matchedLatestLegacyIssue.pdfUrl)
+      ? matchedLatestLegacyIssue
+      : null
+    : issues.find((issue) => issue.featureInFlipbook && (issue.flipbookUrl || issue.pdfUrl))
+      ?? issues.find((issue) => issue.isLatest && (issue.flipbookUrl || issue.pdfUrl))
+      ?? issues.find((issue) => issue.flipbookUrl || issue.pdfUrl)
+      ?? liveIssue;
+  const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
+  const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
+  const mergedIssues = issues.filter((issue) => (
+    !readerEditions.some((edition) => editionRecordsMatch(issue, edition))
+  ));
+  const featuredPost = ghostPosts[0];
 
-  const isAdmin = await (async () => {
-    try {
-      await checkAdmin();
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-  
+  const featuredEditionUrl = liveIssue ? `/magazine/issue/${liveIssue.id}` : '/new-edition';
+  const latestIssueMatchesEdition = (edition: { title?: string; publishDate?: string }) =>
+    Boolean(liveIssue) && editionRecordsMatch(liveIssue!, edition);
+
   console.log('[NewEditionPage] issues count:', issues.length);
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
@@ -387,9 +423,18 @@ export default async function NewEditionPage() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {/* Reader Editions (IDML-imported) */}
             {readerEditions.map((edition) => (
+              (() => {
+                const editionHref = latestIssueMatchesEdition(edition)
+                  ? `/magazine/issue/${liveIssue?.id}`
+                  : `/magazine/read/${edition.slug}`;
+                const ctaLabel = latestIssueMatchesEdition(edition)
+                  ? 'Open Latest Edition'
+                  : 'Open Digital Edition';
+
+                return (
               <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 <Link 
-                  href={`/magazine/read/${edition.slug}`}
+                  href={editionHref}
                   className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -422,13 +467,15 @@ export default async function NewEditionPage() {
                   
                   <div className="mt-auto flex flex-col gap-2 w-full">
                     <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                      <Link href={`/magazine/read/${edition.slug}`}>
-                        Open Digital Edition
+                      <Link href={editionHref}>
+                        {ctaLabel}
                       </Link>
                     </Button>
                   </div>
                 </div>
               </div>
+                );
+              })()
             ))}
 
             {/* Legacy Issues (magazine_issues) */}
@@ -479,19 +526,6 @@ export default async function NewEditionPage() {
                         <div className="col-span-2 rounded-full border border-dashed border-border px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                           Legacy Archive
                         </div>
-                      )}
-                      {isAdmin && issue?.id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full text-[10px] h-8 col-span-2 text-destructive hover:text-destructive"
-                          asChild
-                        >
-                          <Link href={`/admin/magazine?delete=${issue.id}`}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
-                          </Link>
-                        </Button>
                       )}
                     </div>
                   </div>

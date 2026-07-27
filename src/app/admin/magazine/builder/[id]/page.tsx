@@ -231,13 +231,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const contentsPage = pagesWithContents.find((page) => page.type === 'contents');
     if (!contentsPage) return;
 
-    const nextItems = Array.isArray(contentsPage.content?.items)
-      ? contentsPage.content.items
-      : [];
+    const nextItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
     const currentPage = nextPages.find((page) => page.docId === contentsPage.docId);
-    const currentItems = Array.isArray(currentPage?.content?.items)
-      ? currentPage.content.items
-      : [];
+    const currentItems = Array.isArray(currentPage?.content?.items) ? currentPage.content.items : [];
 
     if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
       return;
@@ -1062,7 +1058,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       : 'Are you sure you want to delete this spread?';
 
     if (!confirm(confirmMessage)) return;
-
     setSaving(true);
     try {
       if (isGeneratedSpread && pageToDelete && Array.isArray(issue.storyLibrary)) {
@@ -1357,7 +1352,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   handleChangePageType(pageDocId, type);
                 }}
                 onMovePage={handleMovePage}
-                  onMovePageTo={handleMovePageToPosition}
+                onMovePageTo={handleMovePageToPosition}
                 isSaving={saving}
               />
             </div>

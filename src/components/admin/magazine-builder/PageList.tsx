@@ -190,17 +190,17 @@ export function PageList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            disabled={isSaving}
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              setMoveDialogPageId(page.docId);
-                              setMoveTargetValue(String(index + 1));
-                            }}
-                          >
-                            <ArrowDownToLine className="h-3 w-3" />
-                            Move to page...
-                          </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={isSaving}
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setMoveDialogPageId(page.docId);
+                            setMoveTargetValue(String(index + 1));
+                          }}
+                        >
+                          <ArrowDownToLine className="h-3 w-3" />
+                          Move to page...
+                        </DropdownMenuItem>
                         {PAGE_TYPES.map((t) => (
                           <DropdownMenuItem
                             key={t.id}
@@ -281,8 +281,8 @@ export function PageList({
               disabled={isSaving || !moveDialogPageId}
               onClick={() => {
                 const nextPosition = Number(moveTargetValue);
-                if (!Number.isFinite(nextPosition)) return;
-                onMovePageTo(moveDialogPageId!, nextPosition);
+                if (!moveDialogPageId || !Number.isFinite(nextPosition)) return;
+                onMovePageTo(moveDialogPageId, nextPosition);
                 setMoveDialogPageId(null);
                 setMoveTargetValue('');
               }}

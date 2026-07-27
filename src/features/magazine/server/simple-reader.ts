@@ -112,6 +112,84 @@ function sanitizeUrlList(values: unknown): string[] {
   return cleaned;
 }
 
+function normalizeRichTextForCompare(value: unknown): string {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function splitTextIntoParagraphs(input: unknown): string[] {
+  const normalized = String(input || '').replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
+
+  if (normalized.includes('<')) {
+    return normalized
+      .split(/\n{2,}/g)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  const explicitParagraphs = normalized
+    .split(/\n{2,}/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (explicitParagraphs.length > 1) return explicitParagraphs;
+
+  const lines = normalized
+    .split(/\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return lines;
+
+  const paragraphs: string[] = [];
+  let current = '';
+
+  const endsParagraph = (line: string) => /[.!?:"'”’)\]]$/.test(line.trim());
+  const startsNewSentence = (line: string) => /^[A-Z0-9"'“‘(\[]/.test(line.trim());
+
+  for (const line of lines) {
+    if (!current) {
+      current = line;
+      continue;
+    }
+
+    if (endsParagraph(current) && startsNewSentence(line)) {
+      paragraphs.push(current.trim());
+      current = line;
+      continue;
+    }
+
+    current = `${current} ${line}`.replace(/\s+/g, ' ').trim();
+  }
+
+  if (current) paragraphs.push(current.trim());
+  return paragraphs;
+}
+
+function dedupeTextParts(parts: Array<unknown>, exclusions: Array<unknown> = []): string[] {
+  const excluded = new Set(
+    exclusions
+      .map((value) => normalizeRichTextForCompare(value))
+      .filter(Boolean),
+  );
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const part of parts) {
+    const normalized = normalizeRichTextForCompare(part);
+    if (!normalized || excluded.has(normalized) || seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push(String(part || '').trim());
+  }
+
+  return deduped;
+}
 function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   const backgroundImage = sanitizeImageUrl(page.content?.backgroundImage);
   const rawImageUrls = sanitizeUrlList(page.content?.imageUrls);
@@ -119,24 +197,33 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   const imageUrls = rawImageUrls.filter(
     (url) => url !== imageUrl && url !== backgroundImage,
   );
+  const standfirst = String(page.content?.standfirst || '').trim();
+  const quote = String(page.content?.quote || '').trim();
+  const body = dedupeTextParts(
+    splitTextIntoParagraphs(page.content?.body),
+    [standfirst],
+  ).join('\n\n');
+  const pullQuotes = dedupeTextParts(page.content?.pullQuotes || [], [
+    standfirst,
+    quote,
+    body,
+  ]);
 
   return {
     ...page,
     content: {
       ...page.content,
       title: String(page.content?.title || '').trim(),
-      body: String(page.content?.body || '').trim(),
-      standfirst: String(page.content?.standfirst || '').trim(),
+      body,
+      standfirst: standfirst || undefined,
       author: String(page.content?.author || '').trim() || undefined,
       name: String(page.content?.name || '').trim() || undefined,
       kicker: String(page.content?.kicker || '').trim() || undefined,
       imageUrl: imageUrl || undefined,
       backgroundImage: backgroundImage || undefined,
       imageUrls,
-      quote: String(page.content?.quote || '').trim() || undefined,
-      pullQuotes: Array.isArray(page.content?.pullQuotes)
-        ? page.content.pullQuotes.map((item) => String(item || '').trim()).filter(Boolean)
-        : [],
+      quote: quote || undefined,
+      pullQuotes,
       continuationLabel: String(page.content?.continuationLabel || '').trim() || undefined,
       snapshotLabel: String(page.content?.snapshotLabel || '').trim() || undefined,
       nextIssue: String(page.content?.nextIssue || '').trim() || undefined,
@@ -166,10 +253,9 @@ function isStoryPage(page: ReaderPage | undefined): page is ReaderPage {
 }
 
 function joinBodyText(...parts: Array<unknown>): string {
-  return parts
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .join('\n\n');
+  return dedupeTextParts(
+    parts.flatMap((part) => splitTextIntoParagraphs(part)),
+  ).join('\n\n');
 }
 
 function collapseSplitStoryPages(pages: ReaderPage[]): ReaderPage[] {

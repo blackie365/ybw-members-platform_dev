@@ -85,13 +85,20 @@ export function SafeText({
   let content = html;
   if (!html.includes("<")) {
     const paragraphs = splitPlainTextIntoParagraphs(html);
-    content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
+    content = dedupeTextBlocks(
+      paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+    ).join("");
   } else if (!html.includes("<p") && !html.includes("<br")) {
-    const paragraphs = splitPlainTextIntoParagraphs(html);
-    if (paragraphs.length > 1) {
-      content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
+    const blocks = getHtmlBlocks(html);
+    if (blocks.length > 0) {
+      content = blocks.join("");
     } else {
       content = html.replace(/\n/g, "<br />");
+    }
+  } else {
+    const blocks = getHtmlBlocks(html);
+    if (blocks.length > 0) {
+      content = blocks.join("");
     }
   }
 
@@ -729,6 +736,32 @@ export function renderTitleArt(
   return <>{nodes}</>;
 }
 
+function normalizeRichTextForCompare(value: string) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeTextBlocks(blocks: string[]) {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const block of Array.isArray(blocks) ? blocks : []) {
+    const normalized = normalizeRichTextForCompare(block);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push(block);
+  }
+
+  return deduped;
+}
+
 export function getHtmlBlocks(html: string): string[] {
   if (!html) return [];
   const hasTags = html.includes("<");
@@ -737,7 +770,9 @@ export function getHtmlBlocks(html: string): string[] {
   if (hasTags && !html.includes("<p") && normalizedRaw.includes("\n")) {
     const paragraphs = splitPlainTextIntoParagraphs(normalizedRaw);
     if (paragraphs.length > 1) {
-      return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+      return dedupeTextBlocks(
+        paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+      );
     }
   }
 
@@ -751,7 +786,9 @@ export function getHtmlBlocks(html: string): string[] {
       const body = doc.body;
       const paragraphs = Array.from(body.querySelectorAll("p"));
       if (paragraphs.length > 0)
-        return paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean);
+        return dedupeTextBlocks(
+          paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean),
+        );
 
       const blockTagNames = new Set([
         "h1",
@@ -771,7 +808,9 @@ export function getHtmlBlocks(html: string): string[] {
         blockTagNames.has(el.tagName.toLowerCase()),
       );
       if (blockChildren.length > 0)
-        return blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean);
+        return dedupeTextBlocks(
+          blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean),
+        );
 
       const inner = body.innerHTML.trim();
       if (!inner) return [];
@@ -779,8 +818,10 @@ export function getHtmlBlocks(html: string): string[] {
         .split(/(?:<br\s*\/?>\\s*){2,}/gi)
         .map((p) => p.trim())
         .filter(Boolean);
-      if (parts.length > 1) return parts.map((p) => `<p>${p}</p>`);
-      return [`<p>${inner}</p>`];
+      if (parts.length > 1) {
+        return dedupeTextBlocks(parts.map((p) => `<p>${p}</p>`));
+      }
+      return dedupeTextBlocks([`<p>${inner}</p>`]);
     } catch {}
   }
 
@@ -788,15 +829,17 @@ export function getHtmlBlocks(html: string): string[] {
   if (!hasTags) {
     const paragraphs = splitPlainTextIntoParagraphs(normalized);
     if (paragraphs.length === 0) return [];
-    return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+    return dedupeTextBlocks(
+      paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
+    );
   }
 
   const parts = normalized
     .split(/\n{2,}/g)
     .map((p) => p.trim())
     .filter(Boolean);
-  if (parts.length === 0) return [html];
-  return parts;
+  if (parts.length === 0) return dedupeTextBlocks([html]);
+  return dedupeTextBlocks(parts);
 }
 
 function addClassToFirstParagraph(html: string, className: string) {
@@ -812,15 +855,7 @@ function addClassToFirstParagraph(html: string, className: string) {
 }
 
 function normalizeLeadComparisonText(value: string) {
-  return String(value || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return normalizeRichTextForCompare(value);
 }
 
 function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
@@ -836,6 +871,31 @@ function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
   return quote;
 }
 
+function getDistinctFeaturePullQuotes(
+  rawPullQuotes: unknown,
+  options?: {
+    leadHtml?: string;
+    featureQuote?: string;
+  },
+) {
+  const normalizedLead = normalizeLeadComparisonText(options?.leadHtml || "");
+  const normalizedFeatureQuote = normalizeLeadComparisonText(
+    options?.featureQuote || "",
+  );
+  const seen = new Set<string>();
+
+  return normalizePullQuotes(rawPullQuotes)
+    .filter((quote) => {
+      const normalizedQuote = normalizeLeadComparisonText(quote);
+      if (!normalizedQuote) return false;
+      if (normalizedQuote === normalizedLead) return false;
+      if (normalizedQuote === normalizedFeatureQuote) return false;
+      if (seen.has(normalizedQuote)) return false;
+      seen.add(normalizedQuote);
+      return true;
+    })
+    .slice(0, 1);
+}
 function buildFeatureTextSections(
   data: any,
   options?: { dropCap?: boolean },
@@ -849,8 +909,8 @@ function buildFeatureTextSections(
 
   if (introSource) {
     const introBlocks = getHtmlBlocks(introSource);
-    const [firstIntroBlock = "", ...remainingIntroBlocks] = introBlocks;
-    const dedupedBodyBlocks = [...remainingIntroBlocks, ...initialBodyBlocks];
+    const [firstIntroBlock = ""] = introBlocks;
+    const dedupedBodyBlocks = [...initialBodyBlocks];
     const normalizedLead = normalizeLeadComparisonText(firstIntroBlock);
 
     while (
@@ -906,30 +966,49 @@ function FeatureCallout({
   if (!content) return null;
 
   return (
-    <div
+    <p
       className={[
-        "rounded-2xl border px-5 py-4 shadow-sm",
-        variant === "dark"
-          ? "border-white/10 bg-white/10 backdrop-blur-sm"
-          : "border-[#e8d5c0] bg-white/80",
+        "font-serif italic leading-[1.45]",
+        variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
+      style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
     >
-      <p
-        className={[
-          "font-serif italic leading-[1.45]",
-          variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
-        ].join(" ")}
-        style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
-      >
-        &ldquo;{content}&rdquo;
-      </p>
+      &ldquo;{content}&rdquo;
+    </p>
+  );
+}
+
+function FeatureForegroundImage({
+  src,
+  alt,
+  imageVersion,
+}: {
+  src: string;
+  alt: string;
+  imageVersion: string;
+}) {
+  const imageSrc = String(src || "").trim();
+  if (!imageSrc) return null;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-[0_20px_60px_rgba(0,0,0,0.28)]">
+      <div className="relative aspect-[4/3]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={fixMagazineImageUrl(imageSrc, imageVersion)}
+          alt={alt}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </div>
     </div>
   );
 }
 
+const FEATURE_LEAD_CLASS_NAME =
+  'font-serif italic leading-[1.45] text-[#A3413A] text-[clamp(1.05rem,2vw,1.45rem)] [&_p]:m-0';
 function getFeatureTypography(weightInput: unknown) {
   const parsedWeight = Number(weightInput);
   const weight =
@@ -1044,6 +1123,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
   const featureImageExplicit = String(data.featureImage || "").trim();
   const featureImage = featureImageExplicit || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
+  const shouldRenderFeatureImage = Boolean(featureImage);
   const additionalMedia = getAdditionalMedia(
     data,
     String(data.headline || data.title || "Cover").trim(),
@@ -1053,7 +1133,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
     <div ref={ref} className="relative min-h-full overflow-hidden bg-[#0c0a09]">
       {backgroundMedia ? (
         <div
-          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${featureImageExplicit ? "blur-xl opacity-50 scale-110" : ""}`}
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat ${shouldRenderFeatureImage ? "blur-xl opacity-50 scale-110" : ""}`}
           style={{
             backgroundImage: `url('${fixMagazineImageUrl(backgroundMedia, imageVersion)}')`,
           }}
@@ -1111,7 +1191,7 @@ export const PageCover = ({ data, imageVersion }: any) => {
         <div
           className={[
             "max-w-xl",
-            featureImageExplicit ? "lg:col-span-6" : "lg:col-span-12",
+            shouldRenderFeatureImage ? "lg:col-span-6" : "lg:col-span-12",
           ].join(" ")}
         >
           <div className="cover-animate opacity-0 mb-7">
@@ -1189,12 +1269,12 @@ export const PageCover = ({ data, imageVersion }: any) => {
           )}
         </div>
 
-        {featureImageExplicit ? (
+        {shouldRenderFeatureImage ? (
           <div className="hidden lg:block lg:col-span-6 cover-animate opacity-0">
             <div className="relative mx-auto w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_28px_120px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={fixMagazineImageUrl(featureImageExplicit, imageVersion)}
+                src={fixMagazineImageUrl(featureImage, imageVersion)}
                 alt={String(
                   data.headline || data.title || "Cover Feature",
                 ).trim()}
@@ -1761,7 +1841,10 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
     dropCap: false,
   });
   const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
-  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
+  const pullQuotes = getDistinctFeaturePullQuotes(data.pullQuotes || data.quotes, {
+    leadHtml,
+    featureQuote,
+  });
 
   if (isFullBackground) {
     return (
@@ -1818,10 +1901,17 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   {renderTitleArt(data.title, "font-serif italic text-white")}
                 </h2>
               )}
+              {featureImage && (
+                <FeatureForegroundImage
+                  src={featureImage}
+                  alt={data.title || data.name || kicker || "Feature"}
+                  imageVersion={imageVersion}
+                />
+              )}
               {leadHtml && (
                 <SafeText
                   html={leadHtml}
-                  className="font-serif text-[1.12rem] leading-[1.78] text-white [&_p]:m-0 [&_p]:text-white [&_p:first-child]:text-white [&_p:first-child]:font-medium"
+                  className={`${FEATURE_LEAD_CLASS_NAME} [&_p]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                 />
               )}
               {featureQuote && (
@@ -1962,7 +2052,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
           <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
             <SafeText
               html={leadHtml}
-              className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+              className={FEATURE_LEAD_CLASS_NAME}
             />
           </div>
         )}
@@ -2065,11 +2155,14 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   );
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
-  const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
   const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
     dropCap: false,
   });
   const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
+  const pullQuotes = getDistinctFeaturePullQuotes(data.pullQuotes || data.quotes, {
+    leadHtml,
+    featureQuote,
+  });
 
   if (isFullBackground) {
     return (
@@ -2130,10 +2223,17 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                       {renderTitleArt(data.title, "font-serif italic text-white")}
                     </h2>
                   )}
+                  {featureImage && (
+                    <FeatureForegroundImage
+                      src={featureImage}
+                      alt={data.title || data.name || "Feature"}
+                      imageVersion={imageVersion}
+                    />
+                  )}
                   {leadHtml && (
                     <SafeText
                       html={leadHtml}
-                      className="font-serif text-[1.08rem] leading-[1.78] text-white [&_p]:m-0 [&_p]:text-white [&_p:first-child]:text-white [&_p:first-child]:font-medium"
+                      className={`${FEATURE_LEAD_CLASS_NAME} [&_p]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                     />
                   )}
                   {featureQuote && (
@@ -2228,7 +2328,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
             {leadHtml && (
               <SafeText
                 html={leadHtml}
-                className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+                className={FEATURE_LEAD_CLASS_NAME}
               />
             )}
             {featureQuote && <FeatureCallout text={featureQuote} variant="light" />}
