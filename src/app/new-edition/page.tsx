@@ -412,12 +412,17 @@ export default async function NewEditionPage() {
             {/* Reader Editions (IDML-imported) */}
             {readerEditions.map((edition) => (
               (() => {
-                const editionHref = latestIssueMatchesEdition(edition)
+                const matchesLatestIssue = latestIssueMatchesEdition(edition);
+                const editionHref = matchesLatestIssue
                   ? `/magazine/issue/${liveIssue?.id}`
                   : `/magazine/read/${edition.slug}`;
-                const ctaLabel = latestIssueMatchesEdition(edition)
-                  ? 'Open Latest Edition'
+                const ctaLabel = matchesLatestIssue
+                  ? 'Open Flipping Book'
                   : 'Open Digital Edition';
+                const editionCoverImage = matchesLatestIssue
+                  ? fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION) || edition.coverImage
+                  : edition.coverImage;
+                const editionBadgeLabel = matchesLatestIssue ? 'LATEST' : 'DIGITAL';
 
                 return (
               <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
@@ -427,7 +432,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={edition.coverImage}
+                    src={editionCoverImage}
                     alt={edition.title}
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
@@ -437,7 +442,7 @@ export default async function NewEditionPage() {
                     </div>
                   </div>
                   <div className="absolute top-2 right-2">
-                    <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">DIGITAL</Badge>
+                    <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">{editionBadgeLabel}</Badge>
                   </div>
                 </Link>
 
