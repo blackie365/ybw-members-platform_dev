@@ -9,6 +9,7 @@ import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { listReaderEditions } from '@/features/magazine/server/simple-reader';
+import type { ReaderEdition } from '@/features/magazine/domain/types';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -21,6 +22,49 @@ export const metadata: Metadata = {
     type: 'website',
   },
 };
+
+function normalizeEditionText(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function getMonthKey(value: unknown): string {
+  const date = new Date(String(value || ''));
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function editionMatchesIssue(
+  edition: { title?: string; publishDate?: string },
+  issue: { title?: string; publishDate?: string },
+): boolean {
+  const editionTitle = normalizeEditionText(edition.title);
+  const issueTitle = normalizeEditionText(issue.title);
+  const sameTitle =
+    Boolean(editionTitle && issueTitle) &&
+    (editionTitle === issueTitle ||
+      editionTitle.includes(issueTitle) ||
+      issueTitle.includes(editionTitle));
+
+  const editionMonthKey = getMonthKey(edition.publishDate);
+  const issueMonthKey = getMonthKey(issue.publishDate);
+  const sameMonth = Boolean(editionMonthKey) && editionMonthKey === issueMonthKey;
+
+  return sameTitle || sameMonth;
+}
+
+function getEditionCoverImage(edition: ReaderEdition | null, version: number): string {
+  if (!edition) return '';
+  const coverPage = Array.isArray(edition.pages)
+    ? edition.pages.find((page) => page?.template === 'cover')
+    : undefined;
+  const coverImage = String(coverPage?.content?.imageUrl || edition.coverImage || '');
+  return fixMagazineImageUrl(coverImage, version);
+}
 
 export default async function NewEditionPage() {
   const [issues, ghostPosts, readerEditions] = await Promise.all([
@@ -37,7 +81,10 @@ export default async function NewEditionPage() {
   const featuredPost = ghostPosts[0];
 
   // Latest reader edition (IDML-imported) takes precedence wherever we feature the current edition.
-  const latestReaderEdition = readerEditions[0] ?? null;
+  const latestReaderEdition =
+    (liveIssue ? readerEditions.find((edition) => editionMatchesIssue(edition, liveIssue)) : null) ??
+    readerEditions[0] ??
+    null;
   const featuredEditionUrl = latestReaderEdition
     ? `/magazine/read/${latestReaderEdition.slug}`
     : liveIssue
@@ -70,6 +117,8 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
+  const latestCoverImage = getEditionCoverImage(latestReaderEdition, IMAGE_VERSION)
+    || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION);
 
   return (
     <main className="flex-1 bg-background">
@@ -124,7 +173,7 @@ export default async function NewEditionPage() {
                   <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] bg-black/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={latestReaderEdition?.coverImage || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION)}
+                      src={latestCoverImage}
                       alt={`${latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'} Cover`}
                       className="absolute inset-0 h-full w-full object-contain"
                     />
@@ -345,7 +394,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={edition.coverImage}
+                    src={getEditionCoverImage(edition, IMAGE_VERSION)}
                     alt={edition.title}
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
