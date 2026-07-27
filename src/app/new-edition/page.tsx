@@ -54,6 +54,39 @@ function editionRecordsMatch(
   return titlesMatch || monthMatches;
 }
 
+function isCopySlug(value: unknown): boolean {
+  return /copy/i.test(String(value || ''));
+}
+
+function getTimestamp(value: unknown): number {
+  const parsed = new Date(String(value || ''));
+  const time = parsed.getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function compareReaderEditions(left: any, right: any): number {
+  const leftIsCopy = isCopySlug(left?.slug);
+  const rightIsCopy = isCopySlug(right?.slug);
+
+  if (leftIsCopy !== rightIsCopy) {
+    return leftIsCopy ? 1 : -1;
+  }
+
+  const leftCreated = getTimestamp(left?.createdAt);
+  const rightCreated = getTimestamp(right?.createdAt);
+  if (leftCreated !== rightCreated) {
+    return rightCreated - leftCreated;
+  }
+
+  const leftPublished = getTimestamp(left?.publishDate);
+  const rightPublished = getTimestamp(right?.publishDate);
+  if (leftPublished !== rightPublished) {
+    return rightPublished - leftPublished;
+  }
+
+  return String(right?.id || '').localeCompare(String(left?.id || ''));
+}
+
 export default async function NewEditionPage() {
   const [issues, ghostPosts, readerEditions] = await Promise.all([
     getMagazineIssuesServer(),
@@ -62,8 +95,14 @@ export default async function NewEditionPage() {
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
+  const matchedEditions = liveIssue
+    ? readerEditions.filter((edition) => editionRecordsMatch(liveIssue, edition))
+    : [];
+  const preferredMatchedEdition = matchedEditions.length > 0
+    ? [...matchedEditions].sort(compareReaderEditions)[0]
+    : null;
   const latestReaderEdition =
-    (liveIssue ? readerEditions.find((edition) => editionRecordsMatch(liveIssue, edition)) : null) ??
+    preferredMatchedEdition ??
     readerEditions[0] ??
     null;
   const matchedLatestLegacyIssue = latestReaderEdition
