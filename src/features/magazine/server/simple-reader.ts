@@ -190,7 +190,6 @@ function dedupeTextParts(parts: Array<unknown>, exclusions: Array<unknown> = [])
 
   return deduped;
 }
-
 function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   const backgroundImage = sanitizeImageUrl(page.content?.backgroundImage);
   const rawImageUrls = sanitizeUrlList(page.content?.imageUrls);

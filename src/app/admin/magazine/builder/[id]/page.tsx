@@ -205,7 +205,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     if (!contentsPage) return nextPages;
 
     const nextItems = buildContentsItemsFromPages(nextPages);
-    const currentItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
+    const currentItems = Array.isArray(contentsPage.content?.items)
+      ? contentsPage.content.items
+      : [];
 
     if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
       return nextPages;

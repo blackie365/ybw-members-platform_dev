@@ -896,7 +896,6 @@ function getDistinctFeaturePullQuotes(
     })
     .slice(0, 1);
 }
-
 function buildFeatureTextSections(
   data: any,
   options?: { dropCap?: boolean },
@@ -1010,7 +1009,6 @@ function FeatureForegroundImage({
 
 const FEATURE_LEAD_CLASS_NAME =
   'font-serif italic leading-[1.45] text-[#A3413A] text-[clamp(1.05rem,2vw,1.45rem)] [&_p]:m-0';
-
 function getFeatureTypography(weightInput: unknown) {
   const parsedWeight = Number(weightInput);
   const weight =

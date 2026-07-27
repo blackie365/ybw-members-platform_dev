@@ -8,6 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { listReaderEditions } from '@/features/magazine/server/simple-reader';
+import type { ReaderEdition } from '@/features/magazine/domain/types';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -86,6 +87,15 @@ function compareReaderEditions(left: any, right: any): number {
   return String(right?.id || '').localeCompare(String(left?.id || ''));
 }
 
+function getEditionCoverImage(edition: ReaderEdition | null, version: number): string {
+  if (!edition) return '';
+  const coverPage = Array.isArray(edition.pages)
+    ? edition.pages.find((page) => page?.template === 'cover')
+    : undefined;
+  const coverImage = String(coverPage?.content?.imageUrl || edition.coverImage || '');
+  return fixMagazineImageUrl(coverImage, version);
+}
+
 export default async function NewEditionPage() {
   const [issues, ghostPosts, readerEditions] = await Promise.all([
     getMagazineIssuesServer(),
@@ -143,6 +153,8 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
+  const latestCoverImage = getEditionCoverImage(latestReaderEdition, IMAGE_VERSION)
+    || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION);
 
   return (
     <main className="flex-1 bg-background">
@@ -197,7 +209,7 @@ export default async function NewEditionPage() {
                   <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] bg-black/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={latestReaderEdition?.coverImage || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION)}
+                      src={latestCoverImage}
                       alt={`${latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'} Cover`}
                       className="absolute inset-0 h-full w-full object-contain"
                     />
@@ -427,7 +439,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={edition.coverImage}
+                    src={getEditionCoverImage(edition, IMAGE_VERSION)}
                     alt={edition.title}
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
