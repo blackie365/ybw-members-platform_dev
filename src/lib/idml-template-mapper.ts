@@ -52,7 +52,7 @@ function shouldIgnoreDecorativeStory(story: ParsedIdmlStory | undefined): boolea
   if (/^\<\?ace/i.test(text)) return true;
   if (/^yorkshire\s*business\s*woman$/i.test(text)) return true;
   if (/^yorkshirebusinesswoman$/i.test(text.replace(/\s+/g, ""))) return true;
-  if (/^(contents|disclosure|bookcase|member profile)$/i.test(text)) return true;
+  if (/^(contents|disclosure|member profile)$/i.test(text)) return true;
   if (/^digital copy available/i.test(text)) return true;
   if (/^grow your business with yorkshire businesswoman/i.test(text)) return true;
   return false;
@@ -252,15 +252,24 @@ function pushArticle(
   });
 }
 
+const DISPLAYABLE_IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp|svg)$/i;
+
+function isDisplayableImage(fileName: string): boolean {
+  return DISPLAYABLE_IMAGE_EXTENSIONS.test(fileName);
+}
+
 function getPageImages(
   page: ParsedIdmlPage,
   fallbacks: string[] = [],
 ): string[] {
-  return uniqueStrings([
+  const allCandidates = uniqueStrings([
     ...page.imageFileNames,
     ...getOrderedPageStories(page).flatMap((story) => story.imageHints),
     ...fallbacks,
   ]);
+  const displayable = allCandidates.filter(isDisplayableImage);
+  if (displayable.length > 0) return displayable;
+  return allCandidates;
 }
 
 function getStandfirst(text: string): string {
@@ -286,10 +295,13 @@ function createPageId(prefix: string, value: string | number): string {
     .toLowerCase()}-${Date.now().toString(36)}`;
 }
 
+const SKIP_ARTICLE_DETECTION_PAGES = new Set([1, 4, 5]);
+
 export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
   const articles: Article[] = [];
   const articleTitlesByPage = new Map<number, string[]>();
   for (const page of pages) {
+    if (SKIP_ARTICLE_DETECTION_PAGES.has(page.pageNumber)) continue;
     const orderedEntries = getOrderedPageStoryEntries(page);
     articleTitlesByPage.set(
       page.pageNumber,
@@ -310,7 +322,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
     const currentScore = scoreStoryAgainstTitle(story, currentTitle);
 
     let bestLaterScore = 0;
-    for (let pageNumber = currentPage + 1; pageNumber <= currentPage + 2; pageNumber++) {
+    for (let pageNumber = currentPage + 1; pageNumber <= currentPage + 5; pageNumber++) {
       const titles = articleTitlesByPage.get(pageNumber) || [];
       for (const title of titles) {
         bestLaterScore = Math.max(bestLaterScore, scoreStoryAgainstTitle(story, title));
@@ -333,6 +345,12 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
   } | null = null;
 
   for (const page of pages) {
+    if (SKIP_ARTICLE_DETECTION_PAGES.has(page.pageNumber)) {
+      pushArticle(articles, currentArticle);
+      currentArticle = null;
+      continue;
+    }
+
     if (detectAdPage(page)) {
       pushArticle(articles, currentArticle);
       currentArticle = null;
@@ -352,6 +370,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       const priorStoryIds: Set<string> = currentArticle?.storyIds || new Set<string>();
       const openingEntries: OrderedPageStoryEntry[] = orderedEntries
         .filter((entry) => entry.story.id !== titleStory?.id)
+        .filter((entry) => !entry.frame.isTitle)
         .filter((entry) => !priorStoryIds.has(entry.story.id))
         .filter((entry) => !shouldIgnoreDecorativeStory(entry.story))
         .filter((entry) =>
@@ -365,6 +384,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       const openingStoryIds: Set<string> = new Set(
         openingEntries.map((entry) => entry.story.id).filter(Boolean),
       );
+      openingStoryIds.add(titleStory?.id || "");
 
       currentArticle = {
         title: titleStory?.title || "",
@@ -422,7 +442,8 @@ function buildFeatureContent(
   const isFirstPage = pageNum === article.startPage;
   const bodyText = article.pageBodies[pageNum] || getPageBodyText(page);
   const pageImages = getPageImages(page, article.images);
-  const imageUrl = pageImages[0] || article.images[0] || "";
+  const displayableArticleImages = article.images.filter(isDisplayableImage);
+  const imageUrl = pageImages[0] || displayableArticleImages[0] || "";
   const standfirst = isFirstPage ? getStandfirst(bodyText || article.body) : "";
   const isContinuation = !isFirstPage;
 
@@ -470,13 +491,20 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   const articles = detectArticles(sortedPages);
 
   const coverSourcePage = sortedPages[0];
-  const coverSourceArticle =
-    articles.find((article) => article.title.trim()) || null;
+  const coverTitleStory = coverSourcePage
+    ? getOrderedPageStories(coverSourcePage).find((story) => {
+        const text = (story.text || "").trim();
+        if (!text) return false;
+        return story.paragraphStyles.some((s) =>
+          /article.?heading|cover.?title|headline/i.test(s),
+        );
+      }) || coverSourcePage.stories[0]
+    : null;
   const coverBody = coverSourcePage
     ? getPageBodyText(coverSourcePage, true)
     : "";
   const coverImages = coverSourcePage
-    ? getPageImages(coverSourcePage, coverSourceArticle?.images || [])
+    ? getPageImages(coverSourcePage)
     : [];
 
   if (coverSourcePage) {
@@ -486,9 +514,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       template: "cover",
       content: {
         title:
-          coverSourceArticle?.title || coverSourcePage.stories[0]?.title || "",
+          coverTitleStory?.title || coverSourcePage.stories[0]?.title || "",
         body: coverBody,
-        standfirst: getStandfirst(coverSourceArticle?.body || coverBody),
+        standfirst: getStandfirst(coverBody),
         imageUrl: coverImages[0] || "",
         imageUrls: coverImages,
         kicker: "Digital Edition",
