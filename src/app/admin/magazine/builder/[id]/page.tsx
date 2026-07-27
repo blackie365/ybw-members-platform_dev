@@ -72,6 +72,13 @@ const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
   partner: 'PARTNER',
 };
 
+function normalizeBuilderIdentity(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getContentsTitleForPage(page: MagazinePage): string {
   return String(
     page.content?.title ||
@@ -124,6 +131,44 @@ function buildContentsItemsFromPages(pages: MagazinePage[]) {
   });
 }
 
+function getPageIdentityKeys(page: MagazinePage): string[] {
+  const keys = new Set<string>();
+  const storyId = String(page.storyId || page.content?.storyId || '').trim();
+  const sourceRef = String(page.sourceRef || page.content?.sourceRef || '').trim();
+  const title = normalizeBuilderIdentity(getContentsTitleForPage(page));
+
+  if (storyId) keys.add(`story:${storyId}`);
+  if (sourceRef) keys.add(`source:${normalizeBuilderIdentity(sourceRef)}`);
+  if (title) keys.add(`title:${title}`);
+
+  return [...keys];
+}
+
+function getStoryIdentityKeys(story: any): string[] {
+  const keys = new Set<string>();
+  const storyId = String(story?.id || '').trim();
+  const sourceRef = String(story?.sourceRef || '').trim();
+  const title = normalizeBuilderIdentity(story?.title);
+
+  if (storyId) keys.add(`story:${storyId}`);
+  if (sourceRef) keys.add(`source:${normalizeBuilderIdentity(sourceRef)}`);
+  if (title) keys.add(`title:${title}`);
+
+  return [...keys];
+}
+
+function inferBuilderPageTypeFromStory(story: any): string {
+  const contentType = String(story?.premiumReaderContentType || '').trim().toLowerCase();
+
+  if (contentType === 'editorial') return 'editorial';
+  if (contentType === 'profile' || contentType === 'spotlight') return 'spotlight';
+  if (contentType === 'column' || contentType === 'opinion') return 'column';
+  if (contentType === 'lifestyle') return 'lifestyle';
+  if (contentType === 'partner') return 'partner';
+
+  return 'feature-left';
+}
+
 export default function MagazineBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const isNew = id === 'new';
@@ -155,12 +200,44 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
 
-  const syncContentsPage = useCallback(async (nextPages: MagazinePage[]) => {
+  const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
-    if (!contentsPage) return;
+    if (!contentsPage) return nextPages;
 
     const nextItems = buildContentsItemsFromPages(nextPages);
-    const currentItems = Array.isArray(contentsPage.content?.items) ? contentsPage.content.items : [];
+    const currentItems = Array.isArray(contentsPage.content?.items)
+      ? contentsPage.content.items
+      : [];
+
+    if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
+      return nextPages;
+    }
+
+    return nextPages.map((page) =>
+      page.docId === contentsPage.docId
+        ? {
+            ...page,
+            content: {
+              ...(page.content || {}),
+              items: nextItems,
+            },
+          }
+        : page,
+    );
+  }, []);
+
+  const syncContentsPage = useCallback(async (nextPages: MagazinePage[]) => {
+    const pagesWithContents = applyContentsPageItems(nextPages);
+    const contentsPage = pagesWithContents.find((page) => page.type === 'contents');
+    if (!contentsPage) return;
+
+    const nextItems = Array.isArray(contentsPage.content?.items)
+      ? contentsPage.content.items
+      : [];
+    const currentPage = nextPages.find((page) => page.docId === contentsPage.docId);
+    const currentItems = Array.isArray(currentPage?.content?.items)
+      ? currentPage.content.items
+      : [];
 
     if (JSON.stringify(currentItems) === JSON.stringify(nextItems)) {
       return;
@@ -172,7 +249,64 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         items: nextItems,
       },
     });
-  }, [id]);
+  }, [applyContentsPageItems, id]);
+
+  const persistPageOrder = useCallback(async (orderedPages: MagazinePage[]) => {
+    const previousPages = pages;
+    const renumberedPages = orderedPages.map((page, index) => ({
+      ...page,
+      id: index + 1,
+    }));
+    const nextPages = applyContentsPageItems(renumberedPages);
+    const previousPageByDocId = new Map(previousPages.map((page) => [page.docId, page]));
+    const changedPages = nextPages.filter((page) => {
+      const previousPage = previousPageByDocId.get(page.docId);
+      if (!previousPage) return false;
+
+      const idChanged = previousPage.id !== page.id;
+      const contentChanged =
+        page.type === 'contents' &&
+        JSON.stringify(previousPage.content?.items || []) !==
+          JSON.stringify(page.content?.items || []);
+
+      return idChanged || contentChanged;
+    });
+
+    setPages(nextPages);
+    setSaving(true);
+    try {
+      const results = await Promise.all(
+        changedPages.map((page) => {
+          const previousPage = previousPageByDocId.get(page.docId);
+          const payload: { id?: number; content?: any } = {};
+
+          if (previousPage?.id !== page.id) {
+            payload.id = page.id;
+          }
+
+          if (
+            page.type === 'contents' &&
+            JSON.stringify(previousPage?.content?.items || []) !==
+              JSON.stringify(page.content?.items || [])
+          ) {
+            payload.content = page.content;
+          }
+
+          return updateMagazinePageAction(id, page.docId, payload);
+        }),
+      );
+
+      const failedUpdate = results.find((result) => !result?.success);
+      if (failedUpdate) {
+        throw new Error(failedUpdate.error || 'Failed to reorder pages');
+      }
+    } catch (err) {
+      setPages(previousPages);
+      toast.error('Failed to reorder pages');
+    } finally {
+      setSaving(false);
+    }
+  }, [applyContentsPageItems, id, pages]);
 
   const handleBatchSync = async () => {
     if (!issue.ghostSyncTag) {
@@ -223,6 +357,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      let loadedStoryLibrary: any[] = [];
+      let loadedPages: MagazinePage[] = [];
+
       // Load Issue
       const issuesRes = await getMagazineIssuesAction();
       if (issuesRes?.success && issuesRes.data) {
@@ -271,6 +408,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"E",location:"builder/[id]/page.tsx:loadData",msg:"[DEBUG] Builder received story library response",data:{issueId:id,success:Boolean(storyLibraryRes?.success),storyLibraryCount:Array.isArray(storyLibraryRes?.data)?storyLibraryRes.data.length:0},ts:Date.now()})}).catch(()=>{});
         // #endregion
         if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
+          loadedStoryLibrary = storyLibraryRes.data;
           setIssue((prev) => ({
             ...prev,
             storyLibrary: storyLibraryRes.data,
@@ -281,16 +419,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // Load Pages
       const pagesRes = await getMagazinePagesAction(id);
       if (pagesRes?.success && pagesRes.data) {
-        const sortedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
-        setPages(sortedPages);
+        loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
       }
+
+      if (!isNew && loadedStoryLibrary.length > 0) {
+        loadedPages = await syncStoryLibrarySpreads(loadedStoryLibrary, loadedPages, {
+          suppressToast: silent,
+        });
+      }
+
+      setPages(loadedPages);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load magazine data');
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [id]);
+  }, [id, isNew]);
 
   useEffect(() => {
     if (!isNew) {
@@ -346,6 +491,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           storyLibrary: Array.isArray(res.data) ? res.data : storyLibrary,
         }));
         toast.success('Story library saved');
+        await loadData(true);
       } else {
         toast.error(res.error || 'Failed to save story library');
       }
@@ -356,11 +502,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleStoryLibraryImported = (storyLibrary: any[]) => {
+  const handleStoryLibraryImported = async (storyLibrary: any[]) => {
     setIssue((prev) => ({
       ...prev,
       storyLibrary: Array.isArray(storyLibrary) ? storyLibrary : prev.storyLibrary || [],
     }));
+
+    if (!isNew) {
+      await loadData(true);
+    }
   };
 
   const handleRemoveStoryLibraryItem = async (storyId: string) => {
@@ -386,48 +536,73 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const buildManualContentFromStory = (story: any, pageType: string) => {
+  function buildManualContentFromStory(story: any, pageType: string) {
     const storyTitle = String(story.title || '').trim();
     const storyAuthor = String(story.author || '').trim();
     const storyText = String(story.text || '').trim();
     const storyImage = String(story.imageUrl || '').trim();
+    const storyStandfirst = String(story.standfirst || '').trim();
+    const storyQuote = storyStandfirst || (storyText ? `${storyText.substring(0, 140).trim()}...` : '');
 
     switch (pageType) {
       case 'editorial':
         return {
           title: storyTitle || 'Editorial',
           author: storyAuthor || 'Gill Laidler',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'column':
         return {
           title: storyTitle || 'Expert Column',
           author: storyAuthor || 'Guest Contributor',
+          category: String(story.premiumReaderContentType || 'Expert Column'),
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'feature-left':
       case 'feature-right':
         return {
           name: storyAuthor || 'Featured Guest',
           title: storyTitle || 'Feature Story',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
-          quote: storyText ? `${storyText.substring(0, 100)}...` : '',
+          featureImage: storyImage,
+          quote: storyQuote,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'spotlight':
         return {
           title: storyTitle || 'Member Spotlight',
           name: storyAuthor || 'Member Name',
+          role: storyStandfirst,
           bio: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          message: storyQuote,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'lifestyle':
         return {
           title: storyTitle || 'Lifestyle',
+          kicker: 'Lifestyle',
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'partner':
         return {
@@ -436,27 +611,121 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           headline: storyTitle || 'Partner Feature',
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          offer: storyStandfirst,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'back-cover':
         return {
           title: storyTitle || 'Next Edition',
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       case 'full-page-ad':
         return {
           title: storyTitle || 'Advertisement',
           image: storyImage,
           alt: storyTitle || 'Advertisement',
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
       default:
         return {
           title: storyTitle,
+          intro: storyStandfirst,
           text: storyText,
           image: storyImage,
+          featureImage: storyImage,
+          sourceRef: story.sourceRef,
+          storyId: story.id,
         };
     }
-  };
+  }
+
+  async function syncStoryLibrarySpreads(
+    storyLibrary: any[],
+    currentPages: MagazinePage[],
+    options?: { suppressToast?: boolean },
+  ) {
+    if (isNew || !Array.isArray(storyLibrary) || storyLibrary.length === 0) {
+      return currentPages;
+    }
+
+    const existingKeys = new Set<string>();
+    for (const page of currentPages) {
+      for (const key of getPageIdentityKeys(page)) {
+        existingKeys.add(key);
+      }
+    }
+
+    let nextPages = [...currentPages];
+    let nextPageNumber = nextPages.reduce((max, page) => Math.max(max, page.id || 0), 0);
+    let createdCount = 0;
+
+    const candidateStories = [...storyLibrary]
+      .filter((story) => story && story.includedInPremiumReader !== false)
+      .sort((left, right) => {
+        const leftPriority = typeof left?.premiumReaderPriority === 'number' ? left.premiumReaderPriority : 999;
+        const rightPriority = typeof right?.premiumReaderPriority === 'number' ? right.premiumReaderPriority : 999;
+        if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+        return String(left?.title || '').localeCompare(String(right?.title || ''));
+      });
+
+    for (const story of candidateStories) {
+      const storyKeys = getStoryIdentityKeys(story);
+      if (storyKeys.length === 0 || storyKeys.some((key) => existingKeys.has(key))) {
+        continue;
+      }
+
+      const type = inferBuilderPageTypeFromStory(story);
+      const newPage = {
+        id: ++nextPageNumber,
+        type,
+        storyId: String(story.id || '').trim() || undefined,
+        sourceRef: String(story.sourceRef || '').trim() || undefined,
+        generatedFromStoryLibrary: true,
+        content: buildManualContentFromStory(story, type),
+        createdAt: new Date().toISOString(),
+      };
+
+      const res = await addMagazinePageAction(id, newPage);
+      if (!res.success || !res.id) {
+        toast.error(res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`);
+        continue;
+      }
+
+      const persistedPage: MagazinePage = {
+        ...newPage,
+        docId: String(res.id),
+      };
+      nextPages = [...nextPages, persistedPage];
+      createdCount += 1;
+
+      for (const key of storyKeys) {
+        existingKeys.add(key);
+      }
+      for (const key of getPageIdentityKeys(persistedPage)) {
+        existingKeys.add(key);
+      }
+    }
+
+    if (createdCount > 0) {
+      const sortedNextPages = [...nextPages].sort((left, right) => (left.id || 0) - (right.id || 0));
+      await syncContentsPage(sortedNextPages);
+
+      if (!options?.suppressToast) {
+        toast.success(`Added ${createdCount} new spread${createdCount === 1 ? '' : 's'} from the Story Library`);
+      }
+
+      return sortedNextPages;
+    }
+
+    return currentPages;
+  }
 
   const handleApplyStoryToSelectedPage = async (story: any) => {
     const selectedPage = pages.find((page) => page.docId === selectedPageId);
@@ -756,49 +1025,97 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
-    const currentIndex = pages.findIndex(p => p.docId === pageDocId);
+    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
     if (currentIndex === -1) return;
     if (direction === 'up' && currentIndex === 0) return;
-    if (direction === 'down' && currentIndex === pages.length - 1) return;
+    if (direction === 'down' && currentIndex === sortedPages.length - 1) return;
 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const currentPage = pages[currentIndex];
-    const targetPage = pages[targetIndex];
-    const nextPages = pages.map((page) => {
-      if (page.docId === currentPage.docId) return { ...page, id: targetPage.id };
-      if (page.docId === targetPage.docId) return { ...page, id: currentPage.id };
-      return page;
-    });
+    const nextPages = [...sortedPages];
+    const [movedPage] = nextPages.splice(currentIndex, 1);
+    nextPages.splice(targetIndex, 0, movedPage);
 
-    setSaving(true);
-    try {
-      await Promise.all([
-        updateMagazinePageAction(id, currentPage.docId, { id: targetPage.id }),
-        updateMagazinePageAction(id, targetPage.docId, { id: currentPage.id })
-      ]);
-      await syncContentsPage(nextPages);
-      await loadData(true);
-    } catch (err) {
-      toast.error('Failed to reorder pages');
-    } finally {
-      setSaving(false);
-    }
+    await persistPageOrder(nextPages);
+  };
+
+  const handleMovePageToPosition = async (pageDocId: string, targetPosition: number) => {
+    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
+    if (currentIndex === -1) return;
+
+    const boundedIndex = Math.max(0, Math.min(sortedPages.length - 1, targetPosition - 1));
+    if (boundedIndex === currentIndex) return;
+
+    const nextPages = [...sortedPages];
+    const [movedPage] = nextPages.splice(currentIndex, 1);
+    nextPages.splice(boundedIndex, 0, movedPage);
+
+    await persistPageOrder(nextPages);
   };
 
   const handleDeletePage = async (pageDocId: string) => {
-    if (!confirm('Are you sure you want to delete this spread?')) return;
+    const pageToDelete = pages.find((page) => page.docId === pageDocId);
+    const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
+    const confirmMessage = isGeneratedSpread
+      ? 'Are you sure you want to delete this spread? This will also stop it being regenerated from the Story Library.'
+      : 'Are you sure you want to delete this spread?';
+
+    if (!confirm(confirmMessage)) return;
+
     setSaving(true);
     try {
-      const res = await deleteMagazinePageAction(id, pageDocId);
-      if (res.success) {
-        const nextPages = pages.filter((page) => page.docId !== pageDocId);
-        await syncContentsPage(nextPages);
-        toast.success('Spread removed');
-        if (selectedPageId === pageDocId) setSelectedPageId(null);
-        await loadData(true);
+      if (isGeneratedSpread && pageToDelete && Array.isArray(issue.storyLibrary)) {
+        const pageKeys = new Set(getPageIdentityKeys(pageToDelete));
+        const nextStoryLibrary = issue.storyLibrary.map((story) => {
+          const storyKeys = getStoryIdentityKeys(story);
+          const matchesDeletedPage =
+            storyKeys.length > 0 && storyKeys.some((key) => pageKeys.has(key));
+
+          if (!matchesDeletedPage || story.includedInPremiumReader === false) {
+            return story;
+          }
+
+          return {
+            ...story,
+            includedInPremiumReader: false,
+          };
+        });
+
+        const changedStoryLibrary = nextStoryLibrary.some(
+          (story, index) =>
+            story.includedInPremiumReader !== issue.storyLibrary?.[index]?.includedInPremiumReader,
+        );
+
+        if (changedStoryLibrary) {
+          const storyLibraryRes = await saveMagazineStoryLibraryAction(id, nextStoryLibrary);
+          if (!storyLibraryRes.success) {
+            throw new Error(storyLibraryRes.error || 'Failed to update Story Library inclusion');
+          }
+
+          const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
+            ? storyLibraryRes.data
+            : nextStoryLibrary;
+
+          setIssue((prev) => ({
+            ...prev,
+            storyLibrary: persistedStoryLibrary,
+          }));
+        }
       }
+
+      const res = await deleteMagazinePageAction(id, pageDocId);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to delete spread');
+      }
+
+      const nextPages = pages.filter((page) => page.docId !== pageDocId);
+      await syncContentsPage(nextPages);
+      toast.success('Spread removed');
+      if (selectedPageId === pageDocId) setSelectedPageId(null);
+      await loadData(true);
     } catch (error) {
-      toast.error('Error deleting spread');
+      toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {
       setSaving(false);
     }
@@ -1040,6 +1357,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   handleChangePageType(pageDocId, type);
                 }}
                 onMovePage={handleMovePage}
+                  onMovePageTo={handleMovePageToPosition}
                 isSaving={saving}
               />
             </div>

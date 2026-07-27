@@ -1,10 +1,13 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { 
   Trash2, 
   Layout, 
   ChevronRight,
-  Ellipsis
+  Ellipsis,
+  GripVertical,
+  ArrowDownToLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,6 +17,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { PAGE_TYPES, MagazinePage } from './types';
 
 interface PageListProps {
@@ -23,6 +35,7 @@ interface PageListProps {
   onDeletePage: (id: string) => void;
   onChangeType?: (pageDocId: string, type: string) => void;
   onMovePage: (id: string, direction: 'up' | 'down') => void;
+  onMovePageTo: (id: string, position: number) => void;
   isSaving: boolean;
 }
 
@@ -33,37 +46,90 @@ export function PageList({
   onDeletePage, 
   onChangeType,
   onMovePage,
+  onMovePageTo,
   isSaving 
 }: PageListProps) {
+  const sortedPages = useMemo(
+    () => [...pages].sort((left, right) => (left.id || 0) - (right.id || 0)),
+    [pages],
+  );
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [dropTargetPageId, setDropTargetPageId] = useState<string | null>(null);
+  const [moveDialogPageId, setMoveDialogPageId] = useState<string | null>(null);
+  const [moveTargetValue, setMoveTargetValue] = useState('');
+
+  const moveDialogPageIndex = sortedPages.findIndex((page) => page.docId === moveDialogPageId);
+  const moveDialogPageTitle =
+    moveDialogPageIndex >= 0
+      ? sortedPages[moveDialogPageIndex].content?.title ||
+        sortedPages[moveDialogPageIndex].content?.name ||
+        'Untitled'
+      : 'Untitled';
+
   return (
+    <>
     <Card className="min-h-[600px] border-accent/20 w-full overflow-hidden">
       <CardHeader className="px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base">Issue Spreads</CardTitle>
             <CardDescription className="text-[10px]">
-              {pages.length} {pages.length === 1 ? 'page' : 'pages'} total.
+              {sortedPages.length} {sortedPages.length === 1 ? 'page' : 'pages'} total. Drag to reorder or jump directly to a page number.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="px-2">
-        {pages.length === 0 ? (
+        {sortedPages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-40 text-center space-y-4">
             <Layout className="h-12 w-12 text-muted-foreground opacity-10" />
             <p className="text-sm text-muted-foreground italic">No pages built yet.</p>
           </div>
         ) : (
           <div className="space-y-1.5">
-            {pages.map((page, index) => (
+            {sortedPages.map((page, index) => (
               <div 
                 key={page.docId}
+                onDragOver={(e) => {
+                  if (!draggedPageId || draggedPageId === page.docId || isSaving) return;
+                  e.preventDefault();
+                  setDropTargetPageId(page.docId);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!draggedPageId || draggedPageId === page.docId || isSaving) return;
+                  onMovePageTo(draggedPageId, index + 1);
+                  setDraggedPageId(null);
+                  setDropTargetPageId(null);
+                }}
+                onDragEnd={() => {
+                  setDraggedPageId(null);
+                  setDropTargetPageId(null);
+                }}
                 className={`flex items-center gap-2 p-1.5 rounded-md border transition-all ${
                   selectedPageId === page.docId 
                     ? 'border-accent bg-accent/5 shadow-sm' 
                     : 'border-border/50 bg-card hover:border-accent/30'
-                }`}
+                } ${dropTargetPageId === page.docId ? 'border-accent ring-1 ring-accent/30 bg-accent/5' : ''}`}
               >
+                <button
+                  type="button"
+                  draggable={!isSaving}
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    setDraggedPageId(page.docId);
+                    setDropTargetPageId(page.docId);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', page.docId);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:text-accent active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={isSaving}
+                  aria-label={`Drag to reorder ${page.content?.title || page.content?.name || 'page'}`}
+                  title="Drag to reorder"
+                >
+                  <GripVertical className="h-3.5 w-3.5" />
+                </button>
                 <div 
                   className="flex items-center gap-2 flex-1 cursor-pointer min-w-0" 
                   onClick={() => onSelectPage(page.docId)}
@@ -99,7 +165,7 @@ export function PageList({
                       variant="ghost" 
                       size="icon" 
                       className="h-4 w-4 text-muted-foreground hover:text-accent" 
-                      disabled={index === pages.length - 1 || isSaving}
+                      disabled={index === sortedPages.length - 1 || isSaving}
                       onClick={(e) => {
                         e.stopPropagation();
                         onMovePage(page.docId, 'down');
@@ -124,6 +190,17 @@ export function PageList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            disabled={isSaving}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setMoveDialogPageId(page.docId);
+                              setMoveTargetValue(String(index + 1));
+                            }}
+                          >
+                            <ArrowDownToLine className="h-3 w-3" />
+                            Move to page...
+                          </DropdownMenuItem>
                         {PAGE_TYPES.map((t) => (
                           <DropdownMenuItem
                             key={t.id}
@@ -160,5 +237,61 @@ export function PageList({
         )}
       </CardContent>
     </Card>
+      <Dialog
+        open={Boolean(moveDialogPageId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMoveDialogPageId(null);
+            setMoveTargetValue('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Move spread</DialogTitle>
+            <DialogDescription>
+              Choose the new page number for &ldquo;{moveDialogPageTitle}&rdquo;.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              type="number"
+              min={1}
+              max={sortedPages.length}
+              value={moveTargetValue}
+              onChange={(e) => setMoveTargetValue(e.target.value)}
+              placeholder={`1-${sortedPages.length}`}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter a page between 1 and {sortedPages.length}.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMoveDialogPageId(null);
+                setMoveTargetValue('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isSaving || !moveDialogPageId}
+              onClick={() => {
+                const nextPosition = Number(moveTargetValue);
+                if (!Number.isFinite(nextPosition)) return;
+                onMovePageTo(moveDialogPageId!, nextPosition);
+                setMoveDialogPageId(null);
+                setMoveTargetValue('');
+              }}
+            >
+              Move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

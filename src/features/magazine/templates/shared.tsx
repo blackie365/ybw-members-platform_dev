@@ -28,6 +28,47 @@ type AdditionalMediaItem = {
   ratio?: string;
 };
 
+function splitPlainTextIntoParagraphs(input: string): string[] {
+  const normalized = String(input || "").replace(/\r\n/g, "\n").trim();
+  if (!normalized) return [];
+
+  const explicitParagraphs = normalized
+    .split(/\n{2,}/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (explicitParagraphs.length > 1) return explicitParagraphs;
+
+  const lines = normalized
+    .split(/\n/g)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length <= 1) return lines;
+
+  const paragraphs: string[] = [];
+  let current = "";
+
+  const endsParagraph = (line: string) => /[.!?:"'”’)\]]$/.test(line.trim());
+  const startsNewSentence = (line: string) => /^[A-Z0-9"'“‘(\[]/.test(line.trim());
+
+  for (const line of lines) {
+    if (!current) {
+      current = line;
+      continue;
+    }
+
+    if (endsParagraph(current) && startsNewSentence(line)) {
+      paragraphs.push(current.trim());
+      current = line;
+      continue;
+    }
+
+    current = `${current} ${line}`.replace(/\s+/g, " ").trim();
+  }
+
+  if (current) paragraphs.push(current.trim());
+  return paragraphs;
+}
+
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
@@ -43,20 +84,12 @@ export function SafeText({
 
   let content = html;
   if (!html.includes("<")) {
-    const normalized = html.replace(/\r\n/g, "\n");
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    content = lines.map((l) => `<p>${l}</p>`).join("");
+    const paragraphs = splitPlainTextIntoParagraphs(html);
+    content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
   } else if (!html.includes("<p") && !html.includes("<br")) {
-    const normalized = html.replace(/\r\n/g, "\n");
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length > 1) {
-      content = lines.map((l) => `<p>${l}</p>`).join("");
+    const paragraphs = splitPlainTextIntoParagraphs(html);
+    if (paragraphs.length > 1) {
+      content = paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
     } else {
       content = html.replace(/\n/g, "<br />");
     }
@@ -67,7 +100,7 @@ export function SafeText({
   return (
     <div
       className={[
-        "[&_p]:mb-4 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
+        "[&_p]:mb-5 [&_p+_p]:mt-5 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
         className,
       ]
         .filter(Boolean)
@@ -702,11 +735,10 @@ export function getHtmlBlocks(html: string): string[] {
   const normalizedRaw = html.replace(/\r\n/g, "\n");
 
   if (hasTags && !html.includes("<p") && normalizedRaw.includes("\n")) {
-    const lines = normalizedRaw
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length > 1) return lines.map((l) => `<p>${l}</p>`);
+    const paragraphs = splitPlainTextIntoParagraphs(normalizedRaw);
+    if (paragraphs.length > 1) {
+      return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
+    }
   }
 
   if (
@@ -754,12 +786,9 @@ export function getHtmlBlocks(html: string): string[] {
 
   const normalized = hasTags ? html : html.replace(/\r\n/g, "\n");
   if (!hasTags) {
-    const lines = normalized
-      .split(/\n+/g)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length === 0) return [];
-    return lines.map((l) => `<p>${l}</p>`);
+    const paragraphs = splitPlainTextIntoParagraphs(normalized);
+    if (paragraphs.length === 0) return [];
+    return paragraphs.map((paragraph) => `<p>${paragraph}</p>`);
   }
 
   const parts = normalized
@@ -780,6 +809,125 @@ function addClassToFirstParagraph(html: string, className: string) {
       (_m, q, existing) => `class=${q}${existing} ${className}${q}`,
     );
   });
+}
+
+function normalizeLeadComparisonText(value: string) {
+  return String(value || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getDistinctFeatureQuote(rawQuote: unknown, leadHtml: string) {
+  const quote = String(rawQuote || "").trim();
+  if (!quote) return "";
+
+  const normalizedQuote = normalizeLeadComparisonText(quote);
+  const normalizedLead = normalizeLeadComparisonText(leadHtml);
+  if (normalizedQuote && normalizedQuote === normalizedLead) {
+    return "";
+  }
+
+  return quote;
+}
+
+function buildFeatureTextSections(
+  data: any,
+  options?: { dropCap?: boolean },
+): { leadHtml: string; bodyBlocks: string[] } {
+  const dropCap = options?.dropCap ?? false;
+  const introSource = String(
+    data.intro || data.standfirst || data.subheadline || "",
+  ).trim();
+  const sourceBody = String(data.text || data.textarea || data.body || "").trim();
+  const initialBodyBlocks = getHtmlBlocks(sourceBody);
+
+  if (introSource) {
+    const introBlocks = getHtmlBlocks(introSource);
+    const [firstIntroBlock = "", ...remainingIntroBlocks] = introBlocks;
+    const dedupedBodyBlocks = [...remainingIntroBlocks, ...initialBodyBlocks];
+    const normalizedLead = normalizeLeadComparisonText(firstIntroBlock);
+
+    while (
+      normalizedLead &&
+      dedupedBodyBlocks.length > 0 &&
+      normalizeLeadComparisonText(dedupedBodyBlocks[0]) === normalizedLead
+    ) {
+      dedupedBodyBlocks.shift();
+    }
+
+    return {
+      leadHtml: dropCap
+        ? addClassToFirstParagraph(firstIntroBlock, "editorial-dropcap")
+        : firstIntroBlock,
+      bodyBlocks: dedupedBodyBlocks,
+    };
+  }
+
+  if (initialBodyBlocks.length === 0) {
+    return { leadHtml: "", bodyBlocks: [] };
+  }
+
+  const [firstBlock, ...remainingBlocks] = initialBodyBlocks;
+  const dedupedRemainingBlocks = [...remainingBlocks];
+  const normalizedLead = normalizeLeadComparisonText(firstBlock);
+
+  while (
+    normalizedLead &&
+    dedupedRemainingBlocks.length > 0 &&
+    normalizeLeadComparisonText(dedupedRemainingBlocks[0]) === normalizedLead
+  ) {
+    dedupedRemainingBlocks.shift();
+  }
+
+  return {
+    leadHtml: dropCap
+      ? addClassToFirstParagraph(firstBlock, "editorial-dropcap")
+      : firstBlock,
+    bodyBlocks: dedupedRemainingBlocks,
+  };
+}
+
+function FeatureCallout({
+  text,
+  variant,
+  className,
+}: {
+  text: string;
+  variant: "light" | "dark";
+  className?: string;
+}) {
+  const content = String(text || "").trim();
+  if (!content) return null;
+
+  return (
+    <div
+      className={[
+        "rounded-2xl border px-5 py-4 shadow-sm",
+        variant === "dark"
+          ? "border-white/10 bg-white/10 backdrop-blur-sm"
+          : "border-[#e8d5c0] bg-white/80",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <p
+        className={[
+          "font-serif italic leading-[1.45]",
+          variant === "dark" ? "text-[#d7a39d]" : "text-[#a3413a]",
+        ].join(" ")}
+        style={{ fontSize: "clamp(1.05rem, 2vw, 1.45rem)" }}
+      >
+        &ldquo;{content}&rdquo;
+      </p>
+    </div>
+  );
 }
 
 function getFeatureTypography(weightInput: unknown) {
@@ -1553,7 +1701,7 @@ function PageContinuation({ data }: any) {
                 <SafeText
                   key={`lc-${i}`}
                   html={block}
-                  className={`${typography.continuationBodyClassName} [&_p:first-child]:editorial-dropcap`}
+                  className={`${typography.continuationBodyClassName}${i === 0 ? " [&_p:first-child]:editorial-dropcap" : ""}`}
                 />
               ))}
             </div>
@@ -1609,11 +1757,11 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   );
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
-  const introHtml = String(data.intro || "").trim();
-  const bodyHtml = String(data.text || data.textarea || data.body || "").trim();
-  const textBlocks = [...getHtmlBlocks(introHtml), ...getHtmlBlocks(bodyHtml)];
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: false,
+  });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
-  const bodyBlocks = getHtmlBlocks(bodyHtml);
 
   if (isFullBackground) {
     return (
@@ -1652,13 +1800,13 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
               {kicker && (
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/70 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
               )}
               {data.name && (
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white">
                   {data.name}
                 </p>
               )}
@@ -1667,30 +1815,30 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                   className="font-serif font-bold leading-tight text-white"
                   style={{ fontSize: typography.titleSize }}
                 >
-                  {renderTitleArt(
-                    data.title,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.title, "font-serif italic text-white")}
                 </h2>
               )}
-              {data.quote && (
-                <div className="pl-4 py-1 border-l-[3px] border-[#a3413a]">
-                  <p
-                    className="font-serif italic leading-snug text-[#a3413a]"
-                    style={{ fontSize: typography.quoteSize }}
-                  >
-                    &ldquo;{data.quote}&rdquo;
-                  </p>
-                </div>
+              {leadHtml && (
+                <SafeText
+                  html={leadHtml}
+                  className="font-serif text-[1.12rem] leading-[1.78] text-white [&_p]:m-0 [&_p]:text-white [&_p:first-child]:text-white [&_p:first-child]:font-medium"
+                />
               )}
-              {textBlocks.length > 0 && (
+              {featureQuote && (
+                <FeatureCallout
+                  text={featureQuote}
+                  variant="dark"
+                  className="[&_p]:!text-white"
+                />
+              )}
+              {bodyBlocks.length > 0 && (
                 <InterleavedTextWithMedia
-                  blocks={textBlocks}
+                  blocks={bodyBlocks}
                   inlineMedia={inlineMedia}
                   pullQuotes={pullQuotes}
                   imageVersion={imageVersion}
                   variant="dark"
-                  textClassName={typography.bodyDarkClassName}
+                  textClassName={`${typography.bodyDarkClassName} !text-white [&_p]:!text-white [&_li]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                 />
               )}
               {remainingMedia.length > 0 && (
@@ -1709,10 +1857,10 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
                       key={`${stat?.label ?? "stat"}-${i}`}
                       className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm"
                     >
-                      <p className="font-serif font-bold text-2xl text-[#a3413a]">
+                      <p className="font-serif font-bold text-2xl text-white">
                         {stat?.value}
                       </p>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 mt-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white mt-1">
                         {stat?.label}
                       </p>
                     </div>
@@ -1810,22 +1958,17 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
             {renderTitleArt(data.title, "font-serif italic text-[#a3413a]")}
           </h2>
         )}
-        {data.quote && (
-          <div
-            className="scroll-reveal scroll-reveal-delay-2 mb-5 pl-4 py-1 border-l-[3px]"
-            style={{ borderColor: "#a3413a" }}
-          >
-            <p
-              className="font-serif italic leading-snug"
-              style={{ color: "#a3413a", fontSize: typography.quoteSize }}
-            >
-              &ldquo;{data.quote}&rdquo;
-            </p>
+        {leadHtml && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
+            <SafeText
+              html={leadHtml}
+              className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+            />
           </div>
         )}
-        {introHtml && (
-          <div className="scroll-reveal scroll-reveal-delay-2 mb-4">
-            <SafeText html={introHtml} className={typography.introClassName} />
+        {featureQuote && (
+          <div className="scroll-reveal scroll-reveal-delay-2 mb-5">
+            <FeatureCallout text={featureQuote} variant="light" />
           </div>
         )}
         {bodyBlocks.length > 0 && (
@@ -1923,7 +2066,10 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   const inlineMedia = additionalMedia.slice(0, 4);
   const remainingMedia = additionalMedia.slice(inlineMedia.length);
   const pullQuotes = normalizePullQuotes(data.pullQuotes || data.quotes);
-  const textBlocks = getHtmlBlocks(String(data.text || ""));
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: false,
+  });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
 
   if (isFullBackground) {
     return (
@@ -1962,7 +2108,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
               <div className="scroll-reveal mb-10">
                 <div className="flex items-center gap-4 w-full min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
@@ -1972,7 +2118,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
               <div className="lg:col-span-7 scroll-reveal">
                 <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
                   {nameLabel && (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a]">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                       {nameLabel}
                     </p>
                   )}
@@ -1981,30 +2127,30 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                       className="text-section-lg font-serif font-600 text-white"
                       style={{ fontSize: typography.titleSize }}
                     >
-                      {renderTitleArt(
-                        data.title,
-                        "font-serif italic text-[#a3413a]",
-                      )}
+                      {renderTitleArt(data.title, "font-serif italic text-white")}
                     </h2>
                   )}
-                  {data.quote && (
-                    <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                      <p
-                        className="font-serif italic leading-[1.45] text-[#a3413a]"
-                        style={{ fontSize: typography.quoteSize }}
-                      >
-                        &ldquo;{data.quote}&rdquo;
-                      </p>
-                    </div>
+                  {leadHtml && (
+                    <SafeText
+                      html={leadHtml}
+                      className="font-serif text-[1.08rem] leading-[1.78] text-white [&_p]:m-0 [&_p]:text-white [&_p:first-child]:text-white [&_p:first-child]:font-medium"
+                    />
                   )}
-                  {textBlocks.length > 0 && (
+                  {featureQuote && (
+                    <FeatureCallout
+                      text={featureQuote}
+                      variant="dark"
+                      className="[&_p]:!text-white"
+                    />
+                  )}
+                  {bodyBlocks.length > 0 && (
                     <InterleavedTextWithMedia
-                      blocks={textBlocks}
+                      blocks={bodyBlocks}
                       inlineMedia={inlineMedia}
                       pullQuotes={pullQuotes}
                       imageVersion={imageVersion}
                       variant="dark"
-                      textClassName={typography.bodyDarkClassName}
+                      textClassName={`${typography.bodyDarkClassName} !text-white [&_p]:!text-white [&_li]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
                     />
                   )}
                   {remainingMedia.length > 0 && (
@@ -2022,7 +2168,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                 <div className="lg:col-span-5 scroll-reveal scroll-reveal-delay-2">
                   <div className="rounded-3xl border border-white/10 bg-black/45 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.4)] p-7 sm:p-9">
                     {snapshotLabel && (
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white mb-4">
                         {snapshotLabel}
                       </p>
                     )}
@@ -2032,10 +2178,10 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                           key={`${stat?.label ?? "stat"}-${i}`}
                           className="rounded-2xl border border-white/10 bg-white/10 p-5 flex items-start gap-4"
                         >
-                          <span className="font-serif font-bold text-[#a3413a] text-2xl shrink-0 w-16 text-center">
+                          <span className="font-serif font-bold text-white text-2xl shrink-0 w-16 text-center">
                             {stat?.value}
                           </span>
-                          <p className="text-sm text-white/75 leading-relaxed">
+                          <p className="text-sm text-white leading-relaxed">
                             {stat?.label}
                           </p>
                         </div>
@@ -2079,19 +2225,16 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                 {renderTitleArt(data.title, "font-serif italic text-[#a3413a]")}
               </h2>
             )}
-            {data.quote && (
-              <div className="border-l-[3px] border-[#a3413a] pl-5 py-1">
-                <p
-                  className="font-serif italic leading-[1.45] text-[#a3413a]"
-                  style={{ fontSize: typography.quoteSize }}
-                >
-                  &ldquo;{data.quote}&rdquo;
-                </p>
-              </div>
+            {leadHtml && (
+              <SafeText
+                html={leadHtml}
+                className={`${typography.introClassName} [&_p]:text-[1.08em] [&_p]:leading-[1.85] [&_p:first-child]:text-[#5d4336] [&_p:first-child]:font-medium`}
+              />
             )}
-            {textBlocks.length > 0 && (
+            {featureQuote && <FeatureCallout text={featureQuote} variant="light" />}
+            {bodyBlocks.length > 0 && (
               <InterleavedTextWithMedia
-                blocks={textBlocks}
+                blocks={bodyBlocks}
                 inlineMedia={inlineMedia}
                 pullQuotes={pullQuotes}
                 imageVersion={imageVersion}
@@ -2229,7 +2372,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
               <div className="mb-8">
                 <div className="flex items-center gap-2">
                   <div className="h-px w-6 bg-[#a3413a]" />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#a3413a]">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">
                     {sectionLabel || "Member Spotlight"}
                   </span>
                 </div>
@@ -2239,21 +2382,18 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                   className="font-serif text-white font-bold leading-tight tracking-tight"
                   style={{ fontSize: "clamp(2rem, 4vw, 3.25rem)" }}
                 >
-                  {renderTitleArt(
-                    data.name,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.name, "font-serif italic text-white")}
                 </h2>
               )}
               {data.role && (
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#a3413a]">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
                   {data.role}
                 </p>
               )}
               {data.message && (
                 <div className="mt-8">
                   <div
-                    className="font-serif text-[#a3413a] leading-none select-none mb-2"
+                    className="font-serif text-white leading-none select-none mb-2"
                     style={{
                       fontSize: "clamp(4rem, 8vw, 7rem)",
                       lineHeight: 1,
@@ -2266,7 +2406,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                   <div style={{ fontSize: "clamp(1.15rem, 2.4vw, 1.65rem)" }}>
                     <SafeText
                       html={data.message}
-                      className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p+p]:mt-3"
+                      className="font-serif italic text-white leading-[1.35] [&_p]:m-0 [&_p]:text-white [&_p+p]:mt-3"
                     />
                   </div>
                   <div className="mt-6 flex items-center gap-3">
@@ -2279,7 +2419,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                 <div className="mt-8">
                   <SafeText
                     html={data.bio}
-                    className="font-serif text-white/75 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
+                    className="font-serif text-white leading-relaxed text-sm [&_p]:mb-4 [&_p]:text-white [&_p:last-child]:mb-0"
                   />
                 </div>
               )}
@@ -2472,16 +2612,16 @@ export const PagePartner = ({ data, imageVersion }: any) => {
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="rounded-3xl border border-white/10 bg-black/55 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-10 space-y-6">
               {kicker && (
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                   {kicker}
                 </p>
               )}
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-white">
-                  {renderTitleArt(data.title || data.brand)}
+                  {renderTitleArt(data.title || data.brand, "font-serif italic text-white")}
                 </h2>
                 {data.headline && (
-                  <p className="text-white/70 font-medium mt-1 text-lg">
+                  <p className="text-white font-medium mt-1 text-lg">
                     {data.headline}
                   </p>
                 )}
@@ -2489,11 +2629,11 @@ export const PagePartner = ({ data, imageVersion }: any) => {
               {data.text ? (
                 <SafeText
                   html={data.text}
-                  className="font-serif text-white/85 leading-relaxed"
+                  className="font-serif text-white leading-relaxed [&_p]:text-white"
                 />
               ) : (
                 data.offer && (
-                  <p className="font-serif text-white/85 leading-relaxed">
+                  <p className="font-serif text-white leading-relaxed">
                     {data.offer}
                   </p>
                 )
@@ -2501,7 +2641,7 @@ export const PagePartner = ({ data, imageVersion }: any) => {
               {data.offer && (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-px bg-[#a3413a]" />
-                  <p className="text-white/70 text-sm font-medium">
+                  <p className="text-white text-sm font-medium">
                     {data.offer}
                   </p>
                 </div>
@@ -2701,25 +2841,22 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               {kicker && (
                 <div className="flex items-center gap-4 w-full min-w-0">
                   <div className="h-px flex-1 bg-gradient-to-r from-[#a3413a]/60 to-transparent" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] whitespace-normal break-words leading-tight max-w-[28rem] text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white whitespace-normal break-words leading-tight max-w-[28rem] text-right">
                     {kicker}
                   </span>
                 </div>
               )}
               <div>
                 {comingSoonLabel && (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a3413a] mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white mb-2">
                     {comingSoonLabel}
                   </p>
                 )}
                 <h2 className="text-section-lg font-serif font-600 text-white">
-                  {renderTitleArt(
-                    data.title,
-                    "font-serif italic text-[#a3413a]",
-                  )}
+                  {renderTitleArt(data.title, "font-serif italic text-white")}
                 </h2>
                 {data.nextIssue && (
-                  <p className="text-white/70 font-medium mt-1 text-lg">
+                  <p className="text-white font-medium mt-1 text-lg">
                     {data.nextIssue}
                   </p>
                 )}
@@ -2727,7 +2864,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               {data.text && (
                 <SafeText
                   html={data.text}
-                  className="font-serif text-white/80 leading-relaxed"
+                  className="font-serif text-white leading-relaxed [&_p]:text-white"
                 />
               )}
               {additionalMedia.length > 0 && (
@@ -2756,7 +2893,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
                     {socials.slice(0, 6).map((label: any, i: number) => (
                       <span
                         key={`${label}-${i}`}
-                        className="text-white/70 text-sm font-medium"
+                        className="text-white text-sm font-medium"
                       >
                         {label}
                       </span>

@@ -27,6 +27,9 @@ export interface MagazinePage {
   docId: string;
   id: number;
   type: string;
+  storyId?: string;
+  sourceRef?: string;
+  generatedFromStoryLibrary?: boolean;
   content: any;
   createdAt: string;
   updatedAt?: string;
