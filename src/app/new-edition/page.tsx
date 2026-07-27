@@ -62,7 +62,10 @@ export default async function NewEditionPage() {
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
-  const latestReaderEdition = readerEditions[0] ?? null;
+  const latestReaderEdition =
+    (liveIssue ? readerEditions.find((edition) => editionRecordsMatch(liveIssue, edition)) : null) ??
+    readerEditions[0] ??
+    null;
   const matchedLatestLegacyIssue = latestReaderEdition
     ? issues.find((issue) => editionRecordsMatch(issue, latestReaderEdition)) ?? null
     : null;
