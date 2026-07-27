@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   },
 };
 
+const CURRENT_ISSUE_COVER_IMAGE =
+  'https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fjune-july%2Fybw_JUNE_clean_2026.jpg?alt=media&token=647ff4b0-8ee8-4141-8304-bd638f17913d';
+
 function normalizeEditionText(value: string | null | undefined): string {
   return String(value || '')
     .toLowerCase()
@@ -153,8 +156,7 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
-  const latestCoverImage = getEditionCoverImage(latestReaderEdition, IMAGE_VERSION)
-    || fixMagazineImageUrl(liveIssue?.coverImage || '', IMAGE_VERSION);
+  const latestCoverImage = fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION);
 
   return (
     <main className="flex-1 bg-background">
@@ -424,12 +426,11 @@ export default async function NewEditionPage() {
             {/* Reader Editions (IDML-imported) */}
             {readerEditions.map((edition) => (
               (() => {
-                const editionHref = latestIssueMatchesEdition(edition)
-                  ? `/magazine/issue/${liveIssue?.id}`
-                  : `/magazine/read/${edition.slug}`;
-                const ctaLabel = latestIssueMatchesEdition(edition)
-                  ? 'Open Latest Edition'
-                  : 'Open Digital Edition';
+                const editionHref = `/magazine/read/${edition.slug}`;
+                const ctaLabel = 'Open Digital Edition';
+                const editionCoverImage = latestIssueMatchesEdition(edition)
+                  ? latestCoverImage
+                  : getEditionCoverImage(edition, IMAGE_VERSION);
 
                 return (
               <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
@@ -439,7 +440,7 @@ export default async function NewEditionPage() {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={getEditionCoverImage(edition, IMAGE_VERSION)}
+                    src={editionCoverImage}
                     alt={edition.title}
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
