@@ -17,6 +17,9 @@ interface MagazineExperienceClientProps {
   latestIssue: IssueForExperienceWidget;
 }
 
+const HOME_LAUNCH_DIGITAL_EDITION_HREF =
+  '/magazine/issue/Z4iKro9CDaY3U1wpDGo1';
+
 export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClientProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -86,7 +89,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Link
-                  href={`/magazine/read/${latestIssue.slug}`}
+                  href={HOME_LAUNCH_DIGITAL_EDITION_HREF}
                   className="inline-flex items-center justify-center gap-2 h-14 px-8 font-semibold text-sm text-[#0c0a09] rounded-none hover:opacity-90 transition-opacity"
                   style={{ background: 'linear-gradient(135deg, #c9956a 0%, #a3413a 100%)' }}
                 >
