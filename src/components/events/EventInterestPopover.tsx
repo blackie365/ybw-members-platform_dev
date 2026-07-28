@@ -348,15 +348,15 @@ export function EventInterestPopover({
             </h4>
             {showSuccess ? (
               <p className="mt-2 text-sm text-stone-600">
-                {success?.message || "You're on the list. We'll share dates, venue, and tickets first."}
+                {success?.message || "You&apos;re on the list. We&apos;ll share dates, venue, and tickets first."}
               </p>
             ) : mode === "payment" ? (
               <p className="mt-2 text-sm text-stone-600">
-                Secure your place directly — you'll also receive event updates by email.
+                Secure your place directly — you&apos;ll also receive event updates by email.
               </p>
             ) : (
               <p className="mt-2 text-sm text-stone-600">
-                Leave your email and we'll keep you posted on tickets, dates, and details.
+                Leave your email and we&apos;ll keep you posted on tickets, dates, and details.
               </p>
             )}
           </div>
@@ -578,7 +578,7 @@ export function EventInterestPopover({
                 </p>
               ) : (
                 <p className="text-[11px] text-stone-500">
-                  You'll be asked to sign in or create a free account so we can attach the RSVP.
+                  You&apos;ll be asked to sign in or create a free account so we can attach the RSVP.
                 </p>
               )}
             </div>
