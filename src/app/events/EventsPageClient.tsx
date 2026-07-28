@@ -19,7 +19,7 @@ import {
 import { getEventMetadata } from "@/app/actions/eventActions";
 
 export default function EventsPageClient({ initialEvents }: { initialEvents: Event[] }) {
-  const events = initialEvents || [];
+  const events = useMemo<Event[]>(() => initialEvents || [], [initialEvents]);
   const upcoming = useMemo(
     () => events.filter((e) => new Date(e.endDate || e.startDate) >= new Date()),
     [events],

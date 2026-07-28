@@ -23,9 +23,9 @@ interface GhostPost {
 }
 
 export function LatestEvents({ events }: { events: GhostPost[] }) {
-  if (!events || events.length === 0) return null
-
   const [activeEvent, setActiveEvent] = useState<GhostPost | null>(null);
+
+  if (!events || events.length === 0) return null;
 
   return (
     <section className="bg-primary text-primary-foreground">
