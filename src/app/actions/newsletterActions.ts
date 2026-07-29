@@ -6,6 +6,74 @@ import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
 import { checkAdmin } from "@/lib/server/auth-utils";
+import { isBeehiivConfigured } from "@/lib/beehiiv";
+
+type RecipientCountBreakdown = {
+  newsletter: number;
+  registered: number;
+  ghost: number;
+  total: number;
+  unique: number;
+  beehiivEnabled: boolean;
+};
+
+export async function getNewsletterRecipientStatsAction(): Promise<{ success: boolean; error?: string; stats?: RecipientCountBreakdown }> {
+  try {
+    await checkAdmin();
+    const breakdown: RecipientCountBreakdown = {
+      newsletter: 0,
+      registered: 0,
+      ghost: 0,
+      total: 0,
+      unique: 0,
+      beehiivEnabled: isBeehiivConfigured(),
+    };
+    const seen = new Set<string>();
+
+    if (adminDb) {
+      const newsletterSnap = await adminDb
+        .collection('newMemberCollection')
+        .where('isNewsletterRecipient', '==', true)
+        .get();
+      const registeredSnap = await adminDb
+        .collection('newMemberCollection')
+        .where('userInactive', '==', false)
+        .get();
+      const emailsFromFirestore = (snap: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>) => {
+        const out: string[] = [];
+        snap.forEach((doc) => {
+          const d = doc.data() as { email?: unknown };
+          if (typeof d.email === 'string') out.push(d.email.trim().toLowerCase());
+        });
+        return out;
+      };
+      emailsFromFirestore(newsletterSnap).forEach((e) => {
+        breakdown.newsletter += 1;
+        if (!seen.has(e)) seen.add(e);
+      });
+      emailsFromFirestore(registeredSnap).forEach((e) => {
+        breakdown.registered += 1;
+        if (!seen.has(e)) seen.add(e);
+      });
+    }
+
+    const ghostMembers = await getGhostMembers({ limit: 'all' }).catch(() => null);
+    if (Array.isArray(ghostMembers)) {
+      ghostMembers.forEach((m: any) => {
+        const e = typeof m?.email === 'string' ? m.email.trim().toLowerCase() : null;
+        if (!e) return;
+        breakdown.ghost += 1;
+        if (!seen.has(e)) seen.add(e);
+      });
+    }
+    breakdown.unique = seen.size;
+    breakdown.total = breakdown.newsletter + breakdown.registered + breakdown.ghost;
+    return { success: true, stats: breakdown };
+  } catch (error: any) {
+    console.error("Error in getNewsletterRecipientStatsAction:", error);
+    return { success: false, error: error.message };
+  }
+}
 
 export async function getBeehiivPostStatsAction() {
   try {
@@ -92,22 +160,56 @@ export async function previewNewsletterAction(editorNote?: string) {
 export async function sendBulkNewsletterAction(editorNote?: string, subject?: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
 
     const posts = await getPosts({ 
       limit: 5, 
       order: 'published_at DESC' 
     });
     
-    const snapshot = await adminDb.collection('newMemberCollection')
-      .where('userInactive', '==', false)
-      .get();
-    
-    const members = snapshot.docs.map(doc => doc.data());
-    const emails = members.map(m => m.email).filter(Boolean);
+    const seen = new Set<string>();
+    const pushUnique = (raw: unknown) => {
+      if (typeof raw !== 'string') return;
+      const e = raw.trim().toLowerCase();
+      if (!e || !e.includes('@')) return;
+      seen.add(e);
+    };
 
+    if (adminDb) {
+      // Union: (a) explicit newsletter recipients (includes popup/inline)
+      //        (b) registered active members
+      const snaps = await Promise.all([
+        adminDb.collection('newMemberCollection')
+          .where('isNewsletterRecipient', '==', true)
+          .get()
+          .catch(() => null),
+        adminDb.collection('newMemberCollection')
+          .where('userInactive', '==', false)
+          .get()
+          .catch(() => null),
+      ]);
+      snaps.forEach((snap) => {
+        if (!snap) return;
+        snap.forEach((doc) => {
+          const d = doc.data() as { email?: unknown };
+          pushUnique(d.email);
+        });
+      });
+    }
+
+    // Also merge in Ghost members so the weekly Resend send matches what admins
+    // expect when Beehiiv is disabled on Vercel production (env vars missing).
+    try {
+      const ghostMembers = await getGhostMembers({ limit: 'all' });
+      if (Array.isArray(ghostMembers)) {
+        ghostMembers.forEach((m: any) => pushUnique(m?.email));
+      }
+    } catch (err) {
+      console.warn('[sendBulkNewsletterAction] Ghost member sync skipped:', err instanceof Error ? err.message : err);
+    }
+
+    const emails = Array.from(seen);
     if (emails.length === 0) {
-      return { success: false, error: "No active members found" };
+      return { success: false, error: "No newsletter recipients found" };
     }
 
     const batchSize = 40;
@@ -127,7 +229,7 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
       successCount += batch.length;
     }
 
-    return { success: true, count: successCount };
+    return { success: true, count: successCount, unique: emails.length };
   } catch (error: any) {
     console.error("Error in sendBulkNewsletterAction:", error);
     return { success: false, error: error.message };

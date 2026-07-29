@@ -5,9 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Send, Copy, Eye, Loader2, CheckCircle2, AlertCircle, TestTube } from "lucide-react";
-import { previewNewsletterAction, sendBulkNewsletterAction, sendTestNewsletterAction } from "@/app/actions/adminActions";
+import { Mail, Send, Copy, Eye, Loader2, CheckCircle2, AlertCircle, TestTube, RefreshCw } from "lucide-react";
+import { previewNewsletterAction, sendBulkNewsletterAction, sendTestNewsletterAction, getNewsletterRecipientStatsAction } from "@/app/actions/adminActions";
 import { toast } from "sonner";
+
+type NewsletterRecipientStats = {
+  newsletter: number;
+  registered: number;
+  ghost: number;
+  total: number;
+  unique: number;
+  beehiivEnabled: boolean;
+};
 
 export default function NewsletterAdminPage() {
   const [editorNote, setEditorNote] = useState("");
@@ -18,6 +27,8 @@ export default function NewsletterAdminPage() {
   const [isSending, setIsSending] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [stats, setStats] = useState<NewsletterRecipientStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const fetchPreview = useCallback(async () => {
     setIsLoadingPreview(true);
@@ -30,9 +41,21 @@ export default function NewsletterAdminPage() {
     setIsLoadingPreview(false);
   }, [editorNote]);
 
+  const fetchStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    const result = await getNewsletterRecipientStatsAction();
+    if (result?.success && result?.stats) {
+      setStats(result.stats);
+    } else {
+      toast?.error(result?.error || "Failed to load recipient stats");
+    }
+    setIsLoadingStats(false);
+  }, []);
+
   useEffect(() => {
     fetchPreview();
-  }, [fetchPreview]);
+    fetchStats();
+  }, [fetchPreview, fetchStats]);
 
   const handleCopyHtml = () => {
     if (previewHtml) {
@@ -42,6 +65,8 @@ export default function NewsletterAdminPage() {
       setTimeout(() => setCopySuccess(false), 2000);
     }
   };
+
+  const uniqueRecipientCount = stats?.unique ?? 0;
 
   const handleSendTest = async () => {
     if (!testEmail || !testEmail?.includes("@")) {
@@ -61,7 +86,8 @@ export default function NewsletterAdminPage() {
   };
 
   const handleSend = async () => {
-    if (!confirm("Are you sure you want to send this newsletter to all 133 active members?")) {
+    const countLabel = uniqueRecipientCount > 0 ? String(uniqueRecipientCount) : "all";
+    if (!confirm(`Are you sure you want to send this newsletter to ${countLabel} recipients?`)) {
       return;
     }
 
@@ -69,7 +95,9 @@ export default function NewsletterAdminPage() {
     const result = await sendBulkNewsletterAction(editorNote, subject);
     
     if (result?.success) {
-      toast?.success(`Newsletter sent successfully to ${result?.count} members!`);
+      toast?.success(`Newsletter sent successfully to ${result?.count} recipients (${result?.unique ?? "?"} unique)!`);
+      // Refresh stats in case counts change after send
+      void fetchStats();
     } else {
       toast?.error(`Failed to send newsletter: ${result?.error}`);
     }
@@ -90,7 +118,9 @@ export default function NewsletterAdminPage() {
           </Button>
           <Button onClick={handleSend} disabled={isSending || !previewHtml} className="bg-accent hover:bg-accent/90">
             {isSending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Send to 133 Members
+            {uniqueRecipientCount > 0
+              ? `Send to ${uniqueRecipientCount} Recipients`
+              : "Send Newsletter"}
           </Button>
         </div>
       </div>
@@ -124,6 +154,60 @@ export default function NewsletterAdminPage() {
                 {isLoadingPreview ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
                 Update Preview
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Recipient List</CardTitle>
+                <CardDescription>Live counts from Firestore + Ghost.</CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchStats()}
+                disabled={isLoadingStats}
+                className="h-8 w-8 p-0"
+                aria-label="Refresh recipient stats"
+              >
+                {isLoadingStats ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {!stats && isLoadingStats ? (
+                <p className="text-muted-foreground">Loading counts…</p>
+              ) : stats ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Pop-up / inline sign-ups</span>
+                    <span className="font-medium tabular-nums">{stats.newsletter}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Registered YBW members</span>
+                    <span className="font-medium tabular-nums">{stats.registered}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Ghost members (CMS)</span>
+                    <span className="font-medium tabular-nums">{stats.ghost}</span>
+                  </div>
+                  <div className="border-t pt-3 mt-3 flex items-center justify-between">
+                    <span className="font-semibold">Unique recipients</span>
+                    <span className="font-bold text-lg tabular-nums text-accent">{stats.unique}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    {stats.beehiivEnabled
+                      ? "Beehiiv sync enabled on this deploy."
+                      : "Beehiiv is not configured on this deploy; this Resend send covers newsletter-only, registered, and Ghost list."}
+                  </p>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Unable to load stats.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -166,8 +250,9 @@ export default function NewsletterAdminPage() {
             <CardContent className="text-xs space-y-2 text-muted-foreground leading-relaxed">
               <p>1. The newsletter automatically pulls the <strong>latest 5 stories</strong> from your Ghost magazine.</p>
               <p>2. Add an optional <strong>Editor&apos;s Note</strong> to personalize the message.</p>
-              <p>3. Use <strong>&quot;Send to 133 Members&quot;</strong> to deliver via Resend immediately.</p>
-              <p>4. Or <strong>&quot;Copy HTML&quot;</strong> if you prefer to use Beehiiv&apos;s dashboard manually.</p>
+              <p>3. <strong>Verify the live recipient count</strong> above — it includes newsletter popup sign-ups, registered members, and Ghost CMS members, deduplicated.</p>
+              <p>4. Use <strong>&quot;Send to N Recipients&quot;</strong> to deliver via Resend immediately in batches of 40.</p>
+              <p>5. Or <strong>&quot;Copy HTML&quot;</strong> if you prefer to use Beehiiv&apos;s dashboard manually.</p>
             </CardContent>
           </Card>
         </div>
