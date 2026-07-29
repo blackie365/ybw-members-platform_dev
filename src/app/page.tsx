@@ -3,6 +3,7 @@ import { ArticleGrid } from "@/components/magazine/article-grid";
 import { FeaturedInterview } from "@/components/magazine/featured-interview";
 import { CategoriesSection } from "@/components/magazine/categories-section";
 import { NewsletterSection } from "@/components/magazine/newsletter-section";
+import { NewsletterPopup } from "@/components/magazine/newsletter-popup";
 import { HomeEconomicInsights } from "@/components/magazine/home-economic-insights";
 import { LatestEvents } from "@/components/magazine/latest-events";
 import { CategorySection } from "@/components/magazine/category-section";
@@ -150,6 +151,7 @@ export default async function MagazinePage() {
 
   return (
     <div className="bg-background">
+      <NewsletterPopup />
       <div className="flex-1">
         <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
         <ArticleGrid posts={gridPosts} />
