@@ -58,6 +58,12 @@ const STORAGE_KEYS = {
   submitted: (id: string) => `ybw:event_popup_submitted:${id}`,
 };
 
+const STORAGE_TTL = {
+  dismissedMs: 30 * 24 * 60 * 60 * 1000,
+  submittedInterestMs: 60 * 24 * 60 * 60 * 1000,
+  submittedPaidMs: 90 * 24 * 60 * 60 * 1000,
+};
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function getStoredFlag(key: string): string | null {
@@ -159,7 +165,7 @@ export function EventInterestPopover({
   }, [open, eventId, initialMode, email, firstName, user?.email, profile?.firstName]);
 
   function handleDismiss() {
-    setStoredFlag(STORAGE_KEYS.dismissed(eventId), "1", 30 * 24 * 60 * 60 * 1000);
+    setStoredFlag(STORAGE_KEYS.dismissed(eventId), "1", STORAGE_TTL.dismissedMs);
     onOpenChange(false);
   }
 
@@ -197,7 +203,7 @@ export function EventInterestPopover({
       });
       const data = await res.json().catch(() => ({} as any));
       if (!res.ok) throw new Error(data?.error || "Something went wrong. Please try again.");
-      setStoredFlag(STORAGE_KEYS.submitted(eventId), "interest", 365 * 24 * 60 * 60 * 1000);
+      setStoredFlag(STORAGE_KEYS.submitted(eventId), "interest", STORAGE_TTL.submittedInterestMs);
       setSuccess({ kind: "interest", message: data?.message });
       toast.success(data?.message || "You're on the list.");
       if (autoDismissOnSuccess) {
@@ -261,7 +267,7 @@ export function EventInterestPopover({
       if (!res.ok) throw new Error(data?.error || "Could not start checkout.");
 
       if (data.free && data.success) {
-        setStoredFlag(STORAGE_KEYS.submitted(eventId), "free", 365 * 24 * 60 * 60 * 1000);
+        setStoredFlag(STORAGE_KEYS.submitted(eventId), "free", STORAGE_TTL.submittedPaidMs);
         setSuccess({ kind: "payment", message: "You're registered. We'll be in touch with all the details." });
         toast.success("You're registered for this event.");
         if (autoDismissOnSuccess) {
@@ -683,10 +689,31 @@ export function EventInterestPopover({
   );
 }
 
+function isStoredFlagExpired(key: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const expRaw = window.localStorage.getItem(`${key}__exp`);
+    if (!expRaw) return false;
+    const exp = Number(expRaw);
+    if (Number.isFinite(exp) && Date.now() > exp) {
+      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(`${key}__exp`);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function hasRecentlySubmittedInterest(eventId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return Boolean(window.localStorage.getItem(STORAGE_KEYS.submitted(eventId)));
+    const key = STORAGE_KEYS.submitted(eventId);
+    const has = Boolean(window.localStorage.getItem(key));
+    if (!has) return false;
+    if (isStoredFlagExpired(key)) return false;
+    return true;
   } catch {
     return false;
   }
@@ -695,19 +722,32 @@ export function hasRecentlySubmittedInterest(eventId: string): boolean {
 export function hasRecentlyDismissed(eventId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const dismissed = window.localStorage.getItem(STORAGE_KEYS.dismissed(eventId));
-    const expRaw = window.localStorage.getItem(`${STORAGE_KEYS.dismissed(eventId)}__exp`);
+    const key = STORAGE_KEYS.dismissed(eventId);
+    const dismissed = window.localStorage.getItem(key);
     if (!dismissed) return false;
-    if (expRaw) {
-      const exp = Number(expRaw);
-      if (Number.isFinite(exp) && Date.now() > exp) {
-        window.localStorage.removeItem(STORAGE_KEYS.dismissed(eventId));
-        window.localStorage.removeItem(`${STORAGE_KEYS.dismissed(eventId)}__exp`);
-        return false;
-      }
-    }
+    if (isStoredFlagExpired(key)) return false;
     return true;
   } catch {
     return false;
+  }
+}
+
+export function clearEventPopupMemory(eventId?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const clearKey = (key: string) => {
+      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(`${key}__exp`);
+    };
+    if (eventId) {
+      clearKey(STORAGE_KEYS.dismissed(eventId));
+      clearKey(STORAGE_KEYS.submitted(eventId));
+      return;
+    }
+    Object.keys(window.localStorage)
+      .filter((k) => k.startsWith("ybw:event_popup_"))
+      .forEach(clearKey);
+  } catch {
+    // ignore
   }
 }
