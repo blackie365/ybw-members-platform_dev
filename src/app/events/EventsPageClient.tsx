@@ -13,10 +13,23 @@ import { Event, EVENT_TYPE_LABELS } from "@/lib/events";
 import {
   EventInterestPopover,
   EventInterestPrice,
+  clearEventPopupMemory,
   hasRecentlyDismissed,
   hasRecentlySubmittedInterest,
 } from "@/components/events/EventInterestPopover";
 import { getEventMetadata } from "@/app/actions/eventActions";
+
+const AUTO_TRIGGER_DELAY_MS = 5_000;
+
+function hasPreviewPopupQuery(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("preview_popup") === "1";
+  } catch {
+    return false;
+  }
+}
 
 export default function EventsPageClient({ initialEvents }: { initialEvents: Event[] }) {
   const events = useMemo<Event[]>(() => initialEvents || [], [initialEvents]);
@@ -36,6 +49,21 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
   >({});
   const [priceLoading, setPriceLoading] = useState(true);
   const [autoTriggerOpen, setAutoTriggerOpen] = useState(false);
+
+  // Force preview mode via ?preview_popup=1 — parse only after mount so SSR stays stable.
+  // Clears any stale dismiss/submit memory and opens the pop-up immediately for QA.
+  useEffect(() => {
+    if (!hasPreviewPopupQuery()) return;
+    try {
+      clearEventPopupMemory(nextEvent?.id || undefined);
+    } catch {
+      // ignore
+    }
+    if (nextEvent) {
+      const t = window.setTimeout(() => setAutoTriggerOpen(true), 200);
+      return () => window.clearTimeout(t);
+    }
+  }, [nextEvent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,9 +123,11 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
     };
   }, [events]);
 
-  // Soft auto-trigger: once, after 30s dwell, only for the most upcoming event.
+  // Soft auto-trigger: once, after a short dwell, only for the most upcoming event.
+  // Query param ?preview_popup=1 bypasses this and shows immediately (with memory cleared).
   useEffect(() => {
     if (!nextEvent) return;
+    if (hasPreviewPopupQuery()) return;
     let mounted = true;
     const timer = window.setTimeout(() => {
       if (!mounted) return;
@@ -115,7 +145,7 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
       } catch {
         // ignore
       }
-    }, 30_000);
+    }, AUTO_TRIGGER_DELAY_MS);
 
     return () => {
       mounted = false;
