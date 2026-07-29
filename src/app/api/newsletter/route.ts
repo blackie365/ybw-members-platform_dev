@@ -2,7 +2,7 @@ import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate, getNewsletterSignupAlertTemplate } from '@/lib/email-templates';
-import { addBeehiivSubscriber } from '@/lib/beehiiv';
+import { addBeehiivSubscriber, isBeehiivConfigured } from '@/lib/beehiiv';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { config } from '@/lib/config';
 
@@ -111,10 +111,12 @@ export async function POST(request: Request) {
     let ghostResult = false;
     try {
       const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const ghostLabels = ['newsletter-signup'];
+      if (isBeehiivConfigured()) ghostLabels.push('beehiiv-sync');
       const ghostRes = await addGhostMember({
         email,
         name: displayName || undefined,
-        labels: ['newsletter-signup', 'beehiiv-sync'],
+        labels: ghostLabels,
       });
       ghostResult = !!ghostRes;
     } catch (ghostError: unknown) {
@@ -130,6 +132,9 @@ export async function POST(request: Request) {
 
         const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
         const nowIso = new Date().toISOString();
+        const listLabels = Array.from(new Set(
+          ['newsletter-signup', source ? `source:${source}` : 'source:unknown'].filter(Boolean)
+        ));
 
         const memberData: Record<string, unknown> = {
           email,
@@ -138,19 +143,28 @@ export async function POST(request: Request) {
           lastName,
           displayName,
           updatedAt: nowIso,
+          // Newsletter-only subscribers are also valid recipients for Resend
+          // bulk sends: userInactive:false ensures they appear alongside
+          // registered members in list queries.
+          userInactive: false,
+          newsletterSubscribed: true,
+          isNewsletterRecipient: true,
+          newsletterListLabels: listLabels,
         };
         if (industry) memberData.industrySector = industry;
         if (source) memberData.signupSource = source;
         if (querySnapshot.empty) {
           memberData.status = 'active';
-          memberData.newsletterSubscribed = true;
-          memberData.isNewsletterRecipient = true;
           memberData.membershipTier = 'free';
           memberData.createdAt = nowIso;
         } else {
-          memberData.status = 'active';
-          memberData.newsletterSubscribed = true;
-          memberData.isNewsletterRecipient = true;
+          const existing = querySnapshot.docs[0].data() as Record<string, unknown>;
+          // Preserve existing list labels, merge in the new source label.
+          const priorLabels = Array.isArray(existing?.newsletterListLabels)
+            ? (existing.newsletterListLabels as string[])
+            : [];
+          memberData.newsletterListLabels = Array.from(new Set([...priorLabels, ...listLabels]));
+          memberData.status = (existing?.status as string) || 'active';
         }
 
         if (querySnapshot.empty) {
