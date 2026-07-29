@@ -4,6 +4,7 @@ import { addBeehiivSubscriber } from '@/lib/beehiiv';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
+import { config } from '@/lib/config';
 
 interface EventInterestPayload {
   email?: unknown;
@@ -157,43 +158,38 @@ export async function POST(request: Request) {
         await interestRef.update(baseData);
       }
 
-      // Mirror to newMemberCollection (same pattern as newsletter route)
+      // Mirror to newMemberCollection ONLY if an actual member record already
+      // exists for this email. We deliberately do NOT promote a pure event
+      // interest or newsletter checkbox into a brand-new "free tier member" —
+      // that conflates "someone who wants event updates / the newsletter"
+      // with "someone who created a YBW account". Real members come through
+      // /sign-up, Ghost auth webhooks (api/revalidate/ghost), or Stripe.
+      // We still append the eventId + newsletter flags onto the existing
+      // member profile so the admin record stays consistent when someone is
+      // already an account-holding member.
       const membersRef = adminDb.collection('newMemberCollection');
       const existingMember = await membersRef
         .where('emailLower', '==', email)
         .limit(1)
         .get();
 
-      const memberPayload = {
-        email,
-        emailLower: email,
-        firstName: firstName || (existingMember.docs[0]?.data() as any)?.firstName || '',
-        lastName: (existingMember.docs[0]?.data() as any)?.lastName || '',
-        displayName:
-          firstName || (existingMember.docs[0]?.data() as any)?.displayName || email,
-        status: 'active',
-        isNewsletterRecipient:
-          newsletterOptIn ||
-          (existingMember.docs[0]?.data() as any)?.isNewsletterRecipient === true,
-        newsletterSubscribed:
-          newsletterOptIn ||
-          (existingMember.docs[0]?.data() as any)?.newsletterSubscribed === true,
-        eventInterests: Array.from(
-          new Set([
-            ...((existingMember.docs[0]?.data() as any)?.eventInterests || []),
-            eventId,
-          ]),
-        ),
-        updatedAt: createdAt,
-      };
-
-      if (existingMember.empty) {
-        const docId = `eventinterest_${Buffer.from(email).toString('base64url')}`;
-        await membersRef.doc(docId).set(
-          { ...memberPayload, membershipTier: 'free', createdAt },
-          { merge: true },
-        );
-      } else {
+      if (!existingMember.empty) {
+        const memberPayload = {
+          firstName: firstName || (existingMember.docs[0].data() as any)?.firstName || '',
+          isNewsletterRecipient:
+            newsletterOptIn ||
+            (existingMember.docs[0].data() as any)?.isNewsletterRecipient === true,
+          newsletterSubscribed:
+            newsletterOptIn ||
+            (existingMember.docs[0].data() as any)?.newsletterSubscribed === true,
+          eventInterests: Array.from(
+            new Set([
+              ...((existingMember.docs[0].data() as any)?.eventInterests || []),
+              eventId,
+            ]),
+          ),
+          updatedAt: createdAt,
+        };
         await existingMember.docs[0].ref.update(memberPayload);
       }
     }
@@ -236,8 +232,15 @@ export async function POST(request: Request) {
   }
 
   // 4) Admin notification email (non-critical)
+  // Fallback chain: explicit ADMIN_NOTIFICATION_EMAIL override (Vercel secret)
+  // → config.adminEmail (ADMIN_EMAIL env var → editor@… default). This matches
+  // the pattern used by /api/emails/welcome and ensures we always have a valid
+  // recipient in production (previously we read ADMIN_NOTIFICATION_EMAIL only
+  // and fell back to null, so alerts were silently skipped when the usual
+  // ADMIN_EMAIL secret was the only one configured on Vercel).
   try {
-    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || null;
+    const adminEmail =
+      process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || config.adminEmail;
     if (adminEmail && (interestCreated || newsletterOptIn)) {
       adminEmailResult = await sendEmail({
         to: adminEmail,
