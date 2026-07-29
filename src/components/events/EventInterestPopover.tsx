@@ -1,20 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Drawer as DrawerPrimitive } from "vaul";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles, X, CreditCard, BellRing, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Dialog,
-  DialogPortal,
-} from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerPortal,
-} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,6 +103,9 @@ export function EventInterestPopover({
 }: EventInterestPopoverProps) {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
+  const reactId = useId();
+
+  const [mounted, setMounted] = useState(false);
 
   const [mode, setMode] = useState<EventInterestMode>(initialMode);
   const [email, setEmail] = useState("");
@@ -131,6 +125,34 @@ export function EventInterestPopover({
   const [lastAttemptAt, setLastAttemptAt] = useState<number | null>(null);
 
   const firstRenderRef = useRef(true);
+
+  const titleId = `ybw-event-popover-title-${reactId}`;
+  const descId = `ybw-event-popover-desc-${reactId}`;
+  const mTitleId = `ybw-event-popover-m-title-${reactId}`;
+  const mDescId = `ybw-event-popover-m-desc-${reactId}`;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleDismiss();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   const hasPaidOption = Boolean(price && (price.isFree || price.amount > 0 || price.standardAmount > 0));
   const priceDisplay = useMemo(() => {
@@ -299,14 +321,12 @@ export function EventInterestPopover({
   const shellClasses =
     "backdrop-blur-xl bg-white text-foreground border border-stone-900/10 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.50)] rounded-2xl";
 
-  const overlayClasses =
-    "bg-stone-900/12 backdrop-blur-[1px]";
+  const overlayClasses = "bg-stone-900/12 backdrop-blur-[1px]";
 
   const showSuccess = success?.kind === "interest" || (interestSubmitted && !success && mode === "interest");
 
   const content = (
     <div className="flex flex-col overflow-hidden">
-      {/* Tasteful header strip — no image, just soft editorial accent */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#A3413A]/12 via-[#A3413A]/6 to-white">
         <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-[#A3413A]/10 blur-3xl" />
         <div className="relative flex items-start justify-between gap-4 px-5 pt-5 pb-3">
@@ -346,7 +366,6 @@ export function EventInterestPopover({
         </div>
       </div>
 
-      {/* Body panel */}
       <div className="flex flex-col px-5 pb-5 pt-4">
         <div className="mb-4">
           {showSuccess ? (
@@ -632,87 +651,66 @@ export function EventInterestPopover({
     </div>
   );
 
-  // Mobile (drawer) / desktop (dialog) split
-  // NOTE: We deliberately use Radix / Vaul primitives (not the composite
-  // DialogContent / DrawerContent wrappers) so we control z-order exactly and
-  // add the DialogTitle/DialogDescription that Radix requires for a11y. Real
-  // inline style z-index (not just Tailwind classes) is used so nothing can
-  // override via specificity — this is the only reliable way to guarantee
-  // the form paints ABOVE the dimmed overlay across all browser profiles.
-  return (
-    <div className="contents">
-      {/* Desktop dialog — explicit z via style prop so no specificity race */}
-      <Dialog open={open} onOpenChange={(next) => !next && handleDismiss()}>
-        <DialogPortal>
-          <DialogPrimitive.Overlay
-            className={cn(
-              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-              "fixed inset-0 hidden lg:block",
-              overlayClasses,
-            )}
-            style={{ zIndex: 95 }}
-          />
-          <DialogPrimitive.Content
-            aria-describedby="event-popover-description"
-            className={cn(
-              "fixed hidden lg:grid left-1/2 top-1/2 w-full max-w-[360px] -translate-x-1/2 -translate-y-1/2 p-0 gap-0 rounded-2xl pointer-events-auto outline-none focus:outline-none",
-              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.98] data-[state=open]:zoom-in-[0.98] duration-200",
-              shellClasses,
-            )}
-            style={{ zIndex: 100 }}
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-            onEscapeKeyDown={handleDismiss}
-          >
-            <DialogPrimitive.Title className="sr-only">{eventTitle}</DialogPrimitive.Title>
-            <DialogPrimitive.Description id="event-popover-description" className="sr-only">
-              {mode === "payment"
-                ? "Secure your place for this event by purchasing tickets."
-                : "Share your email to receive updates and ticket information for this event."}
-            </DialogPrimitive.Description>
-            {content}
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
+  if (!mounted || !open) return null;
 
-      {/* Mobile drawer — same explicit z via style prop, no swipe/overlay close */}
-      <Drawer
-        open={open}
-        onOpenChange={(next) => !next && handleDismiss()}
-        dismissible={false}
-        noBodyStyles
+  const srDescriptionText =
+    mode === "payment"
+      ? "Secure your place for this event by purchasing tickets."
+      : "Share your email to receive updates and ticket information for this event.";
+
+  return createPortal(
+    <div className="contents">
+      <div
+        aria-hidden="true"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className={cn(
+          "fixed inset-0 z-[998] pointer-events-auto select-none",
+          overlayClasses,
+          open ? "animate-in fade-in-0 duration-200" : "animate-out fade-out-0 duration-200",
+        )}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        className={cn(
+          "hidden lg:grid fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[999] w-full pointer-events-auto outline-none",
+          shellClasses,
+          "max-w-[360px]",
+          open ? "animate-in fade-in-0 zoom-in-[0.98] duration-200" : "animate-out fade-out-0 zoom-out-[0.98] duration-200",
+        )}
       >
-        <DrawerPortal>
-          <DrawerPrimitive.Overlay
-            className={cn(
-              "lg:hidden fixed inset-0",
-              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-              overlayClasses,
-            )}
-            style={{ zIndex: 95 }}
-          />
-          <DrawerPrimitive.Content
-            className={cn(
-              "lg:hidden bg-white fixed flex h-auto flex-col pointer-events-auto outline-none focus:outline-none",
-              "inset-x-0 bottom-0 mt-24 max-h-[80vh] !rounded-t-[24px] border-t border-stone-900/10",
-              "backdrop-blur-xl",
-            )}
-            style={{ zIndex: 100 }}
-          >
-            <div className="sr-only" aria-live="polite">
-              <DrawerPrimitive.Title>{eventTitle}</DrawerPrimitive.Title>
-              <DrawerPrimitive.Description>
-                {mode === "payment"
-                  ? "Secure your place for this event by purchasing tickets."
-                  : "Share your email to receive updates and ticket information."}
-              </DrawerPrimitive.Description>
-            </div>
-            <div className="bg-stone-900/10 mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full" />
-            <div className="px-4 pb-4 pt-1.5 sm:px-5 pointer-events-auto">{content}</div>
-          </DrawerPrimitive.Content>
-        </DrawerPortal>
-      </Drawer>
-    </div>
+        <div className="sr-only">
+          <p id={titleId}>{eventTitle}</p>
+          <p id={descId}>{srDescriptionText}</p>
+        </div>
+        {content}
+      </div>
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={mTitleId}
+        aria-describedby={mDescId}
+        className={cn(
+          "lg:hidden fixed inset-x-0 bottom-0 z-[999] mt-24 max-h-[80vh] w-full pointer-events-auto rounded-t-[24px] border-t border-stone-900/10 bg-white backdrop-blur-xl outline-none",
+          open ? "animate-in fade-in-0 slide-in-from-bottom duration-200" : "animate-out fade-out-0 slide-out-to-bottom duration-200",
+        )}
+      >
+        <div className="sr-only">
+          <p id={mTitleId}>{eventTitle}</p>
+          <p id={mDescId}>{srDescriptionText}</p>
+        </div>
+        <div className="bg-stone-900/10 mx-auto mt-2.5 h-1 w-10 rounded-full" />
+        <div className="px-4 pb-4 pt-1.5 sm:px-5">{content}</div>
+      </div>
+    </div>,
+    typeof document !== "undefined" ? document.body : (null as unknown as HTMLElement),
   );
 }
 
