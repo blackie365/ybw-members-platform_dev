@@ -68,9 +68,15 @@ export async function POST(request: Request) {
 
     const email = rawEmail;
 
-    // Step 1: Add to Beehiiv (Primary)
-    let beehiivResult = { success: false, alreadyExists: false };
-    try {
+    // Step 1: Add to Beehiiv (Primary Newsletter Delivery Engine)
+    let beehiivResult: {
+      success: boolean;
+      alreadyExists: boolean;
+      disabled?: boolean;
+      error?: string;
+      httpStatus?: number;
+    } = { success: false, alreadyExists: false };
+    {
       const res = await addBeehiivSubscriber({
         email,
         customFields: {
@@ -79,10 +85,26 @@ export async function POST(request: Request) {
           industry,
         },
       });
-      beehiivResult = { success: !!res?.success, alreadyExists: !!res?.alreadyExists };
-    } catch (beehiivError: unknown) {
-      const msg = beehiivError instanceof Error ? beehiivError.message : String(beehiivError);
-      console.error('❌ [API/Newsletter] Beehiiv failed:', msg);
+      beehiivResult = {
+        success: Boolean(res?.success),
+        alreadyExists: Boolean(res?.alreadyExists),
+        disabled: Boolean(res?.disabled),
+        error: res?.error,
+        httpStatus: res?.httpStatus,
+      };
+      if (!beehiivResult.success && !beehiivResult.disabled) {
+        console.error(
+          '❌ [API/Newsletter] Beehiiv sync failed:',
+          beehiivResult.error || 'no error message',
+          'httpStatus=', beehiivResult.httpStatus,
+          'subscriber=', email
+        );
+      } else if (beehiivResult.disabled) {
+        console.warn(
+          '⚠️ [API/Newsletter] Beehiiv sync skipped (disabled / not configured). subscriber=',
+          email
+        );
+      }
     }
 
     // Step 2: Add to Ghost (Non-critical)
@@ -219,7 +241,13 @@ export async function POST(request: Request) {
         ? "You're already subscribed to our newsletter! We've updated your preferences."
         : 'Successfully subscribed',
       details: {
-        beehiiv: beehiivResult.success,
+        beehiiv: {
+          success: beehiivResult.success,
+          alreadyExists: beehiivResult.alreadyExists,
+          disabled: Boolean(beehiivResult.disabled),
+          error: beehiivResult.error,
+          httpStatus: beehiivResult.httpStatus,
+        },
         ghost: ghostResult,
         welcomeEmail: {
           sent: welcomeEmail.success && !welcomeEmail.mock,
