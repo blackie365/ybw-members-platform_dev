@@ -300,10 +300,10 @@ export function EventInterestPopover({
   const interestSubmitted = Boolean(getStoredFlag(STORAGE_KEYS.submitted(eventId)));
 
   const shellClasses =
-    "backdrop-blur-2xl bg-white/75 text-foreground border border-white/60 shadow-[0_30px_80px_-30px_rgba(12,10,9,0.35)] rounded-3xl";
+    "backdrop-blur-2xl bg-white/92 text-foreground border border-white/80 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.42)] rounded-3xl";
 
   const overlayClasses =
-    "bg-stone-900/10 backdrop-blur-[1px]";
+    "bg-stone-900/18 backdrop-blur-[1px]";
 
   const showSuccess = success?.kind === "interest" || (interestSubmitted && !success && mode === "interest");
 
@@ -654,9 +654,10 @@ export function EventInterestPopover({
           <DialogContent
             showCloseButton={false}
             className={cn(
-              "hidden lg:grid !max-w-[860px] !translate-x-[-50%] !translate-y-[-50%] !p-0",
+              "hidden lg:grid !max-w-[640px] !translate-x-[-50%] !translate-y-[-50%] !p-0",
               shellClasses,
             )}
+            onInteractOutside={(e) => e.preventDefault()}
             onPointerDownOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={handleDismiss}
           >
@@ -669,15 +670,15 @@ export function EventInterestPopover({
       <Drawer
         open={open}
         onOpenChange={(next) => !next && handleDismiss()}
-        dismissible
+        dismissible={false}
         noBodyStyles
       >
         <DrawerPortal>
           <DrawerOverlay className={cn("lg:hidden", overlayClasses)} />
           <DrawerContent
             className={cn(
-              "lg:hidden overflow-hidden !rounded-t-[28px] border-t border-white/70",
-              "bg-white/85 backdrop-blur-2xl",
+              "lg:hidden overflow-hidden !rounded-t-[28px] border-t border-white/80",
+              "bg-white/92 backdrop-blur-2xl",
             )}
           >
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-stone-900/10" />
