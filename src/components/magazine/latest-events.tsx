@@ -1,12 +1,29 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, BellRing, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
-import { EventInterestPopover } from "@/components/events/EventInterestPopover";
+import {
+  EventInterestPopover,
+  clearEventPopupMemory,
+  hasRecentlyDismissed,
+  hasRecentlySubmittedInterest,
+} from "@/components/events/EventInterestPopover";
+
+const HOMEPAGE_AUTO_TRIGGER_DELAY_MS = 5_000;
+
+function hasHomepagePreviewQuery(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("hp_event_preview") === "1";
+  } catch {
+    return false;
+  }
+}
 
 interface GhostPost {
   id: string
@@ -24,8 +41,64 @@ interface GhostPost {
 
 export function LatestEvents({ events }: { events: GhostPost[] }) {
   const [activeEvent, setActiveEvent] = useState<GhostPost | null>(null);
+  const [autoTriggered, setAutoTriggered] = useState(false);
 
   if (!events || events.length === 0) return null;
+
+  const topEvent = events[0];
+
+  // Homepage soft auto-trigger: 5s after the first visitor lands on the homepage,
+  // surface a translucent Instagram-style interest pop-up for the featured upcoming event.
+  // Honours dismissed/submitted cooldowns, and bypasses them when ?hp_event_preview=1
+  // is set (clears stale memory and opens after 200ms for QA).
+  useEffect(() => {
+    if (!topEvent) return;
+    if (autoTriggered) return;
+    let mounted = true;
+    let timer: number | undefined;
+
+    const open = () => {
+      if (!mounted) return;
+      setAutoTriggered(true);
+      setActiveEvent(topEvent);
+    };
+
+    if (hasHomepagePreviewQuery()) {
+      try {
+        clearEventPopupMemory(topEvent.slug);
+      } catch {
+        // ignore
+      }
+      timer = window.setTimeout(open, 200);
+      return () => {
+        mounted = false;
+        if (timer) window.clearTimeout(timer);
+      };
+    }
+
+    timer = window.setTimeout(() => {
+      if (!mounted) return;
+      try {
+        if (
+          hasRecentlySubmittedInterest(topEvent.slug) ||
+          hasRecentlyDismissed(topEvent.slug)
+        ) {
+          return;
+        }
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+          return;
+        }
+        open();
+      } catch {
+        // ignore
+      }
+    }, HOMEPAGE_AUTO_TRIGGER_DELAY_MS);
+
+    return () => {
+      mounted = false;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [topEvent, autoTriggered]);
 
   return (
     <section className="bg-primary text-primary-foreground">
