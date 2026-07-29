@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, Loader2, X } from "lucide-react";
+import { hasHomepageEventAutoTriggeredThisSession } from "@/components/events/EventInterestPopover";
 
 const DISMISS_KEY = "ybw:newsletter_popup_dismissed";
 const DISMISS_DAYS = 30;
@@ -46,7 +47,10 @@ export function NewsletterPopup() {
 
   useEffect(() => {
     if (isDismissedStored()) return;
-    const timer = setTimeout(() => setIsOpen(true), SHOW_DELAY_MS);
+    const timer = setTimeout(() => {
+      if (hasHomepageEventAutoTriggeredThisSession()) return;
+      setIsOpen(true);
+    }, SHOW_DELAY_MS);
     return () => clearTimeout(timer);
   }, []);
 

@@ -11,6 +11,7 @@ import {
   clearEventPopupMemory,
   hasRecentlyDismissed,
   hasRecentlySubmittedInterest,
+  markHomepageEventAutoTrigger,
 } from "@/components/events/EventInterestPopover";
 
 const HOMEPAGE_AUTO_TRIGGER_DELAY_MS = 5_000;
@@ -66,6 +67,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
       } catch {
         // ignore
       }
+      markHomepageEventAutoTrigger();
       timer = window.setTimeout(open, 200);
       return () => {
         mounted = false;
@@ -75,6 +77,7 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
 
     timer = window.setTimeout(() => {
       if (!mounted) return;
+      markHomepageEventAutoTrigger();
       try {
         if (
           hasRecentlySubmittedInterest(topEvent.slug) ||
