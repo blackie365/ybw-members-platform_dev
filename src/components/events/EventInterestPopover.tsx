@@ -41,6 +41,8 @@ export interface EventInterestPopoverProps {
   sourceLabel?: string;
 }
 
+export const HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY = "ybw:hp_event_popup_intent";
+
 const STORAGE_KEYS = {
   dismissed: (id: string) => `ybw:event_popup_dismissed:${id}`,
   submitted: (id: string) => `ybw:event_popup_submitted:${id}`,
@@ -774,5 +776,30 @@ export function clearEventPopupMemory(eventId?: string): void {
       .forEach(clearKey);
   } catch {
     // ignore
+  }
+}
+
+export function markHomepageEventAutoTrigger(timestampMs: number = Date.now()): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY,
+      String(timestampMs)
+    );
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function hasHomepageEventAutoTriggeredThisSession(maxAgeMs: number = 5 * 60 * 1000): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.sessionStorage.getItem(HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY);
+    if (!raw) return false;
+    const when = parseInt(raw, 10);
+    if (Number.isNaN(when)) return false;
+    return Date.now() - when < maxAgeMs;
+  } catch {
+    return false;
   }
 }
