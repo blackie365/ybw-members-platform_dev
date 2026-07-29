@@ -42,10 +42,7 @@ interface GhostPost {
 export function LatestEvents({ events }: { events: GhostPost[] }) {
   const [activeEvent, setActiveEvent] = useState<GhostPost | null>(null);
   const [autoTriggered, setAutoTriggered] = useState(false);
-
-  if (!events || events.length === 0) return null;
-
-  const topEvent = events[0];
+  const topEvent = events && events.length > 0 ? events[0] : null;
 
   // Homepage soft auto-trigger: 5s after the first visitor lands on the homepage,
   // surface a translucent Instagram-style interest pop-up for the featured upcoming event.
@@ -99,6 +96,8 @@ export function LatestEvents({ events }: { events: GhostPost[] }) {
       if (timer) window.clearTimeout(timer);
     };
   }, [topEvent, autoTriggered]);
+
+  if (!events || events.length === 0) return null;
 
   return (
     <section className="bg-primary text-primary-foreground">
