@@ -633,41 +633,49 @@ export function EventInterestPopover({
   );
 
   // Mobile (drawer) / desktop (dialog) split
-  // NOTE: We deliberately use the Radix / Vaul primitives directly (not the
-  // composite DialogContent / DrawerContent wrappers) because each of those
-  // wrappers renders its own overlay. Rendering ours via the explicit primitives
-  // lets us control z-ordering exactly and eliminates the double-overlay bug
-  // where the form content could paint BEHIND a sibling overlay (both at z-50),
-  // making inputs and buttons unreachable.
+  // NOTE: We deliberately use Radix / Vaul primitives (not the composite
+  // DialogContent / DrawerContent wrappers) so we control z-order exactly and
+  // add the DialogTitle/DialogDescription that Radix requires for a11y. Real
+  // inline style z-index (not just Tailwind classes) is used so nothing can
+  // override via specificity — this is the only reliable way to guarantee
+  // the form paints ABOVE the dimmed overlay across all browser profiles.
   return (
     <div className="contents">
-      {/* Desktop dialog — explicit overlay at !z-[95], content at !z-[100], always on top */}
+      {/* Desktop dialog — explicit z via style prop so no specificity race */}
       <Dialog open={open} onOpenChange={(next) => !next && handleDismiss()}>
         <DialogPortal>
           <DialogPrimitive.Overlay
             className={cn(
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-              "fixed inset-0 hidden lg:block !z-[95]",
+              "fixed inset-0 hidden lg:block",
               overlayClasses,
             )}
+            style={{ zIndex: 95 }}
           />
           <DialogPrimitive.Content
-            aria-describedby={undefined}
+            aria-describedby="event-popover-description"
             className={cn(
-              "fixed hidden lg:grid left-[50%] top-[50%] w-full !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !z-[100] !p-0 !gap-0 rounded-2xl pointer-events-auto",
+              "fixed hidden lg:grid left-1/2 top-1/2 w-full max-w-[360px] -translate-x-1/2 -translate-y-1/2 p-0 gap-0 rounded-2xl pointer-events-auto outline-none focus:outline-none",
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.98] data-[state=open]:zoom-in-[0.98] duration-200",
               shellClasses,
             )}
+            style={{ zIndex: 100 }}
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={handleDismiss}
           >
+            <DialogPrimitive.Title className="sr-only">{eventTitle}</DialogPrimitive.Title>
+            <DialogPrimitive.Description id="event-popover-description" className="sr-only">
+              {mode === "payment"
+                ? "Secure your place for this event by purchasing tickets."
+                : "Share your email to receive updates and ticket information for this event."}
+            </DialogPrimitive.Description>
             {content}
           </DialogPrimitive.Content>
         </DialogPortal>
       </Dialog>
 
-      {/* Mobile drawer — explicit overlay at !z-[95], content at !z-[100], no swipe-to-dismiss */}
+      {/* Mobile drawer — same explicit z via style prop, no swipe/overlay close */}
       <Drawer
         open={open}
         onOpenChange={(next) => !next && handleDismiss()}
@@ -677,18 +685,28 @@ export function EventInterestPopover({
         <DrawerPortal>
           <DrawerPrimitive.Overlay
             className={cn(
-              "lg:hidden fixed inset-0 !z-[95]",
+              "lg:hidden fixed inset-0",
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
               overlayClasses,
             )}
+            style={{ zIndex: 95 }}
           />
           <DrawerPrimitive.Content
             className={cn(
-              "lg:hidden bg-white fixed !z-[100] flex h-auto flex-col pointer-events-auto",
-              "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] !rounded-t-[24px] border-t border-stone-900/10",
+              "lg:hidden bg-white fixed flex h-auto flex-col pointer-events-auto outline-none focus:outline-none",
+              "inset-x-0 bottom-0 mt-24 max-h-[80vh] !rounded-t-[24px] border-t border-stone-900/10",
               "backdrop-blur-xl",
             )}
+            style={{ zIndex: 100 }}
           >
+            <div className="sr-only" aria-live="polite">
+              <DrawerPrimitive.Title>{eventTitle}</DrawerPrimitive.Title>
+              <DrawerPrimitive.Description>
+                {mode === "payment"
+                  ? "Secure your place for this event by purchasing tickets."
+                  : "Share your email to receive updates and ticket information."}
+              </DrawerPrimitive.Description>
+            </div>
             <div className="bg-stone-900/10 mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full" />
             <div className="px-4 pb-4 pt-1.5 sm:px-5 pointer-events-auto">{content}</div>
           </DrawerPrimitive.Content>
