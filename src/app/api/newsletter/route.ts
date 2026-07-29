@@ -144,36 +144,72 @@ export async function POST(request: Request) {
     }
 
     // Step 4: Send Welcome Email (Non-critical)
+    let welcomeEmail: { success: boolean; mock?: boolean; error?: string } = { success: false };
     try {
       const html = await getNewsletterWelcomeEmailTemplate(firstName || 'there');
-      await sendEmail({
+      const res = await sendEmail({
         to: email,
         subject: 'Welcome to Yorkshire Businesswoman',
         html,
       });
+      welcomeEmail = { success: true, mock: Boolean(res?.mock) };
+      if (welcomeEmail.mock) {
+        console.warn('⚠️ [API/Newsletter] Welcome email MOCKED (RESEND_API_KEY missing or dev-mode fallback). No email actually transmitted to:', email);
+      }
     } catch (emailError: unknown) {
       const msg = emailError instanceof Error ? emailError.message : String(emailError);
       console.warn('⚠️ [API/Newsletter] Welcome email failed:', msg);
+      welcomeEmail = { success: false, error: msg };
     }
 
     // Step 5: Send Admin Alert Email for NEW sign-ups only (Non-critical)
-    if (!beehiivResult.alreadyExists) {
-      try {
-        const alertHtml = await getNewsletterSignupAlertTemplate(
-          email,
-          firstName || undefined,
-          lastName || undefined,
-          source || undefined
-        );
-        await sendEmail({
-          to: config.contactRecipients,
-          subject: `🔔 New Newsletter Sign-Up: ${email}`,
-          html: alertHtml,
-        });
-        console.log(`✅ [API/Newsletter] Admin alert sent for new sign-up: ${email}`);
-      } catch (alertError: unknown) {
-        const msg = alertError instanceof Error ? alertError.message : String(alertError);
-        console.warn('⚠️ [API/Newsletter] Admin alert email failed:', msg);
+    let adminAlert: { success: boolean; sent: boolean; mock?: boolean; skipped?: 'already_exists' | 'no_recipients'; error?: string; recipients?: string[] } = { success: false, sent: false };
+    if (beehiivResult.alreadyExists) {
+      adminAlert = { success: true, sent: false, skipped: 'already_exists' };
+    } else {
+      const recipients = Array.from(new Set(
+        config.contactRecipients.map((r) => r.trim()).filter((r) => r && r.includes('@'))
+      ));
+      if (recipients.length === 0) {
+        console.error('❌ [API/Newsletter] Admin alert SKIPPED: no valid CONTACT_RECIPIENTS. subscriber=', email);
+        adminAlert = { success: false, sent: false, skipped: 'no_recipients', recipients };
+      } else {
+        try {
+          const alertHtml = await getNewsletterSignupAlertTemplate(
+            email,
+            firstName || undefined,
+            lastName || undefined,
+            source || undefined
+          );
+          const res = await sendEmail({
+            to: recipients,
+            subject: `🔔 New Newsletter Sign-Up: ${email}`,
+            html: alertHtml,
+          });
+          const isMock = Boolean(res?.mock);
+          adminAlert = {
+            success: true,
+            sent: !isMock,
+            mock: isMock,
+            recipients,
+          };
+          if (isMock) {
+            console.warn(
+              '⚠️ [API/Newsletter] Admin alert MOCKED — no real email dispatched. subscriber=',
+              email,
+              'recipients=',
+              recipients.join(', ')
+            );
+          } else {
+            console.log(
+              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} to ${recipients.join(', ')}`
+            );
+          }
+        } catch (alertError: unknown) {
+          const msg = alertError instanceof Error ? alertError.message : String(alertError);
+          console.error('❌ [API/Newsletter] Admin alert email FAILED:', msg, 'subscriber=', email, 'recipients=', recipients.join(', '));
+          adminAlert = { success: false, sent: false, error: msg, recipients };
+        }
       }
     }
 
@@ -185,6 +221,19 @@ export async function POST(request: Request) {
       details: {
         beehiiv: beehiivResult.success,
         ghost: ghostResult,
+        welcomeEmail: {
+          sent: welcomeEmail.success && !welcomeEmail.mock,
+          mock: Boolean(welcomeEmail.mock),
+          error: welcomeEmail.error,
+        },
+        alert: {
+          newSignup: !beehiivResult.alreadyExists,
+          skipped: adminAlert.skipped,
+          sent: adminAlert.sent,
+          mock: Boolean(adminAlert.mock),
+          error: adminAlert.error,
+          recipientCount: adminAlert.recipients?.length ?? 0,
+        },
       },
     };
 
