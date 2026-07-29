@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Drawer as DrawerPrimitive } from "vaul";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles, X, CreditCard, BellRing, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   Dialog,
-  DialogContent,
   DialogPortal,
 } from "@/components/ui/dialog";
 import {
   Drawer,
-  DrawerContent,
-  DrawerOverlay,
   DrawerPortal,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -635,15 +633,29 @@ export function EventInterestPopover({
   );
 
   // Mobile (drawer) / desktop (dialog) split
+  // NOTE: We deliberately use the Radix / Vaul primitives directly (not the
+  // composite DialogContent / DrawerContent wrappers) because each of those
+  // wrappers renders its own overlay. Rendering ours via the explicit primitives
+  // lets us control z-ordering exactly and eliminates the double-overlay bug
+  // where the form content could paint BEHIND a sibling overlay (both at z-50),
+  // making inputs and buttons unreachable.
   return (
     <div className="contents">
-      {/* Desktop dialog — rendered inside DialogPortal; the DialogContent wrapper already renders its own DialogOverlay */}
+      {/* Desktop dialog — explicit overlay at !z-[95], content at !z-[100], always on top */}
       <Dialog open={open} onOpenChange={(next) => !next && handleDismiss()}>
         <DialogPortal>
-          <DialogContent
-            showCloseButton={false}
+          <DialogPrimitive.Overlay
             className={cn(
-              "hidden lg:grid !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !p-0 !gap-0 !rounded-2xl",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+              "fixed inset-0 hidden lg:block !z-[95]",
+              overlayClasses,
+            )}
+          />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            className={cn(
+              "fixed hidden lg:grid left-[50%] top-[50%] w-full !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !z-[100] !p-0 !gap-0 rounded-2xl pointer-events-auto",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.98] data-[state=open]:zoom-in-[0.98] duration-200",
               shellClasses,
             )}
             onPointerDownOutside={(e) => e.preventDefault()}
@@ -651,11 +663,11 @@ export function EventInterestPopover({
             onEscapeKeyDown={handleDismiss}
           >
             {content}
-          </DialogContent>
+          </DialogPrimitive.Content>
         </DialogPortal>
       </Dialog>
 
-      {/* Mobile drawer — keep overlay explicit (DrawerContent doesn't render one), but lock interact-outside so taps/swipes don't close */}
+      {/* Mobile drawer — explicit overlay at !z-[95], content at !z-[100], no swipe-to-dismiss */}
       <Drawer
         open={open}
         onOpenChange={(next) => !next && handleDismiss()}
@@ -663,16 +675,23 @@ export function EventInterestPopover({
         noBodyStyles
       >
         <DrawerPortal>
-          <DrawerOverlay className={cn("lg:hidden", overlayClasses)} />
-          <DrawerContent
+          <DrawerPrimitive.Overlay
             className={cn(
-              "lg:hidden overflow-hidden !rounded-t-[24px] border-t border-stone-900/10",
-              "bg-white backdrop-blur-xl",
+              "lg:hidden fixed inset-0 !z-[95]",
+              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+              overlayClasses,
+            )}
+          />
+          <DrawerPrimitive.Content
+            className={cn(
+              "lg:hidden bg-white fixed !z-[100] flex h-auto flex-col pointer-events-auto",
+              "data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] !rounded-t-[24px] border-t border-stone-900/10",
+              "backdrop-blur-xl",
             )}
           >
-            <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-stone-900/10" />
-            <div className="px-4 pb-4 pt-1.5 sm:px-5">{content}</div>
-          </DrawerContent>
+            <div className="bg-stone-900/10 mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full" />
+            <div className="px-4 pb-4 pt-1.5 sm:px-5 pointer-events-auto">{content}</div>
+          </DrawerPrimitive.Content>
         </DrawerPortal>
       </Drawer>
     </div>
