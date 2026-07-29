@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogOverlay,
   DialogPortal,
 } from "@/components/ui/dialog";
 import {
@@ -300,10 +299,10 @@ export function EventInterestPopover({
   const interestSubmitted = Boolean(getStoredFlag(STORAGE_KEYS.submitted(eventId)));
 
   const shellClasses =
-    "backdrop-blur-2xl bg-white/90 text-foreground border border-white/85 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.45)] rounded-2xl";
+    "backdrop-blur-xl bg-white text-foreground border border-stone-900/10 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.50)] rounded-2xl";
 
   const overlayClasses =
-    "bg-stone-900/20 backdrop-blur-[1px]";
+    "bg-stone-900/12 backdrop-blur-[1px]";
 
   const showSuccess = success?.kind === "interest" || (interestSubmitted && !success && mode === "interest");
 
@@ -638,18 +637,17 @@ export function EventInterestPopover({
   // Mobile (drawer) / desktop (dialog) split
   return (
     <div className="contents">
-      {/* Desktop dialog */}
+      {/* Desktop dialog — rendered inside DialogPortal; the DialogContent wrapper already renders its own DialogOverlay */}
       <Dialog open={open} onOpenChange={(next) => !next && handleDismiss()}>
         <DialogPortal>
-          <DialogOverlay className={overlayClasses} />
           <DialogContent
             showCloseButton={false}
             className={cn(
-              "hidden lg:grid !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !p-0",
+              "hidden lg:grid !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !p-0 !gap-0 !rounded-2xl",
               shellClasses,
             )}
-            onInteractOutside={(e) => e.preventDefault()}
             onPointerDownOutside={(e) => e.preventDefault()}
+            onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={handleDismiss}
           >
             {content}
@@ -657,7 +655,7 @@ export function EventInterestPopover({
         </DialogPortal>
       </Dialog>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — keep overlay explicit (DrawerContent doesn't render one), but lock interact-outside so taps/swipes don't close */}
       <Drawer
         open={open}
         onOpenChange={(next) => !next && handleDismiss()}
@@ -668,8 +666,8 @@ export function EventInterestPopover({
           <DrawerOverlay className={cn("lg:hidden", overlayClasses)} />
           <DrawerContent
             className={cn(
-              "lg:hidden overflow-hidden !rounded-t-[24px] border-t border-white/85",
-              "bg-white/90 backdrop-blur-2xl",
+              "lg:hidden overflow-hidden !rounded-t-[24px] border-t border-stone-900/10",
+              "bg-white backdrop-blur-xl",
             )}
           >
             <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-stone-900/10" />
