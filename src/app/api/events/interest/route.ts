@@ -124,10 +124,13 @@ export async function POST(request: Request) {
   // 1) Core event interest record (deduped by email + event)
   const interestRecordId = Buffer.from(`${eventId}::${email}`).toString('base64url');
   let interestCreated = false;
-  let beehiivResult: { success: boolean; alreadyExists?: boolean } = {
-    success: false,
-    alreadyExists: false,
-  };
+  let beehiivResult: {
+    success: boolean;
+    alreadyExists: boolean;
+    disabled?: boolean;
+    error?: string;
+    httpStatus?: number;
+  } = { success: false, alreadyExists: false };
   let ghostResult = false;
   let adminEmailResult: { success?: boolean; mock?: boolean; id?: string } | null = null;
 
@@ -198,7 +201,7 @@ export async function POST(request: Request) {
   }
 
   // 2) Beehiiv sync (newsletter opt-in or always with event custom fields)
-  try {
+  {
     const res = await addBeehiivSubscriber({
       email,
       customFields: {
@@ -214,9 +217,29 @@ export async function POST(request: Request) {
       // Only send the general newsletter welcome if they explicitly opted in.
       sendWelcomeEmail: newsletterOptIn,
     });
-    beehiivResult = { success: !!res?.success, alreadyExists: !!res?.alreadyExists };
-  } catch (error: any) {
-    console.warn('[API/Events/Interest] Beehiiv skipped:', error?.message || error);
+    beehiivResult = {
+      success: Boolean(res?.success),
+      alreadyExists: Boolean(res?.alreadyExists),
+      disabled: Boolean(res?.disabled),
+      error: res?.error,
+      httpStatus: res?.httpStatus,
+    };
+    if (!beehiivResult.success && !beehiivResult.disabled) {
+      console.error(
+        '❌ [API/Events/Interest] Beehiiv sync failed:',
+        beehiivResult.error,
+        'httpStatus=', beehiivResult.httpStatus,
+        'event=', eventId,
+        'subscriber=', email
+      );
+    } else if (beehiivResult.disabled) {
+      console.warn(
+        '⚠️ [API/Events/Interest] Beehiiv sync skipped (disabled/not configured). event=',
+        eventId,
+        'subscriber=',
+        email
+      );
+    }
   }
 
   // 3) Ghost member sync (non-critical)

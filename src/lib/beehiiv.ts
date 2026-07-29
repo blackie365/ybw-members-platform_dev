@@ -8,6 +8,10 @@ const BEEHIIV_API_KEY = process.env.BEEHIIV_API_KEY;
 const BEEHIIV_PUBLICATION_ID = process.env.BEEHIIV_PUBLICATION_ID;
 const BEEHIIV_API_URL = 'https://api.beehiiv.com/v2';
 
+export function isBeehiivConfigured(): boolean {
+  return Boolean(BEEHIIV_API_KEY && BEEHIIV_PUBLICATION_ID);
+}
+
 interface AddSubscriberParams {
   email: string;
   reactivate?: boolean;
@@ -17,6 +21,15 @@ interface AddSubscriberParams {
   utmCampaign?: string;
   referringSite?: string;
   customFields?: Record<string, string | number | boolean>;
+}
+
+export interface BeehiivSubscriberResult {
+  success: boolean;
+  alreadyExists?: boolean;
+  error?: string;
+  httpStatus?: number;
+  data?: unknown;
+  disabled?: boolean;
 }
 
 /**
@@ -31,10 +44,11 @@ export async function addBeehiivSubscriber({
   utmCampaign = 'newsletter-signup',
   referringSite = 'yorkshirebusinesswoman.co.uk',
   customFields = {}
-}: AddSubscriberParams) {
-  if (!BEEHIIV_API_KEY || !BEEHIIV_PUBLICATION_ID) {
-    console.warn('Beehiiv API Key or Publication ID is missing. Skipping Beehiiv sync for:', email);
-    return { success: false, error: 'API Configuration missing' };
+}: AddSubscriberParams): Promise<BeehiivSubscriberResult> {
+  if (!isBeehiivConfigured()) {
+    const msg = 'Beehiiv API Key or Publication ID is missing';
+    console.warn('[Beehiiv] Disabled / not configured. Skipping sync for:', email);
+    return { success: false, disabled: true, error: msg };
   }
 
   try {
@@ -56,27 +70,43 @@ export async function addBeehiivSubscriber({
       })
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      // If subscriber already exists, Beehiiv returns 422
-      if (response.status === 422) {
-        const errorMessage = data.errors?.[0]?.message || '';
-        if (errorMessage.toLowerCase().includes('already') || errorMessage.toLowerCase().includes('duplicate')) {
-          console.log('Subscriber already exists in Beehiiv:', email);
-          return { success: true, alreadyExists: true };
-        }
+      // Beehiiv commonly uses 422 for validation/dupes, but sometimes 409 for
+      // existing-subscriber conflicts depending on API version.
+      const isConflict = response.status === 409 || response.status === 422;
+      const combinedMsg = [
+        data?.errors?.[0]?.message,
+        data?.error,
+        data?.message,
+      ].filter(Boolean).join(' ');
+      const combinedLower = combinedMsg.toLowerCase();
+      if (
+        isConflict &&
+        (combinedLower.includes('already') ||
+          combinedLower.includes('duplicate') ||
+          combinedLower.includes('taken') ||
+          combinedLower.includes('exists'))
+      ) {
+        console.log('[Beehiiv] Subscriber already exists:', email);
+        return { success: true, alreadyExists: true, httpStatus: response.status };
       }
-      
-      console.error('Beehiiv API Error:', data);
-      throw new Error(data.errors?.[0]?.message || 'Failed to add subscriber to Beehiiv');
+
+      console.error('[Beehiiv] API Error status=' + response.status, data);
+      return {
+        success: false,
+        error: combinedMsg || `Unexpected API response (HTTP ${response.status})`,
+        httpStatus: response.status,
+      };
     }
 
-    console.log('Successfully added subscriber to Beehiiv:', email);
+    console.log('[Beehiiv] Successfully added subscriber:', email);
     return { success: true, data: data.data };
-  } catch (error: any) {
-    console.error('Error in addBeehiivSubscriber:', error.message);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[Beehiiv] Error in addBeehiivSubscriber:', msg);
+    return { success: false, error: msg };
   }
 }
 
