@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Sparkles, X, CreditCard, BellRing } from "lucide-react";
+import { Check, Loader2, Sparkles, X, CreditCard, BellRing, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -300,110 +300,101 @@ export function EventInterestPopover({
   const interestSubmitted = Boolean(getStoredFlag(STORAGE_KEYS.submitted(eventId)));
 
   const shellClasses =
-    "backdrop-blur-2xl bg-white/92 text-foreground border border-white/80 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.42)] rounded-3xl";
+    "backdrop-blur-2xl bg-white/90 text-foreground border border-white/85 shadow-[0_30px_90px_-30px_rgba(12,10,9,0.45)] rounded-2xl";
 
   const overlayClasses =
-    "bg-stone-900/18 backdrop-blur-[1px]";
+    "bg-stone-900/20 backdrop-blur-[1px]";
 
   const showSuccess = success?.kind === "interest" || (interestSubmitted && !success && mode === "interest");
 
   const content = (
-    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] overflow-hidden">
-      {/* Visual panel */}
-      <div className="relative hidden lg:block min-h-[320px]">
-        {eventImage ? (
-          <Image
-            src={eventImage}
-            alt={eventTitle}
-            fill
-            className="object-cover"
-            sizes="(min-width: 1024px) 420px, 0px"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#A3413A]/80 via-[#A3413A]/60 to-stone-200" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-        <div className="relative flex h-full flex-col justify-end p-6 text-white">
-          <span className="inline-flex w-max items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-medium tracking-wide backdrop-blur-md">
-            <Sparkles className="h-3 w-3" />
-            {sourceLabel}
-          </span>
-          <h3 className="mt-3 font-serif text-2xl font-medium leading-snug text-white">
-            {eventTitle}
-          </h3>
-          {(eventDateLabel || eventLocation) && (
-            <p className="mt-2 text-sm text-white/80 line-clamp-2">
-              {[eventDateLabel, eventLocation].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Form panel */}
-      <div className="flex flex-col p-6 lg:p-7">
-        <div className="mb-5 flex items-start justify-between gap-4">
+    <div className="flex flex-col overflow-hidden">
+      {/* Tasteful header strip — no image, just soft editorial accent */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#A3413A]/12 via-[#A3413A]/6 to-white">
+        <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-[#A3413A]/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4 px-5 pt-5 pb-3">
           <div>
-            <div className="lg:hidden">
-              <span className="inline-flex w-max items-center gap-1.5 rounded-full border border-stone-900/10 bg-stone-900/5 px-2.5 py-1 text-[11px] font-medium tracking-wide text-stone-700">
-                <Sparkles className="h-3 w-3" />
-                {sourceLabel}
-              </span>
-            </div>
-            <h4 className="mt-2 font-serif text-xl font-medium leading-snug text-stone-900 lg:hidden">
+            <span className="inline-flex w-max items-center gap-1.5 rounded-full border border-stone-900/10 bg-white/70 px-2.5 py-1 text-[10px] font-medium tracking-[0.12em] uppercase text-stone-600 backdrop-blur">
+              <Sparkles className="h-3 w-3" />
+              {sourceLabel}
+            </span>
+            <h3 className="mt-3 font-serif text-[20px] font-medium leading-snug text-stone-900">
               {eventTitle}
-            </h4>
-            {showSuccess ? (
-              <p className="mt-2 text-sm text-stone-600">
-                {success?.message || "You&apos;re on the list. We&apos;ll share dates, venue, and tickets first."}
-              </p>
-            ) : mode === "payment" ? (
-              <p className="mt-2 text-sm text-stone-600">
-                Secure your place directly — you&apos;ll also receive event updates by email.
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-stone-600">
-                Leave your email and we&apos;ll keep you posted on tickets, dates, and details.
-              </p>
+            </h3>
+            {(eventDateLabel || eventLocation) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-stone-500">
+                {eventDateLabel && (
+                  <span className="inline-flex items-center gap-1">
+                    <BellRing className="h-3 w-3 text-[#A3413A]/70" />
+                    {eventDateLabel}
+                  </span>
+                )}
+                {eventLocation && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-[#A3413A]/70" />
+                    {eventLocation}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <button
             type="button"
             onClick={handleDismiss}
-            className="rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
+            className="shrink-0 rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
+      </div>
+
+      {/* Body panel */}
+      <div className="flex flex-col px-5 pb-5 pt-4">
+        <div className="mb-4">
+          {showSuccess ? (
+            <p className="text-[13px] leading-relaxed text-stone-600">
+              {success?.message || "You&apos;re on the list. We&apos;ll share dates, venue, and tickets first."}
+            </p>
+          ) : mode === "payment" ? (
+            <p className="text-[13px] leading-relaxed text-stone-600">
+              Secure your place directly — you&apos;ll also receive event updates by email.
+            </p>
+          ) : (
+            <p className="text-[13px] leading-relaxed text-stone-600">
+              Leave your email and we&apos;ll keep you posted on tickets, dates, and details.
+            </p>
+          )}
+        </div>
 
         {showSuccess ? (
           <div className="flex flex-1 flex-col">
-            <div className="flex items-center gap-3 rounded-2xl border border-stone-900/10 bg-emerald-50/80 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700">
-                <Check className="h-5 w-5" />
+            <div className="flex items-center gap-3 rounded-xl border border-stone-900/10 bg-emerald-50/80 p-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700">
+                <Check className="h-4 w-4" />
               </div>
-              <div>
-                <p className="font-medium text-stone-900">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-stone-900">
                   {success?.message || "Thanks — you're on the list."}
                 </p>
-                <p className="mt-0.5 text-xs text-stone-600">
+                <p className="mt-0.5 text-[11px] text-stone-600">
                   You can close this window anytime.
                 </p>
               </div>
             </div>
 
             {hasPaidOption && price && !price.isFree && success?.kind !== "payment" && (
-              <div className="mt-5 rounded-2xl border border-stone-900/10 bg-white/70 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-stone-900">Ready to book?</p>
-                    <p className="mt-0.5 text-xs text-stone-600">
+              <div className="mt-4 rounded-xl border border-stone-900/10 bg-white/70 p-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-stone-900">Ready to book?</p>
+                    <p className="mt-0.5 text-[11px] text-stone-600">
                       Tickets from {priceDisplay}
                     </p>
                   </div>
                   <Button
                     onClick={() => setMode("payment")}
-                    className="h-10 rounded-full bg-stone-900 px-4 text-xs font-semibold text-white hover:bg-stone-900/90"
+                    className="h-9 shrink-0 rounded-full bg-stone-900 px-3.5 text-[11px] font-semibold text-white hover:bg-stone-900/90"
                   >
                     Reserve a spot
                   </Button>
@@ -412,9 +403,9 @@ export function EventInterestPopover({
             )}
           </div>
         ) : mode === "interest" ? (
-          <form onSubmit={handleInterestSubmit} className="flex flex-1 flex-col gap-4">
-            <div className="space-y-2">
-              <label htmlFor={`event-interest-name-${eventId}`} className="text-xs font-medium text-stone-700">
+          <form onSubmit={handleInterestSubmit} className="flex flex-1 flex-col gap-3.5">
+            <div className="space-y-1.5">
+              <label htmlFor={`event-interest-name-${eventId}`} className="text-[11px] font-medium text-stone-700">
                 First name <span className="text-stone-400">· optional</span>
               </label>
               <Input
@@ -423,12 +414,12 @@ export function EventInterestPopover({
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Amélie"
                 autoComplete="given-name"
-                className="h-11 rounded-2xl border-stone-900/10 bg-white/80 px-4 text-sm placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
+                className="h-10 rounded-xl border-stone-900/10 bg-white/85 px-3.5 text-[13px] placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor={`event-interest-email-${eventId}`} className="text-xs font-medium text-stone-700">
+            <div className="space-y-1.5">
+              <label htmlFor={`event-interest-email-${eventId}`} className="text-[11px] font-medium text-stone-700">
                 Email address
               </label>
               <Input
@@ -439,17 +430,17 @@ export function EventInterestPopover({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="amelie@studio.com"
                 autoComplete="email"
-                className="h-11 rounded-2xl border-stone-900/10 bg-white/80 px-4 text-sm placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
+                className="h-10 rounded-xl border-stone-900/10 bg-white/85 px-3.5 text-[13px] placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
               />
             </div>
 
-            <label className="flex items-start gap-2.5 pt-1 text-xs text-stone-600">
+            <label className="flex items-start gap-2.5 pt-0.5 text-[11px] text-stone-600 leading-relaxed">
               <Checkbox
                 checked={newsletterOptIn}
                 onCheckedChange={(next) => setNewsletterOptIn(Boolean(next))}
                 className="mt-0.5 data-[state=checked]:bg-[#A3413A] data-[state=checked]:border-[#A3413A]"
               />
-              <span className="leading-relaxed">
+              <span>
                 Also send me the weekly Yorkshire BusinessWoman newsletter.
                 <span className="block text-stone-500 mt-0.5">
                   By submitting you agree to receive event updates. Unsubscribe anytime.
@@ -457,31 +448,31 @@ export function EventInterestPopover({
               </span>
             </label>
 
-            <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDismiss}
-                className="h-11 rounded-full text-sm text-stone-600 hover:bg-stone-900/5 hover:text-stone-900"
-              >
-                Not now
-              </Button>
+            <div className="mt-auto flex flex-col gap-2 pt-1">
               <Button
                 type="submit"
                 disabled={submitting}
-                className="h-11 rounded-full bg-[#A3413A] px-5 text-sm font-semibold text-white shadow-sm shadow-[#A3413A]/30 hover:bg-[#A3413A]/90 disabled:opacity-60"
+                className="h-10 w-full rounded-full bg-[#A3413A] px-4 text-[13px] font-semibold text-white shadow-sm shadow-[#A3413A]/30 hover:bg-[#A3413A]/90 disabled:opacity-60"
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     One moment
                   </>
                 ) : (
                   <>
-                    <BellRing className="h-4 w-4" />
+                    <BellRing className="h-3.5 w-3.5" />
                     {submitCta}
                   </>
                 )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDismiss}
+                className="h-9 w-full rounded-full text-[12px] text-stone-600 hover:bg-stone-900/5 hover:text-stone-900"
+              >
+                Not now
               </Button>
             </div>
 
@@ -489,9 +480,9 @@ export function EventInterestPopover({
               <button
                 type="button"
                 onClick={() => setMode("payment")}
-                className="mt-2 inline-flex items-center justify-center gap-2 text-xs font-medium text-stone-500 transition-colors hover:text-stone-900"
+                className="mt-1 inline-flex items-center justify-center gap-2 text-[11px] font-medium text-stone-500 transition-colors hover:text-stone-900"
               >
-                <CreditCard className="h-3.5 w-3.5" />
+                <CreditCard className="h-3 w-3" />
                 {price.isFree
                   ? `Register for free instead (no payment needed)`
                   : `Skip the waitlist — book from ${priceDisplay}`}
@@ -499,40 +490,40 @@ export function EventInterestPopover({
             )}
           </form>
         ) : (
-          <div className="flex flex-1 flex-col gap-4">
+          <div className="flex flex-1 flex-col gap-3.5">
             {price && (
-              <div className="flex items-end justify-between gap-4 rounded-2xl border border-stone-900/10 bg-white/80 p-4">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-500">
+              <div className="flex items-end justify-between gap-3 rounded-xl border border-stone-900/10 bg-white/85 p-3.5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-500">
                     {price.isFree ? "Free event" : "From"}
                   </p>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <p className="font-serif text-3xl font-medium text-stone-900">
+                    <p className="font-serif text-[26px] font-medium text-stone-900 leading-none">
                       {priceDisplay}
                     </p>
                     {price.hasMemberDiscount && (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-500/15">
+                      <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/15">
                         Member rate
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-900/10 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-stone-900/10 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
                     aria-label="Decrease quantity"
                   >
                     −
                   </button>
-                  <span className="w-6 text-center text-sm font-medium text-stone-900 tabular-nums">
+                  <span className="w-5 text-center text-[13px] font-medium text-stone-900 tabular-nums">
                     {Math.max(1, quantity)}
                   </span>
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-900/10 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-stone-900/10 text-stone-500 transition-colors hover:bg-stone-900/5 hover:text-stone-900"
                     aria-label="Increase quantity"
                   >
                     +
@@ -542,8 +533,8 @@ export function EventInterestPopover({
             )}
 
             {quantity > 1 && (
-              <div className="space-y-2">
-                <label htmlFor={`event-interest-guests-${eventId}`} className="text-xs font-medium text-stone-700">
+              <div className="space-y-1.5">
+                <label htmlFor={`event-interest-guests-${eventId}`} className="text-[11px] font-medium text-stone-700">
                   Guests <span className="text-stone-400">· optional</span>
                 </label>
                 <textarea
@@ -552,18 +543,18 @@ export function EventInterestPopover({
                   onChange={(e) => setGuestInfo(e.target.value.slice(0, 500))}
                   rows={2}
                   placeholder="Names or emails for the extra tickets"
-                  className="w-full resize-none rounded-2xl border border-stone-900/10 bg-white/80 px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 outline-none focus:border-[#A3413A]/40 focus:ring-2 focus:ring-[#A3413A]/20"
+                  className="w-full resize-none rounded-xl border border-stone-900/10 bg-white/85 px-3.5 py-2.5 text-[13px] text-stone-900 placeholder:text-stone-400 outline-none focus:border-[#A3413A]/40 focus:ring-2 focus:ring-[#A3413A]/20"
                 />
                 {price && price.hasMemberDiscount && price.standardAmount > 0 && (
-                  <p className="text-[11px] text-stone-500">
+                  <p className="text-[10px] text-stone-500">
                     Member discount applies to 1 ticket. Additional tickets: {formatCurrency(price.standardAmount)} each.
                   </p>
                 )}
               </div>
             )}
 
-            <div className="space-y-2">
-              <label htmlFor={`event-interest-payment-email-${eventId}`} className="text-xs font-medium text-stone-700">
+            <div className="space-y-1.5">
+              <label htmlFor={`event-interest-payment-email-${eventId}`} className="text-[11px] font-medium text-stone-700">
                 Email for tickets
               </label>
               <Input
@@ -574,23 +565,23 @@ export function EventInterestPopover({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="amelie@studio.com"
                 autoComplete="email"
-                className="h-11 rounded-2xl border-stone-900/10 bg-white/80 px-4 text-sm placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
+                className="h-10 rounded-xl border-stone-900/10 bg-white/85 px-3.5 text-[13px] placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
               />
               {authLoading ? (
-                <p className="text-[11px] text-stone-500">Checking your account…</p>
+                <p className="text-[10px] text-stone-500">Checking your account…</p>
               ) : user ? (
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[10px] text-stone-500">
                   Signed in as {user.email || "your account"} — RSVP will be linked to your profile.
                 </p>
               ) : (
-                <p className="text-[11px] text-stone-500">
+                <p className="text-[10px] text-stone-500">
                   You&apos;ll be asked to sign in or create a free account so we can attach the RSVP.
                 </p>
               )}
             </div>
 
             {price && price.amount > 0 && quantity > 1 && (
-              <div className="flex items-center justify-between rounded-2xl border border-dashed border-stone-900/10 px-4 py-3 text-sm">
+              <div className="flex items-center justify-between rounded-xl border border-dashed border-stone-900/10 px-3.5 py-2.5 text-[12px]">
                 <span className="text-stone-600">Total</span>
                 <span className="font-semibold text-stone-900 tabular-nums">
                   {formatCurrency(totalAmountMinor)}
@@ -598,9 +589,27 @@ export function EventInterestPopover({
               </div>
             )}
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-[11px] text-red-600">{error}</p>}
 
-            <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-auto flex flex-col gap-2 pt-1">
+              <Button
+                type="button"
+                onClick={handleCheckout}
+                disabled={paying || authLoading}
+                className="h-10 w-full rounded-full bg-stone-900 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-stone-900/90 disabled:opacity-60"
+              >
+                {paying ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Preparing checkout
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {price?.isFree ? "Register for free" : paymentCta}
+                  </>
+                )}
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -608,37 +617,19 @@ export function EventInterestPopover({
                   setMode("interest");
                   setError(null);
                 }}
-                className="h-11 rounded-full text-sm text-stone-600 hover:bg-stone-900/5 hover:text-stone-900"
+                className="h-9 w-full rounded-full text-[12px] text-stone-600 hover:bg-stone-900/5 hover:text-stone-900"
               >
                 Notify me instead
               </Button>
-              <Button
-                type="button"
-                onClick={handleCheckout}
-                disabled={paying || authLoading}
-                className="h-11 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white shadow-sm hover:bg-stone-900/90 disabled:opacity-60"
-              >
-                {paying ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Preparing checkout
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4" />
-                    {price?.isFree ? "Register for free" : paymentCta}
-                  </>
-                )}
-              </Button>
             </div>
-            <p className="text-center text-[11px] text-stone-500">
+            <p className="text-center text-[10px] text-stone-500">
               Secure checkout handled by Stripe · Card details are never stored by us.
             </p>
           </div>
         )}
 
         {error && success?.kind !== "interest" && success?.kind !== "payment" && mode === "interest" && (
-          <p className="pt-2 text-xs text-red-600">{error}</p>
+          <p className="pt-2 text-[11px] text-red-600">{error}</p>
         )}
       </div>
     </div>
@@ -654,7 +645,7 @@ export function EventInterestPopover({
           <DialogContent
             showCloseButton={false}
             className={cn(
-              "hidden lg:grid !max-w-[640px] !translate-x-[-50%] !translate-y-[-50%] !p-0",
+              "hidden lg:grid !max-w-[360px] !translate-x-[-50%] !translate-y-[-50%] !p-0",
               shellClasses,
             )}
             onInteractOutside={(e) => e.preventDefault()}
@@ -677,12 +668,12 @@ export function EventInterestPopover({
           <DrawerOverlay className={cn("lg:hidden", overlayClasses)} />
           <DrawerContent
             className={cn(
-              "lg:hidden overflow-hidden !rounded-t-[28px] border-t border-white/80",
-              "bg-white/92 backdrop-blur-2xl",
+              "lg:hidden overflow-hidden !rounded-t-[24px] border-t border-white/85",
+              "bg-white/90 backdrop-blur-2xl",
             )}
           >
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-stone-900/10" />
-            <div className="px-4 pb-5 pt-2 sm:px-6">{content}</div>
+            <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-stone-900/10" />
+            <div className="px-4 pb-4 pt-1.5 sm:px-5">{content}</div>
           </DrawerContent>
         </DrawerPortal>
       </Drawer>
