@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Calendar, ArrowRight, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
@@ -13,10 +14,13 @@ import { Event, EVENT_TYPE_LABELS } from "@/lib/events";
 import {
   EventInterestPopover,
   EventInterestPrice,
+  clearEventPopupMemory,
   hasRecentlyDismissed,
   hasRecentlySubmittedInterest,
 } from "@/components/events/EventInterestPopover";
 import { getEventMetadata } from "@/app/actions/eventActions";
+
+const AUTO_TRIGGER_DELAY_MS = 5_000;
 
 export default function EventsPageClient({ initialEvents }: { initialEvents: Event[] }) {
   const events = useMemo<Event[]>(() => initialEvents || [], [initialEvents]);
@@ -31,11 +35,27 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
 
   const nextEvent = upcoming[0] || events[0] || null;
 
+  const searchParams = useSearchParams();
+  const forcePreview = searchParams?.get("preview_popup") === "1";
+
   const [pricesByEventId, setPricesByEventId] = useState<
     Record<string, EventInterestPrice>
   >({});
   const [priceLoading, setPriceLoading] = useState(true);
   const [autoTriggerOpen, setAutoTriggerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!forcePreview) return;
+    try {
+      clearEventPopupMemory(nextEvent?.id || undefined);
+    } catch {
+      // ignore
+    }
+    if (nextEvent) {
+      const t = window.setTimeout(() => setAutoTriggerOpen(true), 200);
+      return () => window.clearTimeout(t);
+    }
+  }, [forcePreview, nextEvent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,9 +115,11 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
     };
   }, [events]);
 
-  // Soft auto-trigger: once, after 30s dwell, only for the most upcoming event.
+  // Soft auto-trigger: once, after a short dwell, only for the most upcoming event.
+  // Query param ?preview_popup=1 bypasses this and shows immediately (with memory cleared).
   useEffect(() => {
     if (!nextEvent) return;
+    if (forcePreview) return;
     let mounted = true;
     const timer = window.setTimeout(() => {
       if (!mounted) return;
@@ -115,13 +137,13 @@ export default function EventsPageClient({ initialEvents }: { initialEvents: Eve
       } catch {
         // ignore
       }
-    }, 30_000);
+    }, AUTO_TRIGGER_DELAY_MS);
 
     return () => {
       mounted = false;
       window.clearTimeout(timer);
     };
-  }, [nextEvent]);
+  }, [nextEvent, forcePreview]);
 
   const nextPrice = nextEvent ? pricesByEventId[nextEvent.id] : undefined;
 
