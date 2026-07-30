@@ -10,6 +10,49 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
 
+/** Strips "Display Name <addr>" to the bare email address. */
+const bareEmail = (raw: string | undefined): string => {
+  if (!raw) return '';
+  const m = raw.match(/<([^>]+)>/);
+  return (m ? m[1] : raw).trim().toLowerCase();
+};
+
+/**
+ * Splits a flat recipient list into { to, bcc } for an email that will be
+ * sent AS `senderDisplay`. Any entry whose bare email matches the sender's
+ * bare email is MOVED from `to` → `bcc`.
+ *
+ * Why this beats the `+<tag>` sub-address trick: some Google Workspace
+ * tenancies, hosted MX filters, or alias-only mailboxes silently reject
+ * plus-addressed copies even though the base inbox is valid. By using BCC
+ * we never put the sender mailbox into the RFC-5322 `To:`/`Cc:` headers
+ * at all — Resend only delivers BCC entries via envelope RCPT TO. The
+ * self-send drop rule inside Resend's SMTP pipeline cannot see BCC
+ * recipients, so the sender inbox still receives its copy, and no MX
+ * deliverability edge cases are triggered.
+ *
+ * If every recipient is the sender (degenerate case) we keep one entry in
+ * `to` so Resend has a primary recipient.
+ */
+const splitSelfToBcc = (
+  senderDisplay: string,
+  recipients: string[],
+): { to: string[]; bcc: string[]; selfMovedToBcc: string[] } => {
+  const sender = bareEmail(senderDisplay);
+  const selfMatches: string[] = [];
+  const others: string[] = [];
+  for (const r of recipients) {
+    if (!r) continue;
+    if (bareEmail(r) === sender) selfMatches.push(r);
+    else others.push(r);
+  }
+  if (others.length) {
+    return { to: others, bcc: selfMatches, selfMovedToBcc: selfMatches };
+  }
+  const [first, ...rest] = selfMatches;
+  return { to: first ? [first] : [], bcc: rest, selfMovedToBcc: rest };
+};
+
 const sanitize = (value: unknown, maxLen = 200): string => {
   if (typeof value !== 'string') return '';
   const trimmed = value.trim().slice(0, maxLen);
@@ -206,6 +249,9 @@ export async function POST(request: Request) {
       skipped?: 'already_exists' | 'no_recipients';
       error?: string;
       recipients?: string[];
+      recipientsTo?: string[];
+      recipientsBcc?: string[];
+      selfMovedToBcc?: string[];
       deliveredTo?: string[];
       senderFrom?: string;
     } = { success: false, sent: false };
@@ -226,12 +272,26 @@ export async function POST(request: Request) {
             lastName || undefined,
             source || undefined
           );
-          // System alerts use a noreply sender. This avoids a Resend delivery quirk
-          // where same-mailbox from/to (editor@ -> editor@) silently drops the
-          // editor@ copy while still returning a Resend message ID.
+          // Use the VERIFIED editor@ from-identity (proven delivers via the
+          // welcome email). The earlier noreply@ identity was never set up
+          // for DKIM/SPF in Resend, causing ALL copies to be silently
+          // queued/dropped with a success API response.
+          //
+          // To still deliver the editor@ copy without triggering Resend's
+          // self-send drop rule, we split the flat recipient list: any
+          // entry whose bare email matches the sender's bare email is MOVED
+          // from `to` → `bcc`. BCC never appears in the RFC-5322 headers
+          // sent to the MX (only the envelope RCPT TO list sees it), so
+          // Resend's self-send rule cannot see editor@ as a header
+          // recipient. The editor@ inbox still gets its copy via RCPT TO,
+          // and no plus-address alias (which some MX tenancies filter) is
+          // required.
+          const senderFrom = config.emailFrom;
+          const { to: recipientsTo, bcc: recipientsBcc, selfMovedToBcc } = splitSelfToBcc(senderFrom, recipients);
           const res = await sendEmail({
-            to: recipients,
-            from: config.emailFromNoReply,
+            to: recipientsTo,
+            bcc: recipientsBcc,
+            from: senderFrom,
             subject: `🔔 New Newsletter Sign-Up: ${email}`,
             html: alertHtml,
           });
@@ -241,8 +301,11 @@ export async function POST(request: Request) {
             sent: !isMock,
             mock: isMock,
             recipients,
+            recipientsTo,
+            recipientsBcc,
+            selfMovedToBcc,
             deliveredTo: res?.deliveredTo,
-            senderFrom: res?.senderFrom,
+            senderFrom: res?.senderFrom || senderFrom,
           };
           if (isMock) {
             console.warn(
@@ -250,14 +313,20 @@ export async function POST(request: Request) {
               email,
               'recipients=',
               recipients.join(', '),
+              'to=',
+              recipientsTo.join(', '),
+              'bcc=',
+              recipientsBcc.join(', '),
+              'selfMovedToBcc=',
+              selfMovedToBcc.join(', '),
               'deliveredTo=',
               (res?.deliveredTo || []).join(', '),
               'from=',
-              res?.senderFrom
+              res?.senderFrom || senderFrom
             );
           } else {
             console.log(
-              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested recipients: ${recipients.join(', ')})`
+              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom || senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested: ${recipients.join(', ')}; to: ${recipientsTo.join(', ')}; bcc: ${recipientsBcc.join(', ')}; selfMovedToBcc: ${selfMovedToBcc.join(', ')})`
             );
           }
         } catch (alertError: unknown) {
@@ -295,6 +364,9 @@ export async function POST(request: Request) {
           error: adminAlert.error,
           recipientCount: adminAlert.recipients?.length ?? 0,
           recipients: adminAlert.recipients,
+          recipientsTo: adminAlert.recipientsTo,
+          recipientsBcc: adminAlert.recipientsBcc,
+          selfMovedToBcc: adminAlert.selfMovedToBcc,
           deliveredTo: adminAlert.deliveredTo,
           senderFrom: adminAlert.senderFrom,
         },
