@@ -31,8 +31,15 @@ const bareEmail = (raw: string | undefined): string => {
  * rule inspects DATA headers, not envelope, so editor@ receives its blind copy
  * without any MX deliverability edge-case risk and no alias/bounce risk.
  *
- * If every recipient IS the sender (degenerate case), one entry stays in
- * `to` to satisfy Resend's minimum one-primary-recipient constraint.
+ * Degenerate case (every recipient IS the sender, e.g. env var overrides to
+ * ONLY `editor@…`): we intentionally leave `to` EMPTY and place ALL matches
+ * into `bcc`. If `sendEmail` still had `to=[editor@]`, its own internal
+ * `removeSenderFromRecipients(MAIL_FROM, recipientsTo)` sender-strip would
+ * empty the list, causing both `to` and `bcc` to be empty and the function
+ * to early-return mock=true with zero mail dispatched. By placing all copies
+ * in BCC we bypass sendEmail's header-only sender-strip, and Resend's API
+ * accepts a `bcc`-only payload (the any-typed `resendPayload` in email.ts
+ * avoids the TS CreateEmailOptions overload confusion).
  */
 const splitSelfToBcc = (
   senderDisplay: string,
@@ -49,8 +56,10 @@ const splitSelfToBcc = (
   if (others.length) {
     return { to: others, bcc: selfMatches, selfMovedToBcc: selfMatches };
   }
-  const [first, ...rest] = selfMatches;
-  return { to: first ? [first] : [], bcc: rest, selfMovedToBcc: rest };
+  // 100% self-match list → all go in BCC, to stays empty. sendEmail's
+  // sender-strip only fires on TO, so BCC is preserved and the API call
+  // actually dispatches the self-copy instead of short-circuit mocking.
+  return { to: [], bcc: selfMatches, selfMovedToBcc: selfMatches };
 };
 
 const sanitize = (value: unknown, maxLen = 200): string => {
