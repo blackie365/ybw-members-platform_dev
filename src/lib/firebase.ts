@@ -15,13 +15,13 @@ const firebaseConfig = {
 // Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Auth is now handled exclusively by Clerk. 
-// Firebase Auth is kept as null to prevent accidental usage.
-const auth = null as any;
+// Auth is now handled exclusively by Clerk.
+// Firebase Auth is null to prevent accidental usage.
+const auth = null;
 
 // Use the provided database ID from env, or default to '(default)'
 const dbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || "(default)";
-const db = firebaseConfig.projectId ? getFirestore(app, dbId) : null as any;
-const storage = firebaseConfig.projectId ? getStorage(app) : null as any;
+const db = firebaseConfig.projectId ? getFirestore(app, dbId) : (null as unknown as ReturnType<typeof getFirestore>);
+const storage = firebaseConfig.projectId ? getStorage(app) : (null as unknown as ReturnType<typeof getStorage>);
 
 export { app, auth, db, storage };

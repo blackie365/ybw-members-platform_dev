@@ -12,7 +12,7 @@ interface SendEmailParams {
 }
 
 /** Extract the bare email address from a string that may be in "Display <addr>" format. */
-function bareEmail(raw: string): string {
+export function bareEmail(raw: string): string {
   if (!raw) return '';
   const angle = raw.match(/<([^>]+)>/);
   const candidate = (angle ? angle[1] : raw).trim().toLowerCase();
@@ -80,7 +80,7 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
   }
 
   if (!RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY is missing. Mocking email send to:', [...recipientsTo, ...recipientsBcc]);
+    console.warn('RESEND_API_KEY is missing. Mocking email send. count=', recipientsTo.length + recipientsBcc.length);
     return { success: true, mock: true, deliveredTo: [...recipientsTo, ...recipientsBcc], senderFrom: MAIL_FROM };
   }
 
@@ -101,11 +101,11 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
     const { data, error } = await resend.emails.send(resendPayload);
 
     if (error) {
-      console.error('Error sending email via Resend:', error, 'recipientsTo=', recipientsTo, 'bcc=', recipientsBcc);
+      console.error('Error sending email via Resend:', error, 'toCount=', recipientsTo.length, 'bccCount=', recipientsBcc.length);
       throw error;
     }
 
-    console.log('Email sent successfully via Resend:', data?.id, 'recipientsTo=', recipientsTo.join(','), 'bcc=', recipientsBcc.join(','));
+    console.log('Email sent successfully via Resend:', data?.id, 'toCount=', recipientsTo.length, 'bccCount=', recipientsBcc.length);
     return { success: true, id: data?.id, mock: false, deliveredTo: [...recipientsTo, ...recipientsBcc], senderFrom: MAIL_FROM };
   } catch (error) {
     console.error('Error in sendEmail (Resend):', error);

@@ -1,6 +1,6 @@
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, bareEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate, getNewsletterSignupAlertTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber, isBeehiivConfigured } from '@/lib/beehiiv';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -9,13 +9,6 @@ import { config } from '@/lib/config';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
-
-/** Matches email.ts — strips "Display Name <addr>" to the bare address. */
-const bareEmail = (raw: string | undefined): string => {
-  if (!raw) return '';
-  const m = raw.match(/<([^>]+)>/);
-  return (m ? m[1] : raw).trim().toLowerCase();
-};
 
 /**
  * Splits a flat recipient list into { to, bcc } for an email that will be

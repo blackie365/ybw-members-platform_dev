@@ -32,7 +32,11 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'image.issuu.com',
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.rocket.new',
+      },
     ],
   },
 }
