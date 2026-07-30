@@ -2,13 +2,7 @@
 
 import GhostAdminAPI from '@tryghost/admin-api';
 import { config } from '@/lib/config';
-
-function normalizeBaseUrl(raw: string | undefined) {
-  const value = String(raw || '').trim();
-  if (!value) return '';
-  const withProtocol = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
-  return withProtocol.replace(/\/$/, '');
-}
+import { normalizeBaseUrl } from '@/lib/ghost';
 
 const GHOST_API_URL = normalizeBaseUrl(
   process.env.GHOST_ADMIN_API_URL ||

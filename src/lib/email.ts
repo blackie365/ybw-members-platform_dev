@@ -12,7 +12,7 @@ interface SendEmailParams {
 }
 
 /** Extract the bare email address from a string that may be in "Display <addr>" format. */
-function bareEmail(raw: string): string {
+export function bareEmail(raw: string): string {
   if (!raw) return '';
   const angle = raw.match(/<([^>]+)>/);
   const candidate = (angle ? angle[1] : raw).trim().toLowerCase();
@@ -53,15 +53,26 @@ export interface SendEmailResult {
  * This is the modern, robust standard for Next.js apps on Vercel.
  *
  * Delivery note: Resend can silently skip or delay delivery when the sender
- * mailbox (bare email from `from`) also appears in `to`/`bcc`. This function
- * strips the sender out of recipient lists to preserve deliverability.
+ * mailbox (bare email from `from`) also appears in the `to`/`cc` *headers*.
+ * This function strips the sender address out of the `to` list (the primary
+ * header-recipient list) to preserve deliverability.
+ *
+ * We intentionally DO NOT strip the sender from `bcc`. BCC entries are never
+ * written into the RFC-5322 DATA headers sent to the MX; Resend only uses
+ * them for envelope RCPT TO. Therefore a blind-copy to the sender never
+ * triggers the self-send drop rule, and this is the correct way to deliver
+ * an alert "from" the same address as one of its recipients (e.g. admin
+ * alerts where editor@ both sends and receives).
  */
 export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }: SendEmailParams): Promise<SendEmailResult> {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const MAIL_FROM = from || config.emailFrom;
 
+  // Strip self-matches ONLY from `to` (primary header recipients). Keep
+  // self-matches in `bcc` (envelope-only recipients) because the self-send
+  // rule evaluates RFC-5322 headers, not RCPT TO.
   let recipientsTo = removeSenderFromRecipients(MAIL_FROM, normalizeRecipients(to));
-  const recipientsBcc = removeSenderFromRecipients(MAIL_FROM, normalizeRecipients(bcc));
+  const recipientsBcc = normalizeRecipients(bcc);
 
   if (!recipientsTo.length && !recipientsBcc.length) {
     console.warn('sendEmail: no valid recipients after sender-filter. mock=true to avoid API 422. from=%s original_to=%o original_bcc=%o', MAIL_FROM, to, bcc);
@@ -69,8 +80,8 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
   }
 
   if (!RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY is missing. Mocking email send to:', recipientsTo);
-    return { success: true, mock: true, deliveredTo: [...recipientsTo], senderFrom: MAIL_FROM };
+    console.warn('RESEND_API_KEY is missing. Mocking email send. count=', recipientsTo.length + recipientsBcc.length);
+    return { success: true, mock: true, deliveredTo: [...recipientsTo, ...recipientsBcc], senderFrom: MAIL_FROM };
   }
 
   const resend = new Resend(RESEND_API_KEY);
@@ -90,18 +101,18 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
     const { data, error } = await resend.emails.send(resendPayload);
 
     if (error) {
-      console.error('Error sending email via Resend:', error, 'recipientsTo=', recipientsTo, 'bcc=', recipientsBcc);
+      console.error('Error sending email via Resend:', error, 'toCount=', recipientsTo.length, 'bccCount=', recipientsBcc.length);
       throw error;
     }
 
-    console.log('Email sent successfully via Resend:', data?.id, 'recipientsTo=', recipientsTo.join(','), 'bcc=', recipientsBcc.join(','));
+    console.log('Email sent successfully via Resend:', data?.id, 'toCount=', recipientsTo.length, 'bccCount=', recipientsBcc.length);
     return { success: true, id: data?.id, mock: false, deliveredTo: [...recipientsTo, ...recipientsBcc], senderFrom: MAIL_FROM };
   } catch (error) {
     console.error('Error in sendEmail (Resend):', error);
 
     if (process.env.NODE_ENV === 'development') {
       console.warn('Resend failed in dev mode. Mocking success.');
-      return { success: true, mock: true, deliveredTo: [...recipientsTo], senderFrom: MAIL_FROM };
+      return { success: true, mock: true, deliveredTo: [...recipientsTo, ...recipientsBcc], senderFrom: MAIL_FROM };
     }
 
     throw error;

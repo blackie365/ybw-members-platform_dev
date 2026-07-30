@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { title, description, link, imageUrl, isMembersOnly, userId, userEmail, userName } = body;
+    const { title, description, link, imageUrl, isMembersOnly, userEmail, userName } = body;
 
     if (!userId || !title || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

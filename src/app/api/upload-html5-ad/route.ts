@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminStorage } from '@/lib/firebase-admin';
 import { auth } from '@clerk/nextjs/server';
+import { checkAdmin } from '@/lib/server/auth-utils';
 import JSZip from 'jszip';
+
+const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024; // 50MB
+const SAFE_FOLDER = 'ads/html5';
 
 function getContentType(filePath: string) {
   const lower = filePath.toLowerCase();
@@ -35,16 +39,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    try {
+      await checkAdmin();
+    } catch {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     if (!adminStorage) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const folder = (formData.get('folder') as string) || 'ads/html5';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    if (file.size > MAX_ARCHIVE_SIZE) {
+      return NextResponse.json({ error: 'Archive exceeds 50MB size limit' }, { status: 400 });
     }
 
     const nameLower = String(file.name || '').toLowerCase();
@@ -58,7 +71,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Zip contains no files' }, { status: 400 });
     }
 
-    const prefix = `${folder}/${userId}-${Date.now()}`;
+    const prefix = `${SAFE_FOLDER}/${userId}-${Date.now()}`;
     const bucket = adminStorage.bucket();
 
     let indexPath: string | null = null;

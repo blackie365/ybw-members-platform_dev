@@ -1,6 +1,6 @@
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, bareEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate, getNewsletterSignupAlertTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber, isBeehiivConfigured } from '@/lib/beehiiv';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -9,6 +9,51 @@ import { config } from '@/lib/config';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
+
+/**
+ * Splits a flat recipient list into { to, bcc } for an email that will be
+ * sent AS `senderDisplay`. Any entry whose bare email matches the sender's
+ * bare email is MOVED from `to` → `bcc`.
+ *
+ * Why this beats the earlier `+<tag>` sub-address trick: some Google Workspace
+ * tenancies, hosted MX filters, or alias-only inboxes silently reject
+ * or quarantine plus-addressed copies even though the base inbox is valid.
+ * By putting the sender mailbox into BCC instead of TO, the sending mailbox NEVER
+ * appears in the RFC-5322 `To:`/`Cc:` headers at all — Resend only emits
+ * BCC entries as envelope-only RCPT TO. The Resend self-send drop
+ * rule inspects DATA headers, not envelope, so editor@ receives its blind copy
+ * without any MX deliverability edge-case risk and no alias/bounce risk.
+ *
+ * Degenerate case (every recipient IS the sender, e.g. env var overrides to
+ * ONLY `editor@…`): we intentionally leave `to` EMPTY and place ALL matches
+ * into `bcc`. If `sendEmail` still had `to=[editor@]`, its own internal
+ * `removeSenderFromRecipients(MAIL_FROM, recipientsTo)` sender-strip would
+ * empty the list, causing both `to` and `bcc` to be empty and the function
+ * to early-return mock=true with zero mail dispatched. By placing all copies
+ * in BCC we bypass sendEmail's header-only sender-strip, and Resend's API
+ * accepts a `bcc`-only payload (the any-typed `resendPayload` in email.ts
+ * avoids the TS CreateEmailOptions overload confusion).
+ */
+const splitSelfToBcc = (
+  senderDisplay: string,
+  recipients: string[],
+): { to: string[]; bcc: string[]; selfMovedToBcc: string[] } => {
+  const sender = bareEmail(senderDisplay);
+  const selfMatches: string[] = [];
+  const others: string[] = [];
+  for (const r of recipients) {
+    if (!r) continue;
+    if (bareEmail(r) === sender) selfMatches.push(r);
+    else others.push(r);
+  }
+  if (others.length) {
+    return { to: others, bcc: selfMatches, selfMovedToBcc: selfMatches };
+  }
+  // 100% self-match list → all go in BCC, to stays empty. sendEmail's
+  // sender-strip only fires on TO, so BCC is preserved and the API call
+  // actually dispatches the self-copy instead of short-circuit mocking.
+  return { to: [], bcc: selfMatches, selfMovedToBcc: selfMatches };
+};
 
 const sanitize = (value: unknown, maxLen = 200): string => {
   if (typeof value !== 'string') return '';
@@ -206,8 +251,15 @@ export async function POST(request: Request) {
       skipped?: 'already_exists' | 'no_recipients';
       error?: string;
       recipients?: string[];
+      recipientsTo?: string[];
+      recipientsBcc?: string[];
+      selfMovedToBcc?: string[];
       deliveredTo?: string[];
       senderFrom?: string;
+      /** @deprecated kept for backwards compatibility; BCC-self-copy no longer uses plus-addressing. */
+      recipientsRewritten?: string[];
+      /** @deprecated kept for backwards compatibility; BCC-self-copy no longer uses plus-addressing. */
+      selfTag?: string;
     } = { success: false, sent: false };
     if (beehiivResult.alreadyExists) {
       adminAlert = { success: true, sent: false, skipped: 'already_exists' };
@@ -226,12 +278,28 @@ export async function POST(request: Request) {
             lastName || undefined,
             source || undefined
           );
-          // System alerts use a noreply sender. This avoids a Resend delivery quirk
-          // where same-mailbox from/to (editor@ -> editor@) silently drops the
-          // editor@ copy while still returning a Resend message ID.
+          // Sender MUST be a Resend-DKIM-verified identity. We keep editor@
+          // here (proven delivers via the welcome email) rather than an
+          // unverified noreply@ — Resend was silently dropping the entire
+          // payload when an unverified sender was used, even though the API
+          // returned success.
+          //
+          // The previous +alerts sub-address trick was blocked at the MX on
+          // some Google Workspace tenancies (inbox accepted the first copy
+          // but filtered/bounced later plus-addressed emails). The safer
+          // workaround is to split the flat recipient list: any recipient
+          // that matches the sender bare-email is MOVED from `to` → `bcc`.
+          // BCC never appears in the DATA headers sent to the MX (only
+          // envelope RCPT TO sees it), so Resend's self-send drop rule
+          // (which inspects header recipients) cannot fire for the editor@
+          // copy, yet the editor inbox still receives the blind copy via
+          // the envelope. No plus-addressing, no DNS, no MX filter risk.
+          const senderFrom = config.emailFrom;
+          const { to: recipientsTo, bcc: recipientsBcc, selfMovedToBcc } = splitSelfToBcc(senderFrom, recipients);
           const res = await sendEmail({
-            to: recipients,
-            from: config.emailFromNoReply,
+            to: recipientsTo,
+            bcc: recipientsBcc,
+            from: senderFrom,
             subject: `🔔 New Newsletter Sign-Up: ${email}`,
             html: alertHtml,
           });
@@ -241,8 +309,11 @@ export async function POST(request: Request) {
             sent: !isMock,
             mock: isMock,
             recipients,
+            recipientsTo,
+            recipientsBcc,
+            selfMovedToBcc,
             deliveredTo: res?.deliveredTo,
-            senderFrom: res?.senderFrom,
+            senderFrom: res?.senderFrom || senderFrom,
           };
           if (isMock) {
             console.warn(
@@ -250,14 +321,20 @@ export async function POST(request: Request) {
               email,
               'recipients=',
               recipients.join(', '),
+              'to=',
+              recipientsTo.join(', '),
+              'bcc=',
+              recipientsBcc.join(', '),
+              'selfMovedToBcc=',
+              selfMovedToBcc.join(', '),
               'deliveredTo=',
               (res?.deliveredTo || []).join(', '),
               'from=',
-              res?.senderFrom
+              res?.senderFrom || senderFrom
             );
           } else {
             console.log(
-              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested recipients: ${recipients.join(', ')})`
+              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom || senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested: ${recipients.join(', ')}; to: ${recipientsTo.join(', ')}; bcc: ${recipientsBcc.join(', ')}; selfMovedToBcc: ${selfMovedToBcc.join(', ')})`
             );
           }
         } catch (alertError: unknown) {
@@ -295,8 +372,13 @@ export async function POST(request: Request) {
           error: adminAlert.error,
           recipientCount: adminAlert.recipients?.length ?? 0,
           recipients: adminAlert.recipients,
+          recipientsTo: adminAlert.recipientsTo,
+          recipientsBcc: adminAlert.recipientsBcc,
+          selfMovedToBcc: adminAlert.selfMovedToBcc,
+          recipientsRewritten: adminAlert.recipientsRewritten,
           deliveredTo: adminAlert.deliveredTo,
           senderFrom: adminAlert.senderFrom,
+          selfTag: adminAlert.selfTag,
         },
       },
     };
