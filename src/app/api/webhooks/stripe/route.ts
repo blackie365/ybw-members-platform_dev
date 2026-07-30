@@ -85,7 +85,11 @@ export async function POST(req: Request) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      const { postId, postSlug, userId, plan, cycle } = session.metadata || {};
+      const meta = session.metadata || {} as any;
+      const { postId, postSlug, plan, cycle } = meta;
+      const userId = typeof meta.userId === 'string' ? meta.userId : undefined;
+      const guestEmail = typeof meta.guestEmail === 'string' ? meta.guestEmail : undefined;
+      const guestName = typeof meta.guestName === 'string' ? meta.guestName : undefined;
       
       // If this was a subscription checkout, update the user immediately.
       // We check if it's a subscription mode checkout OR if they passed 'premium' plan metadata.
@@ -189,48 +193,77 @@ export async function POST(req: Request) {
       }
       
       // Record ticket purchase in Firestore
-      if (postId && userId) {
+      if (postId && (userId || guestEmail)) {
+        const ticketEmail: string =
+          (typeof session.customer_details?.email === 'string' && session.customer_details.email) ||
+          (typeof session.customer_email === 'string' && session.customer_email) ||
+          guestEmail ||
+          '';
+        const ticketQuantity = parseInt(meta?.quantity || '1', 10);
+        const guestInfo = typeof meta?.guestInfo === 'string' ? meta.guestInfo : '';
+        const stripeSessionId = session.id;
+        const amountPaid = session.amount_total;
+        const currency = session.currency;
+        const purchasedAt = new Date().toISOString();
+        const paymentStatus = session.payment_status;
+
         await adminDb.collection('event_tickets').add({
           postId,
-          userId,
-          userEmail: session.customer_details?.email || session.customer_email,
-          amountPaid: session.amount_total,
-          currency: session.currency,
-          purchasedAt: new Date().toISOString(),
-          stripeSessionId: session.id,
-          paymentStatus: session.payment_status,
+          ...(userId ? { userId } : { guestEmail: ticketEmail.toLowerCase().trim() }),
+          userEmail: ticketEmail,
+          amountPaid,
+          currency,
+          purchasedAt,
+          stripeSessionId,
+          paymentStatus,
         });
 
-        // Automatically RSVP the user to the event
+        // Automatically RSVP (member or guest) to the event
         if (postSlug) {
           try {
-            const profileRef = adminDb.collection('newMemberCollection').doc(userId);
-            const profileSnap = await profileRef.get();
-            const profileData = profileSnap.data() || {};
+            let rsvpName = 'Guest';
+            let rsvpImage = '';
+            let rsvpCompany = '';
+            let attendeeKey: string = '';
 
-            const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(userId);
-            const ticketQuantity = parseInt(session.metadata?.quantity || '1', 10);
-            const guestInfo = session.metadata?.guestInfo || '';
-            
+            if (userId) {
+              attendeeKey = userId;
+              const profileRef = adminDb.collection('newMemberCollection').doc(userId);
+              const profileSnap = await profileRef.get();
+              const profileData = profileSnap.data() || {};
+              if (profileData.firstName) {
+                rsvpName = `${profileData.firstName} ${profileData.lastName || ''}`.trim() || rsvpName;
+              }
+              rsvpImage = String((profileData as any).profileImage || '');
+              rsvpCompany = String((profileData as any).companyName || (profileData as any)['Company'] || '');
+            } else {
+              rsvpName = guestName || ticketEmail.split('@')[0] || rsvpName;
+              attendeeKey = `guest:${encodeURIComponent(ticketEmail.toLowerCase().trim())}`;
+            }
+
+            const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(attendeeKey);
             await attendeeRef.set({
-              uid: userId,
-              name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : 'Member',
-              image: profileData.profileImage || '',
-              company: profileData.companyName || profileData['Company'] || '',
-              timestamp: new Date().toISOString(),
+              ...(userId ? { uid: userId } : { email: ticketEmail.toLowerCase().trim() }),
+              name: rsvpName,
+              image: rsvpImage,
+              company: rsvpCompany,
+              timestamp: purchasedAt,
               hasTicket: true,
               quantity: ticketQuantity,
-              guestInfo: guestInfo
+              guestInfo
             });
             console.log(`Successfully added attendee to RSVP list for ${postSlug}`);
 
-            // Workflow: Send Event Ticket Confirmation Email
-            const userEmail = session.customer_details?.email || session.customer_email || profileData.email;
-            const firstName = profileData.firstName || 'there';
+            // Send Event Ticket Confirmation Email to the purchaser
+            const firstName =
+              (userId && guestName) ||
+              rsvpName.split(' ')[0] ||
+              ticketEmail.split('@')[0] ||
+              'there';
 
-            if (userEmail) {
+            if (ticketEmail) {
               sendEmail({
-                to: userEmail,
+                to: ticketEmail,
                 subject: `Your Ticket Confirmation`,
                 html: await getEventTicketConfirmationEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
               }).catch(err => console.error('Failed to send event confirmation email:', err));
