@@ -10,6 +10,40 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
 
+/** Matches email.ts — strips "Display Name <addr>" to the bare address. */
+const bareEmail = (raw: string | undefined): string => {
+  if (!raw) return '';
+  const m = raw.match(/<([^>]+)>/);
+  return (m ? m[1] : raw).trim().toLowerCase();
+};
+
+/**
+ * Rewrites a recipient list for an email that will be sent AS `senderDisplay`:
+ * any entry whose bare email == the sender's bare email is rewritten to a
+ * `+<tag>` subaddress at the same domain. This defeats Resend's silent
+ * self-send drop (same mailbox in from AND to → copy never lands) while
+ * still actually delivering into the same inbox — because all major MX
+ * providers (Google Workspace, Fastmail, iCloud+, self-hosted Dovecot)
+ * treat `user+tag@domain` as equivalent to `user@domain` for inbox routing.
+ *
+ * We intentionally do this HERE (at the call-site) rather than inside
+ * sendEmail()'s generic recipient-filter so that generic email sends don't
+ * accidentally get rewritten to sub-addresses — only admin/newsletter
+ * alerts where we already control both sides of the transaction.
+ */
+const rewriteSelfRecipients = (senderDisplay: string, list: string[], tag: string): string[] => {
+  const sender = bareEmail(senderDisplay);
+  const [user, domain] = sender.split('@');
+  return list.map((raw) => {
+    if (!raw) return raw;
+    if (bareEmail(raw) !== sender) return raw;
+    // Preserve any display name present on the original recipient entry.
+    const display = raw.match(/^\s*([^<]*?)\s*</)?.[1]?.trim();
+    const subAddr = `${user}+${tag}@${domain}`;
+    return display ? `${display} <${subAddr}>` : subAddr;
+  });
+};
+
 const sanitize = (value: unknown, maxLen = 200): string => {
   if (typeof value !== 'string') return '';
   const trimmed = value.trim().slice(0, maxLen);
@@ -206,8 +240,10 @@ export async function POST(request: Request) {
       skipped?: 'already_exists' | 'no_recipients';
       error?: string;
       recipients?: string[];
+      recipientsRewritten?: string[];
       deliveredTo?: string[];
       senderFrom?: string;
+      selfTag?: string;
     } = { success: false, sent: false };
     if (beehiivResult.alreadyExists) {
       adminAlert = { success: true, sent: false, skipped: 'already_exists' };
@@ -226,12 +262,22 @@ export async function POST(request: Request) {
             lastName || undefined,
             source || undefined
           );
-          // System alerts use a noreply sender. This avoids a Resend delivery quirk
-          // where same-mailbox from/to (editor@ -> editor@) silently drops the
-          // editor@ copy while still returning a Resend message ID.
+          // Sender MUST be a Resend-DKIM-verified identity. We keep editor@
+          // here (proven delivers via the welcome email) rather than an
+          // unverified noreply@ — Resend was silently dropping the entire
+          // payload when an unverified sender was used, even though the API
+          // returned success.
+          //
+          // To defeat the *other* Resend quirk (same mailbox in FROM and TO
+          // silently drops that copy), we rewrite the editor@ recipient to
+          // editor+alerts@…, which the MX treats as the same inbox but
+          // Resend sees as a different bare-email address.
+          const senderFrom = config.emailFrom;
+          const selfTag = config.newsletterAlertSelfTag || 'alerts';
+          const rewrittenRecipients = rewriteSelfRecipients(senderFrom, recipients, selfTag);
           const res = await sendEmail({
-            to: recipients,
-            from: config.emailFromNoReply,
+            to: rewrittenRecipients,
+            from: senderFrom,
             subject: `🔔 New Newsletter Sign-Up: ${email}`,
             html: alertHtml,
           });
@@ -241,8 +287,10 @@ export async function POST(request: Request) {
             sent: !isMock,
             mock: isMock,
             recipients,
+            recipientsRewritten: rewrittenRecipients,
             deliveredTo: res?.deliveredTo,
-            senderFrom: res?.senderFrom,
+            senderFrom: res?.senderFrom || senderFrom,
+            selfTag,
           };
           if (isMock) {
             console.warn(
@@ -250,14 +298,16 @@ export async function POST(request: Request) {
               email,
               'recipients=',
               recipients.join(', '),
+              'rewritten=',
+              rewrittenRecipients.join(', '),
               'deliveredTo=',
               (res?.deliveredTo || []).join(', '),
               'from=',
-              res?.senderFrom
+              res?.senderFrom || senderFrom
             );
           } else {
             console.log(
-              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested recipients: ${recipients.join(', ')})`
+              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom || senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested: ${recipients.join(', ')}; rewritten: ${rewrittenRecipients.join(', ')})`
             );
           }
         } catch (alertError: unknown) {
@@ -295,8 +345,10 @@ export async function POST(request: Request) {
           error: adminAlert.error,
           recipientCount: adminAlert.recipients?.length ?? 0,
           recipients: adminAlert.recipients,
+          recipientsRewritten: adminAlert.recipientsRewritten,
           deliveredTo: adminAlert.deliveredTo,
           senderFrom: adminAlert.senderFrom,
+          selfTag: adminAlert.selfTag,
         },
       },
     };
