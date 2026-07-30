@@ -81,6 +81,7 @@ export default async function MagazinePage() {
   let healthPosts: any[] = [];
   let tags: any[] = [];
   let featuredMember: any = null;
+  let featuredHomepageEventSlug: string | null = null;
   let errorOccurred = false;
 
   try {
@@ -97,12 +98,28 @@ export default async function MagazinePage() {
       order: "published_at DESC" 
     });
 
-    // 2b. Fetch latest events
-    latestEvents = await getPosts({
-      limit: 3,
-      filter: "tag:events",
-      order: "published_at DESC"
-    });
+    // 2b. Fetch latest events + admin-chosen home popup featured event slug
+    const [eventsFetched, featuredHomepageEventFetched] = await Promise.all([
+      getPosts({
+        limit: 3,
+        filter: "tag:events",
+        order: "published_at DESC"
+      }),
+      (async () => {
+        try {
+          if (!adminDb) return null;
+          const doc = await adminDb.collection('settings').doc('featured-homepage-event').get();
+          if (!doc.exists) return null;
+          const d = doc.data() as { slug?: unknown } | undefined;
+          return typeof d?.slug === 'string' && d.slug.trim() ? d.slug.trim() : null;
+        } catch (e) {
+          console.error("Home page failed to read featured-homepage-event:", e);
+          return null;
+        }
+      })(),
+    ]);
+    latestEvents = eventsFetched;
+    featuredHomepageEventSlug = featuredHomepageEventFetched;
 
     // 2c. Fetch editor-led and category specific posts
     editorsBlogPosts = await getPosts({
@@ -155,7 +172,7 @@ export default async function MagazinePage() {
       <div className="flex-1">
         <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
         <ArticleGrid posts={gridPosts} />
-        <LatestEvents events={latestEvents} />
+        <LatestEvents events={latestEvents} featuredHomepageEventSlug={featuredHomepageEventSlug} />
         <CategorySection title="Editors Blog" posts={editorsBlogPosts} tagSlug="editorial" />
         <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
         <FeaturedInterview member={featuredMember} />
