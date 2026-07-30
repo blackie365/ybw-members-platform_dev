@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles, X, CreditCard, BellRing, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
@@ -105,7 +104,6 @@ export function EventInterestPopover({
   paymentCta = "Reserve & Pay",
   sourceLabel = "Event updates",
 }: EventInterestPopoverProps) {
-  const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const reactId = useId();
 
@@ -257,17 +255,6 @@ export function EventInterestPopover({
       return;
     }
 
-    const redirectAfterSignIn = (() => {
-      if (typeof window === "undefined") return "/events";
-      const here = `${window.location.pathname}${window.location.search}`;
-      return `${here}#event-interest:${encodeURIComponent(eventId)}`;
-    })();
-
-    if (!user) {
-      router.push(`/sign-up?returnUrl=${encodeURIComponent(redirectAfterSignIn)}`);
-      return;
-    }
-
     const now = Date.now();
     if (lastAttemptAt && now - lastAttemptAt < 8000) {
       setError("Please wait a moment before trying again.");
@@ -289,6 +276,8 @@ export function EventInterestPopover({
           hasMemberDiscount: price.hasMemberDiscount,
           quantity: Math.max(1, quantity),
           guestInfo: guestInfo.slice(0, 500),
+          customerEmail: email.trim(),
+          customerFirstName: firstName.trim(),
         }),
       });
       const data = await res.json().catch(() => ({} as any));
@@ -593,14 +582,14 @@ export function EventInterestPopover({
                 className="h-10 rounded-xl border-stone-900/10 bg-white/85 px-3.5 text-[13px] placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
               />
               {authLoading ? (
-                <p className="text-[10px] text-stone-500">Checking your account…</p>
+                <p className="text-[10px] text-stone-500">Checking your account&hellip;</p>
               ) : user ? (
                 <p className="text-[10px] text-stone-500">
                   Signed in as {user.email || "your account"} — RSVP will be linked to your profile.
                 </p>
               ) : (
                 <p className="text-[10px] text-stone-500">
-                  You&apos;ll be asked to sign in or create a free account so we can attach the RSVP.
+                  Ticket confirmation will be emailed to this address. Sign in later to link the RSVP to your profile.
                 </p>
               )}
             </div>

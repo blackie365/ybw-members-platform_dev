@@ -6,12 +6,8 @@ import { adminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const clerkUser = await currentUser();
-    const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
+    const clerkUser = userId ? await currentUser() : null;
+    const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress || '';
 
     const body = await request.json();
     const { 
@@ -24,30 +20,45 @@ export async function POST(request: Request) {
       plan, 
       cycle, 
       quantity = 1,
-      guestInfo = ''
+      guestInfo = '',
+      customerEmail = '',
+      customerFirstName = '',
     } = body;
 
-    // Check if Stripe key is available
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.warn('[STRIPE MOCK] No STRIPE_SECRET_KEY found. Running in mock mode.');
-      return NextResponse.json({ 
-        url: `/dashboard?success=mock_stripe_checkout_complete&reason=missing_key` 
-      });
-    }
+    // Resolve the purchaser's email: explicit body field wins, then Clerk account.
+    const userEmail: string =
+      (typeof customerEmail === 'string' && customerEmail.trim()) || clerkEmail || '';
+    const displayName: string =
+      (typeof customerFirstName === 'string' && customerFirstName.trim()) ||
+      (clerkUser ? `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() : '') ||
+      'Guest';
 
-    // Initialize Stripe
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2023-10-16' as any, // Using stable typing
-    });
-
-    // We must use the absolute origin because Stripe requires a fully qualified URL for success/cancel redirects.
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
-
-    // Ensure origin does not have a trailing slash
-    const cleanOrigin = origin.replace(/\/$/, '');
-
-    // If the request specifies a subscription plan (e.g. Premium Member)
+    // If the request specifies a subscription plan (e.g. Premium Member) a Clerk
+    // account is required so the subscription can be attached.
     if (plan === 'premium') {
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      // Check if Stripe key is available
+      if (!process.env.STRIPE_SECRET_KEY) {
+        console.warn('[STRIPE MOCK] No STRIPE_SECRET_KEY found. Running in mock mode.');
+        return NextResponse.json({ 
+          url: `/dashboard?success=mock_stripe_checkout_complete&reason=missing_key` 
+        });
+      }
+
+      // Initialize Stripe
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16' as any, // Using stable typing
+      });
+
+      // We must use the absolute origin because Stripe requires a fully qualified URL for success/cancel redirects.
+      const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+
+      // Ensure origin does not have a trailing slash
+      const cleanOrigin = origin.replace(/\/$/, '');
+
       const priceId = cycle === 'annually' ?'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
         : 'price_1TVHicLZwCrAHQYPLXqio8Bi'; // Monthly Price ID
 
@@ -75,7 +86,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ url: session.url });
     }
 
-    // Otherwise, fallback to the original logic: Event Ticket purchases
+    // Otherwise, the event-ticket checkout: guests are allowed. Email is required
+    // so Stripe can send the receipt and we can record the RSVP.
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Email address is required.' }, { status: 400 });
+    }
+
+    // Check if Stripe key is available (but mock mode is still returned below if missing)
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.warn('[STRIPE MOCK] No STRIPE_SECRET_KEY found. Running in mock mode.');
+      return NextResponse.json({ 
+        url: `/news/${postSlug}?success=mock_stripe_checkout_complete&reason=missing_key` 
+      });
+    }
+
+    // Initialize Stripe
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16' as any, // Using stable typing
+    });
+
+    // We must use the absolute origin because Stripe requires a fully qualified URL for success/cancel redirects.
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk';
+
+    // Ensure origin does not have a trailing slash
+    const cleanOrigin = origin.replace(/\/$/, '');
+
     if (!postSlug || typeof postSlug !== 'string') {
       throw new Error('Invalid postSlug received');
     }
@@ -93,22 +128,47 @@ export async function POST(request: Request) {
 
     // Handle FREE tickets (no Stripe required)
     if (unitAmount === 0) {
-      const { adminDb } = await import('@/lib/firebase-admin');
       if (!adminDb) {
         return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
       }
-      
-      const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
-      const profileData = profileSnap.data() || {};
+
+      // Try to look up a richer profile when a Clerk user exists; otherwise use
+      // the display name/email from the request body.
+      let attendeeName = displayName;
+      let attendeeImage = '';
+      let attendeeCompany = '';
+      let attendeeUid: string = userId || '';
+      let attendeeKey: string = userId || '';
+      let profileData: any = null;
+
+      if (userId) {
+        const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
+        profileData = profileSnap.data() || {};
+        if (profileData) {
+          if (profileData.firstName) {
+            attendeeName = `${profileData.firstName} ${profileData.lastName || ''}`.trim() || attendeeName;
+          }
+          attendeeImage = String(profileData.profileImage || '');
+          attendeeCompany = String(profileData.companyName || profileData['Company'] || '');
+        }
+      }
+
+      // For anonymous guests: use a stable email-based doc key so repeat RSVPs
+      // collapse into one record instead of creating new docs every attempt.
+      if (!attendeeKey) {
+        const emailKey = encodeURIComponent(userEmail.toLowerCase().trim());
+        attendeeKey = `guest:${emailKey}`;
+      }
 
       const eventDocRef = adminDb.collection('events').doc(postSlug);
-      const attendeeRef = eventDocRef.collection('attendees').doc(userId);
+      const attendeeRef = eventDocRef.collection('attendees').doc(attendeeKey);
       
       await attendeeRef.set({
-        uid: userId,
-        name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : 'Member',
-        image: profileData.profileImage || '',
-        company: profileData.companyName || profileData['Company'] || '',
+        uid: attendeeUid || undefined,
+        email: userEmail.toLowerCase().trim(),
+        name: attendeeName,
+        image: attendeeImage,
+        company: attendeeCompany,
         timestamp: new Date().toISOString(),
         ticketType: 'free',
         quantity: parseInt(quantity) || 1,
@@ -122,7 +182,12 @@ export async function POST(request: Request) {
     const qty = parseInt(quantity) || 1;
     const items = [];
 
-    if (hasMemberDiscount && qty > 1 && standardAmount) {
+    // Member discount only applies if there actually is a signed-in Clerk user
+    // (so a matching membership profile exists) AND the event has a member rate.
+    // Unauthenticated buyers always pay the standard rate for every ticket.
+    const canApplyMemberDiscount = Boolean(userId && hasMemberDiscount && qty > 1 && standardAmount);
+
+    if (canApplyMemberDiscount) {
       // 1 Member ticket, remainder are standard guest tickets
       items.push({
         price_data: { 
@@ -139,6 +204,17 @@ export async function POST(request: Request) {
           unit_amount: parseInt(standardAmount) 
         },
         quantity: qty - 1,
+      });
+    } else if (qty > 1 && standardAmount && hasMemberDiscount && !userId) {
+      // Guest checkout with member-discount pricing on the event: treat every
+      // ticket at the standard (non-member) rate so the discount isn't leaked.
+      items.push({
+        price_data: { 
+          currency: 'gbp', 
+          product_data: { name: `Ticket for: ${postTitle}` }, 
+          unit_amount: typeof standardAmount === 'number' ? standardAmount : Number(standardAmount)
+        },
+        quantity: qty,
       });
     } else {
       // Just standard checkout
@@ -162,9 +238,9 @@ export async function POST(request: Request) {
       metadata: { 
         postId, 
         postSlug, 
-        userId, 
+        ...(userId ? { userId } : { guestEmail: userEmail.toLowerCase().trim(), guestName: displayName.substring(0, 200) }),
         quantity: qty.toString(),
-        guestInfo: guestInfo.substring(0, 500) // Stripe metadata has 500 char limit
+        guestInfo: typeof guestInfo === 'string' ? guestInfo.substring(0, 500) : '' // Stripe metadata has 500 char limit
       } 
     });
 
