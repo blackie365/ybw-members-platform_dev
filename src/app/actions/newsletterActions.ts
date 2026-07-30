@@ -120,28 +120,6 @@ export async function getBeehiivPostStatsAction() {
   }
 }
 
-export async function getGhostStatsAction() {
-  try {
-    await checkAdmin();
-    const members = await getGhostMembers({ limit: 'all' });
-    
-    if (!members || !Array.isArray(members)) {
-      return { total: 0, newsletter: 0 };
-    }
-
-    const total = members.length;
-    const newsletter = total; 
-
-    return {
-      total,
-      newsletter
-    };
-  } catch (error) {
-    console.error("Error in getGhostStatsAction:", error);
-    return { total: 0, newsletter: 0 };
-  }
-}
-
 export async function previewNewsletterAction(editorNote?: string) {
   try {
     await checkAdmin();
