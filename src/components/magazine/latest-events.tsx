@@ -40,10 +40,17 @@ interface GhostPost {
   }
 }
 
-export function LatestEvents({ events }: { events: GhostPost[] }) {
+export function LatestEvents({ events, featuredHomepageEventSlug }: { events: GhostPost[]; featuredHomepageEventSlug?: string | null }) {
   const [activeEvent, setActiveEvent] = useState<GhostPost | null>(null);
   const [autoTriggered, setAutoTriggered] = useState(false);
-  const topEvent = events && events.length > 0 ? events[0] : null;
+  const topEvent: GhostPost | null = (() => {
+    if (!events || events.length === 0) return null;
+    if (typeof featuredHomepageEventSlug === "string" && featuredHomepageEventSlug.trim()) {
+      const override = events.find((e) => e.slug === featuredHomepageEventSlug.trim());
+      if (override) return override;
+    }
+    return events[0];
+  })();
 
   // Homepage soft auto-trigger: 5s after the first visitor lands on the homepage,
   // surface a translucent Instagram-style interest pop-up for the featured upcoming event.

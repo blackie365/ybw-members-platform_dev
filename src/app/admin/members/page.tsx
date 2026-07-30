@@ -16,7 +16,7 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts } from "@/lib/ghost";
-import { getAllEventsMetadata, updateEventMetadata } from "@/app/actions/eventActions";
+import { getAllEventsMetadata, updateEventMetadata, getFeaturedHomepageEvent, setFeaturedHomepageEvent as setFeaturedHomepageEventAction, type FeaturedHomepageEvent } from "@/app/actions/eventActions";
 
 // Import domain-specific actions
 import { 
@@ -94,6 +94,8 @@ function AdminMembersContent() {
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({})
   const [editingMemberPrice, setEditingMemberPrice] = useState<Record<string, string>>({})
+  const [featuredHomepageEvent, setFeaturedHomepageEvent] = useState<FeaturedHomepageEvent | null>(null)
+  const [settingFeatured, setSettingFeatured] = useState(false)
 
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([])
@@ -239,10 +241,13 @@ function AdminMembersContent() {
   const fetchEvents = async () => {
     setLoadingEvents(true)
     try {
-      const ghostEvents = await getPosts({ filter: 'tag:events', limit: 'all' })
+      const [ghostEvents, metadataRes, featuredRes] = await Promise.all([
+        getPosts({ filter: 'tag:events', limit: 'all' }),
+        getAllEventsMetadata(),
+        getFeaturedHomepageEvent().catch(() => ({ success: false, data: null }) as const),
+      ])
       setEvents(ghostEvents)
 
-      const metadataRes = await getAllEventsMetadata()
       if (metadataRes.success && metadataRes.data) {
         setEventsMetadata(metadataRes.data)
         
@@ -261,10 +266,39 @@ function AdminMembersContent() {
         })
         setEditingPrice(initialPrices)
       }
+
+      if (featuredRes.success && typeof featuredRes.data !== 'undefined') {
+        setFeaturedHomepageEvent(featuredRes.data || null)
+      }
     } catch (error) {
       console.error("Failed to fetch events:", error)
     } finally {
       setLoadingEvents(false)
+    }
+  }
+
+  const handleSetFeaturedHomepage = async (slug: string | null) => {
+    if (settingFeatured) return
+    setSettingFeatured(true)
+    try {
+      const res = await setFeaturedHomepageEventAction(slug)
+      if (!res.success) {
+        alert("Failed to set featured home-page event: " + (res.error || "Unknown error"))
+        return
+      }
+      if (slug) {
+        setFeaturedHomepageEvent({
+          slug,
+          updatedAt: new Date().toISOString(),
+        })
+      } else {
+        setFeaturedHomepageEvent(null)
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to set featured home-page event")
+    } finally {
+      setSettingFeatured(false)
     }
   }
 
@@ -629,6 +663,9 @@ function AdminMembersContent() {
                   handleUpdatePrice={handleUpdatePrice}
                   handleToggleAccess={handleToggleAccess}
                   handleToggleTicketCard={handleToggleTicketCard}
+                  featuredHomepageSlug={featuredHomepageEvent?.slug ?? null}
+                  settingFeatured={settingFeatured}
+                  onSetFeaturedHomepage={handleSetFeaturedHomepage}
                 />
               )}
             </CardContent>
