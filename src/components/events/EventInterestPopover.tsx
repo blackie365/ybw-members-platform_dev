@@ -46,12 +46,14 @@ export const HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY = "ybw:hp_event_popup_inten
 const STORAGE_KEYS = {
   dismissed: (id: string) => `ybw:event_popup_dismissed:${id}`,
   submitted: (id: string) => `ybw:event_popup_submitted:${id}`,
+  autoSeen: (id: string) => `ybw:event_popup_seen:${id}`,
 };
 
 const STORAGE_TTL = {
   dismissedMs: 30 * 24 * 60 * 60 * 1000,
   submittedInterestMs: 60 * 24 * 60 * 60 * 1000,
   submittedPaidMs: 90 * 24 * 60 * 60 * 1000,
+  autoSeenMs: 7 * 24 * 60 * 60 * 1000,
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -146,6 +148,11 @@ export function EventInterestPopover({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    markEventPopupSeen(eventId);
+  }, [open, eventId]);
 
   useEffect(() => {
     if (!open) return;
@@ -759,6 +766,28 @@ export function hasRecentlyDismissed(eventId: string): boolean {
   }
 }
 
+export function markEventPopupSeen(eventId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    setStoredFlag(STORAGE_KEYS.autoSeen(eventId), "1", STORAGE_TTL.autoSeenMs);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function hasRecentlySeenEventPopup(eventId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const key = STORAGE_KEYS.autoSeen(eventId);
+    const seen = window.localStorage.getItem(key);
+    if (!seen) return false;
+    if (isStoredFlagExpired(key)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function clearEventPopupMemory(eventId?: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -769,6 +798,7 @@ export function clearEventPopupMemory(eventId?: string): void {
     if (eventId) {
       clearKey(STORAGE_KEYS.dismissed(eventId));
       clearKey(STORAGE_KEYS.submitted(eventId));
+      clearKey(STORAGE_KEYS.autoSeen(eventId));
       return;
     }
     Object.keys(window.localStorage)
