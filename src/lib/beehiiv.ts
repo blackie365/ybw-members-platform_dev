@@ -47,7 +47,7 @@ export async function addBeehiivSubscriber({
 }: AddSubscriberParams): Promise<BeehiivSubscriberResult> {
   if (!isBeehiivConfigured()) {
     const msg = 'Beehiiv API Key or Publication ID is missing';
-    console.warn('[Beehiiv] Disabled / not configured. Skipping sync for:', email);
+    console.warn('[Beehiiv] Disabled / not configured. Skipping sync');
     return { success: false, disabled: true, error: msg };
   }
 
@@ -89,7 +89,7 @@ export async function addBeehiivSubscriber({
           combinedLower.includes('taken') ||
           combinedLower.includes('exists'))
       ) {
-        console.log('[Beehiiv] Subscriber already exists:', email);
+        console.log('[Beehiiv] Subscriber already exists');
         return { success: true, alreadyExists: true, httpStatus: response.status };
       }
 
@@ -101,7 +101,7 @@ export async function addBeehiivSubscriber({
       };
     }
 
-    console.log('[Beehiiv] Successfully added subscriber:', email);
+    console.log('[Beehiiv] Successfully added subscriber');
     return { success: true, data: data.data };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -143,7 +143,7 @@ export async function deleteBeehiivSubscriber(email: string) {
     });
 
     if (response.status === 204) {
-      console.log('Successfully removed subscriber from Beehiiv:', email);
+      console.log('Successfully removed subscriber from Beehiiv');
       return { success: true };
     }
 

@@ -1,15 +1,25 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     if (!adminDb) {
       return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
     }
 
     const body = await req.json();
     const { recipientId, senderId, senderName, senderEmail, message } = body;
+
+    if (senderId !== userId) {
+      return NextResponse.json({ error: 'Sender ID does not match authenticated user' }, { status: 403 });
+    }
 
     if (!recipientId || !senderId || !message || !senderEmail || !senderName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

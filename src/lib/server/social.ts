@@ -2,31 +2,6 @@ const META_API_VERSION = process.env.META_GRAPH_API_VERSION || "v25.0";
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 const RECENT_ITEM_LIMIT = 5;
 
-// #region debug-point A:meta-debug-bootstrap
-const __metaDbg = (() => {
-  try {
-    const fs = require("fs");
-    const p = ".dbg/web-stats-facebook.env";
-    let u = "http://127.0.0.1:7777/event";
-    let s = "web-stats-facebook";
-    try {
-      const e = fs.readFileSync(p, "utf8");
-      u = e.match(/DEBUG_SERVER_URL=(.+)/)?.[1] || u;
-      s = e.match(/DEBUG_SESSION_ID=(.+)/)?.[1] || s;
-    } catch {}
-    return (payload: any) => {
-      fetch(u, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: s, ...payload, ts: Date.now() }),
-      }).catch(() => {});
-    };
-  } catch {
-    return (_payload: any) => {};
-  }
-})();
-// #endregion
-
 export interface SocialDateRangeOptions {
   startDate: string;
   endDate: string;
@@ -155,21 +130,6 @@ async function fetchMeta<T>(
 ): Promise<T> {
   const { accessToken } = getMetaEnv();
   const token = accessTokenOverride || accessToken;
-  // #region debug-point A:fetchMeta-entry
-  __metaDbg({
-    runId: "pre",
-    hypothesisId: "A",
-    location: "social.ts:fetchMeta",
-    msg: "[DEBUG] Meta fetchMeta called",
-    data: {
-      metaApiBase: META_API_BASE,
-      path,
-      paramKeys: Object.keys(params || {}),
-      hasToken: Boolean(token),
-      tokenSource: accessTokenOverride ? "override" : "env",
-    },
-  });
-  // #endregion
   if (!token) {
     throw new Error("Missing required Meta access token");
   }
@@ -189,36 +149,8 @@ async function fetchMeta<T>(
 
   if (!response.ok) {
     const details = await response.text();
-    // #region debug-point B:fetchMeta-error
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "B",
-      location: "social.ts:fetchMeta",
-      msg: "[DEBUG] Meta fetchMeta non-200 response",
-      data: {
-        path,
-        status: response.status,
-        statusText: response.statusText,
-        detailsPreview: String(details || "").slice(0, 240),
-        detailsLength: String(details || "").length,
-      },
-    });
-    // #endregion
     throw new Error(`Meta API request failed: ${details}`);
   }
-
-  // #region debug-point A:fetchMeta-ok
-  __metaDbg({
-    runId: "pre",
-    hypothesisId: "A",
-    location: "social.ts:fetchMeta",
-    msg: "[DEBUG] Meta fetchMeta ok",
-    data: {
-      path,
-      status: response.status,
-    },
-  });
-  // #endregion
   return (await response.json()) as T;
 }
 
@@ -226,43 +158,16 @@ async function resolveFacebookPageAccessToken() {
   const { facebookAccessToken, accessToken, facebookPageId } = getMetaEnv();
 
   if (facebookAccessToken) {
-    // #region debug-point A:fb-token-direct
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "A",
-      location: "social.ts:resolveFacebookPageAccessToken",
-      msg: "[DEBUG] Using META_FACEBOOK_ACCESS_TOKEN directly",
-      data: { hasFacebookPageId: Boolean(facebookPageId) },
-    });
-    // #endregion
     return facebookAccessToken;
   }
 
   if (!accessToken) {
-    // #region debug-point D:fb-token-missing
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "D",
-      location: "social.ts:resolveFacebookPageAccessToken",
-      msg: "[DEBUG] Missing META_ACCESS_TOKEN for /me/accounts token derivation",
-      data: { hasFacebookPageId: Boolean(facebookPageId) },
-    });
-    // #endregion
     throw new Error(
       "Missing META_FACEBOOK_ACCESS_TOKEN or META_ACCESS_TOKEN to load Facebook page stats.",
     );
   }
 
   if (!facebookPageId) {
-    // #region debug-point D:fb-pageid-missing
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "D",
-      location: "social.ts:resolveFacebookPageAccessToken",
-      msg: "[DEBUG] Missing META_FACEBOOK_PAGE_ID",
-      data: { hasAccessToken: Boolean(accessToken) },
-    });
-    // #endregion
     throw new Error("Missing META_FACEBOOK_PAGE_ID to load Facebook page stats.");
   }
 
@@ -274,21 +179,6 @@ async function resolveFacebookPageAccessToken() {
     },
     accessToken,
   );
-
-  // #region debug-point B:fb-accounts-list
-  __metaDbg({
-    runId: "pre",
-    hypothesisId: "B",
-    location: "social.ts:resolveFacebookPageAccessToken",
-    msg: "[DEBUG] Fetched /me/accounts for page token derivation",
-    data: {
-      facebookPageId,
-      returnedCount: Array.isArray(accounts.data) ? accounts.data.length : 0,
-      hasMatchingPage: Boolean(accounts.data?.find((page) => page.id === facebookPageId)),
-    },
-  });
-  // #endregion
-
   const matchingPage = accounts.data?.find((page) => page.id === facebookPageId);
   if (!matchingPage?.access_token) {
     throw new Error(
@@ -355,20 +245,6 @@ async function fetchFacebookPostImpressions(
       return { impressions: getInsightValue(insights.data, metric), metricUsed: metric };
     } catch (error) {
       const code = getMetaErrorCode(error);
-      // #region debug-point B:fb-post-insights-error
-      __metaDbg({
-        runId: "pre",
-        hypothesisId: "B",
-        location: "social.ts:fetchFacebookPostImpressions",
-        msg: "[DEBUG] Facebook post insights metric failed",
-        data: {
-          postId,
-          metric,
-          code: code ?? null,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-      // #endregion
       if (code === 100) {
         continue;
       }
@@ -414,15 +290,6 @@ async function getFacebookReport({
   instagramBusinessAccountId?: string;
 }> {
   const { facebookPageId } = getMetaEnv();
-  // #region debug-point A:fb-report-entry
-  __metaDbg({
-    runId: "pre",
-    hypothesisId: "A",
-    location: "social.ts:getFacebookReport",
-    msg: "[DEBUG] Facebook report requested",
-    data: { hasFacebookPageId: Boolean(facebookPageId), startDate, endDate },
-  });
-  // #endregion
   if (!facebookPageId) {
     return {
       channel: createDisconnectedChannel(
@@ -436,15 +303,6 @@ async function getFacebookReport({
 
   try {
     const facebookToken = await resolveFacebookPageAccessToken();
-    // #region debug-point A:fb-token-resolved
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "A",
-      location: "social.ts:getFacebookReport",
-      msg: "[DEBUG] Facebook page access token resolved",
-      data: { facebookPageId, hasToken: Boolean(facebookToken) },
-    });
-    // #endregion
     const [page, posts] = await Promise.all([
       fetchMeta<FacebookPageResponse>(`/${facebookPageId}`, {
         fields: "name,link,fan_count,followers_count,instagram_business_account{id}",
@@ -477,23 +335,6 @@ async function getFacebookReport({
     const insightByPostId = new Map(
       postInsights.filter((row) => row.postId).map((row) => [row.postId, row]),
     );
-
-    // #region debug-point A:fb-fetch-summary
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "A",
-      location: "social.ts:getFacebookReport",
-      msg: "[DEBUG] Facebook page/posts fetched",
-      data: {
-        pageName: page?.name || null,
-        hasLink: Boolean(page?.link),
-        followerCount: page?.followers_count ?? page?.fan_count ?? null,
-        postsReturned: Array.isArray(posts?.data) ? posts.data.length : 0,
-        derivedIgId: page?.instagram_business_account?.id || null,
-      },
-    });
-    // #endregion
-
     const content = (posts.data ?? []).map((post) => {
       const shares = post.shares?.count ?? 0;
       const likes = post.reactions?.summary?.total_count ?? 0;
@@ -533,18 +374,6 @@ async function getFacebookReport({
         page.instagram_business_account?.id || undefined,
     };
   } catch (error) {
-    // #region debug-point B:fb-report-error
-    __metaDbg({
-      runId: "pre",
-      hypothesisId: "B",
-      location: "social.ts:getFacebookReport",
-      msg: "[DEBUG] Facebook report failed",
-      data: {
-        facebookPageId,
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
-    // #endregion
     return {
       channel: createDisconnectedChannel(
         "facebook",
@@ -732,23 +561,6 @@ export async function getSocialMediaReport(
   options: SocialDateRangeOptions,
 ): Promise<SocialMediaReport> {
   const { accessToken, facebookAccessToken, instagramAccessToken } = getMetaEnv();
-  // #region debug-point A:social-report-entry
-  __metaDbg({
-    runId: "pre",
-    hypothesisId: "A",
-    location: "social.ts:getSocialMediaReport",
-    msg: "[DEBUG] Social report requested",
-    data: {
-      metaApiVersion: META_API_VERSION,
-      hasAccessToken: Boolean(accessToken),
-      hasFacebookAccessToken: Boolean(facebookAccessToken),
-      hasInstagramAccessToken: Boolean(instagramAccessToken),
-      hasFacebookPageId: Boolean(getMetaEnv().facebookPageId),
-      startDate: options.startDate,
-      endDate: options.endDate,
-    },
-  });
-  // #endregion
   if (!accessToken && !facebookAccessToken && !instagramAccessToken) {
     return {
       channels: [

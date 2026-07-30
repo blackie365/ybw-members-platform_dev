@@ -9,6 +9,14 @@ export async function POST(req: Request) {
   try {
     const payload = await req.json().catch(() => ({}));
 
+    const { searchParams } = new URL(req.url);
+    const secret = searchParams.get('secret');
+
+    if (secret !== process.env.GHOST_WEBHOOK_SECRET) {
+      console.warn('[Webhook] Unauthorized attempt');
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+    }
+
     // NEW: Fallback Admin creation for orphaned accounts
     if (payload.action === 'create_member_admin') {
       const { uid, email, firstName, lastName, profileImage } = payload;
@@ -45,21 +53,10 @@ export async function POST(req: Request) {
     
     // Check if this is a custom action to upgrade a member
     if (payload.action === 'upgrade_member' && payload.email) {
-      // Note: In a real scenario you would first fetch the member by email to get their Ghost ID,
-      // then call editGhostMember. For simplicity, we assume addGhostMember handles existing emails gracefully
-      // or we just rely on Stripe webhooks for upgrades.
       return NextResponse.json({ message: 'Upgrade logic ready to be implemented' });
     }
 
-    // Otherwise, this is a standard Ghost Webhook to revalidate Next.js cache
-    const { searchParams } = new URL(req.url);
-    const secret = searchParams.get('secret');
-
-    // Verify the secret to prevent unauthorized cache purging
-    if (secret !== process.env.GHOST_WEBHOOK_SECRET) {
-      console.warn('[Webhook] Unauthorized revalidation attempt');
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
+    // Standard Ghost Webhook to revalidate Next.js cache
 
     // In Next.js App Router, revalidateTag marks the tag to be revalidated
     // We revalidate 'ghost-posts' which covers all getPosts calls

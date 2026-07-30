@@ -1,19 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
-
-const clerk = clerkMiddleware();
-
-export default async function middleware(req: NextRequest, evt: NextFetchEvent) {
-  const clerkConfigured = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  if (!clerkConfigured) return NextResponse.next();
-
-  try {
-    return await clerk(req, evt);
-  } catch (e) {
-    return NextResponse.next();
-  }
-}
+export default clerkMiddleware();
 
 export const config = {
   matcher: [

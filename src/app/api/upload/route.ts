@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminStorage } from '@/lib/firebase-admin';
 import { auth } from '@clerk/nextjs/server';
+import { checkAdmin } from '@/lib/server/auth-utils';
+
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const SAFE_FOLDER = 'uploads';
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,15 +16,22 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'uploads';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: `File type ${file.type} is not allowed` }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File exceeds 10MB size limit' }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `${folder}/${userId}-${Date.now()}.${fileExtension}`;
+    const fileName = `${SAFE_FOLDER}/${userId}-${Date.now()}.${fileExtension}`;
     
     if (!adminStorage) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });

@@ -537,9 +537,6 @@ export function ManualImporter({
       if (ext === 'idml') {
         setIdmlFileName(file.name);
         const canSaveDirectly = Boolean(issueId && issueId !== 'new' && onSaveStoryLibrary);
-        // #region debug-point A:client-import-start
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"A",location:"ManualImporter.tsx:handleImportFromInDesignFile:start",msg:"[DEBUG] Starting IDML story library import from client",data:{issueId:String(issueId||""),fileName:file.name,canSaveDirectly,fileSize:file.size},ts:Date.now()})}).catch(()=>{});
-        // #endregion
         let res: any;
 
         if (canSaveDirectly && storage) {
@@ -584,10 +581,6 @@ export function ManualImporter({
             ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
             : await extractIdmlStoryLibraryAction(idmlBase64, file.name);
         }
-        // #region debug-point A:client-import-response
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"story-library-import",runId:"pre-fix",hypothesisId:"A",location:"ManualImporter.tsx:handleImportFromInDesignFile:response",msg:"[DEBUG] Client received IDML import response",data:{issueId:String(issueId||""),fileName:file.name,canSaveDirectly,success:Boolean(res?.success),importedCount:Number((res as any)?.data?.importedCount||0),totalCount:Number((res as any)?.data?.totalCount||0),storyLibraryCount:Array.isArray((res as any)?.data?.storyLibrary)?(res as any).data.storyLibrary.length:0,error:String((res as any)?.error||"")},ts:Date.now()})}).catch(()=>{});
-        // #endregion
-
         if (applyIdmlImportResult(res, canSaveDirectly)) {
           toast.dismiss('upload-progress');
         }
@@ -725,7 +718,7 @@ export function ManualImporter({
         metadata: result.data!.metadata,
         stats,
         fileName: file.name,
-      }).catch(() => {});
+      }).catch((err) => console.warn('[IDML] Failed to save draft:', err));
 
       toast.success(`Parsed ${result.data!.pageCount} pages, ${result.data!.storyCount} stories, ${result.data!.imageCount} images`, { id: 'upload-progress' });
     } catch (e: any) {
@@ -755,7 +748,7 @@ export function ManualImporter({
 
       toast.success(`Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`);
       if (serverIdmlDraftId) {
-        deleteIdmlDraft(serverIdmlDraftId).catch(() => {});
+        deleteIdmlDraft(serverIdmlDraftId).catch((err) => console.warn('[IDML] Failed to delete draft:', err));
       }
       setServerIdmlPages([]);
       setServerIdmlMeta(null);
@@ -779,7 +772,7 @@ export function ManualImporter({
           metadata: next,
           stats: effectiveServerIdmlStats || { pageCount: 0, storyCount: 0, imageCount: 0 },
           fileName: serverIdmlFileName,
-        }).catch(() => {});
+        }).catch((err) => console.warn('[IDML] Failed to save draft on title update:', err));
       }
       return next;
     });
@@ -787,7 +780,7 @@ export function ManualImporter({
 
   const handleClearIdmlDraft = async () => {
     if (serverIdmlDraftId) {
-      await deleteIdmlDraft(serverIdmlDraftId).catch(() => {});
+      await deleteIdmlDraft(serverIdmlDraftId).catch((err) => console.warn('[IDML] Failed to delete draft on clear:', err));
     }
     setServerIdmlPages([]);
     setServerIdmlMeta(null);

@@ -12,7 +12,9 @@ if (!admin?.apps?.length) {
         try {
           const parsed = JSON.parse(privateKey);
           if (parsed?.private_key) privateKey = parsed?.private_key;
-        } catch (e) {}
+        } catch (e) {
+          console.warn('[Firebase Admin] Failed to parse private key JSON');
+        }
       }
       
       if (privateKey) {
@@ -31,8 +33,6 @@ if (!admin?.apps?.length) {
     if (privateKey && clientEmail) {
       try {
         const finalProjectId = projectId;
-        console.log(`[Firebase Admin] Initializing for project: ${finalProjectId}`);
-        
         admin?.initializeApp({
           credential: admin?.credential?.cert({
             projectId: finalProjectId,
@@ -42,14 +42,11 @@ if (!admin?.apps?.length) {
           projectId: finalProjectId,
           storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${finalProjectId}.firebasestorage.app`
         });
-        
-        console.log('[Firebase Admin] Initialization successful');
       } catch (initError) {
         console.error('[Firebase Admin] Critical initialization error:', initError);
       }
     } else {
       console.warn('[Firebase Admin] Missing credentials. Some admin features may fail.');
-      console.log('[Firebase Admin] Check: privateKey exists:', !!privateKey, 'clientEmail exists:', !!clientEmail);
     }
   } catch (error) {
     console.error('Firebase admin initialization error', error);

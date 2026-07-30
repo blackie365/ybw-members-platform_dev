@@ -306,9 +306,6 @@ async function persistStoryLibraryForIssue(
   }
 
   const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
-  // #region debug-point C:persist-summary
-  (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'C',location:'magazineActions.ts:persistStoryLibraryForIssue',msg:'[DEBUG] Persisted story library for issue',data:{issueId,nextItemsCount:nextItems.length,existingItemsCount:existingItems.length,persistedItemsCount:persistedItems.length,nextDocIdsCount:nextDocIds.size},ts:Date.now()})}).catch(()=>{})})();
-  // #endregion
   return persistedItems.length > 0
     ? mergeStoryLibraryItems(persistedItems, nextItems)
     : nextItems;
@@ -633,9 +630,6 @@ export async function getMagazineStoryLibraryAction(issueId: string) {
     const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
     const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
     const merged = mergeStoryLibraryItems(collectionItems, issueItems);
-    // #region debug-point D:load-story-library
-    (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'D',location:'magazineActions.ts:getMagazineStoryLibraryAction',msg:'[DEBUG] Loaded story library data for builder',data:{issueId,issueItemsCount:issueItems.length,collectionItemsCount:collectionItems.length,mergedItemsCount:merged.length},ts:Date.now()})}).catch(()=>{})})();
-    // #endregion
 
     return { success: true, data: merged };
   } catch (error: any) {
@@ -989,9 +983,6 @@ async function importIdmlBufferToStoryLibrary(
   const previewItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, {});
   const imageUrls = await uploadStoryLibraryArticleImages(parsed, fileName, previewItems);
   const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
-  // #region debug-point B:server-import-summary
-  (()=>{const fs=require('fs'),p='.dbg/story-library-import.env';let u='http://127.0.0.1:7777/event',s='story-library-import';try{const e=fs.readFileSync(p,'utf8');u=e.match(/DEBUG_SERVER_URL=(.+)/)?.[1]||u;s=e.match(/DEBUG_SESSION_ID=(.+)/)?.[1]||s}catch{}fetch(u,{method:'POST',body:JSON.stringify({sessionId:s,runId:'pre-fix',hypothesisId:'B',location,msg:'[DEBUG] Extracted IDML stories on server',data:{issueId,fileName,pageCount:parsed.pageCount,parsedPagesCount:parsed.pages.length,imageCount:parsed.images.length,importedItemsCount:importedItems.length},ts:Date.now()})}).catch(()=>{})})();
-  // #endregion
 
   const [issueDoc, collectionItems] = await Promise.all([
     adminDb.collection('magazine_issues').doc(issueId).get(),

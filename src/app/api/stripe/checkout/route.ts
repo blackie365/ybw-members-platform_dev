@@ -59,8 +59,9 @@ export async function POST(request: Request) {
       // Ensure origin does not have a trailing slash
       const cleanOrigin = origin.replace(/\/$/, '');
 
-      const priceId = cycle === 'annually' ?'price_1TWbKFLZwCrAHQYP9gKzdpvx' // Annual Price ID
-        : 'price_1TVHicLZwCrAHQYPLXqio8Bi'; // Monthly Price ID
+      const priceId = cycle === 'annually'
+        ? (process.env.STRIPE_ANNUAL_PRICE_ID || 'price_1TWbKFLZwCrAHQYP9gKzdpvx')
+        : (process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1TVHicLZwCrAHQYPLXqio8Bi')
 
       let stripeCustomerId: string | undefined;
       if (adminDb) {
