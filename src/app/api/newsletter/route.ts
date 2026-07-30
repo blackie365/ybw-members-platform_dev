@@ -199,15 +199,24 @@ export async function POST(request: Request) {
     }
 
     // Step 5: Send Admin Alert Email for NEW sign-ups only (Non-critical)
-    let adminAlert: { success: boolean; sent: boolean; mock?: boolean; skipped?: 'already_exists' | 'no_recipients'; error?: string; recipients?: string[] } = { success: false, sent: false };
+    let adminAlert: {
+      success: boolean;
+      sent: boolean;
+      mock?: boolean;
+      skipped?: 'already_exists' | 'no_recipients';
+      error?: string;
+      recipients?: string[];
+      deliveredTo?: string[];
+      senderFrom?: string;
+    } = { success: false, sent: false };
     if (beehiivResult.alreadyExists) {
       adminAlert = { success: true, sent: false, skipped: 'already_exists' };
     } else {
       const recipients = Array.from(new Set(
-        config.contactRecipients.map((r) => r.trim()).filter((r) => r && r.includes('@'))
+        config.newsletterAlertRecipients.map((r) => r.trim()).filter((r) => r && r.includes('@'))
       ));
       if (recipients.length === 0) {
-        console.error('❌ [API/Newsletter] Admin alert SKIPPED: no valid CONTACT_RECIPIENTS. subscriber=', email);
+        console.error('❌ [API/Newsletter] Admin alert SKIPPED: no valid NEWSLETTER_ALERT_RECIPIENTS / CONTACT_RECIPIENTS. subscriber=', email);
         adminAlert = { success: false, sent: false, skipped: 'no_recipients', recipients };
       } else {
         try {
@@ -217,8 +226,12 @@ export async function POST(request: Request) {
             lastName || undefined,
             source || undefined
           );
+          // System alerts use a noreply sender. This avoids a Resend delivery quirk
+          // where same-mailbox from/to (editor@ -> editor@) silently drops the
+          // editor@ copy while still returning a Resend message ID.
           const res = await sendEmail({
             to: recipients,
+            from: config.emailFromNoReply,
             subject: `🔔 New Newsletter Sign-Up: ${email}`,
             html: alertHtml,
           });
@@ -228,17 +241,23 @@ export async function POST(request: Request) {
             sent: !isMock,
             mock: isMock,
             recipients,
+            deliveredTo: res?.deliveredTo,
+            senderFrom: res?.senderFrom,
           };
           if (isMock) {
             console.warn(
               '⚠️ [API/Newsletter] Admin alert MOCKED — no real email dispatched. subscriber=',
               email,
               'recipients=',
-              recipients.join(', ')
+              recipients.join(', '),
+              'deliveredTo=',
+              (res?.deliveredTo || []).join(', '),
+              'from=',
+              res?.senderFrom
             );
           } else {
             console.log(
-              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} to ${recipients.join(', ')}`
+              `✅ [API/Newsletter] Admin alert dispatched for new sign-up: ${email} from=${res?.senderFrom} deliveredTo=${(res?.deliveredTo || []).join(', ')} (requested recipients: ${recipients.join(', ')})`
             );
           }
         } catch (alertError: unknown) {
@@ -275,6 +294,9 @@ export async function POST(request: Request) {
           mock: Boolean(adminAlert.mock),
           error: adminAlert.error,
           recipientCount: adminAlert.recipients?.length ?? 0,
+          recipients: adminAlert.recipients,
+          deliveredTo: adminAlert.deliveredTo,
+          senderFrom: adminAlert.senderFrom,
         },
       },
     };

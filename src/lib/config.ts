@@ -13,8 +13,14 @@ export const config = {
   /** Contact form recipient emails */
   contactRecipients: (process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk,dd@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
 
-  /** Default email from address */
+  /** Recipients for the admin-facing newsletter sign-up alert (distinct from contact form to allow separate routing) */
+  newsletterAlertRecipients: (process.env.NEWSLETTER_ALERT_RECIPIENTS || process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk,dd@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
+
+  /** Default email from address — for reader-facing, personal correspondence */
   emailFrom: process.env.EMAIL_FROM || 'Yorkshire Businesswoman <editor@yorkshirebusinesswoman.co.uk>',
+
+  /** No-reply/system from address for automated alerts. Different mailbox than recipients avoids a Resend quirk where same-`from`/same-mailbox `to` deliveries silently drop. */
+  emailFromNoReply: process.env.EMAIL_FROM_NO_REPLY || 'Yorkshire Businesswoman Newsletter <noreply@yorkshirebusinesswoman.co.uk>',
 
   /** Firebase project ID */
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
