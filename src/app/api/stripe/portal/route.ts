@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {

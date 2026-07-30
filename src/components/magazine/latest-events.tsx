@@ -10,11 +10,13 @@ import {
   EventInterestPopover,
   clearEventPopupMemory,
   hasRecentlyDismissed,
+  hasRecentlySeenEventPopup,
   hasRecentlySubmittedInterest,
   markHomepageEventAutoTrigger,
 } from "@/components/events/EventInterestPopover";
 
 const HOMEPAGE_AUTO_TRIGGER_DELAY_MS = 5_000;
+const HOMEPAGE_PREVIEW_TRIGGER_DELAY_MS = 200;
 
 function hasHomepagePreviewQuery(): boolean {
   if (typeof window === "undefined") return false;
@@ -62,8 +64,21 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
     let mounted = true;
     let timer: number | undefined;
 
+    const shouldSkipForCooldowns = (eventSlug: string): boolean => {
+      return (
+        hasRecentlySubmittedInterest(eventSlug) ||
+        hasRecentlyDismissed(eventSlug) ||
+        hasRecentlySeenEventPopup(eventSlug)
+      );
+    };
+
     const open = () => {
       if (!mounted) return;
+      if (shouldSkipForCooldowns(topEvent.slug)) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      markHomepageEventAutoTrigger();
       setAutoTriggered(true);
       setActiveEvent(topEvent);
     };
@@ -75,7 +90,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
         // ignore
       }
       markHomepageEventAutoTrigger();
-      timer = window.setTimeout(open, 200);
+      timer = window.setTimeout(open, HOMEPAGE_PREVIEW_TRIGGER_DELAY_MS);
       return () => {
         mounted = false;
         if (timer) window.clearTimeout(timer);
@@ -84,21 +99,8 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
 
     timer = window.setTimeout(() => {
       if (!mounted) return;
-      markHomepageEventAutoTrigger();
-      try {
-        if (
-          hasRecentlySubmittedInterest(topEvent.slug) ||
-          hasRecentlyDismissed(topEvent.slug)
-        ) {
-          return;
-        }
-        if (typeof document !== "undefined" && document.visibilityState !== "visible") {
-          return;
-        }
-        open();
-      } catch {
-        // ignore
-      }
+      if (shouldSkipForCooldowns(topEvent.slug)) return;
+      open();
     }, HOMEPAGE_AUTO_TRIGGER_DELAY_MS);
 
     return () => {

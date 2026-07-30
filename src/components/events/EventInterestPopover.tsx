@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles, X, CreditCard, BellRing, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,15 +42,22 @@ export interface EventInterestPopoverProps {
 
 export const HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY = "ybw:hp_event_popup_intent";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SUCCESS_AUTO_DISMISS_MS = 1800;
+const SESSION_AUTO_TRIGGER_MAX_AGE_MS = 5 * 60 * 1000;
+
 const STORAGE_KEYS = {
   dismissed: (id: string) => `ybw:event_popup_dismissed:${id}`,
   submitted: (id: string) => `ybw:event_popup_submitted:${id}`,
+  autoSeen: (id: string) => `ybw:event_popup_seen:${id}`,
 };
 
 const STORAGE_TTL = {
-  dismissedMs: 30 * 24 * 60 * 60 * 1000,
-  submittedInterestMs: 60 * 24 * 60 * 60 * 1000,
-  submittedPaidMs: 90 * 24 * 60 * 60 * 1000,
+  dismissedMs: 30 * DAY_MS,
+  submittedInterestMs: 60 * DAY_MS,
+  submittedPaidMs: 90 * DAY_MS,
+  submittedCheckoutMs: 30 * DAY_MS,
+  autoSeenMs: 7 * DAY_MS,
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,6 +80,18 @@ function setStoredFlag(key: string, value: string, ttlMs?: number): void {
     }
   } catch {
     // ignore storage errors
+  }
+}
+
+function hasValidStoredFlag(key: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const value = window.localStorage.getItem(key);
+    if (!value) return false;
+    if (isStoredFlagExpired(key)) return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -103,7 +121,6 @@ export function EventInterestPopover({
   paymentCta = "Reserve & Pay",
   sourceLabel = "Event updates",
 }: EventInterestPopoverProps) {
-  const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const reactId = useId();
 
@@ -146,6 +163,11 @@ export function EventInterestPopover({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    markEventPopupSeen(eventId);
+  }, [open, eventId]);
 
   useEffect(() => {
     if (!open) return;
@@ -250,17 +272,6 @@ export function EventInterestPopover({
       return;
     }
 
-    const redirectAfterSignIn = (() => {
-      if (typeof window === "undefined") return "/events";
-      const here = `${window.location.pathname}${window.location.search}`;
-      return `${here}#event-interest:${encodeURIComponent(eventId)}`;
-    })();
-
-    if (!user) {
-      router.push(`/sign-up?returnUrl=${encodeURIComponent(redirectAfterSignIn)}`);
-      return;
-    }
-
     const now = Date.now();
     if (lastAttemptAt && now - lastAttemptAt < 8000) {
       setError("Please wait a moment before trying again.");
@@ -282,6 +293,8 @@ export function EventInterestPopover({
           hasMemberDiscount: price.hasMemberDiscount,
           quantity: Math.max(1, quantity),
           guestInfo: guestInfo.slice(0, 500),
+          customerEmail: email.trim(),
+          customerFirstName: firstName.trim(),
         }),
       });
       const data = await res.json().catch(() => ({} as any));
@@ -292,13 +305,13 @@ export function EventInterestPopover({
         setSuccess({ kind: "payment", message: "You're registered. We'll be in touch with all the details." });
         toast.success("You're registered for this event.");
         if (autoDismissOnSuccess) {
-          window.setTimeout(() => onOpenChange(false), 1800);
+          window.setTimeout(() => onOpenChange(false), SUCCESS_AUTO_DISMISS_MS);
         }
         return;
       }
 
       if (data.url) {
-        setStoredFlag(STORAGE_KEYS.submitted(eventId), "checkout", 30 * 24 * 60 * 60 * 1000);
+        setStoredFlag(STORAGE_KEYS.submitted(eventId), "checkout", STORAGE_TTL.submittedCheckoutMs);
         if (data.url.includes("mock_stripe")) {
           toast.warning("Stripe is running in mock mode on this environment.");
         }
@@ -586,14 +599,14 @@ export function EventInterestPopover({
                 className="h-10 rounded-xl border-stone-900/10 bg-white/85 px-3.5 text-[13px] placeholder:text-stone-400 focus-visible:ring-[#A3413A]/40 focus-visible:border-[#A3413A]/40"
               />
               {authLoading ? (
-                <p className="text-[10px] text-stone-500">Checking your account…</p>
+                <p className="text-[10px] text-stone-500">Checking your account&hellip;</p>
               ) : user ? (
                 <p className="text-[10px] text-stone-500">
                   Signed in as {user.email || "your account"} — RSVP will be linked to your profile.
                 </p>
               ) : (
                 <p className="text-[10px] text-stone-500">
-                  You&apos;ll be asked to sign in or create a free account so we can attach the RSVP.
+                  Ticket confirmation will be emailed to this address. Sign in later to link the RSVP to your profile.
                 </p>
               )}
             </div>
@@ -734,29 +747,24 @@ function isStoredFlagExpired(key: string): boolean {
 }
 
 export function hasRecentlySubmittedInterest(eventId: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const key = STORAGE_KEYS.submitted(eventId);
-    const has = Boolean(window.localStorage.getItem(key));
-    if (!has) return false;
-    if (isStoredFlagExpired(key)) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  return hasValidStoredFlag(STORAGE_KEYS.submitted(eventId));
 }
 
 export function hasRecentlyDismissed(eventId: string): boolean {
-  if (typeof window === "undefined") return false;
+  return hasValidStoredFlag(STORAGE_KEYS.dismissed(eventId));
+}
+
+export function markEventPopupSeen(eventId: string): void {
+  if (typeof window === "undefined") return;
   try {
-    const key = STORAGE_KEYS.dismissed(eventId);
-    const dismissed = window.localStorage.getItem(key);
-    if (!dismissed) return false;
-    if (isStoredFlagExpired(key)) return false;
-    return true;
+    setStoredFlag(STORAGE_KEYS.autoSeen(eventId), "1", STORAGE_TTL.autoSeenMs);
   } catch {
-    return false;
+    // ignore storage errors
   }
+}
+
+export function hasRecentlySeenEventPopup(eventId: string): boolean {
+  return hasValidStoredFlag(STORAGE_KEYS.autoSeen(eventId));
 }
 
 export function clearEventPopupMemory(eventId?: string): void {
@@ -769,6 +777,7 @@ export function clearEventPopupMemory(eventId?: string): void {
     if (eventId) {
       clearKey(STORAGE_KEYS.dismissed(eventId));
       clearKey(STORAGE_KEYS.submitted(eventId));
+      clearKey(STORAGE_KEYS.autoSeen(eventId));
       return;
     }
     Object.keys(window.localStorage)
@@ -791,7 +800,7 @@ export function markHomepageEventAutoTrigger(timestampMs: number = Date.now()): 
   }
 }
 
-export function hasHomepageEventAutoTriggeredThisSession(maxAgeMs: number = 5 * 60 * 1000): boolean {
+export function hasHomepageEventAutoTriggeredThisSession(maxAgeMs: number = SESSION_AUTO_TRIGGER_MAX_AGE_MS): boolean {
   if (typeof window === "undefined") return false;
   try {
     const raw = window.sessionStorage.getItem(HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY);
