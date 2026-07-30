@@ -121,14 +121,3 @@ export async function updateAdSlotAction(
   }
 }
 
-export async function updateHeaderLeaderboardAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
-  return updateAdSlotAction('headerLeaderboard', input);
-}
-
-export async function updateSidebarMpuAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
-  return updateAdSlotAction('sidebarMpu', input);
-}
-
-export async function updateMidArticleAdAction(input: AdSlotConfig): Promise<{ success: true } | { success: false; error: string }> {
-  return updateAdSlotAction('midArticle', input);
-}

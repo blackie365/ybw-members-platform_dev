@@ -16,6 +16,7 @@ import {
 } from "@/components/events/EventInterestPopover";
 
 const HOMEPAGE_AUTO_TRIGGER_DELAY_MS = 5_000;
+const HOMEPAGE_PREVIEW_TRIGGER_DELAY_MS = 200;
 
 function hasHomepagePreviewQuery(): boolean {
   if (typeof window === "undefined") return false;
@@ -89,7 +90,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
         // ignore
       }
       markHomepageEventAutoTrigger();
-      timer = window.setTimeout(open, 200);
+      timer = window.setTimeout(open, HOMEPAGE_PREVIEW_TRIGGER_DELAY_MS);
       return () => {
         mounted = false;
         if (timer) window.clearTimeout(timer);

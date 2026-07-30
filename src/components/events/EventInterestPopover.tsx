@@ -42,6 +42,10 @@ export interface EventInterestPopoverProps {
 
 export const HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY = "ybw:hp_event_popup_intent";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SUCCESS_AUTO_DISMISS_MS = 1800;
+const SESSION_AUTO_TRIGGER_MAX_AGE_MS = 5 * 60 * 1000;
+
 const STORAGE_KEYS = {
   dismissed: (id: string) => `ybw:event_popup_dismissed:${id}`,
   submitted: (id: string) => `ybw:event_popup_submitted:${id}`,
@@ -49,10 +53,11 @@ const STORAGE_KEYS = {
 };
 
 const STORAGE_TTL = {
-  dismissedMs: 30 * 24 * 60 * 60 * 1000,
-  submittedInterestMs: 60 * 24 * 60 * 60 * 1000,
-  submittedPaidMs: 90 * 24 * 60 * 60 * 1000,
-  autoSeenMs: 7 * 24 * 60 * 60 * 1000,
+  dismissedMs: 30 * DAY_MS,
+  submittedInterestMs: 60 * DAY_MS,
+  submittedPaidMs: 90 * DAY_MS,
+  submittedCheckoutMs: 30 * DAY_MS,
+  autoSeenMs: 7 * DAY_MS,
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,6 +80,18 @@ function setStoredFlag(key: string, value: string, ttlMs?: number): void {
     }
   } catch {
     // ignore storage errors
+  }
+}
+
+function hasValidStoredFlag(key: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const value = window.localStorage.getItem(key);
+    if (!value) return false;
+    if (isStoredFlagExpired(key)) return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -288,13 +305,13 @@ export function EventInterestPopover({
         setSuccess({ kind: "payment", message: "You're registered. We'll be in touch with all the details." });
         toast.success("You're registered for this event.");
         if (autoDismissOnSuccess) {
-          window.setTimeout(() => onOpenChange(false), 1800);
+          window.setTimeout(() => onOpenChange(false), SUCCESS_AUTO_DISMISS_MS);
         }
         return;
       }
 
       if (data.url) {
-        setStoredFlag(STORAGE_KEYS.submitted(eventId), "checkout", 30 * 24 * 60 * 60 * 1000);
+        setStoredFlag(STORAGE_KEYS.submitted(eventId), "checkout", STORAGE_TTL.submittedCheckoutMs);
         if (data.url.includes("mock_stripe")) {
           toast.warning("Stripe is running in mock mode on this environment.");
         }
@@ -730,29 +747,11 @@ function isStoredFlagExpired(key: string): boolean {
 }
 
 export function hasRecentlySubmittedInterest(eventId: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const key = STORAGE_KEYS.submitted(eventId);
-    const has = Boolean(window.localStorage.getItem(key));
-    if (!has) return false;
-    if (isStoredFlagExpired(key)) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  return hasValidStoredFlag(STORAGE_KEYS.submitted(eventId));
 }
 
 export function hasRecentlyDismissed(eventId: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const key = STORAGE_KEYS.dismissed(eventId);
-    const dismissed = window.localStorage.getItem(key);
-    if (!dismissed) return false;
-    if (isStoredFlagExpired(key)) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  return hasValidStoredFlag(STORAGE_KEYS.dismissed(eventId));
 }
 
 export function markEventPopupSeen(eventId: string): void {
@@ -765,16 +764,7 @@ export function markEventPopupSeen(eventId: string): void {
 }
 
 export function hasRecentlySeenEventPopup(eventId: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const key = STORAGE_KEYS.autoSeen(eventId);
-    const seen = window.localStorage.getItem(key);
-    if (!seen) return false;
-    if (isStoredFlagExpired(key)) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  return hasValidStoredFlag(STORAGE_KEYS.autoSeen(eventId));
 }
 
 export function clearEventPopupMemory(eventId?: string): void {
@@ -810,7 +800,7 @@ export function markHomepageEventAutoTrigger(timestampMs: number = Date.now()): 
   }
 }
 
-export function hasHomepageEventAutoTriggeredThisSession(maxAgeMs: number = 5 * 60 * 1000): boolean {
+export function hasHomepageEventAutoTriggeredThisSession(maxAgeMs: number = SESSION_AUTO_TRIGGER_MAX_AGE_MS): boolean {
   if (typeof window === "undefined") return false;
   try {
     const raw = window.sessionStorage.getItem(HOMEPAGE_EVENT_AUTO_TRIGGER_SESSION_KEY);

@@ -3,26 +3,28 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+const COOKIE_CONSENT_KEY = 'ybw-cookie-consent';
+
 export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     // Check if the user has already consented
-    const consent = localStorage.getItem('ybw-cookie-consent');
+    const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (!consent) {
       setIsVisible(true);
     }
   }, []);
 
   const acceptCookies = () => {
-    localStorage.setItem('ybw-cookie-consent', 'accepted');
+    localStorage.setItem(COOKIE_CONSENT_KEY, 'accepted');
     setIsVisible(false);
   };
 
   const declineCookies = () => {
     // We still set a token so we don't bother them again, but we could use this 
     // flag in the future to disable analytics/tracking scripts
-    localStorage.setItem('ybw-cookie-consent', 'declined');
+    localStorage.setItem(COOKIE_CONSENT_KEY, 'declined');
     setIsVisible(false);
   };
 
