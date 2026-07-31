@@ -1,26 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
+
+const MIN_SUBMIT_SECONDS = 3;
 
 export function ModernContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const formStartedAtRef = useRef<number | null>(null);
+
+  const handleFocus = () => {
+    if (formStartedAtRef.current === null) {
+      formStartedAtRef.current = Date.now();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    
+
     const formData = new FormData(e.currentTarget);
+    const elapsed = formStartedAtRef.current === null ? 0 : Date.now() - formStartedAtRef.current;
     const data = {
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
       email: formData.get('email'),
       subject: formData.get('subject'),
       message: formData.get('message'),
+      website: formData.get('website') ?? '',
+      elapsedMs: elapsed,
     };
+
+    if (elapsed < MIN_SUBMIT_SECONDS * 1000) {
+      setIsSubmitting(false);
+      setError('Please take a moment to fill in the form before sending.');
+      return;
+    }
 
     try {
       const response = await fetch('/api/contact', {
@@ -83,7 +101,17 @@ export function ModernContactForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} onFocus={handleFocus} className="space-y-5">
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="website">Leave this field empty</label>
+          <input
+            id="website"
+            name="website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-foreground">

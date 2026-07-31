@@ -9,6 +9,7 @@ import { config } from '@/lib/config';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 3;
+const MIN_SUBMIT_SECONDS = 3;
 
 /**
  * Splits a flat recipient list into { to, bcc } for an email that will be
@@ -67,6 +68,8 @@ interface NewsletterRequestBody {
   lastName?: unknown;
   industry?: unknown;
   source?: unknown;
+  website?: unknown;
+  elapsedMs?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -102,6 +105,25 @@ export async function POST(request: Request) {
     const lastName = sanitize(body.lastName, 100);
     const industry = sanitize(body.industry, 100);
     const source = sanitize(body.source, 100);
+
+    // Honeypot: hidden field that humans never fill. Bots that fill it are
+    // silently dropped with a fake success so they keep spamming nothing.
+    const website = typeof body.website === 'string' ? body.website.trim() : '';
+    if (website.length > 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: 'Successfully subscribed' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Time trap: instant submissions are bots. Require a real fill time.
+    const elapsed = typeof body.elapsedMs === 'number' ? body.elapsedMs : NaN;
+    if (!Number.isFinite(elapsed) || elapsed < MIN_SUBMIT_SECONDS * 1000) {
+      return new Response(
+        JSON.stringify({ success: true, message: 'Successfully subscribed' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!rawEmail || !EMAIL_REGEX.test(rawEmail)) {
       console.warn('⚠️ [API/Newsletter] Invalid or missing email');
