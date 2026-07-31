@@ -1,9 +1,10 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 
 const COOLDOWN_MS = 30_000;
+const MIN_SUBMIT_SECONDS = 3;
 const SOURCE = "Home Page Inline";
 
 export function NewsletterSection() {
@@ -13,6 +14,14 @@ export function NewsletterSection() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastAttemptTime, setLastAttemptTime] = useState<number | null>(null);
+  const formStartedAtRef = useRef<number | null>(null);
+  const websiteRef = useRef<HTMLInputElement>(null);
+
+  const handleFocus = () => {
+    if (formStartedAtRef.current === null) {
+      formStartedAtRef.current = Date.now();
+    }
+  };
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +35,12 @@ export function NewsletterSection() {
 
     if (!email) return;
 
+    const elapsed = formStartedAtRef.current === null ? 0 : Date.now() - formStartedAtRef.current;
+    if (elapsed < MIN_SUBMIT_SECONDS * 1000) {
+      setError("Please take a moment to fill in the form before subscribing.");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
     try {
@@ -35,6 +50,8 @@ export function NewsletterSection() {
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           source: SOURCE,
+          website: websiteRef.current?.value ?? '',
+          elapsedMs: elapsed,
         }),
       });
 
@@ -82,7 +99,17 @@ export function NewsletterSection() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-10" noValidate>
+            <form onSubmit={handleSubmit} onFocus={handleFocus} className="mt-10" noValidate>
+              <div className="hidden" aria-hidden="true">
+                <label htmlFor="section-website">Leave this field empty</label>
+                <input
+                  id="section-website"
+                  ref={websiteRef}
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:gap-2 justify-center">
                 <input
                   type="email"

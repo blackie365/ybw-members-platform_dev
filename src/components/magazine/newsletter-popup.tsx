@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, Loader2, X } from "lucide-react";
@@ -11,6 +11,7 @@ const DISMISS_DAYS = 30;
 const DISMISS_MS = DISMISS_DAYS * 24 * 60 * 60 * 1000;
 const SHOW_DELAY_MS = 8000;
 const COOLDOWN_MS = 30_000;
+const MIN_SUBMIT_SECONDS = 3;
 const SOURCE = "Home Page Pop-up";
 
 const INPUT_CLASS = "h-11 w-full border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent transition-colors rounded-md disabled:opacity-50";
@@ -44,6 +45,14 @@ export function NewsletterPopup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastAttemptTime, setLastAttemptTime] = useState<number | null>(null);
+  const formStartedAtRef = useRef<number | null>(null);
+  const websiteRef = useRef<HTMLInputElement>(null);
+
+  const handleFocus = () => {
+    if (formStartedAtRef.current === null) {
+      formStartedAtRef.current = Date.now();
+    }
+  };
 
   useEffect(() => {
     if (isDismissedStored()) return;
@@ -78,6 +87,12 @@ export function NewsletterPopup() {
 
     if (!email) return;
 
+    const elapsed = formStartedAtRef.current === null ? 0 : Date.now() - formStartedAtRef.current;
+    if (elapsed < MIN_SUBMIT_SECONDS * 1000) {
+      setError("Please take a moment to fill in the form before subscribing.");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
@@ -90,6 +105,8 @@ export function NewsletterPopup() {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           source: SOURCE,
+          website: websiteRef.current?.value ?? '',
+          elapsedMs: elapsed,
         }),
       });
 
@@ -161,7 +178,17 @@ export function NewsletterPopup() {
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            <form onSubmit={handleSubmit} onFocus={handleFocus} className="space-y-4" noValidate>
+              <div className="hidden" aria-hidden="true">
+                <label htmlFor="popup-website">Leave this field empty</label>
+                <input
+                  id="popup-website"
+                  ref={websiteRef}
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="popup-firstName" className="block text-sm font-medium text-foreground mb-1.5">
