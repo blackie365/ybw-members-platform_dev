@@ -107,7 +107,7 @@ export function DailyNewsEmail({
                           <tr>
                             <td align="center">
                               <img
-                                src="https://img.rocket.new/generatedImages/rocket_gen_img_1545cfed3-1772247582674.png"
+                                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
                                 alt="Yorkshire Businesswoman"
                                 style={{
                                   maxHeight: "48px",
@@ -673,7 +673,7 @@ export function DailyNewsEmail({
                             <tr>
                               <td align="center">
                                 <img
-                                src="https://img.rocket.new/generatedImages/rocket_gen_img_1545cfed3-1772247582674.png"
+                                src="https://yorkshirebusinesswoman.co.uk/images/logo-nav-v3.png"
                                 alt="Yorkshire Businesswoman"
                                 style={{
                                   maxHeight: "36px",
