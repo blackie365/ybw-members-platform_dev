@@ -37,3 +37,6 @@ package-lock.json
 # Trae / IDE caches
 .trae-vercel-home/
 .trae-auth-gh-fresh/
+
+# Dedupe script backups (contain member PII)
+scripts/backups/
