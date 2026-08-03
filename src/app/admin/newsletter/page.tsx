@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,17 +29,18 @@ export default function NewsletterAdminPage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [stats, setStats] = useState<NewsletterRecipientStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const editorNoteRef = useRef(editorNote);
 
   const fetchPreview = useCallback(async () => {
     setIsLoadingPreview(true);
-    const result = await previewNewsletterAction(editorNote);
+    const result = await previewNewsletterAction(editorNoteRef.current);
     if (result?.success && result?.html) {
       setPreviewHtml(result?.html);
     } else {
       toast?.error("Failed to load newsletter preview");
     }
     setIsLoadingPreview(false);
-  }, [editorNote]);
+  }, []);
 
   const fetchStats = useCallback(async () => {
     setIsLoadingStats(true);
@@ -145,7 +146,10 @@ export default function NewsletterAdminPage() {
                 <label className="text-sm font-medium">Editor&apos;s Note (Optional)</label>
                 <Textarea 
                   value={editorNote}
-                  onChange={(e) => setEditorNote(e?.target?.value)}
+                  onChange={(e) => {
+                    editorNoteRef.current = e.target.value;
+                    setEditorNote(e.target.value);
+                  }}
                   placeholder="Write a personal note from the editor..."
                   className="min-h-[150px] text-sm"
                 />
