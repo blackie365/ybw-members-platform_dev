@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import slugify from '@sindresorhus/slugify';
-import { addGhostMember } from '@/lib/ghost-admin';
+import { addGhostMember, removeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
 
@@ -119,10 +119,18 @@ export async function POST(req: Request) {
 
       try {
         if (adminDb) {
-          const dupSnap = await adminDb
+          const emailLowerSearch = email.toLowerCase();
+          let dupSnap = await adminDb
             .collection('newMemberCollection')
-            .where('email', '==', email)
+            .where('emailLower', '==', emailLowerSearch)
             .get();
+
+          if (dupSnap.empty) {
+            dupSnap = await adminDb
+              .collection('newMemberCollection')
+              .where('email', '==', email)
+              .get();
+          }
 
           const primaryRef = adminDb.collection('newMemberCollection').doc(id);
           const primarySnap = await primaryRef.get();
@@ -229,6 +237,43 @@ export async function POST(req: Request) {
       } catch (ghostError) {
         console.warn('Ghost CMS sync failed (non-critical):', ghostError);
       }
+    }
+  }
+
+  if (eventType === 'user.deleted') {
+    const { id } = evt.data as { id?: string };
+
+    if (!id) {
+      return new Response('Error: No user id provided', { status: 400 });
+    }
+
+    try {
+      if (!adminDb) {
+        console.error('Firestore Admin SDK not initialized');
+        return new Response('Error: DB not initialized', { status: 500 });
+      }
+
+      // Clerk's user.deleted payload does not include the email, so look it up
+      // before removing the member doc.
+      const memberRef = adminDb.collection('newMemberCollection').doc(id);
+      const memberSnap = await memberRef.get();
+      const email = memberSnap.exists
+        ? (memberSnap.data()?.email as string | undefined)
+        : undefined;
+
+      await memberRef.delete();
+      console.log(`Deleted Firestore member doc for deleted Clerk user ${id}`);
+
+      if (email) {
+        try {
+          await removeGhostMemberByEmail(email);
+        } catch (ghostErr) {
+          console.warn('Ghost member removal failed (non-critical):', ghostErr);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting user from Firestore:', error);
+      return new Response('Error: Firestore delete failed', { status: 500 });
     }
   }
 

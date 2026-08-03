@@ -205,7 +205,7 @@ export async function POST(request: Request) {
 
         const memberData: Record<string, unknown> = {
           email,
-          emailLower: email,
+          emailLower: email.toLowerCase(),
           firstName,
           lastName,
           displayName,

@@ -123,6 +123,28 @@ export async function editGhostMember(id: string, data: any) {
 }
 
 /**
+ * Remove a member from Ghost via Admin API (e.g. when their account is deleted)
+ */
+export async function removeGhostMemberByEmail(email: string) {
+  const admin = getGhostAdmin();
+  if (!admin) {
+    console.warn("Ghost Admin API is not initialized. Cannot remove member from Ghost.");
+    return false;
+  }
+
+  try {
+    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    for (const member of members) {
+      await admin.members.destroy(member.id);
+    }
+    return members.length > 0;
+  } catch (err: any) {
+    console.warn("Ghost member removal failed:", err.message || err);
+    return false;
+  }
+}
+
+/**
  * Upgrade a member to paid status by email
  */
 export async function upgradeGhostMemberByEmail(email: string, tierLabel: string) {
