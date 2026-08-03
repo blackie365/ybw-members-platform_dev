@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
@@ -56,6 +56,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const hasBillingIdentity = useMemo(() => {
     return Boolean(profile?.stripeCustomerId || profile?.subscriptionId || (profile as any)?.subscriptionId);
   }, [profile]);
+
+  // Self-heal: on first dashboard load, reconcile the member's billing state.
+  // Catches lost/missed Stripe webhooks and (via ensureWelcomeEmailForMember)
+  // delivers the free or premium welcome email exactly once. Waits for the
+  // profile so the member doc exists before reconciling.
+  const reconciledOnceRef = useRef(false);
+  useEffect(() => {
+    if (!user || loading || !profile) return;
+    if (reconciledOnceRef.current) return;
+    reconciledOnceRef.current = true;
+    void reconcilePostCheckout(user.uid);
+  }, [user, loading, profile]);
 
   useEffect(() => {
     if (!user || loading) return;

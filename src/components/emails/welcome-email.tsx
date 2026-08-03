@@ -7,6 +7,7 @@ import {
   EmailHighlightBox,
   EmailSubheading,
 } from "./email-layout";
+import { config } from "@/lib/config";
 
 interface WelcomeEmailProps {
   firstName: string
@@ -98,7 +99,7 @@ export function WelcomeEmail({ firstName, membershipTier }: WelcomeEmailProps) {
               </td>
               <td style={{ padding: "8px 0" }}>
                 <p style={{ fontFamily: "'Inter', Arial, sans-serif", fontSize: "15px", color: "#78716c", margin: 0, lineHeight: 1.6 }}>
-                  <strong style={{ color: "#1c1917" }}>Join the WhatsApp Group</strong> — <a href="https://chat.whatsapp.com/IXzw4rWevCS8gYPYRFhLDd?s=cl&p=i&mlu=2" style={{ color: "#b5604a", textDecoration: "underline" }}>Click here to join</a> our exclusive members-only chat
+                  <strong style={{ color: "#1c1917" }}>Join the WhatsApp Group</strong> — <a href={config.whatsappGroupLink} style={{ color: "#b5604a", textDecoration: "underline" }}>Click here to join</a> our exclusive members-only chat
                 </p>
               </td>
             </tr>
@@ -106,7 +107,7 @@ export function WelcomeEmail({ firstName, membershipTier }: WelcomeEmailProps) {
         </tbody>
       </table>
 
-      <EmailButton href="https://yorkshirebusinesswoman.co.uk/dashboard">
+      <EmailButton href={`${config.siteUrl}/dashboard`}>
         Access Your Dashboard →
       </EmailButton>
 

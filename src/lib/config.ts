@@ -51,4 +51,7 @@ export const config = {
 
   /** Default site URL */
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk',
+
+  /** WhatsApp community invite link shown to Premium members in the welcome email */
+  whatsappGroupLink: process.env.WHATSAPP_GROUP_LINK || 'https://chat.whatsapp.com/IXzw4rWevCS8gYPYRFhLDd?s=cl&p=i&mlu=2',
 } as const;

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 import { sendEmail } from '@/lib/email';
-import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
+import { getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
 import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
+import { sendPremiumWelcomeOnce } from '@/lib/member-notifications';
 import { config } from '@/lib/config';
 
 // Need to access raw body for Stripe signature verification
@@ -37,6 +39,87 @@ async function getAdminRecipients(): Promise<string[]> {
   }
 }
 
+/**
+ * If a previous attempt claimed an event but crashed before completing (the route
+ * returned 500), Stripe retries the same event id. We allow the retry to reclaim
+ * once the claim is stale so provisioning is never permanently skipped.
+ */
+const PROCESSING_STALE_MS = 60 * 1000;
+
+async function findMemberRefBySubscriptionId(subscriptionId: string) {
+  const db = adminDb;
+  if (!db || !subscriptionId) return null;
+  const bySub = await db.collection('newMemberCollection').where('subscriptionId', '==', subscriptionId).limit(1).get();
+  if (!bySub.empty) return bySub.docs[0].ref;
+  const byLegacy = await db.collection('newMemberCollection').where('stripeSubscriptionId', '==', subscriptionId).limit(1).get();
+  if (!byLegacy.empty) return byLegacy.docs[0].ref;
+  return null;
+}
+
+async function findMemberRefForSubscription(sub: Stripe.Subscription) {
+  const db = adminDb;
+  if (!db) return null;
+
+  const userId = typeof sub?.metadata?.userId === 'string' ? sub.metadata.userId : undefined;
+  if (userId) {
+    const docRef = db.collection('newMemberCollection').doc(userId);
+    const snap = await docRef.get();
+    if (snap.exists) return docRef;
+  }
+
+  const subscriptionId = typeof sub?.id === 'string' ? sub.id : '';
+  const bySub = await findMemberRefBySubscriptionId(subscriptionId);
+  if (bySub) return bySub;
+
+  const customerId = typeof sub?.customer === 'string' ? sub.customer : (sub.customer as any)?.id;
+  if (typeof customerId === 'string' && customerId) {
+    const byCustomer = await db.collection('newMemberCollection').where('stripeCustomerId', '==', customerId).limit(1).get();
+    if (!byCustomer.empty) return byCustomer.docs[0].ref;
+  }
+
+  return null;
+}
+
+async function demoteMemberToFree(ref: DocumentReference, reason: string) {
+  const nowIso = new Date().toISOString();
+  const snap = await ref.get();
+  const data = snap.data() || {};
+  const alreadyCanceled = data?.subscriptionStatus === 'canceled' || data?.membershipTier === 'free';
+
+  await ref.set(
+    {
+      membershipTier: 'free',
+      subscriptionStatus: 'canceled',
+      subscriptionId: FieldValue.delete(),
+      stripeSubscriptionId: FieldValue.delete(),
+      status: 'active',
+      userInactive: false,
+      updatedAt: nowIso,
+    },
+    { merge: true }
+  );
+
+  const email = typeof data?.email === 'string' ? data.email : '';
+  if (email && !alreadyCanceled) {
+    const adminRecipients = await getAdminRecipients();
+    sendEmail({
+      to: adminRecipients,
+      subject: `Membership Cancelled: ${email}`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #4f46e5;">Membership Cancelled</h2>
+          <p>A member's subscription has ended and they have been moved to the free tier.</p>
+          <ul>
+            <li><strong>Email:</strong> ${email}</li>
+            <li><strong>Reason:</strong> ${reason}</li>
+            <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+          </ul>
+        </div>
+      `,
+    }).catch((err) => console.error('Failed to send membership-cancel notification:', err));
+  }
+}
+
 export async function POST(req: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Stripe keys missing' }, { status: 500 });
@@ -66,18 +149,36 @@ export async function POST(req: Request) {
 
   try {
     const processedRef = adminDb.collection('stripe_webhook_events').doc(event.id);
-    const isDuplicate = await adminDb.runTransaction(async (tx) => {
+    const claimResult = await adminDb.runTransaction(async (tx) => {
       const snap = await tx.get(processedRef);
-      if (snap.exists) return true;
-      tx.set(processedRef, {
-        type: event.type,
-        livemode: (event as any).livemode === true,
-        createdAt: new Date().toISOString(),
-      });
-      return false;
+      if (!snap.exists) {
+        tx.set(processedRef, {
+          type: event.type,
+          livemode: (event as any).livemode === true,
+          status: 'processing',
+          startedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        });
+        return 'claim';
+      }
+      const data = snap.data();
+      if (data?.status === 'processed') return 'duplicate';
+      // A stale 'processing' claim means the previous attempt crashed before
+      // finishing (the route returned 500), so reclaim instead of skipping.
+      const startedAt = typeof data?.startedAt === 'string' ? Date.parse(data.startedAt) : 0;
+      const stale = !startedAt || Date.now() - startedAt > PROCESSING_STALE_MS;
+      if (stale) {
+        tx.update(processedRef, {
+          status: 'processing',
+          startedAt: new Date().toISOString(),
+          retryCount: (typeof data?.retryCount === 'number' ? data.retryCount : 0) + 1,
+        });
+        return 'claim';
+      }
+      return 'duplicate';
     });
 
-    if (isDuplicate) {
+    if (claimResult === 'duplicate') {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
@@ -130,7 +231,6 @@ export async function POST(req: Request) {
           subscriptionId: stripeSubscriptionId,
           lastPaymentDate: nowIso,
           userInactive: false,
-          isNewsletterAuthorized: true,
           updatedAt: nowIso,
         };
 
@@ -151,17 +251,9 @@ export async function POST(req: Request) {
         const userData = userSnap.data() || {};
         const userEmail = emailFromStripe || userData.email;
         const firstName = userData.firstName || 'there';
-        const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
 
-        if (userEmail && !(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
-          userRef.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true }).catch(() => {});
-          sendEmail({
-            to: userEmail,
-            subject: 'Welcome to Yorkshire Businesswoman!',
-            html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-          })
-            .then(() => userRef.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true }))
-            .catch(err => console.error('Failed to send welcome email:', err));
+        if (userEmail) {
+          await sendPremiumWelcomeOnce(userRef, userEmail, firstName);
         }
 
         if (userEmail && !(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
@@ -318,36 +410,11 @@ export async function POST(req: Request) {
               subscriptionId: invoice.subscription,
               lastPaymentDate: nowIso,
               userInactive: false,
-              isNewsletterAuthorized: true,
               emailLower: customerEmailLower,
             });
             console.log(`Updated member tier to ${tier}`);
 
-            // Send premium welcome email if it hasn't been sent yet
-            const userEmail = customerEmail;
-            const firstName = userData.firstName || 'there';
-            const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-
-            if (!(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
-              userDoc.ref.update({ premiumWelcomeEmailAttemptedAt: nowIso }).catch(() => {});
-              sendEmail({
-                to: userEmail,
-                subject: 'Welcome to Yorkshire Businesswoman!',
-                html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-              })
-                .then(() => userDoc.ref.update({ premiumWelcomeEmailSentAt: nowIso }))
-                .catch(err => console.error('Failed to send welcome email from invoice webhook:', err));
-            }
-
-            // Sync to Ghost CMS if not synced yet
-            if (!(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
-              userDoc.ref.update({ ghostPaidSyncAttemptedAt: nowIso }).catch(() => {});
-              upgradeGhostMemberByEmail(userEmail, tier)
-                .then((res) => {
-                  if (res) return userDoc.ref.update({ ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso });
-                })
-                .catch(() => {});
-            }
+            await sendPremiumWelcomeOnce(userDoc.ref, customerEmail, userData.firstName || 'there');
 
             const adminRecipients = await getAdminRecipients();
             sendEmail({
@@ -366,11 +433,85 @@ export async function POST(req: Request) {
                 </div>
               `,
             }).catch(err => console.error('Failed to send admin payment notification:', err));
+          } else {
+            console.warn(`Invoice payment succeeded but no member matched ${customerEmail}; skipping tier update.`);
           }
         }
       }
     }
 
+    // Handle subscription lifecycle events (cancellation, failed payments, updates)
+    if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object as Stripe.Subscription;
+      const memberRef = await findMemberRefForSubscription(sub);
+      if (memberRef) {
+        await demoteMemberToFree(memberRef, 'customer.subscription.deleted');
+        console.log('Demoted member to free after subscription deletion');
+      }
+    }
+
+    if (event.type === 'customer.subscription.updated') {
+      const sub = event.data.object as Stripe.Subscription;
+      const memberRef = await findMemberRefForSubscription(sub);
+      if (memberRef) {
+        const nowIso = new Date().toISOString();
+        const status = sub.status;
+        if (['canceled', 'unpaid', 'incomplete_expired'].includes(status)) {
+          await demoteMemberToFree(memberRef, `customer.subscription.updated (${status})`);
+        } else {
+          const interval = sub.items?.data?.[0]?.plan?.interval;
+          const tier = interval === 'year' ? 'paid_annual' : 'paid_monthly';
+          const isActive = status === 'active' || status === 'trialing';
+          await memberRef.set(
+            {
+              subscriptionStatus: status,
+              status: 'active',
+              ...(isActive && (interval === 'month' || interval === 'year')
+                ? { membershipTier: tier, billingInterval: interval }
+                : {}),
+              updatedAt: nowIso,
+            },
+            { merge: true }
+          );
+        }
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object as any;
+      const subscriptionId = typeof invoice?.subscription === 'string' ? invoice.subscription : '';
+      const memberRef = subscriptionId ? await findMemberRefBySubscriptionId(subscriptionId) : null;
+      if (memberRef) {
+        await memberRef.set(
+          {
+            subscriptionStatus: 'past_due',
+            status: 'active',
+            lastPaymentFailedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        const snap = await memberRef.get();
+        const email = snap.data()?.email || '';
+        const adminRecipients = await getAdminRecipients();
+        sendEmail({
+          to: adminRecipients,
+          subject: `Payment Failed: ${email}`,
+          html: `
+            <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #4f46e5;">Subscription Payment Failed</h2>
+              <p>A subscription payment failed. Stripe will retry; if it remains unpaid the member will be moved to the free tier.</p>
+              <ul>
+                <li><strong>Email:</strong> ${email}</li>
+                <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+              </ul>
+            </div>
+          `,
+        }).catch((err) => console.error('Failed to send payment-failed admin notification:', err));
+      }
+    }
+
+    await processedRef.set({ status: 'processed', processedAt: new Date().toISOString() }, { merge: true });
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Error processing webhook:', error);

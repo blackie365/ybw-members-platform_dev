@@ -5,7 +5,6 @@ import { adminDb } from '@/lib/firebase-admin';
 import slugify from '@sindresorhus/slugify';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
-import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 import { config } from '@/lib/config';
 
 export async function POST(req: Request) {
@@ -211,18 +210,10 @@ export async function POST(req: Request) {
         console.warn('Admin notification email failed (non-critical):', emailErr);
       }
 
-      // 2b. Free welcome email
-      try {
-        await sendEmail({
-          to: email,
-          subject: 'Welcome to Yorkshire Businesswoman!',
-          html: await getFreeWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
-        });
-
-        await adminDb?.collection('newMemberCollection').doc(id).set({ welcomeEmailSentAt: nowIso }, { merge: true });
-      } catch (emailErr) {
-        console.warn('Free welcome email failed (non-critical):', emailErr);
-      }
+      // 2b. Free welcome email is now sent via dashboard reconciliation
+      //     (ensureWelcomeEmailForMember), which decides free vs premium once the
+      //     member's paid state is known — this avoids the confusing double
+      //     welcome when someone signs up through the premium checkout path.
 
       // 2c. Ghost CMS sync
       try {
