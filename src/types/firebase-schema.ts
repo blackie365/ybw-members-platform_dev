@@ -53,7 +53,15 @@ export interface FirebaseMember {
   bio?: string;         // To be filled by member in dashboard
   profileImage?: string;
   linkedinUrl?: string; // To be filled by member in dashboard
-  status: 'free' | 'paid' | 'comped';
+  /**
+   * Account state. The current onboarding code writes `'active'` (members stay
+   * active even after moving between paid/free), so treat `status` as an account
+   * lifecycle flag, not a billing flag. Paid-ness is derived from `membershipTier`
+   * (`'free'` vs any paid tier) or the presence of Stripe identity fields
+   * (`stripeCustomerId` / `subscriptionId`). The legacy `'free' | 'paid' | 'comped'`
+   * values below are kept for compatibility with older docs.
+   */
+  status: 'active' | 'pending' | 'suspended' | 'free' | 'paid' | 'comped';
   labels: string[]; // Array of label names from Ghost
   created_at: string;
   updated_at: string;

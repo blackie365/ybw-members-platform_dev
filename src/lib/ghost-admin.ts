@@ -129,6 +129,12 @@ export async function upgradeGhostMemberByEmail(email: string, tierLabel: string
   const admin = getGhostAdmin();
   if (!admin) return null;
 
+  if (!config.ghostTierId) {
+    console.warn(
+      `[Ghost] GHOST_PREMIUM_TIER_ID is not set — paid member ${email} will be labelled but NOT moved to the paid tier in Ghost. Set config.ghostTierId to enable tier changes.`,
+    );
+  }
+
   try {
     const members = await admin.members.browse({ filter: `email:'${email}'` });
     if (members && members.length > 0) {

@@ -4,9 +4,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 import { addGhostMember } from '@/lib/ghost-admin';
-import { sendEmail } from '@/lib/email';
 import Stripe from 'stripe';
-import { getWelcomeEmailTemplate } from '@/lib/email-templates';
+import { isPaidSignal, ensureWelcomeEmailForMember } from '@/lib/member-notifications';
 import slugify from '@sindresorhus/slugify';
 
 export async function getProfile(uid: string) {
@@ -125,12 +124,6 @@ export async function getProfile(uid: string) {
   }
 }
 
-function isPaidSignal(data: any): boolean {
-  const tier = typeof data?.membershipTier === 'string' ? data.membershipTier : 'free';
-  if (tier !== 'free') return true;
-  return Boolean(data?.stripeCustomerId || data?.subscriptionId || data?.stripeSubscriptionId);
-}
-
 function paidTierFromInterval(interval: string | undefined): 'paid_monthly' | 'paid_annual' {
   return interval === 'year' ? 'paid_annual' : 'paid_monthly';
 }
@@ -156,35 +149,46 @@ export async function reconcilePostCheckout(uid: string) {
     const lastName = typeof (data as any).lastName === 'string' ? (data as any).lastName : '';
     const displayName = typeof (data as any).displayName === 'string' ? (data as any).displayName : `${firstName} ${lastName}`.trim();
 
+    // Self-heal: if the member looks free but has a Stripe customer/subscription,
+    // promote them. Throttled so routine free-member dashboard visits don't hit
+    // the Stripe API every time.
     if (!isPaidSignal(data) && email && process.env.STRIPE_SECRET_KEY) {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: '2023-10-16' as any,
-      });
+      const lastAttempt =
+        typeof (data as any).lastReconcileAttemptAt === 'string'
+          ? Date.parse((data as any).lastReconcileAttemptAt)
+          : 0;
 
-      const customers = await stripe.customers.list({ email, limit: 3 });
-      const customer = customers.data[0];
+      if (Date.now() - lastAttempt > 5 * 60 * 1000) {
+        await docRef.set({ lastReconcileAttemptAt: nowIso }, { merge: true });
 
-      if (customer?.id) {
-        const subs = await stripe.subscriptions.list({ customer: customer.id, status: 'all', limit: 10 });
-        const preferred = subs.data.find((s) => s.status === 'active') || subs.data.find((s) => s.status === 'trialing') || subs.data.find((s) => s.status === 'past_due');
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+          apiVersion: '2023-10-16' as any,
+        });
 
-        if (preferred) {
-          const interval = preferred.items.data[0]?.plan?.interval;
-          const tier = paidTierFromInterval(interval);
-          await docRef.set(
-            {
-              status: 'active',
-              membershipTier: tier,
-              billingInterval: interval === 'year' ? 'year' : 'month',
-              stripeCustomerId: customer.id,
-              subscriptionId: preferred.id,
-              lastPaymentDate: nowIso,
-              userInactive: false,
-              isNewsletterAuthorized: true,
-              updatedAt: nowIso,
-            },
-            { merge: true }
-          );
+        const customers = await stripe.customers.list({ email, limit: 3 });
+        const customer = customers.data[0];
+
+        if (customer?.id) {
+          const subs = await stripe.subscriptions.list({ customer: customer.id, status: 'all', limit: 10 });
+          const preferred = subs.data.find((s) => s.status === 'active') || subs.data.find((s) => s.status === 'trialing') || subs.data.find((s) => s.status === 'past_due');
+
+          if (preferred) {
+            const interval = preferred.items.data[0]?.plan?.interval;
+            const tier = paidTierFromInterval(interval);
+            await docRef.set(
+              {
+                status: 'active',
+                membershipTier: tier,
+                billingInterval: interval === 'year' ? 'year' : 'month',
+                stripeCustomerId: customer.id,
+                subscriptionId: preferred.id,
+                lastPaymentDate: nowIso,
+                userInactive: false,
+                updatedAt: nowIso,
+              },
+              { merge: true }
+            );
+          }
         }
       }
     }
@@ -193,35 +197,30 @@ export async function reconcilePostCheckout(uid: string) {
     const refreshed = refreshedSnap.data() || {};
     const paid = isPaidSignal(refreshed);
 
-    if (!paid || !email) return { success: true, updated: false };
-
-    if (!(refreshed as any).ghostSyncedAt && !(refreshed as any).ghostSyncAttemptedAt) {
-      await docRef.set({ ghostSyncAttemptedAt: nowIso }, { merge: true });
-      try {
-        const ghostRes = await addGhostMember({
-          email,
-          name: displayName || undefined,
-          labels: ['platform-paid', 'paid-member', String((refreshed as any).membershipTier || 'paid')],
-        });
-        if (ghostRes) {
-          await docRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+    if (paid && email) {
+      if (!(refreshed as any).ghostSyncedAt && !(refreshed as any).ghostSyncAttemptedAt) {
+        await docRef.set({ ghostSyncAttemptedAt: nowIso }, { merge: true });
+        try {
+          const ghostRes = await addGhostMember({
+            email,
+            name: displayName || undefined,
+            labels: ['platform-paid', 'paid-member', String((refreshed as any).membershipTier || 'paid')],
+          });
+          if (ghostRes) {
+            await docRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+          }
+        } catch (ghostErr) {
+          console.warn('Ghost sync failed (non-critical):', ghostErr);
         }
-      } catch (ghostErr) {
-        console.warn('Ghost sync failed (non-critical):', ghostErr);
       }
     }
 
-    if (!(refreshed as any).premiumWelcomeEmailSentAt && !(refreshed as any).premiumWelcomeEmailAttemptedAt) {
-      await docRef.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true });
-      await sendEmail({
-        to: email,
-        subject: 'Welcome to Yorkshire Businesswoman!',
-        html: await getWelcomeEmailTemplate(firstName || 'there', process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'),
-      });
-      await docRef.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true });
-    }
+    // Send the appropriate welcome email (premium or free) exactly once, decided by
+    // the member's final paid state. Transactionally claimed so it cannot race the
+    // Stripe webhook into sending two premium welcomes.
+    await ensureWelcomeEmailForMember(docRef);
 
-    return { success: true, updated: true };
+    return { success: true, updated: paid };
   } catch (error: any) {
     console.error('Error reconciling post-checkout:', error);
     return { success: false, error: error.message || 'Failed to reconcile post-checkout' };

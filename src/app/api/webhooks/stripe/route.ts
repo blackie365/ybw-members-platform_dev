@@ -3,8 +3,9 @@ import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 import { sendEmail } from '@/lib/email';
-import { getWelcomeEmailTemplate, getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
+import { getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
 import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
+import { sendPremiumWelcomeOnce } from '@/lib/member-notifications';
 import { config } from '@/lib/config';
 
 // Need to access raw body for Stripe signature verification
@@ -230,7 +231,6 @@ export async function POST(req: Request) {
           subscriptionId: stripeSubscriptionId,
           lastPaymentDate: nowIso,
           userInactive: false,
-          isNewsletterAuthorized: true,
           updatedAt: nowIso,
         };
 
@@ -251,17 +251,9 @@ export async function POST(req: Request) {
         const userData = userSnap.data() || {};
         const userEmail = emailFromStripe || userData.email;
         const firstName = userData.firstName || 'there';
-        const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
 
-        if (userEmail && !(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
-          userRef.set({ premiumWelcomeEmailAttemptedAt: nowIso }, { merge: true }).catch(() => {});
-          sendEmail({
-            to: userEmail,
-            subject: 'Welcome to Yorkshire Businesswoman!',
-            html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-          })
-            .then(() => userRef.set({ premiumWelcomeEmailSentAt: nowIso }, { merge: true }))
-            .catch(err => console.error('Failed to send welcome email:', err));
+        if (userEmail) {
+          await sendPremiumWelcomeOnce(userRef, userEmail, firstName);
         }
 
         if (userEmail && !(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
@@ -418,36 +410,11 @@ export async function POST(req: Request) {
               subscriptionId: invoice.subscription,
               lastPaymentDate: nowIso,
               userInactive: false,
-              isNewsletterAuthorized: true,
               emailLower: customerEmailLower,
             });
             console.log(`Updated member tier to ${tier}`);
 
-            // Send premium welcome email if it hasn't been sent yet
-            const userEmail = customerEmail;
-            const firstName = userData.firstName || 'there';
-            const displayName = userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-
-            if (!(userData as any).premiumWelcomeEmailSentAt && !(userData as any).premiumWelcomeEmailAttemptedAt) {
-              userDoc.ref.update({ premiumWelcomeEmailAttemptedAt: nowIso }).catch(() => {});
-              sendEmail({
-                to: userEmail,
-                subject: 'Welcome to Yorkshire Businesswoman!',
-                html: await getWelcomeEmailTemplate(firstName, process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk')
-              })
-                .then(() => userDoc.ref.update({ premiumWelcomeEmailSentAt: nowIso }))
-                .catch(err => console.error('Failed to send welcome email from invoice webhook:', err));
-            }
-
-            // Sync to Ghost CMS if not synced yet
-            if (!(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
-              userDoc.ref.update({ ghostPaidSyncAttemptedAt: nowIso }).catch(() => {});
-              upgradeGhostMemberByEmail(userEmail, tier)
-                .then((res) => {
-                  if (res) return userDoc.ref.update({ ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso });
-                })
-                .catch(() => {});
-            }
+            await sendPremiumWelcomeOnce(userDoc.ref, customerEmail, userData.firstName || 'there');
 
             const adminRecipients = await getAdminRecipients();
             sendEmail({
@@ -466,6 +433,8 @@ export async function POST(req: Request) {
                 </div>
               `,
             }).catch(err => console.error('Failed to send admin payment notification:', err));
+          } else {
+            console.warn(`Invoice payment succeeded but no member matched ${customerEmail}; skipping tier update.`);
           }
         }
       }
