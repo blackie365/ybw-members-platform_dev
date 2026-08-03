@@ -1,5 +1,3 @@
-'use server';
-
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 import { sendEmail } from '@/lib/email';
