@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BellRing, MapPin } from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
 import {
@@ -191,21 +191,6 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
                     </div>
                   </div>
                 </Link>
-
-                <div className="px-6 pb-6">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setActiveEvent(event);
-                    }}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/5 px-4 py-2.5 text-xs font-semibold tracking-wide text-primary-foreground transition-colors hover:bg-primary-foreground/10 hover:text-accent"
-                  >
-                    <BellRing className="h-3.5 w-3.5" />
-                    Get event updates
-                  </button>
-                </div>
               </motion.article>
             );
           })}
