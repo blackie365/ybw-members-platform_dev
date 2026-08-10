@@ -99,6 +99,18 @@ function getEditionCoverImage(edition: ReaderEdition | null, version: number): s
   return fixMagazineImageUrl(coverImage, version);
 }
 
+function getArchiveCoverForEdition(
+  edition: ReaderEdition,
+  issues: Array<{ title?: string; publishDate?: string; coverImage?: string }>,
+  version: number,
+): string {
+  const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition));
+  if (matchingIssue?.coverImage) {
+    return fixMagazineImageUrl(matchingIssue.coverImage, version);
+  }
+  return getEditionCoverImage(edition, version);
+}
+
 export default async function NewEditionPage() {
   const [issues, ghostPosts, readerEditions] = await Promise.all([
     getMagazineIssuesServer(),
@@ -140,10 +152,6 @@ export default async function NewEditionPage() {
     : liveIssue
       ? `/magazine/issue/${liveIssue.id}`
       : '/new-edition';
-  const latestIssueMatchesEdition = (edition: { title?: string; publishDate?: string }) =>
-    Boolean(liveIssue) && editionRecordsMatch(liveIssue!, edition);
-
-  console.log('[NewEditionPage] issues count:', issues.length);
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!liveIssue) {
@@ -435,9 +443,7 @@ export default async function NewEditionPage() {
               (() => {
                 const editionHref = `/magazine/read/${edition.slug}`;
                 const ctaLabel = 'Open Digital Edition';
-                const editionCoverImage = latestIssueMatchesEdition(edition)
-                  ? latestCoverImage
-                  : getEditionCoverImage(edition, IMAGE_VERSION);
+                const editionCoverImage = getArchiveCoverForEdition(edition, issues, IMAGE_VERSION);
 
                 return (
               <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
