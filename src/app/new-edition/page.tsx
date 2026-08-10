@@ -135,7 +135,11 @@ export default async function NewEditionPage() {
   ));
   const featuredPost = ghostPosts[0];
 
-  const featuredEditionUrl = liveIssue ? `/magazine/issue/${liveIssue.id}` : '/new-edition';
+  const featuredEditionUrl = latestReaderEdition
+    ? `/magazine/read/${latestReaderEdition.slug}`
+    : liveIssue
+      ? `/magazine/issue/${liveIssue.id}`
+      : '/new-edition';
   const latestIssueMatchesEdition = (edition: { title?: string; publishDate?: string }) =>
     Boolean(liveIssue) && editionRecordsMatch(liveIssue!, edition);
 
@@ -156,7 +160,10 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
-  const latestCoverImage = fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION);
+  const latestCoverImage = latestReaderEdition
+    ? (getEditionCoverImage(latestReaderEdition, IMAGE_VERSION) ||
+      fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION))
+    : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION);
 
   return (
     <main className="flex-1 bg-background">
