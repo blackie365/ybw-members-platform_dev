@@ -116,6 +116,48 @@ function supportsEmbeddedImageExtraction(fileName: string): boolean {
   return /^.+\.(png|jpe?g|gif|webp|svg)$/i.test(fileName);
 }
 
+const IMAGE_MAGIC_BYTES: Record<string, Array<{ bytes: number[]; offset?: number }>> = {
+  png: [{ bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] }],
+  jpg: [{ bytes: [0xff, 0xd8, 0xff] }],
+  jpeg: [{ bytes: [0xff, 0xd8, 0xff] }],
+  gif: [{ bytes: [0x47, 0x49, 0x46, 0x38] }],
+  webp: [
+    { bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 },
+    { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 },
+  ],
+  svg: [
+    { bytes: [0x3c, 0x3f, 0x78, 0x6d, 0x6c] },
+    { bytes: [0x3c, 0x73, 0x76, 0x67] },
+  ],
+};
+
+function looksLikeImageData(data: Buffer, fileName: string): boolean {
+  if (!data || data.length === 0) return false;
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const signatures = IMAGE_MAGIC_BYTES[ext];
+  if (!signatures) return false;
+  return signatures.every(({ bytes, offset = 0 }) => {
+    if (data.length < offset + bytes.length) return false;
+    return bytes.every((byte, index) => data[offset + index] === byte);
+  });
+}
+
+function extractEmbeddedImageContents(contentsNode: any, fileName: string): string {
+  let candidate = String(contentsNode?.textContent || '').replace(/\s+/g, '').trim();
+  if (!candidate) return '';
+
+  if (/^<\?xpacket/i.test(candidate) || /x:xmpmeta/i.test(candidate.slice(0, 4000))) {
+    return '';
+  }
+
+  const data = Buffer.from(candidate, 'base64');
+  if (data.length === 0 || !looksLikeImageData(data, fileName)) {
+    return '';
+  }
+
+  return candidate;
+}
+
 function extractFileNameFromUri(uri: string, fallbackFormat?: string): string {
   const cleanUri = decodeURIComponent(String(uri || '').trim())
     .replace(/^file:/i, '')
@@ -417,7 +459,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       let encodedContents = '';
       for (let propsIdx = 0; propsIdx < propertiesNodes.length; propsIdx++) {
         const contentsNode = propertiesNodes[propsIdx].getElementsByTagName('Contents')[0];
-        const candidate = String(contentsNode?.textContent || '').replace(/\s+/g, '').trim();
+        const candidate = extractEmbeddedImageContents(contentsNode, fileName);
         if (!candidate) continue;
         encodedContents = candidate;
         break;
@@ -425,18 +467,14 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
 
       if (!encodedContents) continue;
 
-      try {
-        const data = Buffer.from(encodedContents, 'base64');
-        if (data.length === 0) continue;
+      const data = Buffer.from(encodedContents, 'base64');
+      if (data.length === 0 || !looksLikeImageData(data, fileName)) continue;
 
-        imagesByFileName.set(fileName, {
-          fileName,
-          data,
-          mimeType: getFileMimeType(fileName),
-        });
-      } catch {
-        // Ignore malformed embedded content and fall back to filename hints only.
-      }
+      imagesByFileName.set(fileName, {
+        fileName,
+        data,
+        mimeType: getFileMimeType(fileName),
+      });
     }
 
     for (const pageData of spreadData) {
