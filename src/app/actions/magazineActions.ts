@@ -8,7 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue } from '@/features/magazine/server/simple-reader';
 
 const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
 
@@ -608,8 +608,13 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
       updatedAt: new Date().toISOString()
     });
 
+    await syncReaderEditionsForIssue(issueId).catch((error) => {
+      console.error('Failed to sync reader edition covers for issue:', error);
+    });
+
     revalidatePath('/admin/magazine');
     revalidatePath('/magazine');
+    revalidatePath('/new-edition');
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazineIssueAction:", error);
@@ -671,6 +676,10 @@ export async function setLatestMagazineIssueAction(issueId: string) {
       tx.set(issuesRef.doc(issueId), { isLatest: true, updatedAt: now }, { merge: true });
     });
 
+    await syncReaderEditionsForIssue(issueId).catch((error) => {
+      console.error('Failed to sync reader edition covers for latest issue:', error);
+    });
+
     revalidatePath('/admin/magazine');
     revalidatePath('/new-edition');
     revalidatePath('/magazine');
@@ -718,7 +727,13 @@ export async function createMagazineIssueAction(data: any) {
       updatedAt: new Date().toISOString()
     });
 
+    await syncReaderEditionsForIssue(docRef.id).catch((error) => {
+      console.error('Failed to sync reader edition covers for new issue:', error);
+    });
+
     revalidatePath('/admin/magazine');
+    revalidatePath('/magazine');
+    revalidatePath('/new-edition');
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in createMagazineIssueAction:", error);
@@ -1121,7 +1136,11 @@ export async function publishIdmlEditionAction(params: {
     };
 
     await upsertReaderEdition(edition);
+    await syncReaderEditionCoverFromIssue(edition.id).catch((error) => {
+      console.error('Failed to sync edition cover with matched issue:', error);
+    });
     revalidatePath('/magazine');
+    revalidatePath('/new-edition');
 
     return { success: true, data: { id: edition.id, slug: edition.slug } };
   } catch (error: any) {
