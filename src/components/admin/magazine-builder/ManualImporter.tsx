@@ -546,7 +546,7 @@ export function ManualImporter({
           const storageRef = ref(storage, filePath);
           const uploadTask = uploadBytesResumable(storageRef, file);
 
-          const fileUrl: string = await new Promise((resolve, reject) => {
+          await new Promise<void>((resolve, reject) => {
             uploadTask.on(
               'state_changed',
               (snapshot) => {
@@ -554,14 +554,11 @@ export function ManualImporter({
                 toast.info(`Uploading: ${pct}%`, { id: 'upload-progress' });
               },
               (error) => reject(error),
-              async () => {
-                const url = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve(url);
-              },
+              () => resolve(),
             );
           });
 
-          toast.info('Importing Story Library from storage URL...', { id: 'upload-progress' });
+          toast.info('Importing Story Library from stored IDML...', { id: 'upload-progress' });
           const response = await fetch('/api/admin/magazine/story-library/import-idml', {
             method: 'POST',
             headers: {
@@ -569,7 +566,7 @@ export function ManualImporter({
             },
             body: JSON.stringify({
               issueId: String(issueId),
-              fileUrl,
+              storagePath: filePath,
               fileName: file.name,
             }),
           });
