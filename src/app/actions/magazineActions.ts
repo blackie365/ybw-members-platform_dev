@@ -933,6 +933,9 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
       imageUrls: (page.content.imageUrls || []).map(
         (name) => imageUrls[name] || name,
       ),
+      pdfUrl: page.content.pdfUrl
+        ? (imageUrls[page.content.pdfUrl] || page.content.pdfUrl)
+        : undefined,
     },
   }));
 

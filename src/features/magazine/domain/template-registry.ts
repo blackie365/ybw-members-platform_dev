@@ -114,6 +114,7 @@ const adEntry: TemplateRegistryEntry = {
       label: c.label || "Advertisement",
       alt: c.title || "Advertisement",
       linkUrl: c.ctaHref || "",
+      pdfUrl: c.pdfUrl || "",
     };
   },
 };
@@ -133,6 +134,7 @@ const backCoverEntry: TemplateRegistryEntry = {
       cta: c.ctaLabel || "Join the Community",
       linkUrl: c.ctaHref || "",
       nextIssue: c.nextIssue || "",
+      pdfUrl: c.pdfUrl || "",
       socials: [],
     };
   },

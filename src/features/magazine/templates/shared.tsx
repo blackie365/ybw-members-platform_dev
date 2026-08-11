@@ -1296,6 +1296,7 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
   const image = String(data?.image || "").trim();
   const backgroundImage = String(data?.backgroundImage || "").trim();
   const videoUrl = String(data?.videoUrl || "").trim();
+  const pdfUrl = String(data?.pdfUrl || "").trim();
   const label = String(data?.label || "Advertisement").trim();
   const alt = String(data?.alt || label || "Advertisement").trim();
   const hasBackgroundMedia = Boolean(videoUrl || backgroundImage);
@@ -1308,7 +1309,13 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
 
   return (
     <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
-      {videoUrl ? (
+      {pdfUrl ? (
+        <iframe
+          src={fixMagazineImageUrl(pdfUrl, imageVersion)}
+          className="absolute inset-0 h-full w-full border-0"
+          title={alt}
+        />
+      ) : videoUrl ? (
         <video
           src={fixMagazineImageUrl(videoUrl, imageVersion)}
           poster={
@@ -1342,7 +1349,7 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
         />
       ) : null}
 
-      {image ? (
+      {pdfUrl ? null : image ? (
         <div
           className={`absolute inset-0 ${hasBackgroundMedia ? "p-6 sm:p-8 lg:p-10" : ""}`}
         >
@@ -3078,9 +3085,15 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
                 )}
               </div>
             </div>
-            {(data.videoUrl || featureImage) && (
+            {(data.videoUrl || featureImage || data.pdfUrl) && (
               <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative">
-                {data.videoUrl ? (
+                {data.pdfUrl ? (
+                  <iframe
+                    src={fixMagazineImageUrl(data.pdfUrl, imageVersion)}
+                    title={data.title || data.nextIssue || kicker}
+                    className="absolute inset-0 w-full h-full border-0"
+                  />
+                ) : data.videoUrl ? (
                   <>
                     {featureImage && (
                       <img
