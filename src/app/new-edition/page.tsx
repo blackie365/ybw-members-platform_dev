@@ -9,6 +9,7 @@ import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
+import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -24,38 +25,6 @@ export const metadata: Metadata = {
 
 const CURRENT_ISSUE_COVER_IMAGE =
   'https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fjune-july%2Fybw_JUNE_clean_2026.jpg?alt=media&token=647ff4b0-8ee8-4141-8304-bd638f17913d';
-
-function normalizeEditionText(value: string | null | undefined): string {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function getEditionMonthKey(value: string | null | undefined): string {
-  const parsed = new Date(String(value || ''));
-  if (Number.isNaN(parsed.getTime())) return '';
-  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-function editionRecordsMatch(
-  issue: { title?: string; publishDate?: string },
-  edition: { title?: string; publishDate?: string },
-): boolean {
-  const issueTitle = normalizeEditionText(issue.title);
-  const editionTitle = normalizeEditionText(edition.title);
-  const titlesMatch = Boolean(issueTitle && editionTitle) && (
-    issueTitle === editionTitle ||
-    issueTitle.includes(editionTitle) ||
-    editionTitle.includes(issueTitle)
-  );
-
-  const issueMonth = getEditionMonthKey(issue.publishDate);
-  const editionMonth = getEditionMonthKey(edition.publishDate);
-  const monthMatches = Boolean(issueMonth && editionMonth) && issueMonth === editionMonth;
-
-  return titlesMatch || monthMatches;
-}
 
 function isCopySlug(value: unknown): boolean {
   return /copy/i.test(String(value || ''));
@@ -169,7 +138,7 @@ export default async function NewEditionPage() {
 
   const IMAGE_VERSION = Date.now();
   const latestCoverImage = latestReaderEdition
-    ? (getEditionCoverImage(latestReaderEdition, IMAGE_VERSION) ||
+    ? (getArchiveCoverForEdition(latestReaderEdition, issues, IMAGE_VERSION) ||
       fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION))
     : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION);
 

@@ -2,6 +2,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 import type { ReaderEdition, ReaderPage } from '../domain/types';
+import { editionRecordsMatch } from '../domain/edition-match';
 
 const COLLECTION = 'magazine_reader_editions';
 const LEGACY_ISSUES_COLLECTION = 'magazine_issues';
@@ -614,6 +615,79 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
 export async function upsertReaderEdition(edition: ReaderEdition): Promise<void> {
   if (!adminDb) throw new Error('Firebase Admin not configured');
   await adminDb.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
+}
+
+export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {
+  if (!adminDb) return null;
+
+  const editionDoc = await adminDb.collection(COLLECTION).doc(editionId).get();
+  if (!editionDoc.exists) return null;
+  const edition = serializeData({ id: editionDoc.id, ...editionDoc.data() }) as ReaderEdition;
+
+  const issues = await getMagazineIssuesServer();
+  const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition)) ?? null;
+  const issueCover = matchingIssue ? sanitizeImageUrl(matchingIssue.coverImage) || '' : '';
+  if (!issueCover || issueCover === edition.coverImage) return edition;
+
+  const synced: ReaderEdition = {
+    ...edition,
+    coverImage: issueCover,
+    pages: (edition.pages || []).map((page) =>
+      page.template === 'cover'
+        ? {
+            ...page,
+            content: {
+              ...page.content,
+              imageUrl: issueCover,
+              imageUrls: issueCover ? [issueCover] : page.content.imageUrls || [],
+            },
+          }
+        : page,
+    ),
+  };
+
+  await upsertReaderEdition(synced);
+  return synced;
+}
+
+export async function syncReaderEditionsForIssue(issueId: string): Promise<number> {
+  if (!adminDb) return 0;
+
+  const issueDoc = await adminDb.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
+  if (!issueDoc.exists) return 0;
+  const issue = {
+    id: issueDoc.id,
+    ...serializeData(issueDoc.data()),
+  } as { title?: string; coverImage?: string; publishDate?: string };
+  const issueCover = sanitizeImageUrl(issue.coverImage) || '';
+  if (!issueCover) return 0;
+
+  const editions = await listReaderEditions(100);
+  const matches = editions.filter((edition) => editionRecordsMatch(issue, edition));
+  if (matches.length === 0) return 0;
+
+  let syncedCount = 0;
+  for (const edition of matches) {
+    if (edition.coverImage === issueCover) continue;
+    await upsertReaderEdition({
+      ...edition,
+      coverImage: issueCover,
+      pages: (edition.pages || []).map((page) =>
+        page.template === 'cover'
+          ? {
+              ...page,
+              content: {
+                ...page.content,
+                imageUrl: issueCover,
+                imageUrls: issueCover ? [issueCover] : page.content.imageUrls || [],
+              },
+            }
+          : page,
+      ),
+    });
+    syncedCount += 1;
+  }
+  return syncedCount;
 }
 
 export async function deleteReaderEdition(id: string): Promise<void> {
