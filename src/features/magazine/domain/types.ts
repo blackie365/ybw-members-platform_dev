@@ -17,6 +17,7 @@ export interface ReaderPageContent {
   standfirst?: string;
   imageUrl?: string;
   imageUrls?: string[];
+  pdfUrl?: string;
   backgroundImage?: string;
   videoUrl?: string;
   quote?: string;

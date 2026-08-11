@@ -59,7 +59,12 @@ function shouldIgnoreDecorativeStory(story: ParsedIdmlStory | undefined): boolea
 }
 
 function detectAdPage(page: ParsedIdmlPage): boolean {
-  return page.frames.length === 0 && page.stories.length === 0;
+  if (page.frames.length === 0 && page.stories.length === 0) return true;
+  const labels = page.labels;
+  return (
+    labels.includes("AdFrame") &&
+    !labels.some((label) => label === "TitleFrame" || label === "BodyFrame")
+  );
 }
 
 function uniqueStrings(values: Array<string | undefined | null>): string[] {
@@ -133,6 +138,7 @@ function getOrderedPageStoryEntries(
         frameSelf: `story-${story.id}`,
         storyId: story.id,
         isTitle: false,
+        label: "",
         position: "right" as const,
         order: Number.MAX_SAFE_INTEGER,
         top: Number.MAX_SAFE_INTEGER,
@@ -261,6 +267,21 @@ function getPageImages(
     ...getOrderedPageStories(page).flatMap((story) => story.imageHints),
     ...fallbacks,
   ]);
+}
+
+function isRasterImageFileName(value: string): boolean {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(String(value || "").trim());
+}
+
+function splitRasterAndPdfImages(pageImages: string[]): {
+  rasterImages: string[];
+  pdfImage: string;
+} {
+  const rasterImages = pageImages.filter(isRasterImageFileName);
+  const pdfImage = pageImages.find((value) =>
+    /\.pdf$/i.test(String(value || "").trim()),
+  );
+  return { rasterImages, pdfImage: pdfImage || "" };
 }
 
 function getStandfirst(text: string): string {
@@ -404,6 +425,22 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         for (const frame of page.frames) {
           addPagePosition(currentArticle.pagePositions, page.pageNumber, frame.position);
         }
+      } else if (
+        page.pageNumber === currentArticle.endPage + 1 &&
+        !detectAdPage(page)
+      ) {
+        const meaningfulEntries = orderedEntries.filter(
+          (entry) => !shouldIgnoreDecorativeStory(entry.story),
+        );
+        if (meaningfulEntries.length > 0) {
+          currentArticle.endPage = page.pageNumber;
+          currentArticle.pageBodies[page.pageNumber] =
+            getBodyTextFromStoryEntries(meaningfulEntries);
+          currentArticle.images.push(...getPageImages(page));
+          for (const frame of page.frames) {
+            addPagePosition(currentArticle.pagePositions, page.pageNumber, frame.position);
+          }
+        }
       }
     }
   }
@@ -463,9 +500,6 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   const result: ReaderPage[] = [];
 
   const sortedPages = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
-  const pageByNumber = new Map(
-    sortedPages.map((page) => [page.pageNumber, page]),
-  );
 
   const articles = detectArticles(sortedPages);
 
@@ -505,63 +539,6 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     });
   }
 
-  const editorNotePage = sortedPages.find((p) => p.pageNumber === 5);
-  if (editorNotePage) {
-    const combinedText = getPageBodyText(editorNotePage, true);
-    const firstTitle = editorNotePage.stories[0]?.title || "";
-
-    result.push({
-      id: createPageId("page-editor", editorNotePage.pageNumber),
-      position: 0,
-      template: "editor-note",
-      content: {
-        title: firstTitle || "Editor's Note",
-        author: "",
-        body: combinedText,
-        imageUrl: getPageImages(editorNotePage)[0] || "",
-        imageUrls: getPageImages(editorNotePage),
-      },
-    });
-  }
-
-  for (const article of articles) {
-    if (article.title && /^\d+$/.test(article.title.trim())) {
-      continue;
-    }
-
-    for (
-      let pageNum = article.startPage;
-      pageNum <= article.endPage;
-      pageNum++
-    ) {
-      if (pageNum === 4 || pageNum === 5) continue;
-      if (pageNum === 1 && coverSourcePage?.pageNumber === 1) continue;
-
-      const sourcePage = pageByNumber.get(pageNum);
-      if (!sourcePage) continue;
-
-      const pagePosition = article.pagePositions.find(
-        (p) => p.page === pageNum,
-      );
-      const position =
-        pagePosition?.position || sourcePage.frames[0]?.position || "right";
-      const template = getFeatureTemplate(
-        position,
-        pageNum !== article.startPage,
-      );
-
-      result.push({
-        id: createPageId(
-          `page-${pageNum}`,
-          article.title.slice(0, 24) || pageNum,
-        ),
-        position: 0,
-        template,
-        content: buildFeatureContent(article, sourcePage, pageNum, position),
-      });
-    }
-  }
-
   const lastMeaningfulPage = [...sortedPages]
     .reverse()
     .find(
@@ -570,8 +547,106 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         (page.stories.length > 0 || page.imageFileNames.length > 0),
     );
 
+  const editorNotePage =
+    sortedPages.find((p) => p.labels.includes("EditorsFrame")) ||
+    sortedPages.find((p) => p.pageNumber === 5);
+
+  const reservedPageNumbers = new Set<number>([1]);
+  for (const page of sortedPages) {
+    if (page.labels.includes("ContentsFrame")) {
+      reservedPageNumbers.add(page.pageNumber);
+    }
+  }
+  if (editorNotePage) reservedPageNumbers.add(editorNotePage.pageNumber);
+  if (lastMeaningfulPage) reservedPageNumbers.add(lastMeaningfulPage.pageNumber);
+
+  if (editorNotePage) {
+    const editorStories = getOrderedPageStories(editorNotePage).filter(
+      (story) => !shouldIgnoreDecorativeStory(story),
+    );
+    const combinedText = editorStories
+      .map((story) => story.text.trim())
+      .filter(Boolean)
+      .join("\n\n");
+
+    result.push({
+      id: createPageId("page-editor", editorNotePage.pageNumber),
+      position: 0,
+      template: "editor-note",
+      content: {
+        title: "Editor's Note",
+        author: "",
+        body: combinedText,
+        imageUrl: getPageImages(editorNotePage)[0] || "",
+        imageUrls: getPageImages(editorNotePage),
+      },
+    });
+  }
+
+  const articleByPage = new Map<number, Article>();
+  for (const article of articles) {
+    if (article.title && /^\d+$/.test(article.title.trim())) {
+      continue;
+    }
+    for (
+      let pageNum = article.startPage;
+      pageNum <= article.endPage;
+      pageNum++
+    ) {
+      if (!articleByPage.has(pageNum)) articleByPage.set(pageNum, article);
+    }
+  }
+
+  for (const sourcePage of sortedPages) {
+    const pageNum = sourcePage.pageNumber;
+    if (reservedPageNumbers.has(pageNum)) continue;
+
+    if (detectAdPage(sourcePage)) {
+      const pageImages = getPageImages(sourcePage);
+      const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+      result.push({
+        id: createPageId(`page-${pageNum}`, "ad"),
+        position: 0,
+        template: "ad",
+        content: {
+          title: "Advertisement",
+          label: "Advertisement",
+          body: "",
+          imageUrl: rasterImages[0] || "",
+          imageUrls: rasterImages,
+          pdfUrl: pdfImage || undefined,
+        },
+      });
+      continue;
+    }
+
+    const article = articleByPage.get(pageNum);
+    if (!article) continue;
+
+    const pagePosition = article.pagePositions.find(
+      (p) => p.page === pageNum,
+    );
+    const position =
+      pagePosition?.position || sourcePage.frames[0]?.position || "right";
+    const template = getFeatureTemplate(
+      position,
+      pageNum !== article.startPage,
+    );
+
+    result.push({
+      id: createPageId(
+        `page-${pageNum}`,
+        article.title.slice(0, 24) || pageNum,
+      ),
+      position: 0,
+      template,
+      content: buildFeatureContent(article, sourcePage, pageNum, position),
+    });
+  }
+
   if (lastMeaningfulPage) {
     const lastImages = getPageImages(lastMeaningfulPage);
+    const { rasterImages, pdfImage } = splitRasterAndPdfImages(lastImages);
     const lastArticle = [...articles]
       .reverse()
       .find((article) => article.endPage <= lastMeaningfulPage.pageNumber);
@@ -583,8 +658,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       content: {
         title: "See You Next Issue",
         body: "Thank you for reading Yorkshire BusinessWoman in our digital reader. Browse the archive for more editions and return soon for the next issue.",
-        imageUrl: lastImages[0] || "",
-        imageUrls: lastImages,
+        imageUrl: rasterImages[0] || "",
+        imageUrls: rasterImages,
+        pdfUrl: pdfImage || undefined,
         kicker: "Until Next Time",
         ctaLabel: "Browse Archive",
         ctaHref: "/new-edition",

@@ -5,6 +5,7 @@ export interface ParsedFrame {
   frameSelf: string;
   storyId: string;
   isTitle: boolean;
+  label: string;
   position: 'left' | 'right' | 'full';
   order: number;
   top: number;
@@ -34,6 +35,7 @@ export interface ParsedIdmlPage {
   frames: ParsedFrame[];
   stories: ParsedIdmlStory[];
   imageFileNames: string[];
+  labels: string[];
   totalWordCount: number;
   textPreview: string;
 }
@@ -113,7 +115,7 @@ function getFileMimeType(fileName: string): string {
 }
 
 function supportsEmbeddedImageExtraction(fileName: string): boolean {
-  return /^.+\.(png|jpe?g|gif|webp|svg)$/i.test(fileName);
+  return /^.+\.(png|jpe?g|gif|webp|svg|pdf)$/i.test(fileName);
 }
 
 const IMAGE_MAGIC_BYTES: Record<string, Array<{ bytes: number[]; offset?: number }>> = {
@@ -129,6 +131,7 @@ const IMAGE_MAGIC_BYTES: Record<string, Array<{ bytes: number[]; offset?: number
     { bytes: [0x3c, 0x3f, 0x78, 0x6d, 0x6c] },
     { bytes: [0x3c, 0x73, 0x76, 0x67] },
   ],
+  pdf: [{ bytes: [0x25, 0x50, 0x44, 0x46] }],
 };
 
 function looksLikeImageData(data: Buffer, fileName: string): boolean {
@@ -204,10 +207,35 @@ function getFrameBounds(frame: any): {
   };
 }
 
+function getFrameLabel(element: any): string {
+  const propertiesNodes = element.getElementsByTagName('Properties');
+  for (let i = 0; i < propertiesNodes.length; i++) {
+    const propertiesNode = propertiesNodes[i];
+    if (propertiesNode.parentNode !== element) continue;
+
+    const labelNodes = propertiesNode.getElementsByTagName('Label');
+    for (let j = 0; j < labelNodes.length; j++) {
+      const labelNode = labelNodes[j];
+      if (labelNode.parentNode !== propertiesNode) continue;
+
+      const kvpNodes = labelNode.getElementsByTagName('KeyValuePair');
+      for (let k = 0; k < kvpNodes.length; k++) {
+        if (kvpNodes[k].getAttribute('Key') !== 'Label') continue;
+        return String(kvpNodes[k].getAttribute('Value') || '')
+          .trim()
+          .replace(/\.+$/, '');
+      }
+    }
+  }
+  return '';
+}
+
 function isTitleFrame(
   story: ParsedIdmlStory | undefined,
   frameIndex: number,
+  label = '',
 ): boolean {
+  if (label === 'TitleFrame') return true;
   if (!story) return false;
 
   const text = (story.text || '').trim();
@@ -230,6 +258,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
   pageBounds: { top: number; left: number; bottom: number; right: number };
   frames: ParsedFrame[];
   imageFileNames: string[];
+  labels: string[];
 }> {
   const result: Array<{
     pageName: string;
@@ -237,6 +266,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
     pageBounds: { top: number; left: number; bottom: number; right: number };
     frames: ParsedFrame[];
     imageFileNames: string[];
+    labels: string[];
   }> = [];
 
   const doc = new DOMParser().parseFromString(spreadXml, 'text/xml');
@@ -318,6 +348,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
       pageBounds: assignedPage.bounds,
       frames: [],
       imageFileNames: [],
+      labels: [],
     };
     result.push(entry);
     return entry;
@@ -331,6 +362,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const frameSelf = frame.getAttribute('Self') || '';
     const parentStory = frame.getAttribute('ParentStory') || '';
     const bounds = getFrameBounds(frame);
+    const label = getFrameLabel(frame);
 
     const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
     const frameX = frameTransform[4] || 0;
@@ -341,6 +373,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
       frameSelf,
       storyId: parentStory,
       isTitle: false,
+      label,
       position,
       order: frameOrder++,
       top: bounds.top,
@@ -348,6 +381,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
       bottom: bounds.bottom,
       right: bounds.right,
     });
+    if (label) pageEntry.labels.push(label);
   }
 
   const graphicTags = ['Rectangle', 'Oval', 'Polygon'];
@@ -355,15 +389,19 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const graphicFrames = doc.getElementsByTagName(tagName);
     for (let i = 0; i < graphicFrames.length; i++) {
       const frame = graphicFrames[i];
-      if ((frame.getAttribute('ContentType') || '') !== 'GraphicType') continue;
-
-      const linkNodes = frame.getElementsByTagName('Link');
-      if (linkNodes.length === 0) continue;
 
       const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
       const frameX = frameTransform[4] || 0;
       const { page: assignedPage } = getAssignedPage(frameX);
       const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
+
+      const label = getFrameLabel(frame);
+      if (label) pageEntry.labels.push(label);
+
+      if ((frame.getAttribute('ContentType') || '') !== 'GraphicType') continue;
+
+      const linkNodes = frame.getElementsByTagName('Link');
+      if (linkNodes.length === 0) continue;
 
       for (let linkIdx = 0; linkIdx < linkNodes.length; linkIdx++) {
         const linkNode = linkNodes[linkIdx];
@@ -377,6 +415,41 @@ function parseSpreadFrames(spreadXml: string): Array<{
         }
       }
     }
+  }
+
+  const groupNodes = doc.getElementsByTagName('Group');
+  for (let i = 0; i < groupNodes.length; i++) {
+    const group = groupNodes[i];
+    const label = getFrameLabel(group);
+    if (!label) continue;
+
+    const childPages = new Set<string>();
+    const childTags = ['TextFrame', 'Rectangle', 'Oval', 'Polygon'];
+    for (const childTag of childTags) {
+      const children = group.getElementsByTagName(childTag);
+      for (let j = 0; j < children.length; j++) {
+        const childTransform = (children[j].getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
+        childPages.add(getAssignedPage(childTransform[4] || 0).page.name);
+      }
+    }
+
+    for (const pageName of childPages) {
+      const assignedPage = pageInfo.find((p) => p.name === pageName) || pageInfo[0];
+      const pageEntry = getOrCreatePageEntry(pageName, assignedPage);
+      pageEntry.labels.push(label);
+    }
+  }
+
+  const imageNodes = doc.getElementsByTagName('Image');
+  for (let i = 0; i < imageNodes.length; i++) {
+    const imageNode = imageNodes[i];
+    const label = getFrameLabel(imageNode);
+    if (!label) continue;
+
+    const imageTransform = (imageNode.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
+    const { page: assignedPage } = getAssignedPage(imageTransform[4] || 0);
+    const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
+    pageEntry.labels.push(label);
   }
 
   return result;
@@ -411,7 +484,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
 
   const imagesByFileName = new Map<string, ParsedIdmlImage>();
   const imageFiles = Object.keys(zip.files).filter((p) =>
-    /^Graphics\/.+\.(png|jpe?g|gif|webp|svg)$/i.test(p),
+    /^Graphics\/.+\.(png|jpe?g|gif|webp|svg|pdf)$/i.test(p),
   );
 
   for (const path of imageFiles) {
@@ -434,6 +507,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     spreadIndex: number;
     frames: ParsedFrame[];
     imageFileNames: string[];
+    labels: string[];
   }> = [];
 
   let pageNumber = 1;
@@ -477,6 +551,50 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       });
     }
 
+    const pdfNodes = spreadDoc.getElementsByTagName('PDF');
+    for (let pdfIdx = 0; pdfIdx < pdfNodes.length; pdfIdx++) {
+      const pdfNode = pdfNodes[pdfIdx];
+
+      const parentNode = pdfNode.parentNode;
+      if (!parentNode) continue;
+
+      let fileName = '';
+      const pdfLinks = (parentNode as any).getElementsByTagName('Link');
+      for (let linkIdx = 0; linkIdx < pdfLinks.length; linkIdx++) {
+        const linkNode = pdfLinks[linkIdx];
+        const candidate = extractFileNameFromUri(
+          linkNode.getAttribute('LinkResourceURI') || '',
+          linkNode.getAttribute('LinkResourceFormat') || '',
+        );
+        if (!/\.pdf$/i.test(candidate)) continue;
+        fileName = candidate;
+        break;
+      }
+
+      if (!fileName || !supportsEmbeddedImageExtraction(fileName) || imagesByFileName.has(fileName)) continue;
+
+      let encodedContents = '';
+      const pdfPropertiesNodes = pdfNode.getElementsByTagName('Properties');
+      for (let propsIdx = 0; propsIdx < pdfPropertiesNodes.length; propsIdx++) {
+        const contentsNode = pdfPropertiesNodes[propsIdx].getElementsByTagName('Contents')[0];
+        const candidate = extractEmbeddedImageContents(contentsNode, fileName);
+        if (!candidate) continue;
+        encodedContents = candidate;
+        break;
+      }
+
+      if (!encodedContents) continue;
+
+      const pdfData = Buffer.from(encodedContents, 'base64');
+      if (pdfData.length === 0 || !looksLikeImageData(pdfData, fileName)) continue;
+
+      imagesByFileName.set(fileName, {
+        fileName,
+        data: pdfData,
+        mimeType: getFileMimeType(fileName),
+      });
+    }
+
     for (const pageData of spreadData) {
       const pageName = parseInt(pageData.pageName, 10);
       if (!isNaN(pageName)) {
@@ -487,7 +605,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         const story = storyMap.get(frame.storyId);
         return {
           ...frame,
-          isTitle: isTitleFrame(story, idx),
+          isTitle: isTitleFrame(story, idx, frame.label),
         };
       });
 
@@ -496,6 +614,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         spreadIndex: spreadIdx,
         frames: framesWithTitles,
         imageFileNames: pageData.imageFileNames,
+        labels: [...new Set(pageData.labels)],
       });
 
       pageNumber++;
@@ -525,6 +644,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       frames: pageData.frames,
       stories: pageStories,
       imageFileNames: allImageHints,
+      labels: pageData.labels,
       totalWordCount: countWords(combinedText),
       textPreview: combinedText.replace(/\s+/g, ' ').slice(0, 180),
     };
