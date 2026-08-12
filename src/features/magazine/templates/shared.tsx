@@ -1314,6 +1314,10 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
           src={fixMagazineImageUrl(pdfUrl, imageVersion)}
           className="absolute inset-0 h-full w-full border-0"
           title={alt}
+          allowFullScreen
+          allow="clipboard-write; fullscreen; popups; popups-to-escape-sandbox; top-navigation-by-user-activation"
+          referrerPolicy="no-referrer-when-downgrade"
+          loading="lazy"
         />
       ) : videoUrl ? (
         <video
@@ -1551,14 +1555,16 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
     String(data.title || "Contents").trim(),
   );
 
-  const slug = useMemo(() => {
-    if (editionSlug) return editionSlug;
+  const [slug, setSlug] = useState("");
+  useEffect(() => {
+    if (editionSlug) {
+      setSlug(editionSlug);
+      return;
+    }
     try {
       const match = window.location.pathname.match(/\/magazine\/read\/([^/?]+)/);
-      return match ? decodeURIComponent(match[1]) : "";
-    } catch {
-      return "";
-    }
+      if (match) setSlug(decodeURIComponent(match[1]));
+    } catch {}
   }, [editionSlug]);
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [liveNewsLoading, setLiveNewsLoading] = useState(false);

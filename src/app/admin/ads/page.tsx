@@ -424,7 +424,16 @@ export default function AdsAdminPage() {
               <div className="border border-border bg-muted/20 p-4 flex items-center justify-center">
                 {slot.iframeUrl ? (
                   <div className={`relative w-full ${def.maxWidthClass} ${def.aspectClass} bg-muted`}>
-                    <iframe src={slot.iframeUrl} className="absolute inset-0 h-full w-full border-0" scrolling="no" title={slot.altText || 'Ad'} />
+                    <iframe
+                      src={slot.iframeUrl}
+                      className="absolute inset-0 h-full w-full border-0"
+                      scrolling="no"
+                      title={slot.altText || 'Ad'}
+                      allowFullScreen
+                      allow="clipboard-write; fullscreen; popups; popups-to-escape-sandbox; top-navigation-by-user-activation"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      loading="lazy"
+                    />
                   </div>
                 ) : slot.imageUrl ? (
                   <div className={`relative w-full ${def.maxWidthClass} ${def.aspectClass} bg-muted`}>

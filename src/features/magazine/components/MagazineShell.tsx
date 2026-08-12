@@ -133,7 +133,22 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     if (!root) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const anchor = target.closest("a[data-page]") || target.closest("a[href*='?page=']");
+      const anchorByData = target.closest("a[data-page]") as HTMLAnchorElement | null;
+      const anchorByQ = target.closest("a[href*='?page=']") as HTMLAnchorElement | null;
+      let anchor = anchorByData;
+      // For the href*='?page=' branch, only intercept SAME-ORIGIN or path-absolute links.
+      // External URLs that happen to contain a ?page= query (UTMs, partner deep-links,
+      // advertiser microsite pagination) must pass through as native navigation.
+      if (!anchor && anchorByQ) {
+        try {
+          const u = new URL(anchorByQ.href, window.location.href);
+          if (u.origin === window.location.origin) {
+            anchor = anchorByQ;
+          }
+        } catch {
+          anchor = null;
+        }
+      }
       if (!anchor) return;
       e.preventDefault();
       e.stopPropagation();
