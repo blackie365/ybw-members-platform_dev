@@ -9,7 +9,7 @@
  * All page components are exported so template renderers can import them.
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -1550,6 +1550,16 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
     data,
     String(data.title || "Contents").trim(),
   );
+
+  const slug = useMemo(() => {
+    if (editionSlug) return editionSlug;
+    try {
+      const match = window.location.pathname.match(/\/magazine\/read\/([^/?]+)/);
+      return match ? decodeURIComponent(match[1]) : "";
+    } catch {
+      return "";
+    }
+  }, [editionSlug]);
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [liveNewsLoading, setLiveNewsLoading] = useState(false);
   const showLiveNews = news.length === 0;
@@ -1633,8 +1643,8 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
             const pageLabel = Number.isFinite(pageNum)
               ? String(pageNum).padStart(2, "0")
               : "";
-            const pageHref = editionSlug && Number.isFinite(pageNum)
-              ? `/magazine/read/${editionSlug}?page=${pageNum}`
+            const pageHref = slug && Number.isFinite(pageNum)
+              ? `/magazine/read/${slug}?page=${pageNum}`
               : undefined;
             return (
               <a
