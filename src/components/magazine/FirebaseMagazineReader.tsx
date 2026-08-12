@@ -43,15 +43,68 @@ const PAGE_RENDERERS: Record<string, ComponentType<LegacyPageRendererProps>> = {
   'back-cover': PageBackCover,
 };
 
+function normalizeImageFields(content: Record<string, unknown>): Record<string, unknown> {
+  const pickImage = (): string => {
+    const candidates = [
+      'featureImage', 'heroImage', 'mainImage', 'primaryImage',
+      'image', 'cover', 'coverImage', 'photo', 'headshot', 'portrait',
+      'bannerImage', 'ogImage', 'socialImage',
+    ] as const;
+    for (const key of candidates) {
+      const v = content[key];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+    }
+    const arrKeys = ['media', 'gallery', 'additionalMedia', 'images', 'photos'] as const;
+    for (const arrKey of arrKeys) {
+      const arr = content[arrKey];
+      if (!Array.isArray(arr) || arr.length === 0) continue;
+      for (const entry of arr) {
+        if (typeof entry === 'string' && entry.trim()) {
+          return entry.trim();
+        }
+        if (entry && typeof entry === 'object') {
+          const url = (entry as any).url || (entry as any).src || (entry as any).image;
+          if (typeof url === 'string' && url.trim()) return url.trim();
+        }
+      }
+    }
+    return '';
+  };
+  const chosen = pickImage();
+  const featureImage = (typeof content.featureImage === 'string' && content.featureImage.trim()) || chosen;
+  const image = (typeof content.image === 'string' && content.image.trim()) || chosen;
+  const heroImage = (typeof content.heroImage === 'string' && content.heroImage.trim()) || chosen;
+  const mainImage = (typeof content.mainImage === 'string' && content.mainImage.trim()) || chosen;
+  return {
+    ...content,
+    featureImage,
+    image,
+    heroImage,
+    mainImage,
+  };
+}
+
 function normalizePageData(page: MagazinePage, issue: MagazineIssue) {
   const content = page?.content && typeof page.content === 'object' ? page.content as Record<string, unknown> : {};
+  const normalizedImages = normalizeImageFields(content);
 
   if (page.type === 'cover') {
+    const coverImage = String(
+      issue.coverImage ||
+      (issue as any).heroImage ||
+      (issue as any).featureImage ||
+      normalizedImages.featureImage ||
+      normalizedImages.image ||
+      '',
+    ).trim();
     return {
       title: issue.title,
-      image: issue.coverImage,
-      featureImage: issue.coverImage,
+      image: coverImage,
+      featureImage: coverImage,
+      heroImage: coverImage,
+      mainImage: coverImage,
       date: issue.publishDate,
+      ...normalizedImages,
       ...content,
     };
   }
@@ -59,25 +112,90 @@ function normalizePageData(page: MagazinePage, issue: MagazineIssue) {
   if (page.type === 'contents') {
     return {
       title: 'Contents',
+      ...normalizedImages,
       ...content,
     };
   }
 
   if (page.type === 'editorial') {
+    const derivedText = String((issue as any).editorNote || (issue as any).editorsMessage || (issue as any).editorLetter || '');
+    const author = String(content.author || (issue as any).editor || (issue as any).editorName || 'Gill Laidler').trim();
+    const quote = String(content.quote || (issue as any).editorQuote || '');
     return {
       title: "Editor's Note",
+      author,
+      quote,
+      text: derivedText || (typeof content.text === 'string' ? content.text : ''),
+      featureImage: String(
+        normalizedImages.featureImage ||
+        (issue as any).editorImage ||
+        (issue as any).editorPhoto ||
+        (issue as any).editorHeadshot ||
+        normalizedImages.image ||
+        '',
+      ).trim(),
+      image: normalizedImages.image || (issue as any).editorImage || normalizedImages.featureImage || '',
+      ...normalizedImages,
       ...content,
     };
   }
 
-  return content;
+  return normalizedImages;
 }
 
 function getPageTitle(page: MagazinePage, issue: MagazineIssue) {
-  const content = normalizePageData(page, issue);
+  const content = normalizePageData(page, issue) as Record<string, unknown>;
   const title = String(content.title || content.name || content.headline || '').trim();
   if (title) return title;
   return `${page.type.replace(/-/g, ' ')} ${String(page.id).padStart(2, '0')}`;
+}
+
+function buildFallbackEditorialPage(existingPages: MagazinePage[], issue: MagazineIssue): MagazinePage | null {
+  const hasEditorial = existingPages.some((p) => String(p.type || '').trim().toLowerCase() === 'editorial');
+  if (hasEditorial) return null;
+  const editorial = [
+    (issue as any).editorsNote,
+    (issue as any).editorNote,
+    (issue as any).editorsLetter,
+    (issue as any).editorLetter,
+  ].find((v) => typeof v === 'string' && v.trim().length > 40);
+  const author = String(
+    (issue as any).editor || (issue as any).editorName || (issue as any).editorInChief || 'Gill Laidler',
+  ).trim();
+  const issueDate = String(issue.publishDate || '').trim();
+  const derivedTitle = String((issue as any).editorsNoteTitle || (issue as any).editorNoteTitle || "Editor's Note").trim();
+  // Choose id;
+  const maxId = existingPages.reduce((m, p) => (typeof p.id === 'number' ? Math.max(m, p.id) : m), 0);
+  // Insert between cover (1 and rest: use id=2 if no other page id=2 exists, otherwise find smallest free slot after cover
+  const coverPage = existingPages.find((p) => String(p.type || '').toLowerCase() === 'cover');
+  const coverId = coverPage && typeof coverPage.id === 'number' ? coverPage.id : 0;
+  let newId = coverId + 1 || 2;
+  if (existingPages.some((p) => p.id === newId)) {
+    newId = maxId + 1;
+  }
+  const quote = String((issue as any).editorQuote || '').trim();
+  const textSource = typeof editorial === 'string' ? editorial : '';
+  const image = String(
+    (issue as any).editorImage || (issue as any).editorPhoto || (issue as any).editorHeadshot || (issue as any).editorPortrait || '',
+  ).trim();
+  const content: Record<string, unknown> = {
+    title: derivedTitle,
+    author,
+    role: String((issue as any).editorRole || 'Editor-in-Chief').trim(),
+    image,
+    featureImage: image,
+    heroImage: image,
+    quote,
+    text: textSource,
+    intro: String((issue as any).editorIntro || '').trim(),
+    issueDate,
+    synthetic: true,
+  };
+  return {
+    id: newId,
+    type: 'editorial',
+    content,
+  };
 }
 
 export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazineReaderProps) {
@@ -139,17 +257,20 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   // #endregion
 
   const renderedPages = useMemo(() => {
-    return [...pages]
-      .sort((left, right) => left.id - right.id)
-      .map((page) => {
-        const Renderer = PAGE_RENDERERS[page.type] ?? PageFeatureLeft;
-        return {
-          page,
-          Renderer,
-          data: normalizePageData(page, issue),
-          label: getPageTitle(page, issue),
-        };
-      });
+    const sortedPages = [...pages].sort((left, right) => left.id - right.id);
+    const fallbackEditorial = buildFallbackEditorialPage(sortedPages, issue);
+    const basePages = fallbackEditorial
+      ? [...sortedPages, fallbackEditorial].sort((left, right) => left.id - right.id)
+      : sortedPages;
+    return basePages.map((page) => {
+      const Renderer = PAGE_RENDERERS[page.type] ?? PageFeatureLeft;
+      return {
+        page,
+        Renderer,
+        data: normalizePageData(page, issue),
+        label: getPageTitle(page, issue),
+      };
+    });
   }, [issue, pages]);
 
   const current = renderedPages[currentPage];
