@@ -129,6 +129,26 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, []);
 
   useEffect(() => {
+    const root = stageRef.current;
+    if (!root) return;
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a[href]");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href") || "";
+      const match = href.match(/\/magazine\/read\/[^?]+\?page=(\d+)/);
+      if (!match) return;
+      e.preventDefault();
+      const pageNum = Number.parseInt(match[1], 10);
+      if (Number.isFinite(pageNum) && pageNum >= 1) {
+        const idx = pageNum - 1;
+        if (idx < renderedPages.length) goToPage(idx);
+      }
+    };
+    root.addEventListener("click", handleClick);
+    return () => root.removeEventListener("click", handleClick);
+  }, [renderedPages.length, goToPage]);
+
+  useEffect(() => {
     if (stageRef.current) {
       stageRef.current.scrollTop = 0;
     }
@@ -308,12 +328,6 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
                 page={current.page}
                 viewModel={current.viewModel}
                 imageVersion={imageVersion}
-                pages={pages.map((p) => ({ id: p.id, position: p.position }))}
-                onNavigateToPage={(pageId: string) => {
-                  const idx = renderedPages.findIndex((rp) => rp.page.id === pageId);
-                  if (idx !== -1) goToPage(idx);
-                }}
-                editionSlug={edition.slug}
               />
             ) : current ? (
               <section className="mx-auto max-w-6xl px-6 py-16">
