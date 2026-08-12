@@ -178,6 +178,7 @@ function AdContent({
         target={linkTarget}
         rel="noopener noreferrer nofollow"
         aria-label={altText}
+        className="block w-full h-full select-none outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
       >
         {inner}
       </Link>
@@ -229,6 +230,10 @@ function ResponsiveIframeFrame({
         title={title}
         className={cn('absolute left-1/2 top-1/2 border-0', linkUrl && 'pointer-events-none')}
         scrolling="no"
+        allowFullScreen
+        allow="clipboard-write; fullscreen; popups; popups-to-escape-sandbox; top-navigation-by-user-activation"
+        referrerPolicy="no-referrer-when-downgrade"
+        loading="lazy"
         style={{
           width: nativeWidth,
           height: nativeHeight,
