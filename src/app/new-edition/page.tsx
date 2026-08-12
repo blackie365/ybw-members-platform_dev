@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, BookOpen, Calendar, Monitor } from 'lucide-react';
+import { ArrowRight, BookOpen, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPosts } from '@/lib/ghost';
@@ -227,79 +227,6 @@ export default async function NewEditionPage() {
                       </p>
                     </div>
                   </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="edition-formats" className="border-y border-border bg-[#f7f2eb] py-20 text-[#16110f]">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto mb-14 max-w-3xl text-center">
-            <Badge className="border-none bg-[#A3413A] px-4 py-1.5 text-[10px] uppercase tracking-[0.22em] text-white">
-              Choose Your Format
-            </Badge>
-            <h2 className="mt-6 font-serif text-4xl font-medium sm:text-5xl">
-              Read The Edition Your Way
-            </h2>
-              <p className="mt-4 text-lg leading-relaxed text-[#5a4a3f]">
-                Start with the digital reader for the best screen experience, or open the flipping book if you prefer a familiar page-turning format.
-              </p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="group overflow-hidden rounded-[2rem] border border-[#d8c8b5] bg-white shadow-[0_24px_90px_rgba(0,0,0,0.08)]">
-              <div className="flex h-full flex-col justify-between p-8 sm:p-10">
-                <div>
-                  <div className="flex items-center justify-between gap-4">
-                      <Badge className="border-none bg-[#16110f] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                        Primary Format
-                    </Badge>
-                    <span className="text-[11px] uppercase tracking-[0.18em] text-[#8b6f5a]">Live Now</span>
-                  </div>
-                  <h3 className="mt-6 font-serif text-3xl font-medium sm:text-4xl">
-                      Digital Reader
-                  </h3>
-                  <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#5a4a3f] sm:text-lg">
-                      Open the current Yorkshire BusinessWoman edition in the screen-native reading experience, with the latest edition always featured first.
-                  </p>
-                </div>
-
-                <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-5 text-base text-white hover:bg-[#8c362f]">
-                      <Link href={featuredEditionUrl}>
-                      <BookOpen className="mr-2 h-5 w-5" />
-                        Open Digital Reader
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="group overflow-hidden rounded-[2rem] border border-[#d8c8b5] bg-[#16110f] text-white shadow-[0_24px_90px_rgba(0,0,0,0.14)]">
-              <div className="flex h-full flex-col justify-between p-8 sm:p-10">
-                <div>
-                  <Badge className="border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white">
-                      Alternate Format
-                  </Badge>
-                  <h3 className="mt-6 font-serif text-3xl font-medium">
-                      Flipping Book
-                  </h3>
-                  <p className="mt-4 text-base leading-relaxed text-zinc-300">
-                    {flipbookEmbedUrl
-                        ? 'Open the same edition in the familiar page-turning format if you prefer a more print-led reading experience.'
-                        : 'The digital reader remains the main experience for this edition.'}
-                  </p>
-                </div>
-
-                <div className="mt-8">
-                  <Button asChild size="lg" className="h-auto rounded-none border border-white/10 bg-white text-[#16110f] px-8 py-5 text-base hover:bg-accent hover:text-white">
-                      <Link href={flipbookEmbedUrl ? '#classic-flipbook' : featuredEditionUrl}>
-                      <Monitor className="mr-2 h-5 w-5" />
-                        {flipbookEmbedUrl ? 'Open Flipping Book' : 'Open Digital Reader'}
-                    </Link>
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
