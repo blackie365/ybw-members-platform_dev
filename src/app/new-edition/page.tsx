@@ -239,7 +239,7 @@ export default async function NewEditionPage() {
             <div className="mb-10 text-center">
                 <h2 className="font-serif text-3xl font-medium sm:text-4xl">The Complete Edition, At Your Fingertips</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  Explore every feature, interview and insight from the latest edition below — beautifully presented in a familiar page-turning format you can enjoy on any device.
+                  Explore every feature, interview and insight from the latest edition below — presented in a familiar page-turning format you can enjoy on any device.
               </p>
             </div>
 
