@@ -293,6 +293,11 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
                 page={current.page}
                 viewModel={current.viewModel}
                 imageVersion={imageVersion}
+                pages={pages.map((p) => ({ id: p.id, position: p.position }))}
+                onNavigateToPage={(pageId: string) => {
+                  const idx = renderedPages.findIndex((rp) => rp.page.id === pageId);
+                  if (idx !== -1) goToPage(idx);
+                }}
               />
             ) : current ? (
               <section className="mx-auto max-w-6xl px-6 py-16">

@@ -9,7 +9,7 @@
  * All page components are exported so template renderers can import them.
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -1538,7 +1538,7 @@ export const PageEditorial = ({ data, imageVersion }: any) => {
 // ─────────────────────────────────────────────
 // CONTENTS PAGE
 // ─────────────────────────────────────────────
-export const PageContents = ({ data, imageVersion }: any) => {
+export const PageContents = ({ data, imageVersion, pages, onNavigateToPage }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref, { threshold: 0.1 });
 
@@ -1550,6 +1550,25 @@ export const PageContents = ({ data, imageVersion }: any) => {
     data,
     String(data.title || "Contents").trim(),
   );
+
+  const positionToIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    if (Array.isArray(pages)) {
+      pages.forEach((p: any, i: number) => {
+        const pos = typeof p.position === "number" ? p.position : Number.parseInt(String(p.position ?? ""), 10);
+        if (Number.isFinite(pos) && !map.has(pos)) map.set(pos, i);
+      });
+    }
+    return map;
+  }, [pages]);
+
+  const handleItemClick = useCallback((rawPage: string | number) => {
+    if (!onNavigateToPage) return;
+    const pageNum = typeof rawPage === "number" ? rawPage : Number.parseInt(String(rawPage ?? "").trim(), 10);
+    if (!Number.isFinite(pageNum)) return;
+    const idx = positionToIndex.get(pageNum);
+    if (idx !== undefined) onNavigateToPage(idx);
+  }, [onNavigateToPage, positionToIndex]);
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [liveNewsLoading, setLiveNewsLoading] = useState(false);
   const showLiveNews = news.length === 0;
@@ -1634,9 +1653,10 @@ export const PageContents = ({ data, imageVersion }: any) => {
               ? String(pageNum).padStart(2, "0")
               : "";
             return (
-              <div
+              <button
                 key={`${pageLabel}-${item?.title ?? i}`}
-                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300`}
+                onClick={() => handleItemClick(rawPage)}
+                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300 text-left w-full`}
               >
                 <div className="p-5 flex flex-col h-full min-h-[130px] relative">
                   <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
@@ -1661,7 +1681,7 @@ export const PageContents = ({ data, imageVersion }: any) => {
                   </p>
                   <div className="mt-3 h-0.5 w-8 rounded-full bg-[#a3413a] group-hover:w-14 transition-all duration-300" />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

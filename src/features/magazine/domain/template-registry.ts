@@ -11,6 +11,8 @@ export interface TemplateRenderProps {
   page: ReaderPage;
   viewModel: Record<string, unknown>;
   imageVersion?: string;
+  pages?: Array<{ id: string; position: number }>;
+  onNavigateToPage?: (pageId: string) => void;
 }
 
 interface TemplateRegistryEntry {
