@@ -104,7 +104,10 @@ export default function IssuuReader({ url, title }: IssuuReaderProps) {
           src={embedUrl}
           className="absolute inset-0 w-full h-full border-none"
           allowFullScreen
-          allow="clipboard-write"
+          allow="clipboard-write; fullscreen; popups; popups-to-escape-sandbox; top-navigation-by-user-activation"
+          referrerPolicy="no-referrer-when-downgrade"
+          title={`${title} | Yorkshire BusinessWoman`}
+          loading="lazy"
         />
       </main>
     </div>
