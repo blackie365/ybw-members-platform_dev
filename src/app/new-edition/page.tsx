@@ -119,10 +119,10 @@ export default async function NewEditionPage() {
   ));
   const featuredPost = ghostPosts[0];
 
-  const featuredEditionUrl = latestReaderEdition
-    ? `/magazine/read/${latestReaderEdition.slug}`
-    : liveIssue
-      ? `/magazine/issue/${liveIssue.id}`
+  const featuredEditionUrl = liveIssue
+    ? `/magazine/issue/${liveIssue.id}`
+    : latestReaderEdition
+      ? `/magazine/read/${latestReaderEdition.slug}`
       : '/new-edition';
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
