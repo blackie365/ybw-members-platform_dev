@@ -177,6 +177,55 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   }, [nextPage, prevPage]);
 
   useEffect(() => {
+    const root = document.getElementById('firebase-magazine-reader-root');
+    if (!root) return;
+
+    const handleContentsClick = (event: Event) => {
+      const target = event.target as Node | null;
+      if (!target || !(target instanceof Element)) return;
+
+      const anchorByDataPage = target.closest('a[data-page]') as HTMLAnchorElement | null;
+
+      if (anchorByDataPage) {
+        const raw = anchorByDataPage.getAttribute('data-page');
+        if (!raw) return;
+        const pageNum = Number.parseInt(raw.trim(), 10);
+        if (!Number.isFinite(pageNum) || pageNum <= 0) return;
+
+        const index = renderedPages.findIndex((entry) => entry.page.id === pageNum);
+        if (index === -1) return;
+
+        event.preventDefault();
+        goToPage(index);
+        return;
+      }
+
+      const anchorByHref = target.closest('a[href*="?page="]') as HTMLAnchorElement | null;
+      if (anchorByHref) {
+        try {
+          const url = new URL(anchorByHref.href, window.location.href);
+          if (url.origin !== window.location.origin) return;
+          const pageFromQ = url.searchParams.get('page');
+          if (!pageFromQ) return;
+          const pageNum = Number.parseInt(pageFromQ.trim(), 10);
+          if (!Number.isFinite(pageNum) || pageNum <= 0) return;
+          const index = renderedPages.findIndex((entry) => entry.page.id === pageNum);
+          if (index === -1) return;
+          event.preventDefault();
+          goToPage(index);
+        } catch {
+          /* no-op on malformed href */
+        }
+      }
+    };
+
+    root.addEventListener('click', handleContentsClick, true);
+    return () => {
+      root.removeEventListener('click', handleContentsClick, true);
+    };
+  }, [goToPage, renderedPages]);
+
+  useEffect(() => {
     const handleFullscreenChange = () => {
       const anyDoc = document as Document & { webkitFullscreenElement?: Element | null };
       setIsFullscreen(Boolean(document.fullscreenElement || anyDoc.webkitFullscreenElement));
@@ -296,6 +345,7 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
 
         <div
           data-debug-reader-stage="true"
+          id={`page-${current.page.id}`}
           className="relative h-full w-full max-h-full self-center overflow-y-auto overflow-x-hidden overscroll-contain"
         >
           <current.Renderer data={current.data} imageVersion={imageVersion} />

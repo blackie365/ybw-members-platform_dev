@@ -1649,15 +1649,20 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
             const pageLabel = Number.isFinite(pageNum)
               ? String(pageNum).padStart(2, "0")
               : "";
-            const pageHref = slug && Number.isFinite(pageNum)
-              ? `/magazine/read/${slug}?page=${pageNum}`
-              : undefined;
+            const hashHref = Number.isFinite(pageNum)
+              ? `#page-${pageNum}`
+              : "#";
+            const pageHref =
+              slug && Number.isFinite(pageNum)
+                ? `/magazine/read/${slug}?page=${pageNum}`
+                : hashHref;
             return (
               <a
                 key={`${pageLabel}-${item?.title ?? i}`}
                 href={pageHref}
                 data-page={Number.isFinite(pageNum) ? String(pageNum) : undefined}
                 className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300 text-left w-full block`}
+                aria-label={item?.title ? `Jump to page ${pageLabel}: ${String(item.title)}` : undefined}
               >
                 <div className="p-5 flex flex-col h-full min-h-[130px] relative">
                   <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
