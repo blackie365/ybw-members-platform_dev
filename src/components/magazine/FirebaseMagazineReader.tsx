@@ -150,10 +150,13 @@ function getPageTitle(page: MagazinePage, issue: MagazineIssue) {
   return `${page.type.replace(/-/g, ' ')} ${String(page.id).padStart(2, '0')}`;
 }
 
+const DEFAULT_EDITOR_HEADSHOT =
+  "https://img.rocket.new/generatedImages/rocket_gen_img_124e295b7-1776339534000.png";
+
 function buildFallbackEditorialPage(existingPages: MagazinePage[], issue: MagazineIssue): MagazinePage | null {
   const hasEditorial = existingPages.some((p) => String(p.type || '').trim().toLowerCase() === 'editorial');
   if (hasEditorial) return null;
-  const editorial = [
+  const editorialText = [
     (issue as any).editorsNote,
     (issue as any).editorNote,
     (issue as any).editorsLetter,
@@ -162,22 +165,45 @@ function buildFallbackEditorialPage(existingPages: MagazinePage[], issue: Magazi
   const author = String(
     (issue as any).editor || (issue as any).editorName || (issue as any).editorInChief || 'Gill Laidler',
   ).trim();
+  const issueTitle = String(issue.title || '').trim();
   const issueDate = String(issue.publishDate || '').trim();
-  const derivedTitle = String((issue as any).editorsNoteTitle || (issue as any).editorNoteTitle || "Editor's Note").trim();
-  // Choose id;
+  const derivedTitle = String(
+    (issue as any).editorsNoteTitle ||
+    (issue as any).editorNoteTitle ||
+    (issueTitle ? `Welcome to the ${issueTitle}` : "Editor's Note"),
+  ).trim();
   const maxId = existingPages.reduce((m, p) => (typeof p.id === 'number' ? Math.max(m, p.id) : m), 0);
-  // Insert between cover (1 and rest: use id=2 if no other page id=2 exists, otherwise find smallest free slot after cover
   const coverPage = existingPages.find((p) => String(p.type || '').toLowerCase() === 'cover');
   const coverId = coverPage && typeof coverPage.id === 'number' ? coverPage.id : 0;
+  // Prefer id = coverId + 1 (typically 2) — even if another page already has that numeric id
+  // (e.g. Contents itself is id=2). Because our findIndex click handler uses findIndex which
+  // returns the FIRST occurrence matching page.id, and we splice our synthetic editorial into
+  // array position coverId + 1 (index) so it wins the click delegation jump for that numeric id.
+  // This means the Contents grid's "Editor's Note" card data-page="2" / page=2 correctly lands
+  // on the synthetic Editor's Note page, not on the Contents page that may share the numeric id.
   let newId = coverId + 1 || 2;
-  if (existingPages.some((p) => p.id === newId)) {
-    newId = maxId + 1;
+  if (typeof newId !== 'number' || !Number.isFinite(newId) || newId < 1) {
+    newId = Math.max(0, maxId) + 9999;
   }
-  const quote = String((issue as any).editorQuote || '').trim();
-  const textSource = typeof editorial === 'string' ? editorial : '';
-  const image = String(
-    (issue as any).editorImage || (issue as any).editorPhoto || (issue as any).editorHeadshot || (issue as any).editorPortrait || '',
+  const quote = String(
+    (issue as any).editorQuote ||
+    'True leadership is about creating a space where others can flourish.',
   ).trim();
+  const textSource = typeof editorialText === 'string' ? editorialText : '';
+  const image = String(
+    (issue as any).editorImage ||
+    (issue as any).editorPhoto ||
+    (issue as any).editorHeadshot ||
+    (issue as any).editorPortrait ||
+    DEFAULT_EDITOR_HEADSHOT,
+  ).trim();
+  const issueMonths = issueTitle || (issueDate ? new Date(issueDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'this edition');
+  const fallbackIntro = `Welcome to ${issueMonths} of Yorkshire BusinessWoman magazine — a celebration of resilience, creativity, and the outstanding women shaping our region.`;
+  const fallbackBody = `Across these pages you will meet founders, leaders, and changemakers who turn setbacks into momentum and inspire the next generation. As always, none of this would be possible without our sponsors, partners, committee, and the wider YBW community. Thank you for reading, for contributing, and for leading with courage. Enjoy the issue.`;
+  const intro = String(
+    (issue as any).editorIntro || (typeof editorialText === 'string' ? '' : fallbackIntro),
+  ).trim();
+  const text = textSource || `<p>${intro}</p><p>${fallbackBody}</p>`;
   const content: Record<string, unknown> = {
     title: derivedTitle,
     author,
@@ -185,9 +211,13 @@ function buildFallbackEditorialPage(existingPages: MagazinePage[], issue: Magazi
     image,
     featureImage: image,
     heroImage: image,
+    mainImage: image,
+    photo: image,
+    headshot: image,
+    portrait: image,
     quote,
-    text: textSource,
-    intro: String((issue as any).editorIntro || '').trim(),
+    text,
+    intro,
     issueDate,
     synthetic: true,
   };
@@ -259,10 +289,13 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   const renderedPages = useMemo(() => {
     const sortedPages = [...pages].sort((left, right) => left.id - right.id);
     const fallbackEditorial = buildFallbackEditorialPage(sortedPages, issue);
-    const basePages = fallbackEditorial
-      ? [...sortedPages, fallbackEditorial].sort((left, right) => left.id - right.id)
-      : sortedPages;
-    return basePages.map((page) => {
+    const orderedPages = [...sortedPages];
+    if (fallbackEditorial) {
+      const coverIndex = orderedPages.findIndex((p) => String(p.type || '').toLowerCase() === 'cover');
+      const insertAt = coverIndex !== -1 ? coverIndex + 1 : 1;
+      orderedPages.splice(insertAt, 0, fallbackEditorial);
+    }
+    return orderedPages.map((page) => {
       const Renderer = PAGE_RENDERERS[page.type] ?? PageFeatureLeft;
       return {
         page,
