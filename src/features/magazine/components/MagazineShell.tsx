@@ -132,20 +132,21 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     const root = stageRef.current;
     if (!root) return;
     const handleClick = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement).closest("a[href]");
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a[data-page]") || target.closest("a[href*='?page=']");
       if (!anchor) return;
-      const href = anchor.getAttribute("href") || "";
-      const match = href.match(/\/magazine\/read\/[^?]+\?page=(\d+)/);
-      if (!match) return;
       e.preventDefault();
-      const pageNum = Number.parseInt(match[1], 10);
+      e.stopPropagation();
+      const pageNum = Number.parseInt(anchor.getAttribute("data-page") ?? "", 10);
       if (Number.isFinite(pageNum) && pageNum >= 1) {
         const idx = pageNum - 1;
-        if (idx < renderedPages.length) goToPage(idx);
+        if (idx < renderedPages.length) {
+          goToPage(idx);
+        }
       }
     };
-    root.addEventListener("click", handleClick);
-    return () => root.removeEventListener("click", handleClick);
+    root.addEventListener("click", handleClick, true);
+    return () => root.removeEventListener("click", handleClick, true);
   }, [renderedPages.length, goToPage]);
 
   useEffect(() => {
