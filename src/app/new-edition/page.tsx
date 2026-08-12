@@ -99,7 +99,10 @@ export default async function NewEditionPage() {
     readerEditions[0] ??
     null;
   const matchedLatestLegacyIssue = latestReaderEdition
-    ? issues.find((issue) => editionRecordsMatch(issue, latestReaderEdition)) ?? null
+    ? issues.find((issue) => (
+        editionRecordsMatch(issue, latestReaderEdition) &&
+        (issue.flipbookUrl || issue.pdfUrl)
+      )) ?? null
     : null;
   const flipbookIssue = latestReaderEdition
     ? matchedLatestLegacyIssue && (matchedLatestLegacyIssue.flipbookUrl || matchedLatestLegacyIssue.pdfUrl)
