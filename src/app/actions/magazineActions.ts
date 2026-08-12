@@ -8,7 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug } from '@/features/magazine/server/simple-reader';
 
 const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
 
@@ -1126,8 +1126,10 @@ export async function publishIdmlEditionAction(params: {
     const slug = slugify(params.title) || `edition-${Date.now()}`;
     const now = new Date().toISOString();
 
+    const existingId = await getReaderEditionIdBySlug(slug);
+
     const edition: ReaderEdition = {
-      id: `idml-${slug}-${Date.now().toString(36)}`,
+      id: existingId ?? `idml-${slug}-${Date.now().toString(36)}`,
       slug,
       title: params.title,
       description: params.description,

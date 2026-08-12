@@ -605,6 +605,16 @@ export async function getReaderEditionBySlug(slug: string): Promise<ReaderEditio
   return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
 }
 
+export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
+  if (!adminDb) return null;
+  const snapshot = await adminDb
+    .collection(COLLECTION)
+    .where('slug', '==', slug)
+    .limit(1)
+    .get();
+  return snapshot.empty ? null : snapshot.docs[0].id;
+}
+
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
   if (!adminDb) return null;
   const doc = await adminDb.collection(COLLECTION).doc(id).get();
