@@ -499,7 +499,9 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
 
         <div
           data-debug-reader-stage="true"
-          id={`page-${current.page.id}`}
+          id={`page-${current.page.id}-${currentPage}`}
+          data-page-id={String(current.page.id)}
+          data-page-position={String(currentPage + 1)}
           className="relative h-full w-full max-h-full self-center overflow-y-auto overflow-x-hidden overscroll-contain"
         >
           <current.Renderer data={current.data} imageVersion={imageVersion} />
@@ -566,7 +568,8 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
                 className={`h-2 rounded-full transition-all ${
                   isActive ? 'w-8 bg-[#a3413a]' : 'w-2 bg-white/20 hover:bg-white/40'
                 }`}
-                aria-label={`Go to page ${entry.page.id}`}
+                aria-label={`Go to page ${index + 1}${entry.label ? `: ${entry.label}` : ''}`}
+                title={entry.label ? entry.label : undefined}
               />
             );
           })}
