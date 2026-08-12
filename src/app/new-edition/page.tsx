@@ -111,8 +111,8 @@ export default async function NewEditionPage() {
       ?? liveIssue;
   const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-  const mergedIssues = issues.filter((issue) => (
-    !readerEditions.some((edition) => editionRecordsMatch(issue, edition))
+  const archiveIssues = issues.filter((issue) => (
+    Boolean(issue.flipbookUrl || issue.pdfUrl)
   ));
   const featuredPost = ghostPosts[0];
 
@@ -402,67 +402,12 @@ export default async function NewEditionPage() {
               Edition Archive
             </h2>
               <p className="mt-4 text-muted-foreground">
-                Access past editions in the digital reader, with print-led alternatives still available where they exist.
+                Browse past editions in the familiar page-turning format.
               </p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Reader Editions (IDML-imported) */}
-            {readerEditions.map((edition) => (
-              (() => {
-                const editionHref = `/magazine/read/${edition.slug}`;
-                const ctaLabel = 'Open Digital Edition';
-                const editionCoverImage = getArchiveCoverForEdition(edition, issues, IMAGE_VERSION);
-
-                return (
-              <div key={edition.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
-                <Link 
-                  href={editionHref}
-                  className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={editionCoverImage}
-                    alt={edition.title}
-                    className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
-                    <div className="rounded-full bg-white/10 backdrop-blur-md p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/20">
-                      <BookOpen className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="absolute top-2 right-2">
-                    <Badge className="bg-accent text-white border-none shadow-lg text-[10px] px-2 py-0">DIGITAL</Badge>
-                  </div>
-                </Link>
-
-                <div className="flex flex-1 flex-col p-6 items-center">
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(edition.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                  </div>
-                  <h3 className="mb-2 font-serif text-lg font-medium text-foreground transition-colors group-hover:text-accent line-clamp-1">
-                    {edition.title}
-                  </h3>
-                  <p className="mb-4 line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                    {edition.description}
-                  </p>
-                  
-                  <div className="mt-auto flex flex-col gap-2 w-full">
-                    <Button variant="outline" size="sm" className="rounded-full text-[10px] h-8" asChild>
-                      <Link href={editionHref}>
-                        {ctaLabel}
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-                );
-              })()
-            ))}
-
-            {/* Legacy Issues (magazine_issues) */}
-            {mergedIssues.map((issue: any) => (
+            {archiveIssues.map((issue: any) => (
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 <div className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
