@@ -1538,7 +1538,7 @@ export const PageEditorial = ({ data, imageVersion }: any) => {
 // ─────────────────────────────────────────────
 // CONTENTS PAGE
 // ─────────────────────────────────────────────
-export const PageContents = ({ data, imageVersion, pages, onNavigateToPage }: any) => {
+export const PageContents = ({ data, imageVersion, pages, onNavigateToPage, editionSlug }: any) => {
   const ref = useRef<HTMLDivElement>(null);
   useScrollReveal(ref, { threshold: 0.1 });
 
@@ -1652,11 +1652,18 @@ export const PageContents = ({ data, imageVersion, pages, onNavigateToPage }: an
             const pageLabel = Number.isFinite(pageNum)
               ? String(pageNum).padStart(2, "0")
               : "";
+            const pageHref = editionSlug && Number.isFinite(pageNum)
+              ? `/magazine/read/${editionSlug}?page=${pageNum}`
+              : undefined;
             return (
-              <button
+              <a
                 key={`${pageLabel}-${item?.title ?? i}`}
-                onClick={() => handleItemClick(rawPage)}
-                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300 text-left w-full`}
+                href={pageHref}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleItemClick(rawPage);
+                }}
+                className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300 text-left w-full block`}
               >
                 <div className="p-5 flex flex-col h-full min-h-[130px] relative">
                   <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
@@ -1681,7 +1688,7 @@ export const PageContents = ({ data, imageVersion, pages, onNavigateToPage }: an
                   </p>
                   <div className="mt-3 h-0.5 w-8 rounded-full bg-[#a3413a] group-hover:w-14 transition-all duration-300" />
                 </div>
-              </button>
+              </a>
             );
           })}
         </div>
