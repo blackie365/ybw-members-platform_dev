@@ -237,9 +237,9 @@ export default async function NewEditionPage() {
         <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
             <div className="mb-10 text-center">
-                <h2 className="font-serif text-3xl font-medium sm:text-4xl">Flipping Book</h2>
+                <h2 className="font-serif text-3xl font-medium sm:text-4xl">The Complete Edition, At Your Fingertips</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  Prefer a page-turning presentation? The same edition is also available here in its familiar flipping-book format.
+                  Explore every feature, interview and insight from the latest edition below — beautifully presented in a familiar page-turning format you can enjoy on any device.
               </p>
             </div>
 
