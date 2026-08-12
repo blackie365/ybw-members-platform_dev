@@ -54,7 +54,17 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     loadTemplateRenderers();
     setRenderersLoaded(true);
     setImageVersion(Date.now().toString());
-  }, []);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pageParam = Number.parseInt(params.get("page") ?? "", 10);
+      if (Number.isFinite(pageParam) && pageParam >= 1) {
+        const idx = pageParam - 1;
+        if (idx < (Array.isArray(edition.pages) ? edition.pages.length : 0)) {
+          setCurrentPage(idx);
+        }
+      }
+    } catch {}
+  }, [edition]);
 
   const pages = useMemo(() => {
     const basePages = Array.isArray(edition.pages) ? [...edition.pages] : [];
@@ -122,6 +132,11 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     if (stageRef.current) {
       stageRef.current.scrollTop = 0;
     }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("page", String(currentPage + 1));
+      window.history.replaceState(null, "", url.toString());
+    } catch {}
   }, [currentPage]);
 
   useEffect(() => {
@@ -298,6 +313,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
                   const idx = renderedPages.findIndex((rp) => rp.page.id === pageId);
                   if (idx !== -1) goToPage(idx);
                 }}
+                editionSlug={edition.slug}
               />
             ) : current ? (
               <section className="mx-auto max-w-6xl px-6 py-16">

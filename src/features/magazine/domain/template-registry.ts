@@ -13,6 +13,7 @@ export interface TemplateRenderProps {
   imageVersion?: string;
   pages?: Array<{ id: string; position: number }>;
   onNavigateToPage?: (pageId: string) => void;
+  editionSlug?: string;
 }
 
 interface TemplateRegistryEntry {
