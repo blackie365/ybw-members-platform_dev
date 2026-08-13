@@ -1306,6 +1306,9 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
       ? rawLink
       : `https://${rawLink}`
     : "";
+  const logo = String(
+    data?.logoImage || data?.partnerLogo || "",
+  ).trim();
 
   return (
     <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
@@ -1393,6 +1396,21 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
             Visit
             <ArrowRight className="h-4 w-4" />
           </a>
+        </div>
+      ) : null}
+
+      {logo ? (
+        <div className="absolute bottom-6 left-6 z-10 pointer-events-none">
+          <div className="flex items-center max-w-[42%] px-3 py-2 rounded-xl bg-black/40 backdrop-blur-sm border border-white/10">
+            <Image
+              src={fixMagazineImageUrl(logo, imageVersion)}
+              alt={String(data?.brand || label || "Sponsor logo").trim()}
+              width={256}
+              height={64}
+              className="h-auto max-h-16 w-auto object-contain"
+              style={{ maxHeight: 64 }}
+            />
+          </div>
         </div>
       ) : null}
     </div>
@@ -2710,6 +2728,10 @@ export const PagePartner = ({ data, imageVersion }: any) => {
   );
   const featureImage = String(data.featureImage || data.image || "").trim();
   const backgroundMedia = featureImage;
+  const logo = String(
+    data?.logoImage || data?.partnerLogo || "",
+  ).trim();
+  const logoAlt = String(data?.brand || data?.title || "Partner logo").trim();
 
   if (isFullBackground) {
     return (
@@ -2748,6 +2770,20 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                   {kicker}
                 </p>
+              )}
+              {logo && (
+                <div className="scroll-reveal scroll-reveal-delay-1">
+                  <div className="inline-flex px-4 py-2.5 rounded-2xl bg-black/35 backdrop-blur-sm border border-white/10">
+                    <Image
+                      src={fixMagazineImageUrl(logo, imageVersion)}
+                      alt={logoAlt}
+                      width={280}
+                      height={72}
+                      className="h-auto max-h-16 w-auto object-contain"
+                      style={{ maxHeight: 64 }}
+                    />
+                  </div>
+                </div>
               )}
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-white">
@@ -2828,6 +2864,20 @@ export const PagePartner = ({ data, imageVersion }: any) => {
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a3413a] mb-2">
                 {kicker}
               </p>
+            )}
+            {logo && (
+              <div className="scroll-reveal scroll-reveal-delay-1">
+                <div className="inline-flex px-4 py-2.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+                  <Image
+                    src={fixMagazineImageUrl(logo, imageVersion)}
+                    alt={logoAlt}
+                    width={280}
+                    height={72}
+                    className="h-auto max-h-16 w-auto object-contain"
+                    style={{ maxHeight: 64 }}
+                  />
+                </div>
+              </div>
             )}
             <h2 className="text-section-lg font-serif font-600 text-white">
               {renderTitleArt(data.title || data.brand)}

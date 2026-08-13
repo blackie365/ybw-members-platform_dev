@@ -262,11 +262,21 @@ function getPageImages(
   page: ParsedIdmlPage,
   fallbacks: string[] = [],
 ): string[] {
+  const logoSet = new Set<string>(page?.logoImageFileNames || []);
+  const contentOnly = (page?.imageFileNames || []).filter(
+    (name) => !logoSet.has(name),
+  );
   return uniqueStrings([
-    ...page.imageFileNames,
-    ...getOrderedPageStories(page).flatMap((story) => story.imageHints),
-    ...fallbacks,
+    ...contentOnly,
+    ...getOrderedPageStories(page).flatMap((story) => story.imageHints).filter(
+      (name) => !logoSet.has(name),
+    ),
+    ...(fallbacks || []).filter((name) => !logoSet.has(name)),
   ]);
+}
+
+function getLogoImages(page: ParsedIdmlPage): string[] {
+  return uniqueStrings(page?.logoImageFileNames || []);
 }
 
 function isRasterImageFileName(value: string): boolean {
@@ -460,6 +470,8 @@ function buildFeatureContent(
   const bodyText = article.pageBodies[pageNum] || getPageBodyText(page);
   const pageImages = getPageImages(page, article.images);
   const imageUrl = pageImages[0] || article.images[0] || "";
+  const logos = getLogoImages(page);
+  const logoHero = logos[0] || "";
   const standfirst = isFirstPage ? getStandfirst(bodyText || article.body) : "";
   const isContinuation = !isFirstPage;
 
@@ -478,6 +490,9 @@ function buildFeatureContent(
     images: pageImages,
     gallery: pageImages,
     additionalImages: pageImages.slice(1),
+    logoImage: logoHero,
+    logoImages: logos,
+    partnerLogo: logoHero,
     pullQuotes: [],
     kicker: isFirstPage ? "Feature" : "Continued Feature",
     mediaLayout:
@@ -519,6 +534,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   const coverImages = coverSourcePage
     ? getPageImages(coverSourcePage, coverSourceArticle?.images || [])
     : [];
+  const coverLogos = coverSourcePage ? getLogoImages(coverSourcePage) : [];
+  const coverLogo = coverLogos[0] || "";
 
   if (coverSourcePage) {
     result.push({
@@ -539,6 +556,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         mainImage: coverImages[0] || "",
         images: coverImages,
         gallery: coverImages,
+        logoImage: coverLogo,
+        logoImages: coverLogos,
+        partnerLogo: coverLogo,
         kicker: "Digital Edition",
       },
     });
@@ -584,6 +604,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       .join("\n\n");
     const editorImages = getPageImages(editorNotePage);
     const editorHero = editorImages[0] || "";
+    const editorLogos = getLogoImages(editorNotePage);
+    const editorLogo = editorLogos[0] || "";
 
     result.push({
       id: createPageId("page-editor", editorNotePage.pageNumber),
@@ -604,6 +626,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         portrait: editorHero,
         images: editorImages,
         gallery: editorImages,
+        logoImage: editorLogo,
+        logoImages: editorLogos,
+        partnerLogo: editorLogo,
       },
     });
   }
@@ -628,8 +653,10 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
 
     if (detectAdPage(sourcePage)) {
       const pageImages = getPageImages(sourcePage);
+      const adLogos = getLogoImages(sourcePage);
+      const adLogo = adLogos[0] || "";
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-      const adHero = rasterImages[0] || "";
+      const adHero = rasterImages[0] || adLogo; // Fallback: if ONLY logo on page, use it as ad
       result.push({
         id: createPageId(`page-${pageNum}`, "ad"),
         position: 0,
@@ -647,6 +674,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
           backgroundImage: adHero,
           images: rasterImages,
           gallery: rasterImages,
+          logoImage: adLogo,
+          logoImages: adLogos,
+          partnerLogo: adLogo,
           pdfUrl: pdfImage || undefined,
         },
       });
@@ -679,6 +709,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
 
   if (lastMeaningfulPage) {
     const lastImages = getPageImages(lastMeaningfulPage);
+    const lastLogos = getLogoImages(lastMeaningfulPage);
+    const lastLogo = lastLogos[0] || "";
     const { rasterImages, pdfImage } = splitRasterAndPdfImages(lastImages);
     const lastArticle = [...articles]
       .reverse()
@@ -701,6 +733,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         coverImage: backHero,
         images: rasterImages,
         gallery: rasterImages,
+        logoImage: lastLogo,
+        logoImages: lastLogos,
+        partnerLogo: lastLogo,
         pdfUrl: pdfImage || undefined,
         kicker: "Until Next Time",
         ctaLabel: "Browse Archive",

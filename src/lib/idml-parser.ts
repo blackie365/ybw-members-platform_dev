@@ -38,6 +38,12 @@ export interface ParsedIdmlPage {
   labels: string[];
   totalWordCount: number;
   textPreview: string;
+  // Graphic frames explicitly tagged by user via Script Label = "LogoImage".
+  // Kept separate on purpose: NEVER allowed to become the page hero or be
+  // mixed into the gallery block — these are small brand / publication logos
+  // (e.g. "YBW roundel", "Sponsor X logo") that would look absurd if blown
+  // up to full-width hero proportions.
+  logoImageFileNames: string[];
 }
 
 export interface ParsedIdml {
@@ -252,6 +258,17 @@ function isTitleFrame(
   return frameIndex === 0 && isShort;
 }
 
+/**
+ * True when a graphic frame has Script Label === "LogoImage" (case-insensitive).
+ * These images are collected SEPARATELY into page.logoImageFileNames and
+ * EXCLUDED from the normal page.imageFileNames pool, so they can never
+ * become a page hero or part of the article gallery.
+ */
+function isLogoImageLabel(label: string): boolean {
+  const clean = String(label || '').trim().replace(/[\s._-]+/g, '').toLowerCase();
+  return clean === 'logoimage' || clean === 'logo';
+}
+
 function parseSpreadFrames(spreadXml: string): Array<{
   pageName: string;
   pageTransform: { tx: number; ty: number };
@@ -259,6 +276,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
   frames: ParsedFrame[];
   imageFileNames: string[];
   labels: string[];
+  logoImageFileNames: string[];
 }> {
   const result: Array<{
     pageName: string;
@@ -267,6 +285,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
     frames: ParsedFrame[];
     imageFileNames: string[];
     labels: string[];
+    logoImageFileNames: string[];
   }> = [];
 
   const doc = new DOMParser().parseFromString(spreadXml, 'text/xml');
@@ -349,6 +368,7 @@ function parseSpreadFrames(spreadXml: string): Array<{
       frames: [],
       imageFileNames: [],
       labels: [],
+      logoImageFileNames: [],
     };
     result.push(entry);
     return entry;
@@ -403,15 +423,25 @@ function parseSpreadFrames(spreadXml: string): Array<{
       const linkNodes = frame.getElementsByTagName('Link');
       if (linkNodes.length === 0) continue;
 
+      const isLogo = isLogoImageLabel(label);
       for (let linkIdx = 0; linkIdx < linkNodes.length; linkIdx++) {
         const linkNode = linkNodes[linkIdx];
         const fileName = extractFileNameFromUri(
           linkNode.getAttribute('LinkResourceURI') || '',
           linkNode.getAttribute('LinkResourceFormat') || '',
         );
+        if (!fileName) continue;
 
-        if (fileName && !pageEntry.imageFileNames.includes(fileName)) {
-          pageEntry.imageFileNames.push(fileName);
+        // LogoImage-labeled graphics are NEVER allowed to enter the regular
+        // image pool (no hero, no gallery). Put them only into the logo bucket.
+        if (isLogo) {
+          if (!pageEntry.logoImageFileNames.includes(fileName)) {
+            pageEntry.logoImageFileNames.push(fileName);
+          }
+        } else {
+          if (!pageEntry.imageFileNames.includes(fileName)) {
+            pageEntry.imageFileNames.push(fileName);
+          }
         }
       }
     }
@@ -508,6 +538,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     frames: ParsedFrame[];
     imageFileNames: string[];
     labels: string[];
+    logoImageFileNames: string[];
   }> = [];
 
   let pageNumber = 1;
@@ -615,6 +646,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         frames: framesWithTitles,
         imageFileNames: pageData.imageFileNames,
         labels: [...new Set(pageData.labels)],
+        logoImageFileNames: pageData.logoImageFileNames,
       });
 
       pageNumber++;
@@ -647,6 +679,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       labels: pageData.labels,
       totalWordCount: countWords(combinedText),
       textPreview: combinedText.replace(/\s+/g, ' ').slice(0, 180),
+      logoImageFileNames: pageData.logoImageFileNames || [],
     };
   });
 
