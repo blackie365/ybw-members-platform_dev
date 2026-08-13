@@ -207,7 +207,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
-  const skipAutoCreateCounterRef = useRef<number>(0);
   const syncFnRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
   const loadDataLockRef = useRef<Promise<void> | null>(null);
 
@@ -258,16 +257,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       setIssue((prev) => ({ ...prev, storyLibrary: savedLibrary }));
       toast.info('Creating spreads from Story Library…', { id: toastId });
-      const pagesRes = await getMagazinePagesAction(id);
-      const currentPages: MagazinePage[] =
-        pagesRes?.success && Array.isArray(pagesRes.data)
-          ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
-          : [];
-      skipAutoCreateCounterRef.current += 4;
-      const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
-        suppressToast: true,
-      });
-      setPages(nextPages);
+      await loadData(true);
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
       setActiveTab('builder');
     } catch (err: any) {
@@ -433,11 +423,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   // Load Initial Data
-  const loadData = useCallback(async (silentOrOpts?: boolean | { silent?: boolean; skipSync?: boolean }) => {
+  const loadData = useCallback(async (silent = false) => {
     if (loadDataLockRef.current) return loadDataLockRef.current;
-    const opts = typeof silentOrOpts === 'object' ? silentOrOpts : { silent: Boolean(silentOrOpts) };
-    const { silent = false, skipSync = false } = opts;
-
     loadDataLockRef.current = (async () => {
       if (!silent) setLoading(true);
       try {
@@ -503,7 +490,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
         }
 
-        if (!isNew && !skipSync && (loadedPages.length === 0 || loadedStoryLibrary.length > 0)) {
+        // Always auto-create missing spreads after load.
+        // Single-flight lock + idempotent identity-key dedupe guarantee no duplicates.
+        if (!isNew) {
           loadedPages = await runSingleFlightSync(loadedStoryLibrary, loadedPages, {
             suppressToast: true,
           });
@@ -536,19 +525,20 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   }, [isNew, loadData]);
 
+  const didSpreadSyncOnTabRef = useRef(false);
   useEffect(() => {
-    // Always consume ONE skip slot per render, regardless of early exits below.
-    // This ensures delete operations on NON-builder tabs don't leave skip flags dangling
-    // that would later suppress Issue Spreads tab auto-create on first visit.
-    if (skipAutoCreateCounterRef.current > 0) {
-      skipAutoCreateCounterRef.current -= 1;
+    if (activeTab !== 'builder') {
+      didSpreadSyncOnTabRef.current = false;
       return;
     }
-    if (isNew || activeTab !== 'builder' || loading) return;
+    if (isNew || loading || didSpreadSyncOnTabRef.current) return;
     if (syncLockRef.current) return;
-
+    if (pages.length > 0) {
+      didSpreadSyncOnTabRef.current = true;
+      return;
+    }
+    didSpreadSyncOnTabRef.current = true;
     const storyLibrary = issue.storyLibrary || [];
-    if (storyLibrary.length === 0 && pages.length > 0) return;
     let cancelled = false;
     (async () => {
       try {
@@ -561,7 +551,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         const nextPages = await runSingleFlightSync(
           storyLibrary,
           currentPages,
-          { suppressToast: pages.length > 0 },
+          { suppressToast: false },
         );
         if (!cancelled) setPages(nextPages);
       } catch (err) {
@@ -569,7 +559,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, issue.storyLibrary, pages.length, isNew, id, loading, runSingleFlightSync]);
+  }, [activeTab, isNew, loading, pages.length, issue.storyLibrary, id, runSingleFlightSync]);
 
   // Issue Handlers
   const handleSaveIssue = async () => {
@@ -1404,6 +1394,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       let deleted = 0;
       let failed = 0;
+      const deletedDocIds = new Set<string>();
       for (const page of pages) {
         if (!page || typeof page.docId !== 'string') {
           failed++;
@@ -1415,6 +1406,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             failed++;
           } else {
             deleted++;
+            deletedDocIds.add(page.docId);
           }
         } catch {
           failed++;
@@ -1425,8 +1417,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
-      skipAutoCreateCounterRef.current += 6;
-      await loadData({ silent: true, skipSync: true });
+      // Don't call loadData(true) here — its default sync would re-create the
+      // pages we just deleted. Instead, update pages state directly.
+      const remainingPages = pages.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
+        .sort((a, b) => (a.id || 0) - (b.id || 0));
+      setPages(remainingPages);
+      // Reset on-builder spread sync flag so user can navigate away + back to
+      // trigger another empty-spread sync if they want to build from scratch.
+      didSpreadSyncOnTabRef.current = false;
 
       if (failed > 0) {
         toast.warning(
@@ -1531,8 +1529,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       } catch {}
       toast.success('Spread removed');
       if (selectedPageId === pageDocId) setSelectedPageId(null);
-      skipAutoCreateCounterRef.current += 6;
-      await loadData({ silent: true, skipSync: true });
+      // Don't call loadData(true) here — its default sync would recreate the
+      // deleted page (if story for it still exists in library). Update state directly.
+      setPages(nextPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+      didSpreadSyncOnTabRef.current = false;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {
