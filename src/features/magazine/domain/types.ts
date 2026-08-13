@@ -84,4 +84,5 @@ export interface ReaderEdition {
   pageCount: number;
   pages: ReaderPage[];
   createdAt: string;
+  issueId?: string;
 }

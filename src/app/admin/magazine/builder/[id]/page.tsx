@@ -681,6 +681,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  const handleDeleteStoryLibraryAll = async () => {
+    try {
+      await handleSaveStoryLibrary([]);
+      toast.success('Story library cleared');
+    } catch {
+      toast.error('Failed to clear story library');
+    }
+  };
+
   function pickStoryImage(story: any): string {
     if (!story) return '';
     const candidates: string[] = [];
@@ -1991,6 +2000,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   onApplyStory={handleApplyStoryToSelectedPage}
                   onToggleInclusion={handleToggleStoryLibraryInclusion}
                   onRemoveStory={handleRemoveStoryLibraryItem}
+                  onDeleteAll={handleDeleteStoryLibraryAll}
                 />
               </div>
             </div>

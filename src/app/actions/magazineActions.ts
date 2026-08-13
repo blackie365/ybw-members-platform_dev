@@ -1254,6 +1254,7 @@ export async function publishIdmlEditionAction(params: {
   description: string;
   coverImage: string;
   publishDate?: string;
+  issueId?: string;
 }) {
   try {
     await checkAdmin();
@@ -1273,16 +1274,40 @@ export async function publishIdmlEditionAction(params: {
       pageCount: params.pages.length,
       pages: params.pages,
       createdAt: now,
+      issueId: params.issueId || undefined,
     };
 
     await upsertReaderEdition(edition);
+
+    if (params.issueId) {
+      try {
+        await syncReaderEditionsForIssue(params.issueId);
+        if (adminDb) {
+          const issueRef = adminDb.collection('magazine_issues').doc(params.issueId);
+          await issueRef.set({
+            readerEditionId: edition.id,
+            readerEditionSlug: edition.slug,
+            readerEditionPublished: true,
+            readerEditionTitle: edition.title,
+            readerEditionPublishDate: edition.publishDate || now,
+            readerEditionPageCount: edition.pageCount,
+          }, { merge: true }).catch((err) => console.warn('Failed to link reader edition to magazine_issue:', err));
+        }
+      } catch (syncError: any) {
+        console.warn('syncReaderEditionsForIssue failed after publish, edition still saved:', syncError?.message || syncError);
+      }
+    }
+
     await syncReaderEditionCoverFromIssue(edition.id).catch((error) => {
       console.error('Failed to sync edition cover with matched issue:', error);
     });
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
+    if (params.issueId) {
+      safeRevalidatePath(`/admin/magazine/builder/${params.issueId}`);
+    }
 
-    return { success: true, data: { id: edition.id, slug: edition.slug } };
+    return { success: true, data: { id: edition.id, slug: edition.slug, issueId: params.issueId } };
   } catch (error: any) {
     console.error('Error publishing IDML edition:', error);
     return { success: false, error: error.message || 'Failed to publish edition' };

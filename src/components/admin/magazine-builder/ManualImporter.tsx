@@ -261,6 +261,9 @@ export function ManualImporter({
       if (result.success && result.data) {
         const draft = result.data as any;
         const draftPages = Array.isArray(draft.pages) ? draft.pages : [];
+        if (serverIdmlPages.length > 0 || idmlFileName) {
+          return;
+        }
         setServerIdmlPages(draftPages);
         setServerIdmlMeta(draft.metadata || (draftPages.length > 0 ? buildFallbackIdmlDraftMeta(draftPages, draft.fileName || '') : null));
         setServerIdmlStats(draft.stats || (draftPages.length > 0 ? deriveIdmlDraftStats(draftPages) : null));
@@ -269,6 +272,7 @@ export function ManualImporter({
         setShowServerIdmlPreview(draftPages.length > 0);
       }
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -834,6 +838,7 @@ export function ManualImporter({
         title: publishMeta.title,
         description: publishMeta.description,
         coverImage: publishMeta.coverImage,
+        issueId: issueId,
       });
 
       if (!result.success) {
@@ -841,7 +846,11 @@ export function ManualImporter({
         return;
       }
 
-      toast.success(`Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`);
+      toast.success(
+        issueId
+          ? `Published "${publishMeta.title}" (${serverIdmlPages.length} pages) — linked to issue ${issueId}`
+          : `Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`,
+      );
       if (serverIdmlDraftId) {
         deleteIdmlDraft(serverIdmlDraftId).catch((err) => console.warn('[IDML] Failed to delete draft:', err));
       }
