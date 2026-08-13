@@ -5,6 +5,12 @@ import type {
 } from "@/features/magazine/domain/types";
 import type { ParsedIdmlPage, ParsedIdmlStory } from "./idml-parser";
 
+function countWords(text: string | null | undefined): number {
+  const clean = String(text || "").trim();
+  if (!clean) return 0;
+  return clean.split(/\s+/).filter(Boolean).length;
+}
+
 export interface Article {
   title: string;
   author: string;
@@ -58,13 +64,78 @@ function shouldIgnoreDecorativeStory(story: ParsedIdmlStory | undefined): boolea
   return false;
 }
 
+/**
+ * True when a page should be rendered as a full-page ad (full-page-ad)
+ * instead of a 2-column article feature.
+ *
+ * Priority order (HIGHEST → lowest):
+ *   1. EXPLICIT USER LABEL: if ANY frame on the page has InDesign
+ *      Script Label = "AdFrame" (case-insensitive; "Ad Frame", "adframe",
+ *      "ad_frame", "ad" all match) → AD. 100% trust user. TitleFrame and
+ *      BodyFrame text frames ON THE SAME PAGE do NOT cancel this out. They
+ *      are common (ad slogan, sponsor caption).
+ *   2. NEGATIVE OVERRIDES (early escape, never an ad): EditorsFrame /
+ *      ContentsFrame on the page (special reserved templates), OR the page
+ *      is clearly a multi-paragraph article (>= 120 words of body copy
+ *      across page stories) → NOT AN AD. This stops continuation pages of
+ *      long articles (which often have no TitleFrame frame on them) from
+ *      being misclassified as ads via heuristic below.
+ *   3. FALLBACK HEURISTIC (only if no explicit label, no negative override):
+ *      page has >= 1 graphic frame placed, and NO story on the page looks
+ *      like an article (no explicit TitleFrame-labeled frame AND every
+ *      story on the page is < 30 words — e.g. one line "Advertisement" or
+ *      a brand tagline with 6 words) → AD.
+ */
 function detectAdPage(page: ParsedIdmlPage): boolean {
+  // --- 0) Empty page = ad / blank placeholder ---
   if (page.frames.length === 0 && page.stories.length === 0) return true;
-  const labels = page.labels;
-  return (
-    labels.includes("AdFrame") &&
-    !labels.some((label) => label === "TitleFrame" || label === "BodyFrame")
+
+  const labelSet = new Set(
+    page.labels.map((l) =>
+      String(l || "")
+        .trim()
+        .replace(/[\s._-]+/g, "")
+        .toLowerCase(),
+    ),
   );
+
+  // --- 1) EXPLICIT USER LABEL WINS. Always. ---
+  // (matches: "AdFrame", "adframe", "Ad Frame", "ad_frame", "ad", "advert")
+  if (
+    labelSet.has("adframe") ||
+    labelSet.has("ad") ||
+    labelSet.has("advert") ||
+    labelSet.has("advertisement")
+  ) {
+    return true;
+  }
+
+  // --- 2) NEGATIVE: reserved special pages are never ads. ---
+  if (
+    labelSet.has("editorsframe") ||
+    labelSet.has("contentsframe") ||
+    labelSet.has("titleframe") // explicit TitleFrame means the page was authored as an article
+  ) {
+    return false;
+  }
+
+  // Long article bodies are never ads. Continuation pages of long features
+  // almost always have word counts of 120+ even without any title frame.
+  if ((page.totalWordCount || 0) >= 120) return false;
+
+  // --- 3) HEURISTIC fallback (forgotten AdFrame labels on pure ad pages) ---
+  const hasAnyGraphic = (page.imageFileNames?.length || 0) > 0 ||
+    (page.logoImageFileNames?.length || 0) > 0;
+  const hasExplicitBodyFrame = labelSet.has("bodyframe");
+  const hasArticleContent = page.stories.some((story) => {
+    const wc = countWords(story.text || "");
+    // Story with >= 30 real words = editorial, not an ad (ads have short copy)
+    return wc >= 30;
+  });
+  if (hasExplicitBodyFrame || hasArticleContent) return false;
+  // If we reach here: no explicit label, no special page, low word count,
+  // no long story, no explicit body frame. If there are graphics placed → AD.
+  return hasAnyGraphic;
 }
 
 function uniqueStrings(values: Array<string | undefined | null>): string[] {
@@ -280,18 +351,49 @@ function getLogoImages(page: ParsedIdmlPage): string[] {
 }
 
 function isRasterImageFileName(value: string): boolean {
-  return /\.(png|jpe?g|gif|webp|svg)$/i.test(String(value || "").trim());
+  // Extended list: covers the formats InDesign / design agencies typically
+  // place on ad pages. Only truly binary/vector "not renderable in a browser
+  // <img>" formats (ai, indd, key, pub, doc, pages, docx, rtf, zip) are
+  // filtered out. SVG renders fine in <img>.
+  return /\.(png|jpe?g|gif|webp|svg|tiff?|bmp|ico|avif|heic|heif|pdf)$/i.test(
+    String(value || "").trim(),
+  );
 }
 
 function splitRasterAndPdfImages(pageImages: string[]): {
   rasterImages: string[];
   pdfImage: string;
+  otherAssets: string[];
 } {
-  const rasterImages = pageImages.filter(isRasterImageFileName);
-  const pdfImage = pageImages.find((value) =>
-    /\.pdf$/i.test(String(value || "").trim()),
-  );
-  return { rasterImages, pdfImage: pdfImage || "" };
+  const pdfMatches: string[] = [];
+  const raster: string[] = [];
+  const other: string[] = [];
+  const isRasterOrPDF = /\.(png|jpe?g|gif|webp|svg|tiff?|bmp|ico|avif|heic|heif|pdf)$/i;
+  for (const raw of pageImages) {
+    const v = String(raw || "").trim();
+    if (!v) continue;
+    const isPDF = /\.pdf$/i.test(v);
+    if (isPDF) {
+      pdfMatches.push(v);
+      // Include the PDF in raster pool too (as last element) so that pages
+      // with ONLY a placed PDF file (no PNG preview) still have a hero image.
+      // Chrome/Safari/Firefox can render PDFs via <img src> in some contexts
+      // and the object-contain CSS will keep proportions; if the browser
+      // can't render it, the PageFullPageAd template has a "📄 Open PDF"
+      // fallback button anyway.
+      raster.push(v);
+    } else if (isRasterOrPDF.test(v)) {
+      // Real raster (png/jpg/etc) goes FIRST so it wins the hero race.
+      raster.unshift(v);
+    } else {
+      other.push(v);
+    }
+  }
+  return {
+    rasterImages: uniqueStrings(raster),
+    pdfImage: pdfMatches[0] || "",
+    otherAssets: other,
+  };
 }
 
 function getStandfirst(text: string): string {
