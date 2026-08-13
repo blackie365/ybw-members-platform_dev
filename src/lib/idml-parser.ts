@@ -115,13 +115,24 @@ function getFileMimeType(fileName: string): string {
     case 'gif': return 'image/gif';
     case 'webp': return 'image/webp';
     case 'svg': return 'image/svg+xml';
+    case 'tif':
+    case 'tiff': return 'image/tiff';
+    case 'bmp': return 'image/bmp';
+    case 'ico': return 'image/x-icon';
+    case 'avif': return 'image/avif';
+    case 'heic':
+    case 'heif': return 'image/heic';
     case 'pdf': return 'application/pdf';
+    case 'ai': return 'application/postscript';
+    case 'eps': return 'application/postscript';
+    case 'psd': return 'image/vnd.adobe.photoshop';
+    case 'indd': return 'application/x-indesign';
     default: return 'application/octet-stream';
   }
 }
 
 function supportsEmbeddedImageExtraction(fileName: string): boolean {
-  return /^.+\.(png|jpe?g|gif|webp|svg|pdf)$/i.test(fileName);
+  return /^.+\.(png|jpe?g|gif|webp|svg|pdf|tiff?|bmp|ico|avif|heic|heif|ai|eps|psd)$/i.test(fileName);
 }
 
 const IMAGE_MAGIC_BYTES: Record<string, Array<{ bytes: number[]; offset?: number }>> = {
@@ -138,13 +149,37 @@ const IMAGE_MAGIC_BYTES: Record<string, Array<{ bytes: number[]; offset?: number
     { bytes: [0x3c, 0x73, 0x76, 0x67] },
   ],
   pdf: [{ bytes: [0x25, 0x50, 0x44, 0x46] }],
+  tif: [
+    { bytes: [0x49, 0x49, 0x2a, 0x00] }, // little endian
+    { bytes: [0x4d, 0x4d, 0x00, 0x2a] }, // big endian
+  ],
+  tiff: [
+    { bytes: [0x49, 0x49, 0x2a, 0x00] },
+    { bytes: [0x4d, 0x4d, 0x00, 0x2a] },
+  ],
+  bmp: [{ bytes: [0x42, 0x4d] }],
+  ico: [{ bytes: [0x00, 0x00, 0x01, 0x00] }],
+  avif: [
+    { bytes: [0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66], offset: 4 },
+  ],
+  psd: [{ bytes: [0x38, 0x42, 0x50, 0x53] }], // "8BPS"
+  eps: [
+    { bytes: [0x25, 0x21, 0x50, 0x53, 0x2d, 0x41, 0x64, 0x6f, 0x62, 0x65] }, // %!PS-Adobe
+    { bytes: [0xc5, 0xd0, 0xd3, 0xc6] }, // C5D0D3C6 = DCS/Photoshop EPS wrapper
+  ],
+  ai: [
+    { bytes: [0x25, 0x21, 0x50, 0x53, 0x2d, 0x41, 0x64, 0x6f, 0x62, 0x65] },
+  ],
 };
 
 function looksLikeImageData(data: Buffer, fileName: string): boolean {
   if (!data || data.length === 0) return false;
   const ext = (fileName.split('.').pop() || '').toLowerCase();
   const signatures = IMAGE_MAGIC_BYTES[ext];
-  if (!signatures) return false;
+  // For formats we don't know the magic bytes of yet (heic/indd/etc.),
+  // accept the data as-is if it's not empty and has > 1 KB of body (the
+  // real validity check happens downstream when the user tries to open it).
+  if (!signatures) return data.length >= 1024;
   return signatures.every(({ bytes, offset = 0 }) => {
     if (data.length < offset + bytes.length) return false;
     return bytes.every((byte, index) => data[offset + index] === byte);
