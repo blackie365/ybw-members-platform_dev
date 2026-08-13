@@ -471,6 +471,13 @@ function buildFeatureContent(
     standfirst: isFirstPage ? standfirst : undefined,
     imageUrl,
     imageUrls: pageImages,
+    image: imageUrl,
+    featureImage: imageUrl,
+    heroImage: imageUrl,
+    mainImage: imageUrl,
+    images: pageImages,
+    gallery: pageImages,
+    additionalImages: pageImages.slice(1),
     pullQuotes: [],
     kicker: isFirstPage ? "Feature" : "Continued Feature",
     mediaLayout:
@@ -525,6 +532,13 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         standfirst: getStandfirst(coverSourceArticle?.body || coverBody),
         imageUrl: coverImages[0] || "",
         imageUrls: coverImages,
+        image: coverImages[0] || "",
+        featureImage: coverImages[0] || "",
+        heroImage: coverImages[0] || "",
+        coverImage: coverImages[0] || "",
+        mainImage: coverImages[0] || "",
+        images: coverImages,
+        gallery: coverImages,
         kicker: "Digital Edition",
       },
     });
@@ -568,6 +582,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       .map((story) => story.text.trim())
       .filter(Boolean)
       .join("\n\n");
+    const editorImages = getPageImages(editorNotePage);
+    const editorHero = editorImages[0] || "";
 
     result.push({
       id: createPageId("page-editor", editorNotePage.pageNumber),
@@ -577,8 +593,17 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         title: "Editor's Note",
         author: "",
         body: combinedText,
-        imageUrl: getPageImages(editorNotePage)[0] || "",
-        imageUrls: getPageImages(editorNotePage),
+        imageUrl: editorHero,
+        imageUrls: editorImages,
+        image: editorHero,
+        featureImage: editorHero,
+        heroImage: editorHero,
+        mainImage: editorHero,
+        photo: editorHero,
+        headshot: editorHero,
+        portrait: editorHero,
+        images: editorImages,
+        gallery: editorImages,
       },
     });
   }
@@ -604,6 +629,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     if (detectAdPage(sourcePage)) {
       const pageImages = getPageImages(sourcePage);
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+      const adHero = rasterImages[0] || "";
       result.push({
         id: createPageId(`page-${pageNum}`, "ad"),
         position: 0,
@@ -612,8 +638,15 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
           title: "Advertisement",
           label: "Advertisement",
           body: "",
-          imageUrl: rasterImages[0] || "",
+          imageUrl: adHero,
           imageUrls: rasterImages,
+          image: adHero,
+          featureImage: adHero,
+          heroImage: adHero,
+          mainImage: adHero,
+          backgroundImage: adHero,
+          images: rasterImages,
+          gallery: rasterImages,
           pdfUrl: pdfImage || undefined,
         },
       });
@@ -650,6 +683,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     const lastArticle = [...articles]
       .reverse()
       .find((article) => article.endPage <= lastMeaningfulPage.pageNumber);
+    const backHero = rasterImages[0] || "";
 
     result.push({
       id: createPageId("page-back-cover", lastMeaningfulPage.pageNumber),
@@ -658,8 +692,15 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       content: {
         title: "See You Next Issue",
         body: "Thank you for reading Yorkshire BusinessWoman in our digital reader. Browse the archive for more editions and return soon for the next issue.",
-        imageUrl: rasterImages[0] || "",
+        imageUrl: backHero,
         imageUrls: rasterImages,
+        image: backHero,
+        featureImage: backHero,
+        heroImage: backHero,
+        mainImage: backHero,
+        coverImage: backHero,
+        images: rasterImages,
+        gallery: rasterImages,
         pdfUrl: pdfImage || undefined,
         kicker: "Until Next Time",
         ctaLabel: "Browse Archive",
