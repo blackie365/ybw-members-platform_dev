@@ -12,9 +12,34 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
 import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
+
+function pickStoryImage(story: any): string {
+  if (!story) return '';
+  const candidates: string[] = [];
+  const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo'];
+  for (const k of prim) {
+    const v = story[k];
+    if (typeof v === 'string' && v.trim() && !/^(undefined|null)$/i.test(v.trim())) {
+      candidates.push(v.trim());
+    }
+  }
+  const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames'];
+  for (const k of arrs) {
+    const v = story[k];
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (typeof item === 'string' && item.trim() && /^https?:/i.test(item.trim())) {
+          candidates.push(item.trim());
+        }
+      }
+    }
+  }
+  const first = candidates.find((c) => /^https?:/i.test(c)) || candidates[0] || '';
+  return /^(undefined|null)$/i.test(first) ? '' : first;
+}
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -105,6 +130,7 @@ export interface ManualImporterProps {
   isImporting: boolean;
   selectedPageId?: string;
   selectedPageType?: string;
+  selectedPage?: MagazinePage | null | undefined;
   issueId?: string;
   storyLibrary?: StoryLibraryItem[];
   onSaveStoryLibrary?: (storyLibrary: StoryLibraryItem[]) => Promise<void>;
@@ -187,6 +213,7 @@ export function ManualImporter({
   isImporting,
   selectedPageId,
   selectedPageType,
+  selectedPage,
   issueId,
   storyLibrary,
   onSaveStoryLibrary,
@@ -196,6 +223,7 @@ export function ManualImporter({
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [standfirst, setStandfirst] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
@@ -242,6 +270,29 @@ export function ManualImporter({
       }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!selectedPageId || !selectedPage) {
+      setTitle('');
+      setAuthor('');
+      setStandfirst('');
+      setRawText('');
+      setImageUrl('');
+      setImageHints([]);
+      setSelectedStoryPath('');
+      return;
+    }
+    const content = selectedPage.content || {};
+    const manualContent = content.manualContent || content;
+    const storyObj = content.story || manualContent.story || content.article || manualContent.article || {};
+
+    setTitle(String(manualContent.title || content.title || storyObj.title || '').trim());
+    setAuthor(String(manualContent.author || manualContent.name || content.author || content.name || storyObj.author || '').trim());
+    setStandfirst(String(manualContent.intro || manualContent.standfirst || manualContent.role || manualContent.headline || content.intro || content.standfirst || content.role || storyObj.standfirst || '').trim());
+    setRawText(String(manualContent.text || manualContent.body || manualContent.bio || content.text || content.body || content.bio || storyObj.text || storyObj.body || '').trim());
+    setImageUrl(pickStoryImage(storyObj) || pickStoryImage(manualContent) || pickStoryImage(content) || '');
+    setImageHints(Array.isArray(content.imageFileNames) ? content.imageFileNames : Array.isArray(storyObj.imageFileNames) ? storyObj.imageFileNames : Array.isArray(manualContent.imageFileNames) ? manualContent.imageFileNames : []);
+  }, [selectedPageId, selectedPage]);
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -458,61 +509,103 @@ export function ManualImporter({
       return;
     }
 
+    const imgList = imageUrl ? [imageUrl] : [];
+    const commonImageFields = imageUrl
+      ? {
+          image: imageUrl,
+          featureImage: imageUrl,
+          heroImage: imageUrl,
+          mainImage: imageUrl,
+          photo: imageUrl,
+          imageUrl: imageUrl,
+          coverImage: imageUrl,
+          images: imgList,
+          gallery: imgList,
+          additionalImages: imgList,
+        }
+      : {
+          image: '',
+          featureImage: '',
+          heroImage: '',
+          mainImage: '',
+          photo: '',
+          imageUrl: '',
+          coverImage: '',
+          images: [],
+          gallery: [],
+          additionalImages: [],
+        };
+
     // Map manual fields to the selected template type
-    const manualContent: any = {};
+    const manualContent: any = { ...commonImageFields };
     
     switch (selectedPageType) {
       case 'editorial':
         manualContent.title = title || 'Editorial';
         manualContent.author = author || 'Gill Laidler';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
+        manualContent.headshot = imageUrl;
+        manualContent.portrait = imageUrl;
         break;
       case 'column':
         manualContent.title = title || 'Expert Column';
         manualContent.author = author || 'Guest Contributor';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'feature-left': case'feature-right':
         manualContent.name = author || 'Featured Guest';
         manualContent.title = title || 'Feature Story';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
-        manualContent.quote = rawText.substring(0, 100) + '...';
+        manualContent.quote = standfirst || rawText.substring(0, 100) + '...';
         break;
       case 'spotlight':
         manualContent.title = title || 'Member Spotlight';
         manualContent.name = author || 'Member Name';
+        manualContent.role = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.bio = rawText;
-        manualContent.image = imageUrl;
+        manualContent.headshot = imageUrl;
+        manualContent.portrait = imageUrl;
+        manualContent.message = standfirst || rawText.substring(0, 140) + '...';
         break;
       case 'lifestyle':
         manualContent.title = title || 'Lifestyle';
+        manualContent.kicker = 'Lifestyle';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'partner':
         manualContent.title = title || 'Partner Feature';
         manualContent.brand = author || 'Partner Name';
         manualContent.headline = title || 'Partner Feature';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
+        manualContent.partnerLogo = imageUrl;
+        manualContent.logoImage = imageUrl;
+        manualContent.offer = standfirst;
         break;
       case 'back-cover':
         manualContent.title = title || 'Next Edition';
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'full-page-ad':
         manualContent.title = title || 'Advertisement';
-        manualContent.image = imageUrl;
+        manualContent.backgroundImage = imageUrl;
         manualContent.alt = title || 'Advertisement';
         break;
       default:
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         manualContent.title = title;
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
     }
 
     // Mock a post object for the existing onImport handler
@@ -529,6 +622,7 @@ export function ManualImporter({
       setImageUrl('');
       setTitle('');
       setAuthor('');
+      setStandfirst('');
     } catch (err) {
       toast.error('Failed to import manual content');
     }
@@ -827,6 +921,16 @@ export function ManualImporter({
                   onChange={(e) => setAuthor(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Standfirst / Intro / Role</Label>
+              <Textarea 
+                placeholder="Short intro, role, or 1-line standfirst that renders above the main body..." 
+                rows={3}
+                value={standfirst}
+                onChange={(e) => setStandfirst(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">

@@ -220,16 +220,17 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     if (syncLockRef.current) {
       return syncLockRef.current;
     }
+    syncFnRef.current = syncStoryLibrarySpreads;
     syncLockRef.current = (async () => {
       try {
-        const fn = syncFnRef.current;
-        if (!fn) return currentPages;
+        const fn = syncFnRef.current || syncStoryLibrarySpreads;
         return await fn(storyLibrary, currentPages, options);
       } finally {
         syncLockRef.current = null;
       }
     })();
     return syncLockRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleIdmlFileForSpreads = async (file: File) => {
@@ -237,10 +238,24 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Please create the edition first');
       return;
     }
+    if (isIdmlImporting) {
+      toast.info('Still processing previous IDML import…');
+      return;
+    }
     setIsIdmlImporting(true);
     const toastId = 'idml-spread-import';
+    const safetyTimer = setTimeout(() => {
+      setIsIdmlImporting((prev) => {
+        if (prev) {
+          console.warn('[handleIdmlFileForSpreads] forced isIdmlImporting reset after 5 min safety timer');
+          toast.error('IDML import timed out. Try again or refresh.', { id: toastId });
+        }
+        return false;
+      });
+    }, 5 * 60 * 1000);
     try {
       toast.info('Extracting stories from IDML… (this can take 30–60s for a full issue)', { id: toastId });
+      if (!file || file.size <= 0) throw new Error('Please select a valid .idml file');
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('Failed to read IDML file'));
@@ -286,6 +301,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         toast.error(msg, { id: toastId });
       }
     } finally {
+      clearTimeout(safetyTimer);
       setIsIdmlImporting(false);
     }
   };
@@ -1757,7 +1773,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 <Button
                   variant="outline"
                   onClick={() => idmlFileInputRef.current?.click()}
-                  disabled={isIdmlImporting || saving}
+                  disabled={isIdmlImporting}
                   className="border-accent text-accent hover:bg-accent hover:text-white transition-all"
                 >
                   {isIdmlImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
@@ -1845,7 +1861,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                         type="button"
                         variant="outline"
                         onClick={() => idmlFileInputRef.current?.click()}
-                        disabled={isIdmlImporting || saving}
+                        disabled={isIdmlImporting}
                         className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
                       >
                         {isIdmlImporting ? (
@@ -1859,7 +1875,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   </div>
                   <Button
                     onClick={() => idmlFileInputRef.current?.click()}
-                    disabled={isIdmlImporting || saving}
+                    disabled={isIdmlImporting}
                     className="bg-accent hover:bg-accent/90 text-white transition-all"
                   >
                     {isIdmlImporting ? (
@@ -1916,7 +1932,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                       type="button"
                       variant="outline"
                       onClick={() => idmlFileInputRef.current?.click()}
-                      disabled={isIdmlImporting || saving || isNew}
+                      disabled={isIdmlImporting || isNew}
                       className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
                     >
                       {isIdmlImporting ? (
@@ -1930,7 +1946,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 </div>
                 <Button
                   onClick={() => idmlFileInputRef.current?.click()}
-                  disabled={isIdmlImporting || saving || isNew}
+                  disabled={isIdmlImporting || isNew}
                   className="bg-accent hover:bg-accent/90 text-white transition-all sm:mt-6"
                 >
                   {isIdmlImporting ? (
@@ -2025,6 +2041,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                     isImporting={saving}
                     selectedPageId={selectedPageId || undefined}
                     selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
+                    selectedPage={pages.find(p => p.docId === selectedPageId)}
                     issueId={id}
                     storyLibrary={issue.storyLibrary || []}
                     onSaveStoryLibrary={handleSaveStoryLibrary}
