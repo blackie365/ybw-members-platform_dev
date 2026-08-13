@@ -33,6 +33,7 @@ interface PageListProps {
   selectedPageId: string | null;
   onSelectPage: (id: string) => void;
   onDeletePage: (id: string) => void;
+  onDeleteAllPages?: () => Promise<void>;
   onChangeType?: (pageDocId: string, type: string) => void;
   onMovePage: (id: string, direction: 'up' | 'down') => void;
   onMovePageTo: (id: string, position: number) => void;
@@ -44,6 +45,7 @@ export function PageList({
   selectedPageId, 
   onSelectPage, 
   onDeletePage, 
+  onDeleteAllPages,
   onChangeType,
   onMovePage,
   onMovePageTo,
@@ -57,6 +59,8 @@ export function PageList({
   const [dropTargetPageId, setDropTargetPageId] = useState<string | null>(null);
   const [moveDialogPageId, setMoveDialogPageId] = useState<string | null>(null);
   const [moveTargetValue, setMoveTargetValue] = useState('');
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState('');
 
   const moveDialogPageIndex = sortedPages.findIndex((page) => page.docId === moveDialogPageId);
   const moveDialogPageTitle =
@@ -70,13 +74,28 @@ export function PageList({
     <>
     <Card className="min-h-[600px] border-accent/20 w-full overflow-hidden">
       <CardHeader className="px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div>
             <CardTitle className="text-base">Issue Spreads</CardTitle>
             <CardDescription className="text-[10px]">
               {sortedPages.length} {sortedPages.length === 1 ? 'page' : 'pages'} total. Drag to reorder or jump directly to a page number.
             </CardDescription>
           </div>
+          {sortedPages.length > 0 && !!onDeleteAllPages && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-7 text-[10px] px-2.5 gap-1.5 shrink-0"
+              disabled={isSaving}
+              onClick={() => {
+                setDeleteAllOpen(true);
+                setDeleteAllConfirm('');
+              }}
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete All
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="px-2">
@@ -288,6 +307,63 @@ export function PageList({
               }}
             >
               Move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteAllOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteAllOpen(false);
+            setDeleteAllConfirm('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete ALL spreads</DialogTitle>
+            <DialogDescription>
+              This will permanently delete <strong>{sortedPages.length} spread{sortedPages.length === 1 ? '' : 's'}</strong> from this issue. This action cannot be undone. The Story Library and issue metadata will remain untouched.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Type <strong className="text-destructive">DELETE ALL</strong> to confirm:
+            </p>
+            <Input
+              value={deleteAllConfirm}
+              onChange={(e) => setDeleteAllConfirm(e.target.value)}
+              placeholder='Type "DELETE ALL"'
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteAllOpen(false);
+                setDeleteAllConfirm('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                isSaving ||
+                sortedPages.length === 0 ||
+                deleteAllConfirm.trim() !== 'DELETE ALL'
+              }
+              onClick={async () => {
+                if (deleteAllConfirm.trim() !== 'DELETE ALL') return;
+                setDeleteAllOpen(false);
+                setDeleteAllConfirm('');
+                await onDeleteAllPages?.();
+              }}
+            >
+              Delete {sortedPages.length} page{sortedPages.length === 1 ? '' : 's'}
             </Button>
           </DialogFooter>
         </DialogContent>

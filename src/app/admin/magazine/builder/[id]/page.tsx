@@ -1047,6 +1047,97 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     await persistPageOrder(nextPages);
   };
 
+  const handleDeleteAllPages = async () => {
+    const total = pages.length;
+    if (total === 0) return;
+
+    setSaving(true);
+    try {
+      const generatedSpreadIds = new Set(
+        pages
+          .filter((p) => Boolean(p.generatedFromStoryLibrary))
+          .map((p) => p.docId)
+      );
+      if (generatedSpreadIds.size > 0 && Array.isArray(issue.storyLibrary)) {
+        const allDeletedPageKeys = new Set<string>();
+        for (const page of pages) {
+          if (!generatedSpreadIds.has(page.docId)) continue;
+          for (const k of getPageIdentityKeys(page)) {
+            allDeletedPageKeys.add(k);
+          }
+        }
+        if (allDeletedPageKeys.size > 0) {
+          const nextStoryLibrary = issue.storyLibrary.map((story) => {
+            const storyKeys = getStoryIdentityKeys(story);
+            const matchesDeletedPage =
+              storyKeys.length > 0 &&
+              storyKeys.some((key) => allDeletedPageKeys.has(key));
+            if (!matchesDeletedPage || story.includedInPremiumReader === false) {
+              return story;
+            }
+            return { ...story, includedInPremiumReader: false };
+          });
+          const changedStoryLibrary = nextStoryLibrary.some(
+            (story, index) =>
+              story.includedInPremiumReader !==
+              issue.storyLibrary?.[index]?.includedInPremiumReader
+          );
+          if (changedStoryLibrary) {
+            const storyLibraryRes = await saveMagazineStoryLibraryAction(
+              id,
+              nextStoryLibrary
+            );
+            if (!storyLibraryRes.success) {
+              throw new Error(
+                storyLibraryRes.error ||
+                  'Failed to update Story Library inclusion for deleted spreads'
+              );
+            }
+            const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
+              ? storyLibraryRes.data
+              : nextStoryLibrary;
+            setIssue((prev) => ({ ...prev, storyLibrary: persistedStoryLibrary }));
+          }
+        }
+      }
+
+      let deleted = 0;
+      let failed = 0;
+      for (const page of pages) {
+        try {
+          const res = await deleteMagazinePageAction(id, page.docId);
+          if (!res.success) {
+            failed++;
+          } else {
+            deleted++;
+          }
+        } catch {
+          failed++;
+        }
+      }
+
+      setSelectedPageId(null);
+      await syncContentsPage([]);
+      await loadData(true);
+
+      if (failed > 0) {
+        toast.warning(
+          `Deleted ${deleted} of ${total} spread${total === 1 ? '' : 's'}. ${failed} failed.`
+        );
+      } else {
+        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}`);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete all spreads'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeletePage = async (pageDocId: string) => {
     const pageToDelete = pages.find((page) => page.docId === pageDocId);
     const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
@@ -1345,6 +1436,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 selectedPageId={selectedPageId}
                 onSelectPage={setSelectedPageId}
                 onDeletePage={handleDeletePage}
+                onDeleteAllPages={handleDeleteAllPages}
                 onChangeType={(pageDocId, type) => {
                   handleChangePageType(pageDocId, type);
                 }}
