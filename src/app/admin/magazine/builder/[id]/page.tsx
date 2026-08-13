@@ -274,10 +274,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
       setActiveTab('builder');
     } catch (err: any) {
-      console.error(err);
-      const msg = err?.message || 'Failed to import IDML into Issue Spreads';
-      if (typeof msg === 'string' && msg.toLowerCase().includes('unexpected')) {
-        toast.error('A temporary server error occurred during sync. Click Issue Spreads tab to retry.', { id: toastId });
+      console.error('[handleIdmlFileForSpreads] error:', err);
+      const rawMsg = err?.message || err?.toString?.() || 'Failed to import IDML into Issue Spreads';
+      const msg = typeof rawMsg === 'string' ? rawMsg : String(rawMsg);
+      if (msg.toLowerCase().includes('unexpected response was received')) {
+        toast.error(
+          'Sync failed. Try clicking the Issue Spreads tab again, or refresh the page if this keeps happening.',
+          { id: toastId },
+        );
       } else {
         toast.error(msg, { id: toastId });
       }

@@ -10,6 +10,14 @@ import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles } from '@/li
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug } from '@/features/magazine/server/simple-reader';
 
+function safeRevalidatePath(path: string) {
+  try {
+    safeRevalidatePath(path);
+  } catch (error) {
+    console.warn(`safeRevalidatePath failed for ${path}:`, error);
+  }
+}
+
 const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
 
 type StoryLibraryCollectionDoc = {
@@ -726,9 +734,9 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
       console.error('Failed to sync reader edition covers for issue:', error);
     });
 
-    revalidatePath('/admin/magazine');
-    revalidatePath('/magazine');
-    revalidatePath('/new-edition');
+    safeRevalidatePath('/admin/magazine');
+    safeRevalidatePath('/magazine');
+    safeRevalidatePath('/new-edition');
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazineIssueAction:", error);
@@ -764,8 +772,8 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
 
     const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
 
-    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
-    try { revalidatePath('/admin/magazine'); } catch { /* noop */ }
+    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    try { safeRevalidatePath('/admin/magazine'); } catch { /* noop */ }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
     console.error('Error in saveMagazineStoryLibraryAction:', error);
@@ -794,9 +802,9 @@ export async function setLatestMagazineIssueAction(issueId: string) {
       console.error('Failed to sync reader edition covers for latest issue:', error);
     });
 
-    revalidatePath('/admin/magazine');
-    revalidatePath('/new-edition');
-    revalidatePath('/magazine');
+    safeRevalidatePath('/admin/magazine');
+    safeRevalidatePath('/new-edition');
+    safeRevalidatePath('/magazine');
     return { success: true };
   } catch (error: any) {
     console.error("Error in setLatestMagazineIssueAction:", error);
@@ -821,7 +829,7 @@ export async function setFeaturedFlipbookIssueAction(issueId: string) {
       tx.set(issuesRef.doc(issueId), { featureInFlipbook: true, updatedAt: now }, { merge: true });
     });
 
-    revalidatePath('/new-edition');
+    safeRevalidatePath('/new-edition');
     return { success: true };
   } catch (error: any) {
     console.error("Error in setFeaturedFlipbookIssueAction:", error);
@@ -845,9 +853,9 @@ export async function createMagazineIssueAction(data: any) {
       console.error('Failed to sync reader edition covers for new issue:', error);
     });
 
-    revalidatePath('/admin/magazine');
-    revalidatePath('/magazine');
-    revalidatePath('/new-edition');
+    safeRevalidatePath('/admin/magazine');
+    safeRevalidatePath('/magazine');
+    safeRevalidatePath('/new-edition');
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in createMagazineIssueAction:", error);
@@ -861,7 +869,7 @@ export async function deleteMagazineIssueAction(issueId: string) {
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).delete();
-    revalidatePath('/admin/magazine');
+    safeRevalidatePath('/admin/magazine');
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazineIssueAction:", error);
@@ -912,7 +920,7 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -931,7 +939,7 @@ export async function addMagazinePageAction(issueId: string, data: any) {
       updatedAt: new Date().toISOString()
     });
 
-    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -945,7 +953,7 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazinePageAction:", error);
@@ -1140,8 +1148,8 @@ async function importIdmlBufferToStoryLibrary(
   const nextLibrary = mergeStoryLibraryItems(importedItems, existingItems);
   const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
 
-  revalidatePath(`/admin/magazine/builder/${issueId}`);
-  revalidatePath('/admin/magazine');
+  safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+  safeRevalidatePath('/admin/magazine');
 
   return {
     success: true,
@@ -1271,8 +1279,8 @@ export async function publishIdmlEditionAction(params: {
     await syncReaderEditionCoverFromIssue(edition.id).catch((error) => {
       console.error('Failed to sync edition cover with matched issue:', error);
     });
-    revalidatePath('/magazine');
-    revalidatePath('/new-edition');
+    safeRevalidatePath('/magazine');
+    safeRevalidatePath('/new-edition');
 
     return { success: true, data: { id: edition.id, slug: edition.slug } };
   } catch (error: any) {
