@@ -338,6 +338,11 @@ export function PageList({
               placeholder='Type "DELETE ALL"'
               autoFocus
             />
+            {deleteAllConfirm.trim().length > 0 && deleteAllConfirm.trim() !== 'DELETE ALL' && (
+              <p className="text-[11px] text-destructive">
+                Type exactly <strong>DELETE ALL</strong> (case-sensitive) to enable deletion.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button
