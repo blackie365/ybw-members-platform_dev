@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -865,17 +865,21 @@ export function ManualImporter({
           </>
         )}
 
-        <div id="story-library" className="rounded-lg border border-border bg-background p-4 space-y-4">
+        <div id="story-library" className="rounded-lg border-2 border-accent/40 bg-accent/5 p-4 space-y-4">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
-            <p className="text-[10px] text-muted-foreground">
-              Upload one IDML file and the system can pull the stories into the Story Library automatically. Linked images can still be uploaded separately by filename.
+            <p className="text-xs font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+              <BookOpen className="h-3.5 w-3.5" />
+              Import IDML → Story Library → Issue Spreads
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <strong>Recommended path for Issue Spreads:</strong> upload your full <code className="bg-background px-1 rounded border border-border">.idml</code> below.
+              Stories are extracted into the Story Library, then spreads auto-create (Cover → Contents → Articles → Back cover) the next time you visit the <strong>Spread Builder</strong> tab.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">InDesign story file (ICML/XML)</Label>
+              <Label className="text-xs uppercase tracking-wider text-foreground/80">Full InDesign Issue (.idml)</Label>
               <Input
                 type="file"
                 accept=".idml,.icml,.xml,.txt"
@@ -887,7 +891,8 @@ export function ManualImporter({
                 }}
               />
               <p className="text-[10px] text-muted-foreground">
-                For full issue ingestion, use `IDML`. Single `ICML/XML` files are still supported for one-off imports.
+                Upload a full <code>.idml</code> to extract every article into the Story Library.
+                ICML/XML/TXT also accepted for single-story imports.
               </p>
             </div>
 
@@ -904,6 +909,10 @@ export function ManualImporter({
                   handleUploadImages(files);
                 }}
               />
+              <p className="text-[10px] text-muted-foreground">
+                Images embedded inside the IDML are extracted automatically.
+                Add linked graphics here by filename if needed.
+              </p>
             </div>
           </div>
 
