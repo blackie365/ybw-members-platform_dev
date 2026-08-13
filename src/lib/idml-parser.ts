@@ -294,14 +294,37 @@ function isTitleFrame(
 }
 
 /**
- * True when a graphic frame has Script Label === "LogoImage" (case-insensitive).
+ * True when a graphic frame has Script Label = "LogoImage" / "Logo" / "LogoFrame"
+ * / "PartnerLogo" / "SponsorLogo" / "BrandLogo" / "ClientLogo" (case/dash/space
+ * insensitive). Also includes common typos (e.g. "klogoimage" = stray keyboard
+ * key next to 'l') so that labeling mistakes are recovered automatically.
+ *
  * These images are collected SEPARATELY into page.logoImageFileNames and
  * EXCLUDED from the normal page.imageFileNames pool, so they can never
  * become a page hero or part of the article gallery.
  */
 function isLogoImageLabel(label: string): boolean {
   const clean = String(label || '').trim().replace(/[\s._-]+/g, '').toLowerCase();
-  return clean === 'logoimage' || clean === 'logo';
+  switch (clean) {
+    case 'logoimage':
+    case 'logo':
+    case 'logoframe':
+    case 'logotag':
+    case 'partnerlogo':
+    case 'sponsorlogo':
+    case 'brandlogo':
+    case 'clientlogo':
+    case 'publisherlogo':
+    case 'magazinelogo':
+    case 'ybwlogo':
+    // Common typos recovered auto (keyboard fat-finger: 'k' next to 'l' home row)
+    case 'klogoimage':
+    case 'klogo':
+    case 'klg':
+      return true;
+    default:
+      return false;
+  }
 }
 
 function parseSpreadFrames(spreadXml: string): Array<{
