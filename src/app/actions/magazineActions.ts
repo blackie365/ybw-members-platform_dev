@@ -923,16 +923,29 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
 
   let pages = mapIdmlToReaderPages(parsed.pages);
 
+  const resolve = (name: string): string =>
+    name && imageUrls[name] ? imageUrls[name] : name;
   pages = pages.map((page) => ({
     ...page,
     content: {
       ...page.content,
-      imageUrl: page.content.imageUrl
-        ? (imageUrls[page.content.imageUrl] || page.content.imageUrl)
-        : '',
-      imageUrls: (page.content.imageUrls || []).map(
-        (name) => imageUrls[name] || name,
-      ),
+      imageUrl: resolve(page.content.imageUrl || ''),
+      imageUrls: (page.content.imageUrls || []).map(resolve),
+      backgroundImage: resolve(page.content.backgroundImage || ''),
+      // Logo image resolution (separate key; never mixed into hero/gallery)
+      logoImage: resolve(page.content.logoImage || ''),
+      logoImages: (page.content.logoImages || []).map(resolve),
+      partnerLogo: resolve(page.content.partnerLogo || page.content.logoImage || ''),
+      // Canonical aliases (mapper populates these too; resolve so they're all valid URLs)
+      image: resolve(page.content.image || ''),
+      featureImage: resolve(page.content.featureImage || ''),
+      heroImage: resolve(page.content.heroImage || ''),
+      mainImage: resolve(page.content.mainImage || ''),
+      coverImage: resolve(page.content.coverImage || ''),
+      images: (page.content.images || []).map(resolve),
+      gallery: (page.content.gallery || []).map(resolve),
+      additionalImages: (page.content.additionalImages || []).map(resolve),
+      // PDF ads keep special pdfUrl resolution for iframe/CTA src
       pdfUrl: page.content.pdfUrl
         ? (imageUrls[page.content.pdfUrl] || page.content.pdfUrl)
         : undefined,
