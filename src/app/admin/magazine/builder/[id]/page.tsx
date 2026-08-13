@@ -207,10 +207,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
-  const skipNextAutoCreateRef = useRef<boolean>(false);
+  const skipAutoCreateCounterRef = useRef<number>(0);
   const syncFnRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
+  const loadDataLockRef = useRef<Promise<void> | null>(null);
 
-  const runSingleFlightSync = async (
+  const runSingleFlightSync = useCallback(async (
     storyLibrary: any[],
     currentPages: MagazinePage[],
     options?: { suppressToast?: boolean },
@@ -228,7 +229,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
     })();
     return syncLockRef.current;
-  };
+  }, []);
 
   const handleIdmlFileForSpreads = async (file: File) => {
     if (isNew) {
@@ -262,7 +263,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         pagesRes?.success && Array.isArray(pagesRes.data)
           ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
           : [];
-      skipNextAutoCreateRef.current = true;
+      skipAutoCreateCounterRef.current += 4;
       const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
         suppressToast: true,
       });
@@ -432,79 +433,93 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   // Load Initial Data
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      let loadedStoryLibrary: any[] = [];
-      let loadedPages: MagazinePage[] = [];
+  const loadData = useCallback(async (silentOrOpts?: boolean | { silent?: boolean; skipSync?: boolean }) => {
+    if (loadDataLockRef.current) return loadDataLockRef.current;
+    const opts = typeof silentOrOpts === 'object' ? silentOrOpts : { silent: Boolean(silentOrOpts) };
+    const { silent = false, skipSync = false } = opts;
 
-      // Load Issue
-      const issuesRes = await getMagazineIssuesAction();
-      if (issuesRes?.success && issuesRes.data) {
-        const currentIssue = issuesRes.data.find((i: any) => i.id === id);
-        if (currentIssue) {
-          const castIssue = currentIssue as any;
-          // Format date for <input type="date">
-          let formattedDate = castIssue.publishDate || '';
-          if (formattedDate && typeof formattedDate !== 'string') {
-            try {
-              if (formattedDate.seconds) {
-                formattedDate = new Date(formattedDate.seconds * 1000).toISOString().split('T')[0];
-              } else if (formattedDate instanceof Date) {
-                formattedDate = formattedDate.toISOString().split('T')[0];
+    loadDataLockRef.current = (async () => {
+      if (!silent) setLoading(true);
+      try {
+        let loadedStoryLibrary: any[] = [];
+        let loadedPages: MagazinePage[] = [];
+
+        // Load Issue
+        const issuesRes = await getMagazineIssuesAction();
+        if (issuesRes?.success && issuesRes.data) {
+          const currentIssue = issuesRes.data.find((i: any) => i.id === id);
+          if (currentIssue) {
+            const castIssue = currentIssue as any;
+            // Format date for <input type="date">
+            let formattedDate = castIssue.publishDate || '';
+            if (formattedDate && typeof formattedDate !== 'string') {
+              try {
+                if (formattedDate.seconds) {
+                  formattedDate = new Date(formattedDate.seconds * 1000).toISOString().split('T')[0];
+                } else if (formattedDate instanceof Date) {
+                  formattedDate = formattedDate.toISOString().split('T')[0];
+                }
+              } catch (e) {
+                formattedDate = new Date().toISOString().split('T')[0];
               }
-            } catch (e) {
-              formattedDate = new Date().toISOString().split('T')[0];
+            } else if (typeof formattedDate === 'string' && formattedDate.includes('T')) {
+              formattedDate = formattedDate.split('T')[0];
             }
-          } else if (typeof formattedDate === 'string' && formattedDate.includes('T')) {
-            formattedDate = formattedDate.split('T')[0];
+            
+            setIssue({ 
+              id: castIssue.id || id,
+              title: castIssue.title || '',
+              description: castIssue.description || '',
+              publishDate: formattedDate,
+              coverImage: castIssue.coverImage || '',
+              pdfUrl: castIssue.pdfUrl || '',
+              downloadUrl: castIssue.downloadUrl || '',
+              isLatest: castIssue.isLatest || false,
+              tags: castIssue.tags || [],
+              autoSyncCover: castIssue.autoSyncCover !== undefined ? castIssue.autoSyncCover : true,
+              readerType: castIssue.readerType || 'custom',
+              ghostSyncTag: castIssue.ghostSyncTag || '',
+              flipbookUrl: castIssue.flipbookUrl || '',
+              featureInFlipbook: castIssue.featureInFlipbook || false,
+              storyLibrary: Array.isArray(castIssue.storyLibrary) ? castIssue.storyLibrary : []
+            });
           }
-          
-          setIssue({ 
-            id: castIssue.id || id,
-            title: castIssue.title || '',
-            description: castIssue.description || '',
-            publishDate: formattedDate,
-            coverImage: castIssue.coverImage || '',
-            pdfUrl: castIssue.pdfUrl || '',
-            downloadUrl: castIssue.downloadUrl || '',
-            isLatest: castIssue.isLatest || false,
-            tags: castIssue.tags || [],
-            autoSyncCover: castIssue.autoSyncCover !== undefined ? castIssue.autoSyncCover : true,
-            readerType: castIssue.readerType || 'custom',
-            ghostSyncTag: castIssue.ghostSyncTag || '',
-            flipbookUrl: castIssue.flipbookUrl || '',
-            featureInFlipbook: castIssue.featureInFlipbook || false,
-            storyLibrary: Array.isArray(castIssue.storyLibrary) ? castIssue.storyLibrary : []
+        }
+
+        if (!isNew) {
+          const storyLibraryRes = await getMagazineStoryLibraryAction(id);
+          if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
+            loadedStoryLibrary = storyLibraryRes.data;
+            setIssue((prev) => ({
+              ...prev,
+              storyLibrary: storyLibraryRes.data,
+            }));
+          }
+        }
+
+        // Load Pages
+        const pagesRes = await getMagazinePagesAction(id);
+        if (pagesRes?.success && pagesRes.data) {
+          loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
+        }
+
+        if (!isNew && !skipSync && (loadedPages.length === 0 || loadedStoryLibrary.length > 0)) {
+          loadedPages = await runSingleFlightSync(loadedStoryLibrary, loadedPages, {
+            suppressToast: true,
           });
         }
-      }
 
-      if (!isNew) {
-        const storyLibraryRes = await getMagazineStoryLibraryAction(id);
-        if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
-          loadedStoryLibrary = storyLibraryRes.data;
-          setIssue((prev) => ({
-            ...prev,
-            storyLibrary: storyLibraryRes.data,
-          }));
-        }
+        setPages(loadedPages);
+      } catch (error) {
+        console.error('Failed to load data:', error);
+        if (!silent) toast.error('Failed to load magazine data');
+      } finally {
+        if (!silent) setLoading(false);
+        loadDataLockRef.current = null;
       }
-
-      // Load Pages
-      const pagesRes = await getMagazinePagesAction(id);
-      if (pagesRes?.success && pagesRes.data) {
-        loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
-      }
-
-      setPages(loadedPages);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      toast.error('Failed to load magazine data');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [id, isNew]);
+    })();
+    return loadDataLockRef.current;
+  }, [id, isNew, runSingleFlightSync]);
 
   useEffect(() => {
     syncFnRef.current = syncStoryLibrarySpreads;
@@ -522,12 +537,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   }, [isNew, loadData]);
 
   useEffect(() => {
-    if (isNew || activeTab !== 'builder' || loading) return;
-    if (syncLockRef.current) return;
-    if (skipNextAutoCreateRef.current) {
-      skipNextAutoCreateRef.current = false;
+    // Always consume ONE skip slot per render, regardless of early exits below.
+    // This ensures delete operations on NON-builder tabs don't leave skip flags dangling
+    // that would later suppress Issue Spreads tab auto-create on first visit.
+    if (skipAutoCreateCounterRef.current > 0) {
+      skipAutoCreateCounterRef.current -= 1;
       return;
     }
+    if (isNew || activeTab !== 'builder' || loading) return;
+    if (syncLockRef.current) return;
+
     const storyLibrary = issue.storyLibrary || [];
     if (storyLibrary.length === 0 && pages.length > 0) return;
     let cancelled = false;
@@ -550,7 +569,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, issue.storyLibrary, pages.length, isNew, id, loading]);
+  }, [activeTab, issue.storyLibrary, pages.length, isNew, id, loading, runSingleFlightSync]);
 
   // Issue Handlers
   const handleSaveIssue = async () => {
@@ -1406,8 +1425,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
-      skipNextAutoCreateRef.current = true;
-      await loadData(true);
+      skipAutoCreateCounterRef.current += 6;
+      await loadData({ silent: true, skipSync: true });
 
       if (failed > 0) {
         toast.warning(
@@ -1512,8 +1531,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       } catch {}
       toast.success('Spread removed');
       if (selectedPageId === pageDocId) setSelectedPageId(null);
-      skipNextAutoCreateRef.current = true;
-      await loadData(true);
+      skipAutoCreateCounterRef.current += 6;
+      await loadData({ silent: true, skipSync: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {

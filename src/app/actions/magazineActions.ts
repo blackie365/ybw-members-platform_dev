@@ -764,8 +764,8 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
 
     const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
 
-    revalidatePath(`/admin/magazine/builder/${issueId}`);
-    revalidatePath('/admin/magazine');
+    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    try { revalidatePath('/admin/magazine'); } catch { /* noop */ }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
     console.error('Error in saveMagazineStoryLibraryAction:', error);
