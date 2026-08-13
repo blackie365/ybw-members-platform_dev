@@ -206,6 +206,30 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [idmlFileName, setIdmlFileName] = useState<string>('');
   const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
+  const skipNextAutoCreateRef = useRef<boolean>(false);
+  const syncFnRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
+
+  const runSingleFlightSync = async (
+    storyLibrary: any[],
+    currentPages: MagazinePage[],
+    options?: { suppressToast?: boolean },
+  ): Promise<MagazinePage[]> => {
+    if (syncLockRef.current) {
+      return syncLockRef.current;
+    }
+    syncLockRef.current = (async () => {
+      try {
+        const fn = syncFnRef.current;
+        if (!fn) return currentPages;
+        return await fn(storyLibrary, currentPages, options);
+      } finally {
+        syncLockRef.current = null;
+      }
+    })();
+    return syncLockRef.current;
+  };
+
   const handleIdmlFileForSpreads = async (file: File) => {
     if (isNew) {
       toast.error('Please create the edition first');
@@ -238,7 +262,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         pagesRes?.success && Array.isArray(pagesRes.data)
           ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
           : [];
-      const nextPages = await syncStoryLibrarySpreads(savedLibrary, currentPages, {
+      skipNextAutoCreateRef.current = true;
+      const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
         suppressToast: true,
       });
       setPages(nextPages);
@@ -246,7 +271,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       setActiveTab('builder');
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message || 'Failed to import IDML into Issue Spreads', { id: toastId });
+      const msg = err?.message || 'Failed to import IDML into Issue Spreads';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('unexpected')) {
+        toast.error('A temporary server error occurred during sync. Click Issue Spreads tab to retry.', { id: toastId });
+      } else {
+        toast.error(msg, { id: toastId });
+      }
     } finally {
       setIsIdmlImporting(false);
     }
@@ -467,12 +497,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
       }
 
-      if (!isNew) {
-        loadedPages = await syncStoryLibrarySpreads(loadedStoryLibrary, loadedPages, {
-          suppressToast: silent,
-        });
-      }
-
       setPages(loadedPages);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -481,6 +505,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (!silent) setLoading(false);
     }
   }, [id, isNew]);
+
+  useEffect(() => {
+    syncFnRef.current = syncStoryLibrarySpreads;
+  });
 
   useEffect(() => {
     if (!isNew) {
@@ -493,13 +521,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   }, [isNew, loadData]);
 
-  const syncStoryLibrarySpreadsRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
-  useEffect(() => {
-    syncStoryLibrarySpreadsRef.current = syncStoryLibrarySpreads;
-  });
-
   useEffect(() => {
     if (isNew || activeTab !== 'builder' || loading) return;
+    if (syncLockRef.current) return;
+    if (skipNextAutoCreateRef.current) {
+      skipNextAutoCreateRef.current = false;
+      return;
+    }
     const storyLibrary = issue.storyLibrary || [];
     if (storyLibrary.length === 0 && pages.length > 0) return;
     let cancelled = false;
@@ -510,9 +538,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           pagesRes?.success && Array.isArray(pagesRes.data)
             ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
             : [];
-        const fn = syncStoryLibrarySpreadsRef.current;
-        if (!fn || cancelled) return;
-        const nextPages = await fn(storyLibrary, currentPages, { suppressToast: pages.length === 0 });
+        if (cancelled) return;
+        const nextPages = await runSingleFlightSync(
+          storyLibrary,
+          currentPages,
+          { suppressToast: pages.length > 0 },
+        );
         if (!cancelled) setPages(nextPages);
       } catch (err) {
         console.warn('Auto-spread sync failed on tab switch:', err);
@@ -798,10 +829,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         },
         createdAt: new Date().toISOString(),
       };
-      const res = await addMagazinePageAction(id, newCoverPage);
-      if (res.success && res.id) {
-        nextPages = [...nextPages, { ...newCoverPage, docId: String(res.id) }];
-        createdCount += 1;
+      try {
+        const res = await addMagazinePageAction(id, newCoverPage);
+        if (res.success && res.id) {
+          nextPages = [...nextPages, { ...newCoverPage, docId: String(res.id) }];
+          createdCount += 1;
+        }
+      } catch (err: any) {
+        console.warn('Failed to create cover spread:', err);
+        nextPageNumber -= 1;
       }
     }
 
@@ -816,10 +852,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         },
         createdAt: new Date().toISOString(),
       };
-      const res = await addMagazinePageAction(id, newContentsPage);
-      if (res.success && res.id) {
-        nextPages = [...nextPages, { ...newContentsPage, docId: String(res.id) }];
-        createdCount += 1;
+      try {
+        const res = await addMagazinePageAction(id, newContentsPage);
+        if (res.success && res.id) {
+          nextPages = [...nextPages, { ...newContentsPage, docId: String(res.id) }];
+          createdCount += 1;
+        }
+      } catch (err: any) {
+        console.warn('Failed to create contents spread:', err);
+        nextPageNumber -= 1;
       }
     }
 
@@ -848,24 +889,34 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           createdAt: new Date().toISOString(),
         };
 
-        const res = await addMagazinePageAction(id, newPage);
-        if (!res.success || !res.id) {
-          toast.error(res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`);
+        let persisted: MagazinePage | null = null;
+        try {
+          const res = await addMagazinePageAction(id, newPage);
+          if (!res.success || !res.id) {
+            const msg = res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`;
+            toast.error(msg);
+            nextPageNumber -= 1;
+            continue;
+          }
+          persisted = { ...newPage, docId: String(res.id) };
+        } catch (err: any) {
+          console.warn(`Failed to create spread for story "${story.title || ''}"`, err);
+          nextPageNumber -= 1;
           continue;
         }
 
-        const persistedPage: MagazinePage = {
-          ...newPage,
-          docId: String(res.id),
-        };
-        nextPages = [...nextPages, persistedPage];
+        nextPages = [...nextPages, persisted];
         createdCount += 1;
 
         for (const key of storyKeys) {
           existingKeys.add(key);
         }
-        for (const key of getPageIdentityKeys(persistedPage)) {
-          existingKeys.add(key);
+        try {
+          for (const key of getPageIdentityKeys(persisted)) {
+            existingKeys.add(key);
+          }
+        } catch {
+          /* noop */
         }
       }
     }
@@ -901,10 +952,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         },
         createdAt: new Date().toISOString(),
       };
-      const res = await addMagazinePageAction(id, newBackCoverPage);
-      if (res.success && res.id) {
-        nextPages = [...nextPages, { ...newBackCoverPage, docId: String(res.id) }];
-        createdCount += 1;
+      try {
+        const res = await addMagazinePageAction(id, newBackCoverPage);
+        if (res.success && res.id) {
+          nextPages = [...nextPages, { ...newBackCoverPage, docId: String(res.id) }];
+          createdCount += 1;
+        }
+      } catch (err: any) {
+        console.warn('Failed to create back-cover spread:', err);
+        nextPageNumber -= 1;
       }
     }
 
@@ -1350,6 +1406,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
+      skipNextAutoCreateRef.current = true;
       await loadData(true);
 
       if (failed > 0) {
@@ -1455,6 +1512,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       } catch {}
       toast.success('Spread removed');
       if (selectedPageId === pageDocId) setSelectedPageId(null);
+      skipNextAutoCreateRef.current = true;
       await loadData(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');

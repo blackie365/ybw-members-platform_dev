@@ -912,7 +912,7 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    revalidatePath(`/admin/magazine/builder/${issueId}`);
+    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -931,7 +931,7 @@ export async function addMagazinePageAction(issueId: string, data: any) {
       updatedAt: new Date().toISOString()
     });
 
-    revalidatePath(`/admin/magazine/builder/${issueId}`);
+    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -945,7 +945,7 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    revalidatePath(`/admin/magazine/builder/${issueId}`);
+    try { revalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazinePageAction:", error);
