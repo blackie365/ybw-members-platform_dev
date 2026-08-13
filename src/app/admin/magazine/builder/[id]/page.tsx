@@ -208,7 +208,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
   const syncFnRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
-  const loadDataLockRef = useRef<Promise<void> | null>(null);
+  const pagesRef = useRef<MagazinePage[]>([]);
+  const issueRef = useRef<any>(issue);
+  const loadingRef = useRef<boolean>(false);
 
   const runSingleFlightSync = useCallback(async (
     storyLibrary: any[],
@@ -257,7 +259,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       setIssue((prev) => ({ ...prev, storyLibrary: savedLibrary }));
       toast.info('Creating spreads from Story Library…', { id: toastId });
-      await loadData(true);
+      // Do NOT rely on loadData(true) — if initial page load's loadData() is still in-flight
+      // (common when user clicks import immediately), we'd get stale story library.
+      // Instead: fetch pages directly and sync against the just-written savedLibrary.
+      const pagesRes = await getMagazinePagesAction(id);
+      const currentPages: MagazinePage[] =
+        pagesRes?.success && Array.isArray(pagesRes.data)
+          ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+          : [];
+      const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
+        suppressToast: true,
+      });
+      setPages(nextPages);
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
       setActiveTab('builder');
     } catch (err: any) {
@@ -424,10 +437,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   // Load Initial Data
   const loadData = useCallback(async (silent = false) => {
-    if (loadDataLockRef.current) return loadDataLockRef.current;
-    loadDataLockRef.current = (async () => {
-      if (!silent) setLoading(true);
-      try {
+    if (!silent) setLoading(true);
+    try {
         let loadedStoryLibrary: any[] = [];
         let loadedPages: MagazinePage[] = [];
 
@@ -504,11 +515,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         if (!silent) toast.error('Failed to load magazine data');
       } finally {
         if (!silent) setLoading(false);
-        loadDataLockRef.current = null;
       }
-    })();
-    return loadDataLockRef.current;
   }, [id, isNew, runSingleFlightSync]);
+
+  useEffect(() => { pagesRef.current = pages; }, [pages]);
+  useEffect(() => { issueRef.current = issue; }, [issue]);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
 
   useEffect(() => {
     syncFnRef.current = syncStoryLibrarySpreads;
@@ -531,14 +543,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       didSpreadSyncOnTabRef.current = false;
       return;
     }
-    if (isNew || loading || didSpreadSyncOnTabRef.current) return;
+    if (isNew || loadingRef.current || didSpreadSyncOnTabRef.current) return;
     if (syncLockRef.current) return;
-    if (pages.length > 0) {
+    if ((pagesRef.current || []).length > 0) {
       didSpreadSyncOnTabRef.current = true;
       return;
     }
     didSpreadSyncOnTabRef.current = true;
-    const storyLibrary = issue.storyLibrary || [];
+    const storyLibrary = (issueRef.current?.storyLibrary as any[]) || [];
     let cancelled = false;
     (async () => {
       try {
@@ -559,7 +571,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, isNew, loading, pages.length, issue.storyLibrary, id, runSingleFlightSync]);
+  }, [activeTab, isNew, id, runSingleFlightSync]);
 
   // Issue Handlers
   const handleSaveIssue = async () => {
@@ -649,12 +661,37 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  function pickStoryImage(story: any): string {
+    if (!story) return '';
+    const candidates: string[] = [];
+    const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo'];
+    for (const k of prim) {
+      const v = story[k];
+      if (typeof v === 'string' && v.trim() && !/^(undefined|null)$/i.test(v.trim())) {
+        candidates.push(v.trim());
+      }
+    }
+    const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames'];
+    for (const k of arrs) {
+      const v = story[k];
+      if (Array.isArray(v)) {
+        for (const item of v) {
+          if (typeof item === 'string' && item.trim() && /^https?:/i.test(item.trim())) {
+            candidates.push(item.trim());
+          }
+        }
+      }
+    }
+    const first = candidates.find((c) => /^https?:/i.test(c)) || candidates[0] || '';
+    return /^(undefined|null)$/i.test(first) ? '' : first;
+  }
+
   function buildManualContentFromStory(story: any, pageType: string) {
-    const storyTitle = String(story.title || '').trim();
-    const storyAuthor = String(story.author || '').trim();
-    const storyText = String(story.text || '').trim();
-    const storyImage = String(story.imageUrl || '').trim();
-    const storyStandfirst = String(story.standfirst || '').trim();
+    const storyTitle = String(story?.title || '').trim();
+    const storyAuthor = String(story?.author || '').trim();
+    const storyText = String(story?.text || '').trim();
+    const storyImage = pickStoryImage(story);
+    const storyStandfirst = String(story?.standfirst || '').trim();
     const storyQuote = storyStandfirst || (storyText ? `${storyText.substring(0, 140).trim()}...` : '');
     const imgList = storyImage ? [storyImage] : [];
     const commonImageFields = storyImage
@@ -815,7 +852,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         const bp = typeof b?.premiumReaderPriority === 'number' ? b.premiumReaderPriority : 999;
         return ap - bp;
       })[0];
-      const coverImage = String(issue?.coverImage || highestPriorityStory?.imageUrl || '').trim();
+      const coverImageSource =
+        (typeof issue?.coverImage === 'string' && issue.coverImage.trim()) ||
+        pickStoryImage(highestPriorityStory) ||
+        '';
+      const coverImage = /^(undefined|null)$/i.test(coverImageSource) ? '' : coverImageSource;
       const coverTitle = String(issue?.title || highestPriorityStory?.title || 'New Edition').trim();
       const coverDescription = String(issue?.description || highestPriorityStory?.standfirst || '').trim();
       const newCoverPage = {
@@ -937,7 +978,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const bp = typeof b?.premiumReaderPriority === 'number' ? b.premiumReaderPriority : 999;
           return bp - ap;
         })[0];
-      const lastImage = String(lastStory?.imageUrl || issue?.coverImage || '').trim();
+      const lastImageSource = pickStoryImage(lastStory) || (typeof issue?.coverImage === 'string' ? issue.coverImage.trim() : '') || '';
+      const lastImage = /^(undefined|null)$/i.test(lastImageSource) ? '' : lastImageSource;
       const lastTitle = String(lastStory?.title || 'See You Next Issue').trim();
       const newBackCoverPage = {
         id: ++nextPageNumber,
@@ -1422,9 +1464,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const remainingPages = pages.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
         .sort((a, b) => (a.id || 0) - (b.id || 0));
       setPages(remainingPages);
-      // Reset on-builder spread sync flag so user can navigate away + back to
-      // trigger another empty-spread sync if they want to build from scratch.
-      didSpreadSyncOnTabRef.current = false;
 
       if (failed > 0) {
         toast.warning(
@@ -1532,7 +1571,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // Don't call loadData(true) here — its default sync would recreate the
       // deleted page (if story for it still exists in library). Update state directly.
       setPages(nextPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
-      didSpreadSyncOnTabRef.current = false;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {
