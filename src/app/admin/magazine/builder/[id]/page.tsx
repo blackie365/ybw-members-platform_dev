@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, use, useCallback } from 'react';
+import { useState, useEffect, use, useCallback, useRef } from 'react';
 import { 
   ArrowLeft, 
   Save, 
   Loader2,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  Upload,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,7 +23,8 @@ import {
   addMagazinePageAction,
   updateMagazinePageAction,
   deleteMagazinePageAction,
-  getGhostPostsAction
+  getGhostPostsAction,
+  importIdmlToStoryLibraryAction
 } from '@/app/actions/magazineActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -199,6 +202,55 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const [pages, setPages] = useState<MagazinePage[]>([]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
+  const [isIdmlImporting, setIsIdmlImporting] = useState(false);
+  const [idmlFileName, setIdmlFileName] = useState<string>('');
+  const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleIdmlFileForSpreads = async (file: File) => {
+    if (isNew) {
+      toast.error('Please create the edition first');
+      return;
+    }
+    setIsIdmlImporting(true);
+    const toastId = 'idml-spread-import';
+    try {
+      toast.info('Extracting stories from IDML… (this can take 30–60s for a full issue)', { id: toastId });
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as any);
+      }
+      const idmlBase64 = btoa(binary);
+      const res = await importIdmlToStoryLibraryAction(String(id), idmlBase64, file.name);
+      if (!res || !res.success) {
+        const errMsg = res && 'error' in res ? String((res as any).error || '') : '';
+        throw new Error(errMsg || 'IDML import failed');
+      }
+      const savedLibrary: any[] = Array.isArray((res as any).data?.storyLibrary) ? (res as any).data.storyLibrary : [];
+      toast.success(`Imported ${savedLibrary.length} stories into the Story Library`, { id: toastId });
+
+      setIssue((prev) => ({ ...prev, storyLibrary: savedLibrary }));
+      toast.info('Creating spreads from Story Library…', { id: toastId });
+      const pagesRes = await getMagazinePagesAction(id);
+      const currentPages: MagazinePage[] =
+        pagesRes?.success && Array.isArray(pagesRes.data)
+          ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+          : [];
+      const nextPages = await syncStoryLibrarySpreads(savedLibrary, currentPages, {
+        suppressToast: true,
+      });
+      setPages(nextPages);
+      toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
+      setActiveTab('builder');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || 'Failed to import IDML into Issue Spreads', { id: toastId });
+    } finally {
+      setIsIdmlImporting(false);
+    }
+  };
 
   const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
@@ -415,7 +467,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
       }
 
-      if (!isNew && loadedStoryLibrary.length > 0) {
+      if (!isNew) {
         loadedPages = await syncStoryLibrarySpreads(loadedStoryLibrary, loadedPages, {
           suppressToast: silent,
         });
@@ -536,6 +588,32 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const storyImage = String(story.imageUrl || '').trim();
     const storyStandfirst = String(story.standfirst || '').trim();
     const storyQuote = storyStandfirst || (storyText ? `${storyText.substring(0, 140).trim()}...` : '');
+    const imgList = storyImage ? [storyImage] : [];
+    const commonImageFields = storyImage
+      ? {
+          image: storyImage,
+          featureImage: storyImage,
+          heroImage: storyImage,
+          mainImage: storyImage,
+          photo: storyImage,
+          imageUrl: storyImage,
+          coverImage: storyImage,
+          images: imgList,
+          gallery: imgList,
+          additionalImages: imgList,
+        }
+      : {
+          image: '',
+          featureImage: '',
+          heroImage: '',
+          mainImage: '',
+          photo: '',
+          imageUrl: '',
+          coverImage: '',
+          images: [],
+          gallery: [],
+          additionalImages: [],
+        };
 
     switch (pageType) {
       case 'editorial':
@@ -544,8 +622,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           author: storyAuthor || 'Gill Laidler',
           intro: storyStandfirst,
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
+          headshot: storyImage,
+          portrait: storyImage,
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
@@ -556,8 +635,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           category: String(story.premiumReaderContentType || 'Expert Column'),
           intro: storyStandfirst,
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
@@ -568,8 +646,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           title: storyTitle || 'Feature Story',
           intro: storyStandfirst,
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
           quote: storyQuote,
           sourceRef: story.sourceRef,
           storyId: story.id,
@@ -580,8 +657,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           name: storyAuthor || 'Member Name',
           role: storyStandfirst,
           bio: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
+          headshot: storyImage,
+          portrait: storyImage,
           message: storyQuote,
           sourceRef: story.sourceRef,
           storyId: story.id,
@@ -592,8 +670,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           kicker: 'Lifestyle',
           intro: storyStandfirst,
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
@@ -603,8 +680,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           brand: storyAuthor || 'Partner Name',
           headline: storyTitle || 'Partner Feature',
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
+          partnerLogo: storyImage,
+          logoImage: storyImage,
           offer: storyStandfirst,
           sourceRef: story.sourceRef,
           storyId: story.id,
@@ -613,15 +691,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         return {
           title: storyTitle || 'Next Edition',
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
       case 'full-page-ad':
         return {
           title: storyTitle || 'Advertisement',
-          image: storyImage,
+          ...commonImageFields,
+          backgroundImage: storyImage,
           alt: storyTitle || 'Advertisement',
           sourceRef: story.sourceRef,
           storyId: story.id,
@@ -631,8 +709,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           title: storyTitle,
           intro: storyStandfirst,
           text: storyText,
-          image: storyImage,
-          featureImage: storyImage,
+          ...commonImageFields,
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
@@ -644,10 +721,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     currentPages: MagazinePage[],
     options?: { suppressToast?: boolean },
   ) {
-    if (isNew || !Array.isArray(storyLibrary) || storyLibrary.length === 0) {
+    if (isNew) {
       return currentPages;
     }
 
+    const existingTypes = new Set(currentPages.map((p) => p.type).filter(Boolean));
     const existingKeys = new Set<string>();
     for (const page of currentPages) {
       for (const key of getPageIdentityKeys(page)) {
@@ -659,56 +737,156 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     let nextPageNumber = nextPages.reduce((max, page) => Math.max(max, page.id || 0), 0);
     let createdCount = 0;
 
-    const candidateStories = [...storyLibrary]
-      .filter((story) => story && story.includedInPremiumReader !== false)
-      .sort((left, right) => {
+    const includedStories = Array.isArray(storyLibrary)
+      ? storyLibrary.filter((story) => story && story.includedInPremiumReader !== false)
+      : [];
+
+    if (!existingTypes.has('cover')) {
+      const highestPriorityStory = [...includedStories].sort((a, b) => {
+        const ap = typeof a?.premiumReaderPriority === 'number' ? a.premiumReaderPriority : 999;
+        const bp = typeof b?.premiumReaderPriority === 'number' ? b.premiumReaderPriority : 999;
+        return ap - bp;
+      })[0];
+      const coverImage = String(issue?.coverImage || highestPriorityStory?.imageUrl || '').trim();
+      const coverTitle = String(issue?.title || highestPriorityStory?.title || 'New Edition').trim();
+      const coverDescription = String(issue?.description || highestPriorityStory?.standfirst || '').trim();
+      const newCoverPage = {
+        id: ++nextPageNumber,
+        type: 'cover' as const,
+        generatedFromStoryLibrary: true,
+        content: {
+          title: coverTitle,
+          kicker: 'Digital Edition',
+          intro: coverDescription,
+          body: coverDescription,
+          image: coverImage,
+          featureImage: coverImage,
+          heroImage: coverImage,
+          coverImage: coverImage,
+          mainImage: coverImage,
+          imageUrl: coverImage,
+          images: coverImage ? [coverImage] : [],
+          gallery: coverImage ? [coverImage] : [],
+        },
+        createdAt: new Date().toISOString(),
+      };
+      const res = await addMagazinePageAction(id, newCoverPage);
+      if (res.success && res.id) {
+        nextPages = [...nextPages, { ...newCoverPage, docId: String(res.id) }];
+        createdCount += 1;
+      }
+    }
+
+    if (!existingTypes.has('contents')) {
+      const newContentsPage = {
+        id: ++nextPageNumber,
+        type: 'contents' as const,
+        generatedFromStoryLibrary: true,
+        content: {
+          title: 'Contents',
+          items: [],
+        },
+        createdAt: new Date().toISOString(),
+      };
+      const res = await addMagazinePageAction(id, newContentsPage);
+      if (res.success && res.id) {
+        nextPages = [...nextPages, { ...newContentsPage, docId: String(res.id) }];
+        createdCount += 1;
+      }
+    }
+
+    if (includedStories.length > 0) {
+      const candidateStories = [...includedStories].sort((left, right) => {
         const leftPriority = typeof left?.premiumReaderPriority === 'number' ? left.premiumReaderPriority : 999;
         const rightPriority = typeof right?.premiumReaderPriority === 'number' ? right.premiumReaderPriority : 999;
         if (leftPriority !== rightPriority) return leftPriority - rightPriority;
         return String(left?.title || '').localeCompare(String(right?.title || ''));
       });
 
-    for (const story of candidateStories) {
-      const storyKeys = getStoryIdentityKeys(story);
-      if (storyKeys.length === 0 || storyKeys.some((key) => existingKeys.has(key))) {
-        continue;
-      }
+      for (const story of candidateStories) {
+        const storyKeys = getStoryIdentityKeys(story);
+        if (storyKeys.length === 0 || storyKeys.some((key) => existingKeys.has(key))) {
+          continue;
+        }
 
-      const type = inferBuilderPageTypeFromStory(story);
-      const newPage = {
+        const type = inferBuilderPageTypeFromStory(story);
+        const newPage = {
+          id: ++nextPageNumber,
+          type,
+          storyId: String(story.id || '').trim() || undefined,
+          sourceRef: String(story.sourceRef || '').trim() || undefined,
+          generatedFromStoryLibrary: true,
+          content: buildManualContentFromStory(story, type),
+          createdAt: new Date().toISOString(),
+        };
+
+        const res = await addMagazinePageAction(id, newPage);
+        if (!res.success || !res.id) {
+          toast.error(res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`);
+          continue;
+        }
+
+        const persistedPage: MagazinePage = {
+          ...newPage,
+          docId: String(res.id),
+        };
+        nextPages = [...nextPages, persistedPage];
+        createdCount += 1;
+
+        for (const key of storyKeys) {
+          existingKeys.add(key);
+        }
+        for (const key of getPageIdentityKeys(persistedPage)) {
+          existingKeys.add(key);
+        }
+      }
+    }
+
+    if (!existingTypes.has('back-cover')) {
+      const lastStory = [...includedStories]
+        .sort((a, b) => {
+          const ap = typeof a?.premiumReaderPriority === 'number' ? a.premiumReaderPriority : 999;
+          const bp = typeof b?.premiumReaderPriority === 'number' ? b.premiumReaderPriority : 999;
+          return bp - ap;
+        })[0];
+      const lastImage = String(lastStory?.imageUrl || issue?.coverImage || '').trim();
+      const lastTitle = String(lastStory?.title || 'See You Next Issue').trim();
+      const newBackCoverPage = {
         id: ++nextPageNumber,
-        type,
-        storyId: String(story.id || '').trim() || undefined,
-        sourceRef: String(story.sourceRef || '').trim() || undefined,
+        type: 'back-cover' as const,
         generatedFromStoryLibrary: true,
-        content: buildManualContentFromStory(story, type),
+        content: {
+          title: 'See You Next Issue',
+          kicker: 'Until Next Time',
+          body: 'Thank you for reading Yorkshire BusinessWoman in our digital reader. Browse the archive for more editions and return soon for the next issue.',
+          image: lastImage,
+          featureImage: lastImage,
+          heroImage: lastImage,
+          mainImage: lastImage,
+          coverImage: lastImage,
+          imageUrl: lastImage,
+          images: lastImage ? [lastImage] : [],
+          gallery: lastImage ? [lastImage] : [],
+          nextIssue: lastTitle,
+          ctaLabel: 'Browse Archive',
+          ctaHref: '/new-edition',
+        },
         createdAt: new Date().toISOString(),
       };
-
-      const res = await addMagazinePageAction(id, newPage);
-      if (!res.success || !res.id) {
-        toast.error(res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`);
-        continue;
-      }
-
-      const persistedPage: MagazinePage = {
-        ...newPage,
-        docId: String(res.id),
-      };
-      nextPages = [...nextPages, persistedPage];
-      createdCount += 1;
-
-      for (const key of storyKeys) {
-        existingKeys.add(key);
-      }
-      for (const key of getPageIdentityKeys(persistedPage)) {
-        existingKeys.add(key);
+      const res = await addMagazinePageAction(id, newBackCoverPage);
+      if (res.success && res.id) {
+        nextPages = [...nextPages, { ...newBackCoverPage, docId: String(res.id) }];
+        createdCount += 1;
       }
     }
 
     if (createdCount > 0) {
       const sortedNextPages = [...nextPages].sort((left, right) => (left.id || 0) - (right.id || 0));
-      await syncContentsPage(sortedNextPages);
+      try {
+        await syncContentsPage(sortedNextPages);
+      } catch (err) {
+        console.warn('Contents page sync failed after spread creation:', err);
+      }
 
       if (!options?.suppressToast) {
         toast.success(`Added ${createdCount} new spread${createdCount === 1 ? '' : 's'} from the Story Library`);
@@ -1344,6 +1522,20 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <input
+        ref={idmlFileInputRef}
+        type="file"
+        accept=".idml"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            setIdmlFileName(file.name);
+            handleIdmlFileForSpreads(file);
+          }
+          if (idmlFileInputRef.current) idmlFileInputRef.current.value = '';
+        }}
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -1359,12 +1551,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             <p className="text-sm text-muted-foreground">Digital Reader Builder & Content Manager</p>
           </div>
         </div>
-          <div className="flex gap-4">
+          <div className="flex gap-2 flex-wrap items-center">
             {!isNew && (
               <>
-                <Button 
-                  variant="outline" 
-                  onClick={handleBatchSync} 
+                <Button
+                  variant="outline"
+                  onClick={() => idmlFileInputRef.current?.click()}
+                  disabled={isIdmlImporting || saving}
+                  className="border-accent text-accent hover:bg-accent hover:text-white transition-all"
+                >
+                  {isIdmlImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                  Import IDML
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBatchSync}
                   disabled={isBatchSyncing || saving}
                   className="border-accent text-accent hover:bg-accent hover:text-white transition-all"
                 >
@@ -1411,7 +1612,68 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           </TooltipProvider>
         </TabsList>
 
-        <TabsContent value="metadata" className="mt-0">
+        <TabsContent value="metadata" className="mt-0 space-y-8">
+          {!isNew && (
+            <div className="border border-accent/20 rounded-lg overflow-hidden w-full">
+              <div className="bg-accent/5 px-4 py-3">
+                <div className="flex items-start gap-2 text-accent">
+                  <BookOpen className="h-5 w-5 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="text-base font-serif font-semibold">Import InDesign (IDML)</h3>
+                    <p className="text-[10px] text-muted-foreground">
+                      Upload your full issue IDML to populate the Story Library and generate spreads automatically.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-4 py-4 space-y-4 bg-background">
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                  Upload a full <code className="bg-muted/30 px-1 py-0.5 rounded text-[11px]">.idml</code> export from InDesign.
+                  Articles are extracted into the Story Library (including the Editor&rsquo;s Note and short profile/spotlight entries),
+                  then a full spread structure is created: Cover → Contents → Articles (by priority) → Back cover.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                      InDesign File
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-md border border-border bg-muted/10 px-3 py-2 text-xs text-muted-foreground truncate">
+                        {idmlFileName || 'No file selected'}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => idmlFileInputRef.current?.click()}
+                        disabled={isIdmlImporting || saving}
+                        className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
+                      >
+                        {isIdmlImporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        {isIdmlImporting ? 'Importing…' : 'Select .idml File'}
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => idmlFileInputRef.current?.click()}
+                    disabled={isIdmlImporting || saving}
+                    className="bg-accent hover:bg-accent/90 text-white transition-all"
+                  >
+                    {isIdmlImporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <IssueMetadata 
             issue={issue} 
             isNew={isNew} 
@@ -1423,6 +1685,65 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="builder" className="mt-0">
+          <div className="mb-6 border border-accent/20 rounded-lg overflow-hidden w-full">
+            <div className="bg-accent/5 px-4 py-3">
+              <div className="flex items-start gap-2 text-accent">
+                <BookOpen className="h-5 w-5 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-base font-serif font-semibold">Import InDesign (IDML)</h3>
+                  <p className="text-[10px] text-muted-foreground">
+                    Populate the Story Library and auto-generate Cover, Contents, Article and Back-cover spreads.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-4 py-4 space-y-4 bg-background">
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+                Upload a full <code className="bg-muted/30 px-1 py-0.5 rounded text-[11px]">.idml</code> export.
+                Every article is extracted into the Story Library (Editor&rsquo;s Note, spotlights and short profiles included),
+                then spreads are created and ordered by priority: Cover → Contents → Articles → Back cover.
+              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                    InDesign File
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 rounded-md border border-border bg-muted/10 px-3 py-2 text-xs text-muted-foreground truncate">
+                      {idmlFileName || 'No file selected'}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => idmlFileInputRef.current?.click()}
+                      disabled={isIdmlImporting || saving || isNew}
+                      className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
+                    >
+                      {isIdmlImporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      {isIdmlImporting ? 'Importing…' : 'Select .idml File'}
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => idmlFileInputRef.current?.click()}
+                  disabled={isIdmlImporting || saving || isNew}
+                  className="bg-accent hover:bg-accent/90 text-white transition-all sm:mt-6"
+                >
+                  {isIdmlImporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             <div className="lg:col-span-2 min-w-[200px]">
               <PageTypeSelector 

@@ -495,56 +495,170 @@ async function uploadStoryLibraryArticleImages(
   return imageUrls;
 }
 
+function normLabel(s: any): string {
+  return String(s || '')
+    .trim()
+    .replace(/[\s._-]+/g, '')
+    .toLowerCase();
+}
+
+function pageHasLabel(parsedPage: any, targetLabel: string): boolean {
+  const labelsRaw: string[] = Array.isArray(parsedPage?.labels) ? parsedPage.labels : [];
+  const frameLabels: string[] = (parsedPage?.frames || [])
+    .map((f: any) => f?.label)
+    .filter(Boolean);
+  const allLabels = Array.from(new Set([...labelsRaw, ...frameLabels])).filter(Boolean);
+  const target = normLabel(targetLabel);
+  return allLabels.some((l) => normLabel(l) === target);
+}
+
+function extractPageText(parsedPage: any, includeTitles = true): string {
+  const stories: any[] = Array.isArray(parsedPage?.stories) ? parsedPage.stories : [];
+  const frameStoryIds = new Set<string>(
+    [...(parsedPage?.frames || [])]
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+      .map((f: any) => f?.storyId)
+      .filter(Boolean),
+  );
+  const seen = new Set<string>();
+  const orderedStories: any[] = [];
+  for (const fid of frameStoryIds) {
+    const s = stories.find((st) => st.id === fid);
+    if (s && !seen.has(s.id)) {
+      seen.add(s.id);
+      orderedStories.push(s);
+    }
+  }
+  if (orderedStories.length === 0) {
+    for (const s of stories) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        orderedStories.push(s);
+      }
+    }
+  }
+  const titleStoryIds = new Set<string>();
+  for (const f of parsedPage?.frames || []) {
+    if (f?.isTitle) {
+      titleStoryIds.add(f?.storyId);
+    }
+  }
+  const textParts = orderedStories
+    .filter((s) => includeTitles || !titleStoryIds.has(s.id))
+    .map((s) => String(s?.text || '').trim())
+    .filter(Boolean);
+  return normalizeStoryText(textParts.join('\n\n'));
+}
+
+function extractPageImageFileNames(parsedPage: any): string[] {
+  const logoSet = new Set<string>(Array.isArray(parsedPage?.logoImageFileNames) ? parsedPage.logoImageFileNames : []);
+  const pageImages: string[] = Array.isArray(parsedPage?.imageFileNames) ? parsedPage.imageFileNames : [];
+  const storyImages: string[] = (Array.isArray(parsedPage?.stories) ? parsedPage.stories : [])
+    .flatMap((s: any) => Array.isArray(s?.imageHints) ? s.imageHints : [])
+    .filter(Boolean);
+  return Array.from(new Set([...pageImages, ...storyImages])).filter((n) => !logoSet.has(n));
+}
+
 function buildStoryLibraryItemsFromParsedIdml(
   parsed: Awaited<ReturnType<typeof parseIdml>>,
   fileName: string,
   imageUrls: Record<string, string>,
 ): StoryLibraryItem[] {
+  const sortedPages = [...parsed.pages].sort(
+    (a: any, b: any) => Number(a.pageNumber || 0) - Number(b.pageNumber || 0),
+  );
   const articles = detectArticles(parsed.pages);
-  const items: Array<StoryLibraryItem | null> = articles.map((article, index) => {
-      const cleanTitle = normalizeStoryText(article.title || '');
-      const cleanBody = normalizeStoryText(article.body || '');
-      const imageFileNames = Array.from(
-        new Set(
-          (article.images || [])
-            .map((value) => String(value || '').trim())
-            .filter(Boolean),
-        ),
-      );
-      const imageUrl = imageFileNames.find((value) => imageUrls[value]) || '';
-      const defaults = inferStoryLibraryDefaults({
-        title: cleanTitle,
-        body: cleanBody,
-        startPage: article.startPage,
-      });
 
-      if (!cleanTitle || cleanTitle === 'YorkshireBusinessWoman') return null;
-      if (/^\d+$/.test(cleanTitle)) return null;
-      if (/^\<\?ace/i.test(cleanTitle)) return null;
-      if (cleanBody.length < 120) return null;
+  const articleStartPagesCovered = new Set<number>(
+    articles.map((a) => Number(a.startPage)).filter(Boolean),
+  );
 
-      return {
-        id: `idml-${article.startPage}-${article.endPage}-${index + 1}`,
-        title: cleanTitle,
-        standfirst: deriveStandfirst(cleanBody) || undefined,
-        text: cleanBody,
+  const extraItems: StoryLibraryItem[] = [];
+
+  const editorPage = sortedPages.find((p: any) => pageHasLabel(p, 'EditorsFrame'))
+    || sortedPages.find((p: any) => Number(p.pageNumber) === 5);
+
+  if (editorPage && !articleStartPagesCovered.has(Number(editorPage.pageNumber))) {
+    const pageNo = Number(editorPage.pageNumber);
+    const editorBody = extractPageText(editorPage, true);
+    const editorImages = extractPageImageFileNames(editorPage);
+    const imageUrl = editorImages.find((v) => imageUrls[v]) || '';
+    if (editorBody.length >= 40) {
+      extraItems.push({
+        id: `idml-editorial-${pageNo}`,
+        title: "Editor's Note",
+        standfirst: deriveStandfirst(editorBody) || undefined,
+        text: editorBody,
         imageUrl: imageUrl ? imageUrls[imageUrl] : undefined,
-        imageFileNames,
-        includedInPremiumReader: defaults.includedInPremiumReader,
-        premiumReaderPriority: defaults.premiumReaderPriority,
-        premiumReaderContentType: defaults.premiumReaderContentType,
+        imageFileNames: editorImages,
+        includedInPremiumReader: true,
+        premiumReaderPriority: 85,
+        premiumReaderContentType: 'editorial',
         premiumReaderPlacementPreference: 'auto',
-        sourceRef: `${fileName}:pages-${article.startPage}-${article.endPage}`,
+        sourceRef: `${fileName}:pages-${pageNo}-${pageNo}`,
         source: {
           type: 'idml',
           fileName,
-          path: `pages-${article.startPage}-${article.endPage}`,
+          path: `pages-${pageNo}-${pageNo}`,
         },
         createdAt: new Date().toISOString(),
-      } satisfies StoryLibraryItem;
-    });
+      });
+    }
+  }
 
-  return items.filter((item): item is StoryLibraryItem => item !== null);
+  const items: Array<StoryLibraryItem | null> = articles.map((article, index) => {
+    const cleanTitle = normalizeStoryText(article.title || '');
+    const cleanBody = normalizeStoryText(article.body || '');
+    const imageFileNames = Array.from(
+      new Set(
+        (article.images || [])
+          .map((value) => String(value || '').trim())
+          .filter(Boolean),
+      ),
+    );
+    const imageUrl = imageFileNames.find((value) => imageUrls[value]) || '';
+    const defaults = inferStoryLibraryDefaults({
+      title: cleanTitle,
+      body: cleanBody,
+      startPage: article.startPage,
+    });
+    const isEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/i.test(
+      `${cleanTitle} ${cleanBody.slice(0, 240)}`.toLowerCase(),
+    );
+    const isProfileOrSpotlight = /\b(profile|spotlight|member spotlight)\b/i.test(
+      `${cleanTitle} ${cleanBody.slice(0, 240)}`.toLowerCase(),
+    );
+    const minBodyLength = isEditorial || isProfileOrSpotlight ? 40 : 80;
+
+    if (!cleanTitle) return null;
+    if (cleanTitle === 'YorkshireBusinessWoman' && cleanBody.length < 40) return null;
+    if (/^\d+$/.test(cleanTitle)) return null;
+    if (/^\<\?ace/i.test(cleanTitle)) return null;
+    if (cleanBody.length < minBodyLength) return null;
+
+    return {
+      id: `idml-${article.startPage}-${article.endPage}-${index + 1}`,
+      title: cleanTitle,
+      standfirst: deriveStandfirst(cleanBody) || undefined,
+      text: cleanBody,
+      imageUrl: imageUrl ? imageUrls[imageUrl] : undefined,
+      imageFileNames,
+      includedInPremiumReader: defaults.includedInPremiumReader,
+      premiumReaderPriority: defaults.premiumReaderPriority,
+      premiumReaderContentType: defaults.premiumReaderContentType,
+      premiumReaderPlacementPreference: 'auto',
+      sourceRef: `${fileName}:pages-${article.startPage}-${article.endPage}`,
+      source: {
+        type: 'idml',
+        fileName,
+        path: `pages-${article.startPage}-${article.endPage}`,
+      },
+      createdAt: new Date().toISOString(),
+    } satisfies StoryLibraryItem;
+  });
+
+  const articleItems = items.filter((item): item is StoryLibraryItem => item !== null);
+  return [...extraItems, ...articleItems];
 }
 
 export async function getGhostPostsAction(options?: any) {
