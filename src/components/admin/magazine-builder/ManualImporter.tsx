@@ -49,18 +49,22 @@ const deriveStandfirst = (value: string) => {
   return sentence.length <= 180 ? sentence : `${sentence.slice(0, 180).trimEnd()}...`;
 };
 
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = '';
-
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    const chunk = bytes.subarray(index, index + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary);
-};
+const arrayBufferToBase64 = (buffer: ArrayBuffer): Promise<string> =>
+  new Promise<string>((resolve, reject) => {
+    try {
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to encode file'));
+      reader.onload = () => {
+        const raw = String(reader.result || '');
+        const stripped = raw.replace(/^data:[^;]+;base64,/, '');
+        resolve(stripped);
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      reject(err);
+    }
+  });
 
 const getFileNameFromStoragePath = (value: string) => {
   const trimmed = String(value || '').trim().replace(/^gs:\/\//i, '');
@@ -573,7 +577,7 @@ export function ManualImporter({
           res = await response.json();
         } else {
           const fileBuffer = await file.arrayBuffer();
-          const idmlBase64 = arrayBufferToBase64(fileBuffer);
+          const idmlBase64 = await arrayBufferToBase64(fileBuffer);
           res = canSaveDirectly
             ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
             : await extractIdmlStoryLibraryAction(idmlBase64, file.name);

@@ -241,14 +241,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const toastId = 'idml-spread-import';
     try {
       toast.info('Extracting stories from IDML… (this can take 30–60s for a full issue)', { id: toastId });
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      const CHUNK = 0x8000;
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as any);
-      }
-      const idmlBase64 = btoa(binary);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read IDML file'));
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.readAsDataURL(file);
+      });
+      const idmlBase64 = (dataUrl || '').replace(/^data:[^;]+;base64,/, '');
+      if (!idmlBase64) throw new Error('Empty IDML file');
       const res = await importIdmlToStoryLibraryAction(String(id), idmlBase64, file.name);
       if (!res || !res.success) {
         const errMsg = res && 'error' in res ? String((res as any).error || '') : '';
