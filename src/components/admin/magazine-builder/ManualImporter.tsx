@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, uploadIdmlFileToStorageAction } from '@/app/actions/magazineActions';
 
 function pickStoryImage(story: any): string {
   if (!story) return '';
@@ -243,6 +243,14 @@ export function ManualImporter({
   const [serverIdmlFileName, setServerIdmlFileName] = useState('');
   const [showServerIdmlPreview, setShowServerIdmlPreview] = useState(false);
   const [serverIdmlDraftId, setServerIdmlDraftId] = useState('');
+  const [lastIdmlStorageUpload, setLastIdmlStorageUpload] = useState<{
+    gsUrl: string;
+    httpsUrl: string;
+    path: string;
+    fileName: string;
+    sizeBytes: number;
+  } | null>(null);
+  const [isStoringIdml, setIsStoringIdml] = useState(false);
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
@@ -790,6 +798,26 @@ export function ManualImporter({
         );
       });
 
+      try {
+        const match = fileUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+        const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
+        const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
+        const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
+        if (bucketName && objectPath) {
+          const gsUrl = `gs://${bucketName}/${objectPath}`;
+          setLastIdmlStorageUpload({
+            gsUrl,
+            httpsUrl: fileUrl,
+            path: objectPath,
+            fileName: file.name,
+            sizeBytes: file.size,
+          });
+          setStoredIdmlPath(gsUrl);
+        }
+      } catch (parseErr) {
+        console.warn('[IDML] Failed to derive Storage URL for stored-path field:', parseErr);
+      }
+
       toast.info('Parsing IDML on server...', { id: 'upload-progress' });
 
       const result = await importIdmlFromUrlAction(fileUrl, file.name);
@@ -1292,6 +1320,89 @@ export function ManualImporter({
               Parsing IDML file on server...
             </div>
           )}
+
+          {lastIdmlStorageUpload ? (
+            <div className="space-y-3 rounded-md border border-accent/40 bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+                    File saved to Firebase Storage
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {lastIdmlStorageUpload.fileName} ·{' '}
+                    {(lastIdmlStorageUpload.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] shrink-0"
+                  onClick={() => {
+                    if (!lastIdmlStorageUpload) return;
+                    setStoredIdmlPath(lastIdmlStorageUpload.gsUrl);
+                    toast.success('Stored IDML path filled with Firebase Storage URL');
+                  }}
+                >
+                  Fill stored path
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    gs:// URL (use in Stored IDML path)
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.gsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.gsUrl);
+                          toast.success('Copied gs:// URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    HTTPS download URL
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.httpsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.httpsUrl);
+                          toast.success('Copied HTTPS URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {canRenderServerIdmlControls && renderableServerIdmlMeta && (
             <div className="space-y-4">
