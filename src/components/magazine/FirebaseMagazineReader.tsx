@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Maximize2, Minimize2, X } from
 import { Logo } from '@/components/Logo';
 import { Badge } from '@/components/ui/badge';
 import type { MagazineIssue, MagazinePage } from '@/lib/magazine-service';
-import { normalizeImageUrl } from '@/lib/magazine-utils';
+import { normalizeImageUrl, fixMagazineImageUrl } from '@/lib/magazine-utils';
 import {
   PageBackCover,
   PageContents,
@@ -57,9 +57,7 @@ function normalizeImageFields(content: Record<string, unknown>): Record<string, 
     ] as const;
     for (const key of candidates) {
       const v = content[key];
-      // Use canonical normalizer — strips backticks/quotes/brackets/whitespace
-      // and converts gs:// → https fallback.
-      const cleaned = normalizeImageUrl(v);
+      const cleaned = fixMagazineImageUrl(normalizeImageUrl(v));
       if (cleaned) return cleaned;
     }
     const arrKeys = ['media', 'gallery', 'additionalMedia', 'images', 'photos'] as const;
@@ -68,12 +66,12 @@ function normalizeImageFields(content: Record<string, unknown>): Record<string, 
       if (!Array.isArray(arr) || arr.length === 0) continue;
       for (const entry of arr) {
         if (typeof entry === 'string') {
-          const cleaned = normalizeImageUrl(entry);
+          const cleaned = fixMagazineImageUrl(normalizeImageUrl(entry));
           if (cleaned) return cleaned;
         }
         if (entry && typeof entry === 'object') {
           const url = (entry as any).url || (entry as any).src || (entry as any).image;
-          const cleaned = normalizeImageUrl(url);
+          const cleaned = fixMagazineImageUrl(normalizeImageUrl(url));
           if (cleaned) return cleaned;
         }
       }
@@ -81,23 +79,20 @@ function normalizeImageFields(content: Record<string, unknown>): Record<string, 
     return '';
   };
   const chosen = pickImage();
-  // Normalize every image field individually so any of renderers that reads a
-  // specific one (e.g. PageEditorial → featureImage, PageCover → coverImage)
-  // gets a clean URL (no backticks, no whitespace, gs://→https).
   const cleanField = (key: string, fallback = chosen): string => {
-    const v = normalizeImageUrl(content[key]);
+    const v = fixMagazineImageUrl(normalizeImageUrl(content[key]));
     return v || fallback;
   };
-  // Clean all array-valued image lists too.
   const cleanArr = (key: string): string[] => {
     const arr = content[key];
     if (!Array.isArray(arr)) return [];
     const out: string[] = [];
     const seen = new Set<string>();
     for (const entry of arr) {
-      const cleaned = typeof entry === 'string'
+      const cleanedRaw = typeof entry === 'string'
         ? normalizeImageUrl(entry)
         : normalizeImageUrl((entry && typeof entry === 'object') ? ((entry as any).url || (entry as any).src || (entry as any).image) : entry);
+      const cleaned = fixMagazineImageUrl(cleanedRaw);
       if (cleaned && !seen.has(cleaned)) {
         seen.add(cleaned);
         out.push(cleaned);
@@ -130,13 +125,15 @@ function normalizePageData(page: MagazinePage, issue: MagazineIssue) {
   const normalizedImages = normalizeImageFields(content);
 
   if (page.type === 'cover') {
-    const coverImage = normalizeImageUrl(
-      issue.coverImage ||
-      (issue as any).heroImage ||
-      (issue as any).featureImage ||
-      normalizedImages.featureImage ||
-      normalizedImages.image ||
-      '',
+    const coverImage = fixMagazineImageUrl(
+      normalizeImageUrl(
+        issue.coverImage ||
+        (issue as any).heroImage ||
+        (issue as any).featureImage ||
+        normalizedImages.featureImage ||
+        normalizedImages.image ||
+        '',
+      ),
     );
     // CRITICAL SPREAD ORDER: content first, then normalizedImages, then explicit
     // keys last. Prior bug spread ...content last which silently reversed all
@@ -177,16 +174,20 @@ function normalizePageData(page: MagazinePage, issue: MagazineIssue) {
     const finalText = pageText.trim().length > 0 ? pageText : fallbackText;
     const author = String(content.author || (issue as any).editor || (issue as any).editorName || 'Gill Laidler').trim();
     const quote = String(content.quote || (issue as any).editorQuote || '');
-    const featureImage = normalizeImageUrl(
-      normalizedImages.featureImage ||
-      (issue as any).editorImage ||
-      (issue as any).editorPhoto ||
-      (issue as any).editorHeadshot ||
-      normalizedImages.image ||
-      '',
+    const featureImage = fixMagazineImageUrl(
+      normalizeImageUrl(
+        normalizedImages.featureImage ||
+        (issue as any).editorImage ||
+        (issue as any).editorPhoto ||
+        (issue as any).editorHeadshot ||
+        normalizedImages.image ||
+        '',
+      ),
     );
-    const image = normalizeImageUrl(
-      normalizedImages.image || (issue as any).editorImage || normalizedImages.featureImage || '',
+    const image = fixMagazineImageUrl(
+      normalizeImageUrl(
+        normalizedImages.image || (issue as any).editorImage || normalizedImages.featureImage || '',
+      ),
     );
     const out: Record<string, unknown> = {
       ...content,
