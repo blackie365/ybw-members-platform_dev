@@ -25,6 +25,10 @@ interface FirebaseMagazineReaderProps {
   pages: MagazinePage[];
 }
 
+function contentOf(page: MagazinePage): Record<string, unknown> {
+  return page?.content && typeof page.content === 'object' ? (page.content as Record<string, unknown>) : {};
+}
+
 type LegacyPageRendererProps = {
   data: Record<string, unknown>;
   imageVersion: string;
@@ -347,18 +351,83 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   // #endregion
 
   const renderedPages = useMemo(() => {
-    const sortedPages = [...pages].sort((left, right) => left.id - right.id);
+    // Determine structural page roles so we can order them in the canonical
+    // reader order (Cover → Contents → Editor's Note → Articles → Back
+    // Cover) regardless of how legacy Firestore numeric page.id values were
+    // assigned. The user reported that the "Editor's Note" page at
+    // sourceRef `pages-5-5` (storyId ...library-idml-editorial-5) was
+    // rendering the Contents grid "rik-rak of cards"; this happens when
+    // BOTH the Contents page and the Editorial page are assigned the same
+    // numeric `page.id` (e.g. from `syncStoryLibrarySpreads` reassigning
+    // sequential nextPageNumber values on re-runs). Because the old click
+    // handler used `findIndex(entry.page.id === pageNum)` which returns
+    // the FIRST match, clicking "Editor's Note, Page 5" could land on the
+    // Contents page with that numeric id.
+    const STRUCTURAL_ORDER = new Map([
+      ['cover', 0],
+      ['contents', 1],
+      ['editorial', 2],
+      ['feature-left', 10],
+      ['feature-right', 11],
+      ['column', 12],
+      ['lifestyle', 13],
+      ['spotlight', 14],
+      ['partner', 15],
+      ['full-page-ad', 20],
+      ['back-cover', 99],
+    ] as const);
+    const roleOf = (type: unknown): number => {
+      const k = String(type || '').trim().toLowerCase();
+      if (STRUCTURAL_ORDER.has(k as (typeof STRUCTURAL_ORDER extends Map<infer K, number> ? K : never))) {
+        return Number(STRUCTURAL_ORDER.get(k as (typeof STRUCTURAL_ORDER extends Map<infer K2, number> ? K2 : never)));
+      }
+      return 100;
+    };
+
+    const sortedPages = [...pages].sort((left, right) => {
+      const lRole = roleOf(left.type);
+      const rRole = roleOf(right.type);
+      if (lRole !== rRole) return lRole - rRole;
+      const lid = typeof left.id === 'number' ? left.id : 9999;
+      const rid = typeof right.id === 'number' ? right.id : 9999;
+      return lid - rid;
+    });
+
     const fallbackEditorial = buildFallbackEditorialPage(sortedPages, issue);
     const orderedPages = [...sortedPages];
     if (fallbackEditorial) {
+      // Place synthetic editorial immediately after cover (canonical order).
       const coverIndex = orderedPages.findIndex((p) => String(p.type || '').toLowerCase() === 'cover');
       const insertAt = coverIndex !== -1 ? coverIndex + 1 : 1;
       orderedPages.splice(insertAt, 0, fallbackEditorial);
     }
-    return orderedPages.map((page) => {
-      const Renderer = PAGE_RENDERERS[page.type] ?? PageFeatureLeft;
+    return orderedPages.map((page, pageIndex) => {
+      const type = String(page.type || '').trim().toLowerCase();
+      // HARD SAFETY GUARD: If `type === 'editorial'` but the underlying
+      // page is mis-typed (e.g. write-side bug let Contents items[] leak
+      // onto it, or a structural-template collision in simple-reader
+      // merged the template to `contents`), force the renderer we need.
+      // Conversely, if `type === 'contents'` but the content contains
+      // "Editor's Note" / "From the Editor" AND has no items[], flip it
+      // to editorial so the wrong renderer never runs.
+      const textHaystack = `${String(contentOf(page).title || '')} ${String(contentOf(page).text || '')} ${String(contentOf(page).intro || '')}`.trim().toLowerCase();
+      const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(textHaystack);
+      const hasItems = Array.isArray(contentOf(page).items) && (contentOf(page).items as unknown[]).length > 0;
+      let effectiveType = type;
+      if (effectiveType === 'editorial') effectiveType = 'editorial';
+      else if (looksLikeEditorial && !hasItems) effectiveType = 'editorial';
+      else if (type === 'contents' && looksLikeEditorial) effectiveType = 'editorial';
+      else if (type === 'editorial' && hasItems) {
+        // Legacy collision: editorial page accidentally has contents items.
+        // normalizePageData already deletes items from editorial case; but
+        // still force renderer = editorial here so we never show the grid.
+        effectiveType = 'editorial';
+      }
+      const Renderer = PAGE_RENDERERS[effectiveType] ?? PAGE_RENDERERS[type] ?? PageFeatureLeft;
       return {
         page,
+        pageIndex,
+        effectiveType,
         Renderer,
         data: normalizePageData(page, issue),
         label: getPageTitle(page, issue),
@@ -380,6 +449,35 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     setCurrentPage(index);
   }, []);
 
+  // Helper: when user clicks a Contents card that says "Editor's Note page
+  // N" or "Contents page N" and there are MULTIPLE pages sharing that
+  // numeric page.id (due to syncStoryLibrarySpreads re-sequencing IDs over
+  // time), pick the RIGHT type instead of blindly taking the first match.
+  const findPageIndexById = useCallback(
+    (pageNum: number, hint?: 'prefer-editorial' | 'prefer-contents') => {
+      const allMatches = renderedPages
+        .map((entry, index) => ({ entry, index }))
+        .filter(({ entry }) => Number(entry.page.id) === pageNum);
+      if (allMatches.length === 0) return -1;
+      if (allMatches.length === 1) return allMatches[0].index;
+      if (hint === 'prefer-editorial') {
+        const best = allMatches.find(
+          ({ entry }) => String(entry.page.type || '').toLowerCase() === 'editorial' || entry.effectiveType === 'editorial',
+        );
+        if (best) return best.index;
+      }
+      if (hint === 'prefer-contents') {
+        const best = allMatches.find(
+          ({ entry }) => String(entry.page.type || '').toLowerCase() === 'contents',
+        );
+        if (best) return best.index;
+      }
+      // Default: prefer structural (lowest role order) first, else earliest.
+      return allMatches[0].index;
+    },
+    [renderedPages],
+  );
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowRight') nextPage();
@@ -394,6 +492,19 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     const root = document.getElementById('firebase-magazine-reader-root');
     if (!root) return;
 
+    const resolveHintFromAnchor = (anchor: Element): 'prefer-editorial' | 'prefer-contents' | undefined => {
+      const dataHint = anchor.getAttribute('data-page-hint');
+      if (dataHint === 'editorial' || dataHint === 'editor-note') return 'prefer-editorial';
+      if (dataHint === 'contents') return 'prefer-contents';
+      // Fallback: inspect click target text. If it says "Editor's Note" /
+      // "Editorial", prioritize editorial even when IDs collide — this is
+      // exactly the case reported for pages-5-5 (Editor's Note).
+      const txt = (anchor.textContent || '').trim().toLowerCase();
+      if (/\b(editor('?s)? note|editorial|from the editor)\b/.test(txt)) return 'prefer-editorial';
+      if (/\b(contents|in this issue|table of contents)\b/.test(txt)) return 'prefer-contents';
+      return undefined;
+    };
+
     const handleContentsClick = (event: Event) => {
       const target = event.target as Node | null;
       if (!target || !(target instanceof Element)) return;
@@ -406,7 +517,8 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
         const pageNum = Number.parseInt(raw.trim(), 10);
         if (!Number.isFinite(pageNum) || pageNum <= 0) return;
 
-        const index = renderedPages.findIndex((entry) => entry.page.id === pageNum);
+        const hint = resolveHintFromAnchor(anchorByDataPage);
+        const index = findPageIndexById(pageNum, hint);
         if (index === -1) return;
 
         event.preventDefault();
@@ -417,13 +529,14 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
       const anchorByHref = target.closest('a[href*="?page="]') as HTMLAnchorElement | null;
       if (anchorByHref) {
         try {
-          const url = new URL(anchorByHref.href, window.location.href);
+          const url = new URL(anchorByHref.href, window.location.origin);
           if (url.origin !== window.location.origin) return;
           const pageFromQ = url.searchParams.get('page');
           if (!pageFromQ) return;
           const pageNum = Number.parseInt(pageFromQ.trim(), 10);
           if (!Number.isFinite(pageNum) || pageNum <= 0) return;
-          const index = renderedPages.findIndex((entry) => entry.page.id === pageNum);
+          const hint = resolveHintFromAnchor(anchorByHref);
+          const index = findPageIndexById(pageNum, hint);
           if (index === -1) return;
           event.preventDefault();
           goToPage(index);
@@ -437,7 +550,7 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     return () => {
       root.removeEventListener('click', handleContentsClick, true);
     };
-  }, [goToPage, renderedPages]);
+  }, [findPageIndexById, goToPage, renderedPages]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {

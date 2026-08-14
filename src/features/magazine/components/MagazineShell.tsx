@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Badge } from "@/components/ui/badge";
-import type { ReaderEdition } from "@/features/magazine/domain/types";
+import type { ReaderEdition, ReaderPage } from "@/features/magazine/domain/types";
 import {
   getTemplateEntry,
   getTemplateViewModel,
@@ -67,11 +67,11 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, [edition]);
 
   const pages = useMemo(() => {
-    const basePages = Array.isArray(edition.pages) ? [...edition.pages] : [];
-    const hasCoverPage = basePages.some((page) => page.template === "cover");
+    const raw = Array.isArray(edition.pages) ? [...edition.pages] : [];
+    const hasCoverPage = raw.some((page) => page.template === "cover");
 
     if (!hasCoverPage) {
-      basePages.unshift({
+      raw.unshift({
         id: `cover-${edition.slug}`,
         position: 1,
         template: "cover",
@@ -86,26 +86,73 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
       });
     }
 
-    return basePages.sort((left, right) => {
-      const leftPos = typeof left.position === "number" ? left.position : 0;
-      const rightPos = typeof right.position === "number" ? right.position : 0;
-      return leftPos - rightPos;
+    // Canonical role order ensures Cover → Contents → Editor's Note →
+    // Articles → Back Cover even if legacy published ReaderEdition pages
+    // had position collisions (position 0 for all structural pages) or
+    // incorrect numeric assignments from earlier build bugs.
+    const ROLE = new Map([
+      ["cover", 0],
+      ["contents", 1],
+      ["editor-note", 2],
+      ["feature-left", 10],
+      ["feature-right", 11],
+      ["ad", 20],
+      ["back-cover", 99],
+    ]);
+    const roleOf = (t: unknown): number => {
+      const k = String(t || "").trim().toLowerCase();
+      return ROLE.has(k) ? Number(ROLE.get(k)) : 100;
+    };
+
+    return raw.sort((left, right) => {
+      const lRole = roleOf(left.template);
+      const rRole = roleOf(right.template);
+      if (lRole !== rRole) return lRole - rRole;
+      const lPos = typeof left.position === "number" ? left.position : 0;
+      const rPos = typeof right.position === "number" ? right.position : 0;
+      return lPos - rPos;
     });
   }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
 
   const renderedPages = useMemo(() => {
     return pages.map((page) => {
-      const entry = getTemplateEntry(page.template);
-      const viewModel = getTemplateViewModel(page, {
-        title: edition.title,
-        publishDate: edition.publishDate,
-        coverImage: edition.coverImage,
-        description: edition.description,
-      });
+      const template = String(page.template || "").trim().toLowerCase();
+      // HARD RENDERER GUARD: If the persisted template field got polluted
+      // (e.g. Editor's Note page written with `template: "contents"` due to
+      // a legacy publish bug, as reported for `ybw_August_2026.idml
+      // pages-5-5`), detect via title + text keywords and fix before
+      // dispatch so the user never sees the rik-rak Contents grid on the
+      // editorial page.
+      const title = String(page.content?.title || "").trim().toLowerCase();
+      const body = String(page.content?.body || page.content?.text || "").trim().toLowerCase();
+      const hasItems = Array.isArray(page.content?.items) && (page.content.items as unknown[]).length > 0;
+      const looksLikeEditorial =
+        /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${title} ${body.slice(0, 320)}`);
+      let effectiveTemplate: ReaderPage["template"] = page.template;
+      if (template === "editor-note" || looksLikeEditorial) {
+        effectiveTemplate = "editor-note";
+      } else if (template === "contents" && looksLikeEditorial && !hasItems) {
+        effectiveTemplate = "editor-note";
+      } else if (template === "editor-note" && hasItems) {
+        // Keep editorial. normalizePageData / getTemplateViewModel will drop
+        // the stray items[] before rendering; the renderer also never
+        // iterates viewModel.items for editor-note template.
+        effectiveTemplate = "editor-note";
+      }
+      const entry = getTemplateEntry(effectiveTemplate);
+      const viewModel = getTemplateViewModel(
+        { ...page, template: effectiveTemplate },
+        {
+          title: edition.title,
+          publishDate: edition.publishDate,
+          coverImage: edition.coverImage,
+          description: edition.description,
+        },
+      );
       const label =
-        String(viewModel.title || "") || humanizeTemplate(page.template);
-      return { page, entry, viewModel, label };
+        String(viewModel.title || "") || humanizeTemplate(effectiveTemplate);
+      return { page, entry, viewModel, label, effectiveTemplate };
     });
   }, [pages, edition]);
 
@@ -127,6 +174,55 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     setCurrentPage(index);
     setIsNavOpen(false);
   }, []);
+
+  // Collision-safe page lookup: if legacy writes caused multiple rendered
+  // pages to share the same `data-page=N` (e.g. position or pageNumber
+  // collisions on contents + editor-note), pick the entry whose TEMPLATE
+  // matches the clicked anchor's text content. Example: clicking
+  // "Editor's Note Page 5" should always land on the editor-note renderer,
+  // even if a Contents renderer also has a numeric collision that would
+  // win in a naive pageNum-1 lookup.
+  const findPageIndexByClickHint = useCallback(
+    (
+      pageNum: number,
+      anchor: Element,
+    ): number => {
+      const dataHint = anchor.getAttribute("data-page-hint");
+      const text = (anchor.textContent || "").trim().toLowerCase();
+      let prefer: "editor-note" | "contents" | undefined = undefined;
+      if (dataHint === "editorial" || dataHint === "editor-note") prefer = "editor-note";
+      if (dataHint === "contents") prefer = "contents";
+      if (!prefer) {
+        if (/\b(editor('?s)? note|editorial|from the editor)\b/.test(text)) prefer = "editor-note";
+        else if (/\b(contents|in this issue|table of contents)\b/.test(text)) prefer = "contents";
+      }
+      // Fallback path: the legacy Contents page used `data-page` to mean
+      // "displayed page number = position in rendered array + 1". If we
+      // have no matches for `page.position === pageNum`, fall back to that
+      // assumption (this matches what buildContentsPageFromTemplate writes).
+      const byPosition = renderedPages
+        .map((entry, index) => ({ entry, index }))
+        .filter(
+          ({ entry }) =>
+            Number(entry.page.position) === pageNum ||
+            Number((entry.page as any).pageNumber) === pageNum,
+        );
+      if (byPosition.length === 0) {
+        const fallbackIdx = pageNum - 1;
+        if (fallbackIdx >= 0 && fallbackIdx < renderedPages.length) return fallbackIdx;
+        return -1;
+      }
+      if (byPosition.length === 1) return byPosition[0].index;
+      if (prefer) {
+        const best = byPosition.find(
+          ({ entry }) => entry.effectiveTemplate === prefer || entry.page.template === prefer,
+        );
+        if (best) return best.index;
+      }
+      return byPosition[0].index;
+    },
+    [renderedPages],
+  );
 
   useEffect(() => {
     const root = stageRef.current;
@@ -152,17 +248,27 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
       if (!anchor) return;
       e.preventDefault();
       e.stopPropagation();
-      const pageNum = Number.parseInt(anchor.getAttribute("data-page") ?? "", 10);
+      const raw =
+        anchor.getAttribute("data-page") ??
+        (() => {
+          try {
+            const u = new URL(anchor.getAttribute("href") || "", window.location.href);
+            return u.searchParams.get("page");
+          } catch {
+            return null;
+          }
+        })();
+      const pageNum = Number.parseInt(String(raw ?? "").trim(), 10);
       if (Number.isFinite(pageNum) && pageNum >= 1) {
-        const idx = pageNum - 1;
-        if (idx < renderedPages.length) {
+        const idx = findPageIndexByClickHint(pageNum, anchor);
+        if (idx >= 0 && idx < renderedPages.length) {
           goToPage(idx);
         }
       }
     };
     root.addEventListener("click", handleClick, true);
     return () => root.removeEventListener("click", handleClick, true);
-  }, [renderedPages.length, goToPage]);
+  }, [renderedPages, goToPage, findPageIndexByClickHint]);
 
   useEffect(() => {
     if (stageRef.current) {
