@@ -211,6 +211,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const pagesRef = useRef<MagazinePage[]>([]);
   const issueRef = useRef<any>(issue);
   const loadingRef = useRef<boolean>(false);
+  const userDeletedSuppressAutoSyncUntil = useRef<number>(0);
 
   const runSingleFlightSync = useCallback(async (
     storyLibrary: any[],
@@ -457,6 +458,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   // Load Initial Data
   const loadData = useCallback(async (silent = false) => {
+    // If the user just deleted pages (or deleted all pages), don't let this
+    // data load run the Story Library auto-sync for 12 seconds — otherwise we
+    // immediately recreate the same 3 cover/contents/back-cover structural
+    // spreads the admin just deleted.
+    const suppressAutoSync = Date.now() < userDeletedSuppressAutoSyncUntil.current;
     if (!silent) setLoading(true);
     try {
         let loadedStoryLibrary: any[] = [];
@@ -523,7 +529,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
         // Always auto-create missing spreads after load.
         // Single-flight lock + idempotent identity-key dedupe guarantee no duplicates.
-        if (!isNew) {
+        // SKIP when user just deleted pages — otherwise we recreate the 3
+        // structural spreads (cover / contents / back-cover) they just deleted.
+        if (!isNew && !suppressAutoSync) {
           loadedPages = await runSingleFlightSync(loadedStoryLibrary, loadedPages, {
             suppressToast: true,
           });
@@ -566,6 +574,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     if (isNew || loadingRef.current || didSpreadSyncOnTabRef.current) return;
     if (syncLockRef.current) return;
     if ((pagesRef.current || []).length > 0) {
+      didSpreadSyncOnTabRef.current = true;
+      return;
+    }
+    // If the user just deleted pages manually, respect the suppression window
+    // — don't auto-recreate the 3 structural spreads they just deleted.
+    if (Date.now() < userDeletedSuppressAutoSyncUntil.current) {
       didSpreadSyncOnTabRef.current = true;
       return;
     }
@@ -1544,6 +1558,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
+      // Block auto-sync for 12 seconds after a "Delete all spreads". Without
+      // this, two code paths race to recreate them — loadData auto-sync + the
+      // activeTab==="builder" 0-pages auto-trigger — resulting in the exact
+      // same 3 structural pages (cover/contents/back-cover) popping back
+      // "after a couple of seconds".
+      userDeletedSuppressAutoSyncUntil.current = Date.now() + 12_000;
+      didSpreadSyncOnTabRef.current = true;
       // Don't call loadData(true) here — its default sync would re-create the
       // pages we just deleted. Instead, update pages state directly.
       const remainingPages = pages.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
@@ -1555,7 +1576,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           `Deleted ${deleted} of ${total} spread${total === 1 ? '' : 's'}. ${failed} failed.`
         );
       } else {
-        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}`);
+        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}` +
+          ` — auto-generate paused. Click "Smart Batch Fill" or re-import IDML to restore.`,
+        );
       }
     } catch (error) {
       toast.error(
@@ -1651,7 +1674,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage(nextPages);
       } catch {}
-      toast.success('Spread removed');
+      // Block auto-sync after a single-page delete too — otherwise the tab
+      // switch auto-create path (0 pages → fill) can still race if multiple
+      // pages are being manually removed quickly.
+      userDeletedSuppressAutoSyncUntil.current = Date.now() + 12_000;
+      didSpreadSyncOnTabRef.current = true;
+      toast.success('Spread removed — auto-generate paused until you click "Smart Batch Fill" or re-import.');
       if (selectedPageId === pageDocId) setSelectedPageId(null);
       // Don't call loadData(true) here — its default sync would recreate the
       // deleted page (if story for it still exists in library). Update state directly.

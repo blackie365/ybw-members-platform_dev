@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Maximize2, Minimize2, X } from
 import { Logo } from '@/components/Logo';
 import { Badge } from '@/components/ui/badge';
 import type { MagazineIssue, MagazinePage } from '@/lib/magazine-service';
+import { normalizeImageUrl } from '@/lib/magazine-utils';
 import {
   PageBackCover,
   PageContents,
@@ -52,35 +53,71 @@ function normalizeImageFields(content: Record<string, unknown>): Record<string, 
     ] as const;
     for (const key of candidates) {
       const v = content[key];
-      if (typeof v === 'string' && v.trim()) return v.trim();
+      // Use canonical normalizer — strips backticks/quotes/brackets/whitespace
+      // and converts gs:// → https fallback.
+      const cleaned = normalizeImageUrl(v);
+      if (cleaned) return cleaned;
     }
     const arrKeys = ['media', 'gallery', 'additionalMedia', 'images', 'photos'] as const;
     for (const arrKey of arrKeys) {
       const arr = content[arrKey];
       if (!Array.isArray(arr) || arr.length === 0) continue;
       for (const entry of arr) {
-        if (typeof entry === 'string' && entry.trim()) {
-          return entry.trim();
+        if (typeof entry === 'string') {
+          const cleaned = normalizeImageUrl(entry);
+          if (cleaned) return cleaned;
         }
         if (entry && typeof entry === 'object') {
           const url = (entry as any).url || (entry as any).src || (entry as any).image;
-          if (typeof url === 'string' && url.trim()) return url.trim();
+          const cleaned = normalizeImageUrl(url);
+          if (cleaned) return cleaned;
         }
       }
     }
     return '';
   };
   const chosen = pickImage();
-  const featureImage = (typeof content.featureImage === 'string' && content.featureImage.trim()) || chosen;
-  const image = (typeof content.image === 'string' && content.image.trim()) || chosen;
-  const heroImage = (typeof content.heroImage === 'string' && content.heroImage.trim()) || chosen;
-  const mainImage = (typeof content.mainImage === 'string' && content.mainImage.trim()) || chosen;
+  // Normalize every image field individually so any of renderers that reads a
+  // specific one (e.g. PageEditorial → featureImage, PageCover → coverImage)
+  // gets a clean URL (no backticks, no whitespace, gs://→https).
+  const cleanField = (key: string, fallback = chosen): string => {
+    const v = normalizeImageUrl(content[key]);
+    return v || fallback;
+  };
+  // Clean all array-valued image lists too.
+  const cleanArr = (key: string): string[] => {
+    const arr = content[key];
+    if (!Array.isArray(arr)) return [];
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const entry of arr) {
+      const cleaned = typeof entry === 'string'
+        ? normalizeImageUrl(entry)
+        : normalizeImageUrl((entry && typeof entry === 'object') ? ((entry as any).url || (entry as any).src || (entry as any).image) : entry);
+      if (cleaned && !seen.has(cleaned)) {
+        seen.add(cleaned);
+        out.push(cleaned);
+      }
+    }
+    return out;
+  };
   return {
     ...content,
-    featureImage,
-    image,
-    heroImage,
-    mainImage,
+    featureImage: cleanField('featureImage'),
+    image: cleanField('image'),
+    heroImage: cleanField('heroImage'),
+    mainImage: cleanField('mainImage'),
+    coverImage: cleanField('coverImage'),
+    photo: cleanField('photo'),
+    imageUrl: cleanField('imageUrl'),
+    bannerImage: cleanField('bannerImage'),
+    primaryImage: cleanField('primaryImage'),
+    headshot: cleanField('headshot'),
+    portrait: cleanField('portrait'),
+    images: cleanArr('images'),
+    gallery: cleanArr('gallery'),
+    additionalImages: cleanArr('additionalImages'),
+    media: cleanArr('media'),
   };
 }
 
@@ -89,55 +126,78 @@ function normalizePageData(page: MagazinePage, issue: MagazineIssue) {
   const normalizedImages = normalizeImageFields(content);
 
   if (page.type === 'cover') {
-    const coverImage = String(
+    const coverImage = normalizeImageUrl(
       issue.coverImage ||
       (issue as any).heroImage ||
       (issue as any).featureImage ||
       normalizedImages.featureImage ||
       normalizedImages.image ||
       '',
-    ).trim();
-    return {
+    );
+    // CRITICAL SPREAD ORDER: content first, then normalizedImages, then explicit
+    // keys last. Prior bug spread ...content last which silently reversed all
+    // image normalization + explicit title/date overrides.
+    const out: Record<string, unknown> = {
+      ...content,
+      ...normalizedImages,
       title: issue.title,
       image: coverImage,
       featureImage: coverImage,
       heroImage: coverImage,
       mainImage: coverImage,
+      coverImage,
       date: issue.publishDate,
-      ...normalizedImages,
-      ...content,
     };
+    // Belt-and-braces: Cover renderer doesn't need Contents items array; drop.
+    delete out.items;
+    return out;
   }
 
   if (page.type === 'contents') {
+    // For Contents, keep items[] (already validated downstream) but ensure
+    // normalization overrides any dirty image URLs in content spread.
     return {
-      title: 'Contents',
-      ...normalizedImages,
       ...content,
+      ...normalizedImages,
+      title: content.title ? String(content.title).trim() : 'Contents',
     };
   }
 
   if (page.type === 'editorial') {
-    const derivedText = String((issue as any).editorNote || (issue as any).editorsMessage || (issue as any).editorLetter || '');
+    const pageText = typeof content.text === 'string' ? content.text : '';
+    const fallbackText = String((issue as any).editorNote || (issue as any).editorsMessage || (issue as any).editorLetter || '');
+    // Prefer the page-level text extracted from the Story Library / IDML parse.
+    // The legacy issue.editorNote fallback is only used if the page record has
+    // no text. Prior code did the opposite (fallback first) causing "Editor
+    // Page content missing" on pages with correct per-page extracted text.
+    const finalText = pageText.trim().length > 0 ? pageText : fallbackText;
     const author = String(content.author || (issue as any).editor || (issue as any).editorName || 'Gill Laidler').trim();
     const quote = String(content.quote || (issue as any).editorQuote || '');
-    return {
+    const featureImage = normalizeImageUrl(
+      normalizedImages.featureImage ||
+      (issue as any).editorImage ||
+      (issue as any).editorPhoto ||
+      (issue as any).editorHeadshot ||
+      normalizedImages.image ||
+      '',
+    );
+    const image = normalizeImageUrl(
+      normalizedImages.image || (issue as any).editorImage || normalizedImages.featureImage || '',
+    );
+    const out: Record<string, unknown> = {
+      ...content,
+      ...normalizedImages,
       title: "Editor's Note",
       author,
       quote,
-      text: derivedText || (typeof content.text === 'string' ? content.text : ''),
-      featureImage: String(
-        normalizedImages.featureImage ||
-        (issue as any).editorImage ||
-        (issue as any).editorPhoto ||
-        (issue as any).editorHeadshot ||
-        normalizedImages.image ||
-        '',
-      ).trim(),
-      image: normalizedImages.image || (issue as any).editorImage || normalizedImages.featureImage || '',
-      ...normalizedImages,
-      ...content,
+      text: finalText,
+      featureImage,
+      image,
     };
+    // HARD GUARD: Never let a Contents items[] array leak onto an editorial
+    // page via a legacy merge bug or a corrupted Firestore write.
+    delete out.items;
+    return out;
   }
 
   return normalizedImages;

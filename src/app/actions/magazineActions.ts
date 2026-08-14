@@ -979,7 +979,11 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // The client already updates pages state optimistically, and triggering a
+    // Next.js revalidate races with subsequent getMagazinePagesAction() reads
+    // which may return stale cached page records, causing "deleted pages
+    // reappear after a couple seconds" or saves to flip back.
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -998,7 +1002,10 @@ export async function addMagazinePageAction(issueId: string, data: any) {
       updatedAt: new Date().toISOString()
     });
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // See updateMagazinePageAction above — Next.js cache reads race with
+    // fresh Firestore writes and cause "deleted pages come back" on the
+    // builder admin page.
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -1012,7 +1019,11 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // Deletion-triggered revalidation was the #1 cause of "I deleted all
+    // pages but 3 reappear after a couple seconds": Next.js served a stale
+    // cached fullPageRSC payload of the builder page, and the useEffect on
+    // tab-switch saw 0 pages and triggered auto-sync to regenerate them.
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazinePageAction:", error);
