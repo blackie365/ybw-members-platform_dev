@@ -97,6 +97,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
       ["feature-left", 10],
       ["feature-right", 11],
       ["ad", 20],
+      ["full-page-ad", 20],
       ["back-cover", 99],
     ]);
     const roleOf = (t: unknown): number => {
@@ -129,16 +130,18 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
       const hasItems = Array.isArray(page.content?.items) && (page.content.items as unknown[]).length > 0;
       const looksLikeEditorial =
         /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${title} ${body.slice(0, 320)}`);
+      const looksLikeAd =
+        /\b(advertisement|advert|ad page|ad\b|sponsor|sponsored by)\b/.test(`${title} ${body.slice(0, 200)}`) &&
+        !hasItems;
       let effectiveTemplate: ReaderPage["template"] = page.template;
       if (template === "editor-note" || looksLikeEditorial) {
         effectiveTemplate = "editor-note";
       } else if (template === "contents" && looksLikeEditorial && !hasItems) {
         effectiveTemplate = "editor-note";
       } else if (template === "editor-note" && hasItems) {
-        // Keep editorial. normalizePageData / getTemplateViewModel will drop
-        // the stray items[] before rendering; the renderer also never
-        // iterates viewModel.items for editor-note template.
         effectiveTemplate = "editor-note";
+      } else if (template === "ad" || template === "full-page-ad" || looksLikeAd) {
+        effectiveTemplate = "ad";
       }
       const entry = getTemplateEntry(effectiveTemplate);
       const viewModel = getTemplateViewModel(

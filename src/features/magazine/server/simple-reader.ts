@@ -596,21 +596,21 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
           ? page.content.text.trim().slice(0, 320).toLowerCase()
           : '');
       const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${ct} ${cb}`);
+      const looksLikeAd = /\b(advertisement|advert|ad page|sponsor|sponsored by)\b/.test(`${ct} ${cb}`) &&
+        !Array.isArray(page.content?.items);
       const hasItems = Array.isArray(page.content?.items) && page.content.items.length > 0;
       let nextTemplate = page.template;
       if (template === 'editor-note') nextTemplate = 'editor-note';
       else if (template === 'contents' && looksLikeEditorial) nextTemplate = 'editor-note';
       else if (looksLikeEditorial && !hasItems) nextTemplate = 'editor-note';
+      else if (template === 'ad' || template === 'full-page-ad') nextTemplate = 'ad';
+      else if (looksLikeAd && !looksLikeEditorial) nextTemplate = 'ad';
       let content = page.content;
       if (nextTemplate === 'editor-note') {
-        // Even if a stray items[] leaked onto an editorial page (e.g.
-        // contents page's items[] merged via legacy collision), drop it.
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'ad') {
         content = { ...(content || {}), items: [] };
       } else if (nextTemplate === 'contents') {
-        // Vice versa: if a contents page was mislabeled and inherited
-        // an editor-role / author, keep items but drop editorial body
-        // priority — structural template pin already handles this via
-        // mergedItems gate above — re-sanitize to be safe.
         content = { ...(content || {}) };
       }
       return sanitizeReaderPage({ ...page, template: nextTemplate, content });
@@ -628,6 +628,7 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
         'feature-left': 10,
         'feature-right': 11,
         ad: 20,
+        'full-page-ad': 20,
         'back-cover': 99,
       };
       const lRole = ROLE[String(left.template || '').trim().toLowerCase()] ?? 100;

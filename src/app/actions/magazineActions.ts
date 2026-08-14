@@ -6,7 +6,7 @@ import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
-import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles } from '@/lib/idml-template-mapper';
+import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug } from '@/features/magazine/server/simple-reader';
 
@@ -671,6 +671,38 @@ function buildStoryLibraryItemsFromParsedIdml(
         createdAt: new Date().toISOString(),
       });
     }
+  }
+
+  const adPages = sortedPages.filter((p: any) => detectAdPage(p));
+  for (const adPage of adPages) {
+    const pageNo = Number(adPage.pageNumber);
+    if (pageNo <= 1) continue;
+    if (editorPage && Number(editorPage.pageNumber) === pageNo) continue;
+    const adImages = extractPageImageFileNames(adPage);
+    const adLogos: string[] = Array.isArray((adPage as any).logoImageFileNames) ? (adPage as any).logoImageFileNames : [];
+    const imageFileName = adImages.find((v) => imageUrls[v]) || adLogos.find((v) => imageUrls[v]) || '';
+    const firstStoryText = extractPageText(adPage, true).trim();
+    const adTitle = /^advert(isement)?$/i.test(firstStoryText) ? 'Advertisement' : firstStoryText.substring(0, 80) || 'Advertisement';
+    const imageUrl = imageFileName ? normalizeImageUrl(imageUrls[imageFileName]) : '';
+    extraItems.push({
+      id: `idml-full-page-ad-${pageNo}`,
+      title: adTitle,
+      standfirst: undefined,
+      text: firstStoryText,
+      imageUrl: imageUrl || undefined,
+      imageFileNames: Array.from(new Set([...adImages, ...adLogos])),
+      includedInPremiumReader: true,
+      premiumReaderPriority: 60000 + pageNo,
+      premiumReaderContentType: 'ad',
+      premiumReaderPlacementPreference: 'auto',
+      sourceRef: `${fileName}:pages-${pageNo}-${pageNo}`,
+      source: {
+        type: 'idml',
+        fileName,
+        path: `pages-${pageNo}-${pageNo}`,
+      },
+      createdAt: new Date().toISOString(),
+    });
   }
 
   const items: Array<StoryLibraryItem | null> = articles.map((article, index) => {

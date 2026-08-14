@@ -168,6 +168,7 @@ function inferBuilderPageTypeFromStory(story: any): string {
   if (contentType === 'column' || contentType === 'opinion') return 'column';
   if (contentType === 'lifestyle') return 'lifestyle';
   if (contentType === 'partner') return 'partner';
+  if (contentType === 'ad' || contentType === 'advert' || contentType === 'advertisement') return 'full-page-ad';
 
   return 'feature-left';
 }
