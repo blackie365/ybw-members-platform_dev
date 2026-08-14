@@ -577,7 +577,66 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
 
   const pages = [...mergedPages, ...appendedLegacyPages]
     .map(sanitizeReaderPage)
-    .sort((left, right) => left.position - right.position);
+    .map((page) => {
+      // FINAL READ-SIDE DEFENSE: Never let a page that reads like an
+      // Editor's Note (title / body contain "Editor's Note" / "From the
+      // Editor" / "Editorial") be rendered as template=contents, even if
+      // a legacy publish bug (pre-2026-08-14) wrote that template field
+      // into the ReaderEdition pages[] doc. This is the user-reported
+      // issue for `ybw_August_2026.idml pages-5-5` (storyId
+      // ...library-idml-editorial-5) which showed the rik-rak Contents
+      // grid instead of PageEditorial.
+      const template = String(page.template || '').trim().toLowerCase();
+      const ct = page.content?.title && typeof page.content.title === 'string'
+        ? page.content.title.trim().toLowerCase()
+        : '';
+      const cb = page.content?.body && typeof page.content.body === 'string'
+        ? page.content.body.trim().slice(0, 320).toLowerCase()
+        : (page.content?.text && typeof page.content.text === 'string'
+          ? page.content.text.trim().slice(0, 320).toLowerCase()
+          : '');
+      const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${ct} ${cb}`);
+      const hasItems = Array.isArray(page.content?.items) && page.content.items.length > 0;
+      let nextTemplate = page.template;
+      if (template === 'editor-note') nextTemplate = 'editor-note';
+      else if (template === 'contents' && looksLikeEditorial) nextTemplate = 'editor-note';
+      else if (looksLikeEditorial && !hasItems) nextTemplate = 'editor-note';
+      let content = page.content;
+      if (nextTemplate === 'editor-note') {
+        // Even if a stray items[] leaked onto an editorial page (e.g.
+        // contents page's items[] merged via legacy collision), drop it.
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'contents') {
+        // Vice versa: if a contents page was mislabeled and inherited
+        // an editor-role / author, keep items but drop editorial body
+        // priority — structural template pin already handles this via
+        // mergedItems gate above — re-sanitize to be safe.
+        content = { ...(content || {}) };
+      }
+      return sanitizeReaderPage({ ...page, template: nextTemplate, content });
+    })
+    .sort((left, right) => {
+      // Canonical structural role order before position sort. This
+      // guarantees Cover → Contents → Editor's Note → Articles → Back
+      // Cover regardless of whether legacy pages had position=0 for all
+      // structural pages or conflicting numeric pageNumber values due
+      // to prior build bugs.
+      const ROLE: Record<string, number> = {
+        cover: 0,
+        contents: 1,
+        'editor-note': 2,
+        'feature-left': 10,
+        'feature-right': 11,
+        ad: 20,
+        'back-cover': 99,
+      };
+      const lRole = ROLE[String(left.template || '').trim().toLowerCase()] ?? 100;
+      const rRole = ROLE[String(right.template || '').trim().toLowerCase()] ?? 100;
+      if (lRole !== rRole) return lRole - rRole;
+      const lPos = typeof left.position === 'number' ? left.position : 0;
+      const rPos = typeof right.position === 'number' ? right.position : 0;
+      return lPos - rPos;
+    });
   const collapsedPages = collapseSplitStoryPages(pages);
 
   return {
