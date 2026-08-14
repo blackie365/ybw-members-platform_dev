@@ -205,19 +205,67 @@ function dedupeTextParts(parts: Array<unknown>, exclusions: Array<unknown> = [])
   return deduped;
 }
 function sanitizeReaderPage(page: ReaderPage): ReaderPage {
-  const backgroundImage = sanitizeImageUrl(page.content?.backgroundImage);
-  const rawImageUrls = sanitizeUrlList(page.content?.imageUrls);
-  const imageUrl = sanitizeImageUrl(page.content?.imageUrl) || rawImageUrls[0] || '';
-  const imageUrls = rawImageUrls.filter(
-    (url) => url !== imageUrl && url !== backgroundImage,
+  const c: Record<string, unknown> = (page?.content && typeof page.content === 'object')
+    ? (page.content as Record<string, unknown>)
+    : {};
+
+  const backgroundImage = sanitizeImageUrl(
+    c.backgroundImage || (c as any).coverImage || ''
   );
-  const standfirst = String(page.content?.standfirst || '').trim();
-  const quote = String(page.content?.quote || '').trim();
+
+  const cascadeMain = [
+    c.imageUrl,
+    c.featureImage,
+    c.image,
+    c.heroImage,
+    c.mainImage,
+    c.primaryImage,
+    c.secondaryImage,
+    c.topImage,
+    c.leftImage,
+    c.rightImage,
+    c.bottomImage,
+    c.coverImage,
+    c.logoImage,
+    c.partnerLogo,
+    c.logo,
+  ].map((v) => sanitizeImageUrl(v)).filter(Boolean);
+
+  const urlListsConcat = [
+    c.imageUrls,
+    c.images,
+    c.gallery,
+    c.additionalImages,
+    c.mediaItems,
+    c.galleryItems,
+    c.logoImages,
+  ];
+
+  const rawList: string[] = [];
+  for (const listEntry of urlListsConcat) {
+    rawList.push(...sanitizeUrlList(listEntry));
+  }
+
+  const seen = new Set<string>();
+  const mergedList: string[] = [];
+  for (const u of [...cascadeMain, ...rawList]) {
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    mergedList.push(u);
+  }
+
+  const imageUrl = cascadeMain[0] || mergedList[0] || '';
+  const imageUrls = mergedList.filter(
+    (url) => url && url !== imageUrl && url !== backgroundImage,
+  );
+
+  const standfirst = String(c.standfirst || c.intro || c.headline || '').trim();
+  const quote = String(c.quote || '').trim();
   const body = dedupeTextParts(
-    splitTextIntoParagraphs(page.content?.body),
+    splitTextIntoParagraphs(c.body || c.text || c.article || c.content),
     [standfirst],
   ).join('\n\n');
-  const pullQuotes = dedupeTextParts(page.content?.pullQuotes || [], [
+  const pullQuotes = dedupeTextParts(Array.isArray(c.pullQuotes) ? (c.pullQuotes as unknown[]) : [], [
     standfirst,
     quote,
     body,
@@ -226,33 +274,41 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   return {
     ...page,
     content: {
-      ...page.content,
-      title: String(page.content?.title || '').trim(),
+      ...(page.content as any),
+      title: String(c.title || c.headline || '').trim(),
       body,
       standfirst: standfirst || undefined,
-      author: String(page.content?.author || '').trim() || undefined,
-      name: String(page.content?.name || '').trim() || undefined,
-      kicker: String(page.content?.kicker || '').trim() || undefined,
+      author: String(c.author || c.name || c.byline || '').trim() || undefined,
+      name: String(c.name || c.author || '').trim() || undefined,
+      kicker: String(c.kicker || c.section || c.category || '').trim() || undefined,
       imageUrl: imageUrl || undefined,
       backgroundImage: backgroundImage || undefined,
       imageUrls,
+      featureImage: imageUrl || undefined,
+      image: imageUrl || undefined,
       quote: quote || undefined,
       pullQuotes,
-      continuationLabel: String(page.content?.continuationLabel || '').trim() || undefined,
-      snapshotLabel: String(page.content?.snapshotLabel || '').trim() || undefined,
-      nextIssue: String(page.content?.nextIssue || '').trim() || undefined,
-      ctaLabel: String(page.content?.ctaLabel || '').trim() || undefined,
-      ctaHref: String(page.content?.ctaHref || '').trim() || undefined,
-      label: String(page.content?.label || '').trim() || undefined,
-      videoUrl: String(page.content?.videoUrl || '').trim() || undefined,
-      items: Array.isArray(page.content?.items)
-        ? page.content.items
+      continuationLabel: String(c.continuationLabel || '').trim() || undefined,
+      snapshotLabel: String(c.snapshotLabel || '').trim() || undefined,
+      nextIssue: String(c.nextIssue || '').trim() || undefined,
+      ctaLabel: String(c.ctaLabel || c.callToAction || '').trim() || undefined,
+      ctaHref: String(c.ctaHref || c.linkUrl || c.url || '').trim() || undefined,
+      label: String(c.label || c.brand || c.sponsor || '').trim() || undefined,
+      videoUrl: String(c.videoUrl || '').trim() || undefined,
+      pdfUrl: String(c.pdfUrl || '').trim() || undefined,
+      partnerLogo: sanitizeImageUrl(c.partnerLogo || c.logoImage || '') || undefined,
+      logoImage: sanitizeImageUrl(c.logoImage || c.partnerLogo || c.logo || '') || undefined,
+      items: Array.isArray(c.items)
+        ? (c.items as Array<any>)
             .map((item) => ({
-              title: String(item?.title || '').trim(),
-              page: String(item?.page || '').trim(),
+              title: String(item?.title || item?.name || item?.headline || '').trim(),
+              page: String(item?.page || item?.pageNumber || '').trim(),
             }))
             .filter((item) => item.title)
-        : [],
+        : (Array.isArray(c.contents) ? (c.contents as Array<any>).map((x: any)=>({
+            title: String(x?.title || x?.name || '').trim(),
+            page: String(x?.page || '').trim(),
+          })).filter((x:any)=>x.title) : []),
     },
   };
 }

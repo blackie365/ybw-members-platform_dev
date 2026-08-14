@@ -33,19 +33,91 @@ function formatDate(dateString: string): string {
   }
 }
 
+type CRecord = Record<string, unknown>;
+
+function pickFirstImage(c: CRecord | undefined, fallback = ""): string {
+  if (!c) return fallback;
+  const candidates = [
+    c.imageUrl,
+    c.featureImage,
+    c.image,
+    c.heroImage,
+    c.mainImage,
+    c.primaryImage,
+    c.secondaryImage,
+    c.topImage,
+    c.leftImage,
+    c.rightImage,
+    c.bottomImage,
+    c.coverImage,
+    c.logoImage,
+    c.partnerLogo,
+    c.logo,
+  ];
+  for (const v of candidates) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  if (Array.isArray(c.imageUrls) && typeof c.imageUrls[0] === "string") return c.imageUrls[0];
+  if (Array.isArray(c.images) && typeof c.images[0] === "string") return c.images[0];
+  if (Array.isArray(c.gallery) && typeof (c.gallery as any[])[0] === "string") return (c.gallery as any[])[0];
+  if (Array.isArray(c.additionalImages) && typeof (c.additionalImages as any[])[0] === "string") return (c.additionalImages as any[])[0];
+  return fallback;
+}
+
+function pickGallery(c: CRecord | undefined): { src: string }[] {
+  if (!c) return [];
+  const listEntries = [
+    c.imageUrls,
+    c.images,
+    c.gallery,
+    c.additionalImages,
+    c.mediaItems,
+    c.galleryItems,
+    c.logoImages,
+  ];
+  const seen = new Set<string>();
+  const out: { src: string }[] = [];
+  const pushOne = (raw: unknown) => {
+    let s = "";
+    if (typeof raw === "string") s = raw.trim();
+    else if (raw && typeof raw === "object") {
+      const r = raw as Record<string, unknown>;
+      s = String((r.src as string) || (r.image as string) || (r.url as string) || "").trim();
+    }
+    if (s && !seen.has(s)) {
+      seen.add(s);
+      out.push({ src: s });
+    }
+  };
+  for (const listEntry of listEntries) {
+    if (Array.isArray(listEntry)) {
+      for (const item of listEntry) pushOne(item);
+    } else if (typeof listEntry === "string") {
+      pushOne(listEntry);
+    }
+  }
+  return out;
+}
+
 const coverEntry: TemplateRegistryEntry = {
   render: null as any, // lazy loaded
   buildViewModel: (page, edition) => {
-    const c = page.content;
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, edition.coverImage || "");
+    const gallery = pickGallery(c);
+    if (main) {
+      const existed = gallery.some((g) => g.src === main);
+      if (!existed) gallery.unshift({ src: main });
+    }
     return {
-      image: c.imageUrl || edition.coverImage,
-      featureImage: c.imageUrl || edition.coverImage,
-      headline: c.title || edition.title,
-      subheadline: c.standfirst || edition.description,
+      image: main,
+      featureImage: main,
+      headline: String(c.title || edition.title || ""),
+      subheadline: String(c.standfirst || c.subheadline || c.headline || edition.description || ""),
       date: formatDate(edition.publishDate),
       issue: formatDate(edition.publishDate),
-      badge: c.kicker || "",
-      gallery: (c.imageUrls || []).map((src) => ({ src })),
+      badge: String(c.kicker || c.section || c.category || ""),
+      gallery,
     };
   },
 };
@@ -53,17 +125,13 @@ const coverEntry: TemplateRegistryEntry = {
 const contentsEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page, edition) => {
-    const c = page.content;
-    const rawItems = Array.isArray(c.items) ? c.items : [];
-    // Defensive: only keep items that look like valid Contents entries with
-    // a non-empty title. If a merge bug leaked story library items into the
-    // legacy page (e.g. the Editorial page accidentally got an items array),
-    // this filters them out so a mis-tagged Contents renderer gets a safe list.
+    const c = (page.content || {}) as CRecord;
+    const rawItems = Array.isArray(c.items) ? c.items : (Array.isArray(c.contents) ? c.contents : []);
     const sanitizedItems = rawItems.filter(
       (item: any) => item && typeof item.title === 'string' && String(item.title).trim().length > 0,
     );
     return {
-      title: c.title || "In This Issue",
+      title: String(c.title || c.headline || "In This Issue"),
       kicker: formatDate(edition.publishDate),
       items: sanitizedItems,
     };
@@ -73,25 +141,29 @@ const contentsEntry: TemplateRegistryEntry = {
 const featureEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
-    const c = page.content;
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, "");
+    const gallery = pickGallery(c);
     return {
-      title: c.title || "",
-      kicker: c.kicker || "Feature",
-      name: c.name || c.author || "",
-      intro: c.standfirst || "",
-      text: c.body || "",
-      featureImage: c.imageUrl || "",
-      image: c.imageUrl || "",
-      backgroundImage: c.backgroundImage || "",
-      videoUrl: c.videoUrl || "",
-      quote: c.quote || "",
-      pullQuotes: c.pullQuotes || [],
-      mediaLayout: c.mediaLayout || "",
-      weight: c.weight,
+      title: String(c.title || c.headline || ""),
+      kicker: String(c.kicker || c.section || c.category || "Feature"),
+      name: String(c.name || c.author || c.byline || ""),
+      intro: String(c.standfirst || c.intro || c.subheadline || ""),
+      text: String(c.body || c.text || c.article || ""),
+      featureImage: main,
+      image: main,
+      backgroundImage: String(c.backgroundImage || ""),
+      videoUrl: String(c.videoUrl || ""),
+      quote: String(c.quote || ""),
+      pullQuotes: Array.isArray(c.pullQuotes) ? (c.pullQuotes as any[]) : [],
+      mediaLayout: String(c.mediaLayout || ""),
+      weight: typeof c.weight === "number" ? c.weight : undefined,
       isContinuation: Boolean(c.isContinuation),
-      continuationLabel: c.continuationLabel || "",
-      snapshotLabel: c.snapshotLabel || "",
-      gallery: (c.imageUrls || []).map((src) => ({ src })),
+      continuationLabel: String(c.continuationLabel || ""),
+      snapshotLabel: String(c.snapshotLabel || ""),
+      label: String(c.label || c.brand || c.sponsor || ""),
+      logo: String(c.logoImage || c.partnerLogo || c.logo || ""),
+      gallery,
       stats: [],
     };
   },
@@ -100,25 +172,21 @@ const featureEntry: TemplateRegistryEntry = {
 const editorNoteEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
-    const c = page.content;
-    // Hard guard: the Editor's Note viewModel must NEVER contain a Contents
-    // items array. If a prior write bug or merge bug accidentally left items
-    // on the page record, strip it here so PageEditorial / PageContents
-    // renderers can never produce the "rik-rak of contents cards" symptom
-    // on top of an otherwise correct editorial page.
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, "");
     const viewModel: Record<string, unknown> = {
-      title: c.title || "Editor's Note",
-      author: c.author || "",
-      quote: c.quote || "",
-      text: c.body || "",
-      intro: c.standfirst || "",
-      featureImage: c.imageUrl || "",
-      image: c.imageUrl || "",
-      pullQuotes: c.pullQuotes || [],
+      title: String(c.title || c.headline || "Editor's Note"),
+      author: String(c.author || c.name || c.byline || ""),
+      quote: String(c.quote || ""),
+      text: String(c.body || c.text || c.message || ""),
+      intro: String(c.standfirst || c.intro || c.subheadline || ""),
+      featureImage: main,
+      image: main,
+      gallery: pickGallery(c),
+      pullQuotes: Array.isArray(c.pullQuotes) ? (c.pullQuotes as any[]) : [],
     };
     delete viewModel.items;
     if (Array.isArray((c as any).items)) {
-      // Defensive trace log (server-side / client console only).
       try {
         console.warn(
           '[template-registry] editor-note page had stray content.items array; stripped.',
@@ -135,13 +203,17 @@ const editorNoteEntry: TemplateRegistryEntry = {
 const adEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
-    const c = page.content;
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, "");
     const viewModel = {
-      image: c.imageUrl || "",
-      label: c.label || "Advertisement",
-      alt: c.title || "Advertisement",
-      linkUrl: c.ctaHref || "",
-      pdfUrl: c.pdfUrl || "",
+      image: main,
+      featureImage: main,
+      label: String(c.label || c.brand || c.sponsor || "Advertisement"),
+      alt: String(c.title || c.headline || "Advertisement"),
+      linkUrl: String(c.ctaHref || c.linkUrl || c.url || ""),
+      pdfUrl: String(c.pdfUrl || ""),
+      gallery: pickGallery(c),
+      logo: String(c.logoImage || c.partnerLogo || c.logo || ""),
     };
     delete (viewModel as any).items;
     return viewModel;
@@ -151,19 +223,22 @@ const adEntry: TemplateRegistryEntry = {
 const backCoverEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page, edition) => {
-    const c = page.content;
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, edition.coverImage || "");
+    const gallery = pickGallery(c);
     const viewModel = {
-      title: c.title || edition.title,
-      text: c.body || edition.description || "",
-      featureImage: c.imageUrl || edition.coverImage,
-      image: c.imageUrl || edition.coverImage,
-      backgroundImage: c.backgroundImage || "",
-      videoUrl: c.videoUrl || "",
-      kicker: c.kicker || "Until Next Time",
-      cta: c.ctaLabel || "Join the Community",
-      linkUrl: c.ctaHref || "",
-      nextIssue: c.nextIssue || "",
-      pdfUrl: c.pdfUrl || "",
+      title: String(c.title || c.headline || edition.title),
+      text: String(c.body || c.text || c.message || edition.description || ""),
+      featureImage: main,
+      image: main,
+      backgroundImage: String(c.backgroundImage || ""),
+      videoUrl: String(c.videoUrl || ""),
+      kicker: String(c.kicker || c.section || "Until Next Time"),
+      cta: String(c.ctaLabel || c.callToAction || "Join the Community"),
+      linkUrl: String(c.ctaHref || c.linkUrl || c.url || ""),
+      nextIssue: String(c.nextIssue || ""),
+      pdfUrl: String(c.pdfUrl || ""),
+      gallery,
       socials: [],
     };
     delete (viewModel as any).items;
