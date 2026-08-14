@@ -831,7 +831,13 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
 
     const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
+    // The builder page client already updates issue.storyLibrary state optimistically after
+    // saveMagazineStoryLibraryAction resolves, and has its own page-level state for pages.
+    // Triggering a Next.js revalidate here races with the next getMagazinePagesAction() read
+    // and causes "deleted pages come back after 2 seconds" — the RSC payload re-serves stale
+    // cached pages, and the client's "0 pages → auto-create structural spreads" useEffect
+    // kicks in and regenerates cover/contents/back-cover against the admin's explicit delete.
     try { safeRevalidatePath('/admin/magazine'); } catch { /* noop */ }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
@@ -1218,7 +1224,12 @@ async function importIdmlBufferToStoryLibrary(
   const nextLibrary = mergeStoryLibraryItems(importedItems, existingItems);
   const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
 
-  safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+  // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
+  // The caller (builder page) already: (1) updates issue.storyLibrary state with the saved
+  // library, (2) runs runSingleFlightSync on the just-persisted savedLibrary, (3) switches
+  // to builder tab and updates pages state in-place. Triggering a Next.js revalidate here
+  // forces a stale cached RSC reload that races with explicit deletes the admin may have
+  // just performed, producing the "deleted 3 pages bounce back after 2s" symptom.
   safeRevalidatePath('/admin/magazine');
 
   return {
