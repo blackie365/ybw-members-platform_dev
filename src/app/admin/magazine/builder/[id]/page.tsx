@@ -457,6 +457,22 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   // Load Initial Data
   const loadData = useCallback(async (silent = false) => {
+    // IMPORTANT: loadData no longer runs the Story Library → Pages auto-sync
+    // unconditionally. Previously, if the admin deleted all pages then any
+    // code path that called loadData (save metadata, save story library,
+    // post-CMS-import, Next.js cache race) would immediately recreate the
+    // three structural spreads (cover / contents / back-cover) because the
+    // tail of this function called runSingleFlightSync whenever `!isNew`.
+    //
+    // Auto-sync from Story Library → Pages now ONLY runs on EXPLICIT admin
+    // actions:
+    //   • Import IDML (handleIdmlFileForSpreads)
+    //   • Click "Smart Batch Fill" (handleBatchSync, via handleImportContent)
+    //   • Select a story in the library and press "Add as spread" (if any)
+    //
+    // This guarantees: if the admin explicitly deletes all spreads, they
+    // STAY deleted. They can always be restored by clicking Smart Batch Fill
+    // or re-importing IDML.
     if (!silent) setLoading(true);
     try {
         let loadedStoryLibrary: any[] = [];
@@ -521,13 +537,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
         }
 
-        // Always auto-create missing spreads after load.
-        // Single-flight lock + idempotent identity-key dedupe guarantee no duplicates.
-        if (!isNew) {
-          loadedPages = await runSingleFlightSync(loadedStoryLibrary, loadedPages, {
-            suppressToast: true,
-          });
-        }
+        // Intentionally NO end-of-load runSingleFlightSync.
+        // See JSDoc-style note at top of loadData for rationale.
 
         setPages(loadedPages);
       } catch (error) {
@@ -536,7 +547,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       } finally {
         if (!silent) setLoading(false);
       }
-  }, [id, isNew, runSingleFlightSync]);
+  }, [id, isNew]);
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => { issueRef.current = issue; }, [issue]);
@@ -563,35 +574,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       didSpreadSyncOnTabRef.current = false;
       return;
     }
-    if (isNew || loadingRef.current || didSpreadSyncOnTabRef.current) return;
-    if (syncLockRef.current) return;
-    if ((pagesRef.current || []).length > 0) {
-      didSpreadSyncOnTabRef.current = true;
-      return;
-    }
+    // NEVER auto-create spreads just because pages.length === 0.
+    //
+    // Previously this useEffect would detect 0 pages on tab switch and run
+    // runSingleFlightSync, which always regenerates the 3 structural
+    // spreads (cover/contents/back-cover) — so immediately after an admin
+    // clicked "Delete all spreads", navigating to a different tab and back
+    // would bring them back. "0 pages" is a VALID user choice (e.g. admin is
+    // about to import a new IDML, or wants to build custom spreads
+    // manually from scratch). Auto-create only happens on EXPLICIT admin
+    // actions (Import IDML / Smart Batch Fill).
     didSpreadSyncOnTabRef.current = true;
-    const storyLibrary = (issueRef.current?.storyLibrary as any[]) || [];
-    let cancelled = false;
-    (async () => {
-      try {
-        const pagesRes = await getMagazinePagesAction(id);
-        const currentPages: MagazinePage[] =
-          pagesRes?.success && Array.isArray(pagesRes.data)
-            ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
-            : [];
-        if (cancelled) return;
-        const nextPages = await runSingleFlightSync(
-          storyLibrary,
-          currentPages,
-          { suppressToast: false },
-        );
-        if (!cancelled) setPages(nextPages);
-      } catch (err) {
-        console.warn('Auto-spread sync failed on tab switch:', err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [activeTab, isNew, id, runSingleFlightSync]);
+  }, [activeTab]);
 
   // Issue Handlers
   const handleSaveIssue = async () => {
@@ -637,8 +631,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           ...prev,
           storyLibrary: normalizeStoryLibrary(saved),
         }));
-        toast.success('Story library saved');
-        await loadData(true);
+        toast.success('Story library saved — click Smart Batch Fill to auto-generate spreads from this library.');
+        // NOTE: Intentionally no loadData(true) here. loadData no longer
+        // regenerates pages on every load anyway, but skipping it also avoids
+        // any "data just reloaded → pages appear from thin air" surprises.
+        // Pages state stays exactly as the admin left it; story library state
+        // was already updated above.
       } else {
         toast.error(res.error || 'Failed to save story library');
       }
@@ -656,7 +654,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }));
 
     if (!isNew) {
-      await loadData(true);
+      toast.info('Story library imported — click Smart Batch Fill to create spreads.');
     }
   };
 
@@ -1544,8 +1542,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
-      // Don't call loadData(true) here — its default sync would re-create the
-      // pages we just deleted. Instead, update pages state directly.
+      // Deleting spreads is final: pages state updates directly to empty, no
+      // loadData() call, and there's no "0 pages → auto-fill" useEffect or
+      // loadData tail that can recreate them. Spreads only come back when the
+      // admin explicitly clicks Smart Batch Fill or re-imports IDML.
+      didSpreadSyncOnTabRef.current = true;
       const remainingPages = pages.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
         .sort((a, b) => (a.id || 0) - (b.id || 0));
       setPages(remainingPages);
@@ -1555,7 +1556,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           `Deleted ${deleted} of ${total} spread${total === 1 ? '' : 's'}. ${failed} failed.`
         );
       } else {
-        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}`);
+        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}` +
+          ` — click "Smart Batch Fill" or re-import IDML if you want spreads back.`,
+        );
       }
     } catch (error) {
       toast.error(
@@ -1651,7 +1654,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage(nextPages);
       } catch {}
-      toast.success('Spread removed');
+      // Deleting a spread is final. There is no "0 pages → auto-create"
+      // useEffect or loadData tail that can bring spreads back.
+      didSpreadSyncOnTabRef.current = true;
+      toast.success('Spread removed — click Smart Batch Fill or re-import IDML to regenerate.');
       if (selectedPageId === pageDocId) setSelectedPageId(null);
       // Don't call loadData(true) here — its default sync would recreate the
       // deleted page (if story for it still exists in library). Update state directly.

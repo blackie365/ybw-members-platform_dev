@@ -1,6 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
-import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, normalizeImageUrl } from '@/lib/magazine-utils';
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
 
@@ -12,6 +12,17 @@ const STRUCTURAL_TEMPLATES = new Set<ReaderPage['template']>([
   'editor-note',
   'back-cover',
 ]);
+// When merging a STRUCTURAL base page (cover/contents/editor-note/back-cover)
+// with its legacy counterpart, the template is only allowed to remain in this
+// set. If the legacy page somehow had a different template (due to a corrupted
+// Firestore write or a prior bug), we force the base structural template so we
+// never, for example, end up rendering an editor-note page with a contents grid.
+const STRUCTURAL_TEMPLATE_PINNED: Record<string, ReaderPage['template']> = {
+  cover: 'cover',
+  contents: 'contents',
+  'editor-note': 'editor-note',
+  'back-cover': 'back-cover',
+};
 
 function serializeData(data: any): any {
   if (!data) return data;
@@ -62,28 +73,10 @@ function editionMatchesIssue(edition: ReaderEdition, issue: { title?: string; pu
   return sameTitle || sameMonth;
 }
 
-function isRenderableImageUrl(value: unknown): value is string {
-  const url = String(value || '').trim();
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  const looksLikeUrl =
-    lower.startsWith('https://') ||
-    lower.startsWith('http://') ||
-    lower.startsWith('gs://') ||
-    lower.startsWith('/') ||
-    lower.startsWith('./') ||
-    lower.startsWith('../') ||
-    lower.startsWith('data:');
-
-  if (!looksLikeUrl) return false;
-  if (/\.(?:ai|eps|indd|pdf|psd)(?:$|[?#])/i.test(lower)) return false;
-  return true;
-}
-
 function sanitizeImageUrl(value: unknown): string {
-  const url = String(value || '').trim();
-  if (!isRenderableImageUrl(url)) return '';
-  return fixMagazineImageUrl(url);
+  const normalized = normalizeImageUrl(value);
+  if (!normalized) return '';
+  return fixMagazineImageUrl(normalized);
 }
 
 function sanitizeUrlList(values: unknown): string[] {
@@ -454,7 +447,15 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
   const base = sanitizeReaderPage(basePage);
   if (!legacyPage) return base;
 
-  const preferLegacy = STRUCTURAL_TEMPLATES.has(base.template);
+  // Structural templates (cover/contents/editor-note/back-cover) are PINNED to
+  // their original base template. Even if a legacy page had a corrupted template
+  // field (e.g. editor-note stored with type=contents due to a prior build bug),
+  // we keep the base structural template so the correct renderer always runs.
+  const isStructural = STRUCTURAL_TEMPLATES.has(base.template);
+  const preferLegacy = isStructural;
+  const pinnedTemplate: ReaderPage['template'] = isStructural
+    ? STRUCTURAL_TEMPLATE_PINNED[base.template as keyof typeof STRUCTURAL_TEMPLATE_PINNED] ?? base.template
+    : base.template;
   const baseImages = sanitizeUrlList(base.content.imageUrls);
   const legacyImages = sanitizeUrlList(legacyPage.content.imageUrls);
   const imageUrl = preferLegacy
@@ -467,9 +468,20 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
     (url, index, all) => url !== imageUrl && url !== backgroundImage && all.indexOf(url) === index,
   );
 
+  // Contents items (the grid of cards with categories + page numbers) ONLY
+  // belong on the `contents` template. Never let them bleed into other
+  // templates — that produces the "rik-rak of contents pages" symptom on the
+  // Editorial or Cover pages.
+  const baseHasItems = Array.isArray(base.content.items) && base.content.items.length > 0;
+  const mergedItems = baseHasItems
+    ? base.content.items
+    : (pinnedTemplate === 'contents' ? (legacyPage.content.items ?? []) : []);
+
   return sanitizeReaderPage({
     ...base,
-    template: preferLegacy ? legacyPage.template || base.template : base.template,
+    template: isStructural
+      ? pinnedTemplate
+      : (preferLegacy ? legacyPage.template || base.template : base.template),
     content: {
       ...base.content,
       title: preferLegacy
@@ -494,10 +506,7 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
       pullQuotes: [...(base.content.pullQuotes || []), ...(legacyPage.content.pullQuotes || [])].filter(
         (quote, index, all) => quote && all.indexOf(quote) === index,
       ),
-      items:
-        Array.isArray(base.content.items) && base.content.items.length > 0
-          ? base.content.items
-          : legacyPage.content.items,
+      items: mergedItems,
       ctaLabel: base.content.ctaLabel || legacyPage.content.ctaLabel,
       ctaHref: base.content.ctaHref || legacyPage.content.ctaHref,
       label: base.content.label || legacyPage.content.label,

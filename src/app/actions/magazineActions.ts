@@ -831,7 +831,13 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
 
     const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
+    // The builder page client already updates issue.storyLibrary state optimistically after
+    // saveMagazineStoryLibraryAction resolves, and has its own page-level state for pages.
+    // Triggering a Next.js revalidate here races with the next getMagazinePagesAction() read
+    // and causes "deleted pages come back after 2 seconds" — the RSC payload re-serves stale
+    // cached pages, and the client's "0 pages → auto-create structural spreads" useEffect
+    // kicks in and regenerates cover/contents/back-cover against the admin's explicit delete.
     try { safeRevalidatePath('/admin/magazine'); } catch { /* noop */ }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
@@ -979,7 +985,11 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // The client already updates pages state optimistically, and triggering a
+    // Next.js revalidate races with subsequent getMagazinePagesAction() reads
+    // which may return stale cached page records, causing "deleted pages
+    // reappear after a couple seconds" or saves to flip back.
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -998,7 +1008,10 @@ export async function addMagazinePageAction(issueId: string, data: any) {
       updatedAt: new Date().toISOString()
     });
 
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // See updateMagazinePageAction above — Next.js cache reads race with
+    // fresh Firestore writes and cause "deleted pages come back" on the
+    // builder admin page.
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -1012,7 +1025,11 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    try { safeRevalidatePath(`/admin/magazine/builder/${issueId}`); } catch { /* noop */ }
+    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
+    // Deletion-triggered revalidation was the #1 cause of "I deleted all
+    // pages but 3 reappear after a couple seconds": Next.js served a stale
+    // cached fullPageRSC payload of the builder page, and the useEffect on
+    // tab-switch saw 0 pages and triggered auto-sync to regenerate them.
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazinePageAction:", error);
@@ -1207,7 +1224,12 @@ async function importIdmlBufferToStoryLibrary(
   const nextLibrary = mergeStoryLibraryItems(importedItems, existingItems);
   const savedItems = await persistStoryLibraryForIssue(issueId, nextLibrary);
 
-  safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+  // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
+  // The caller (builder page) already: (1) updates issue.storyLibrary state with the saved
+  // library, (2) runs runSingleFlightSync on the just-persisted savedLibrary, (3) switches
+  // to builder tab and updates pages state in-place. Triggering a Next.js revalidate here
+  // forces a stale cached RSC reload that races with explicit deletes the admin may have
+  // just performed, producing the "deleted 3 pages bounce back after 2s" symptom.
   safeRevalidatePath('/admin/magazine');
 
   return {

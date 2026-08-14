@@ -54,10 +54,18 @@ const contentsEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page, edition) => {
     const c = page.content;
+    const rawItems = Array.isArray(c.items) ? c.items : [];
+    // Defensive: only keep items that look like valid Contents entries with
+    // a non-empty title. If a merge bug leaked story library items into the
+    // legacy page (e.g. the Editorial page accidentally got an items array),
+    // this filters them out so a mis-tagged Contents renderer gets a safe list.
+    const sanitizedItems = rawItems.filter(
+      (item: any) => item && typeof item.title === 'string' && String(item.title).trim().length > 0,
+    );
     return {
       title: c.title || "In This Issue",
       kicker: formatDate(edition.publishDate),
-      items: c.items || [],
+      items: sanitizedItems,
     };
   },
 };
@@ -93,7 +101,12 @@ const editorNoteEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
     const c = page.content;
-    return {
+    // Hard guard: the Editor's Note viewModel must NEVER contain a Contents
+    // items array. If a prior write bug or merge bug accidentally left items
+    // on the page record, strip it here so PageEditorial / PageContents
+    // renderers can never produce the "rik-rak of contents cards" symptom
+    // on top of an otherwise correct editorial page.
+    const viewModel: Record<string, unknown> = {
       title: c.title || "Editor's Note",
       author: c.author || "",
       quote: c.quote || "",
@@ -103,6 +116,19 @@ const editorNoteEntry: TemplateRegistryEntry = {
       image: c.imageUrl || "",
       pullQuotes: c.pullQuotes || [],
     };
+    delete viewModel.items;
+    if (Array.isArray((c as any).items)) {
+      // Defensive trace log (server-side / client console only).
+      try {
+        console.warn(
+          '[template-registry] editor-note page had stray content.items array; stripped.',
+          { pageId: page.id, itemCount: (c as any).items.length },
+        );
+      } catch {
+        /* noop */
+      }
+    }
+    return viewModel;
   },
 };
 
@@ -110,13 +136,15 @@ const adEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
     const c = page.content;
-    return {
+    const viewModel = {
       image: c.imageUrl || "",
       label: c.label || "Advertisement",
       alt: c.title || "Advertisement",
       linkUrl: c.ctaHref || "",
       pdfUrl: c.pdfUrl || "",
     };
+    delete (viewModel as any).items;
+    return viewModel;
   },
 };
 
@@ -124,7 +152,7 @@ const backCoverEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page, edition) => {
     const c = page.content;
-    return {
+    const viewModel = {
       title: c.title || edition.title,
       text: c.body || edition.description || "",
       featureImage: c.imageUrl || edition.coverImage,
@@ -138,6 +166,8 @@ const backCoverEntry: TemplateRegistryEntry = {
       pdfUrl: c.pdfUrl || "",
       socials: [],
     };
+    delete (viewModel as any).items;
+    return viewModel;
   },
 };
 
