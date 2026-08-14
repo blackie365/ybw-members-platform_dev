@@ -211,6 +211,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const pagesRef = useRef<MagazinePage[]>([]);
   const issueRef = useRef<any>(issue);
   const loadingRef = useRef<boolean>(false);
+  // Set to true for exactly one IDML import cycle: when an admin just did
+  // "Import IDML" (Story Library was saved from an IDML parse) we want
+  // Spread Builder tab to auto-create spreads ONCE. Manual page deletions
+  // do NOT set this flag, so tab-switching post-delete never recreates them.
+  const pendingIdmlSyncOnTabSwitchRef = useRef<boolean>(false);
 
   const runSingleFlightSync = useCallback(async (
     storyLibrary: any[],
@@ -243,6 +248,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       return;
     }
     setIsIdmlImporting(true);
+    pendingIdmlSyncOnTabSwitchRef.current = true;
     const toastId = 'idml-spread-import';
     const safetyTimer = setTimeout(() => {
       setIsIdmlImporting((prev) => {
@@ -285,10 +291,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
         suppressToast: true,
       });
+      pendingIdmlSyncOnTabSwitchRef.current = false;
       setPages(nextPages);
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
       setActiveTab('builder');
     } catch (err: any) {
+      // Keep pendingIdmlSyncOnTabSwitchRef = true on early error / partial write.
+      // If story library WAS saved but spread creation failed, admin can just
+      // click the Spread Builder tab and it will sync there.
       console.error('[handleIdmlFileForSpreads] error:', err);
       const rawMsg = err?.message || err?.toString?.() || 'Failed to import IDML into Issue Spreads';
       const msg = typeof rawMsg === 'string' ? rawMsg : String(rawMsg);
@@ -574,18 +584,53 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       didSpreadSyncOnTabRef.current = false;
       return;
     }
-    // NEVER auto-create spreads just because pages.length === 0.
-    //
-    // Previously this useEffect would detect 0 pages on tab switch and run
-    // runSingleFlightSync, which always regenerates the 3 structural
-    // spreads (cover/contents/back-cover) — so immediately after an admin
-    // clicked "Delete all spreads", navigating to a different tab and back
-    // would bring them back. "0 pages" is a VALID user choice (e.g. admin is
-    // about to import a new IDML, or wants to build custom spreads
-    // manually from scratch). Auto-create only happens on EXPLICIT admin
-    // actions (Import IDML / Smart Batch Fill).
+    if (isNew || loadingRef.current) return;
+
+    // Case 1: IDML import just happened in another tab (Issue Settings /
+    // ManualImporter), pages are empty, and the pending-import-sync flag was
+    // set. This case auto-creates structural spreads for exactly ONE tab
+    // switch after an import, matching the pre-fix "spreads appear when you
+    // open Spread Builder" behavior.
+    if (pendingIdmlSyncOnTabSwitchRef.current) {
+      pendingIdmlSyncOnTabSwitchRef.current = false;
+      didSpreadSyncOnTabRef.current = true;
+      const storyLibrary = (issueRef.current?.storyLibrary as any[]) || [];
+      if (syncLockRef.current) return;
+      if (storyLibrary.length === 0) return;
+      let cancelled = false;
+      (async () => {
+        try {
+          const pagesRes = await getMagazinePagesAction(id);
+          const currentPages: MagazinePage[] =
+            pagesRes?.success && Array.isArray(pagesRes.data)
+              ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+              : [];
+          if (cancelled) return;
+          // Don't clobber existing manual pages. If admin already has spreads
+          // (e.g. they reimported), only run sync if there are zero pages.
+          if (currentPages.length > 0) return;
+          const nextPages = await runSingleFlightSync(
+            storyLibrary,
+            currentPages,
+            { suppressToast: false },
+          );
+          if (!cancelled) {
+            setPages(nextPages);
+            toast.success('IDML spreads auto-created.');
+          }
+        } catch (err) {
+          console.warn('IDML-triggered spread sync failed on tab switch:', err);
+        }
+      })();
+      return;
+    }
+
+    // Case 2 (default): NO auto-create of spreads on tab switch. This was the
+    // cause of the deleted-spreads bounce-back bug. "0 pages" is now a VALID
+    // user choice. Spreads are created explicitly by: Import IDML button,
+    // Smart Batch Fill button, or the pending-import-sync case above.
     didSpreadSyncOnTabRef.current = true;
-  }, [activeTab]);
+  }, [activeTab, isNew, id, runSingleFlightSync]);
 
   // Issue Handlers
   const handleSaveIssue = async () => {
@@ -631,12 +676,42 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           ...prev,
           storyLibrary: normalizeStoryLibrary(saved),
         }));
-        toast.success('Story library saved — click Smart Batch Fill to auto-generate spreads from this library.');
-        // NOTE: Intentionally no loadData(true) here. loadData no longer
-        // regenerates pages on every load anyway, but skipping it also avoids
-        // any "data just reloaded → pages appear from thin air" surprises.
-        // Pages state stays exactly as the admin left it; story library state
-        // was already updated above.
+        // If the save resulted in new Story Library content, treat it as an
+        // import-style event and auto-generate spreads to match. This ensures
+        // "Import IDML" flows in Issue Settings or the Spread Builder tab
+        // still produce a full spread layout automatically (Cover → Contents
+        // → Articles → Back cover), without reverting to the bad pre-fix
+        // behavior of auto-creating spreads whenever pages list happened to
+        // be empty (e.g. after an explicit admin delete).
+        const hasContent = saved.length > 0;
+        const wasEmptyBefore = (issue.storyLibrary?.length || 0) === 0;
+        if (hasContent && wasEmptyBefore) {
+          pendingIdmlSyncOnTabSwitchRef.current = true;
+          const pagesRes = await getMagazinePagesAction(id);
+          const currentPages: MagazinePage[] =
+            pagesRes?.success && Array.isArray(pagesRes.data)
+              ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+              : [];
+          // Only auto-generate when pages list is actually empty + story
+          // library was just populated for the first time. If the admin
+          // already has spreads (e.g. they re-saved the library to tweak a
+          // single story entry), we don't want to clobber manual edits.
+          if (currentPages.length === 0) {
+            const nextPages = await runSingleFlightSync(saved, currentPages, {
+              suppressToast: true,
+            });
+            setPages(nextPages);
+            pendingIdmlSyncOnTabSwitchRef.current = false;
+            toast.success(
+              'Story library saved — Cover, Contents, Articles, and Back cover auto-generated in Spread Builder.'
+            );
+            setActiveTab('builder');
+          } else {
+            toast.success('Story library saved — click Smart Batch Fill to create missing spreads from new stories.');
+          }
+        } else {
+          toast.success('Story library saved — click Smart Batch Fill to auto-generate spreads from this library.');
+        }
       } else {
         toast.error(res.error || 'Failed to save story library');
       }
@@ -654,7 +729,33 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }));
 
     if (!isNew) {
-      toast.info('Story library imported — click Smart Batch Fill to create spreads.');
+      // Called from ManualImporter when an IDML was saved into the Story
+      // Library via "Import Stored IDML" or the ManualImporter file
+      // picker. Always set the pending-sync flag AND eagerly try to build
+      // spreads now if pages are empty, so the admin doesn't have to click
+      // Spread Builder tab first. If pages aren't empty (admin was already
+      // editing manually), only flag for tab switch and let admin choose.
+      pendingIdmlSyncOnTabSwitchRef.current = true;
+      try {
+        const pagesRes = await getMagazinePagesAction(id);
+        const currentPages: MagazinePage[] =
+          pagesRes?.success && Array.isArray(pagesRes.data)
+            ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+            : [];
+        if (currentPages.length === 0 && Array.isArray(storyLibrary) && storyLibrary.length > 0) {
+          const nextPages = await runSingleFlightSync(storyLibrary, currentPages, {
+            suppressToast: true,
+          });
+          setPages(nextPages);
+          pendingIdmlSyncOnTabSwitchRef.current = false;
+          toast.success('IDML imported — spreads auto-generated. Switching to Spread Builder…');
+          setActiveTab('builder');
+          return;
+        }
+      } catch (err) {
+        console.warn('Auto-sync after IDML import failed, deferring to tab switch:', err);
+      }
+      toast.info('Story library imported — spreads will auto-generate when you open the Spread Builder tab.');
     }
   };
 
