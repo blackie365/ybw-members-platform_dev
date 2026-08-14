@@ -1387,3 +1387,65 @@ export async function deleteIdmlDraft(draftId: string) {
     return { success: false, error: error.message };
   }
 }
+
+export async function uploadIdmlFileToStorageAction(idmlBase64: string, fileName: string) {
+  try {
+    await checkAdmin();
+
+    if (!adminStorage) {
+      throw new Error('Firebase Admin Storage not configured');
+    }
+
+    if (!idmlBase64 || typeof idmlBase64 !== 'string') {
+      throw new Error('Invalid IDML base64 payload');
+    }
+
+    const buffer = Buffer.from(idmlBase64, 'base64');
+    if (buffer.length === 0) {
+      throw new Error('Empty IDML file');
+    }
+
+    const sanitizedName = String(fileName || 'import.idml')
+      .replace(/[^a-zA-Z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase();
+    const timestamp = Date.now().toString();
+    const objectName = `magazine-import/${timestamp}-${sanitizedName}`;
+
+    const bucket = adminStorage.bucket();
+    const bucketName = bucket.name;
+    const storageFile = bucket.file(objectName);
+
+    await storageFile.save(buffer, {
+      contentType: 'application/octet-stream',
+      metadata: {
+        contentType: 'application/octet-stream',
+        metadata: {
+          fileName: sanitizedName,
+          uploadedAt: new Date().toISOString(),
+          fileSizeBytes: String(buffer.length),
+        },
+      },
+    });
+
+    const gsUrl = `gs://${bucketName}/${objectName}`;
+    const encodedPath = encodeURIComponent(objectName);
+    const httpsUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
+
+    return {
+      success: true,
+      data: {
+        gsUrl,
+        httpsUrl,
+        path: objectName,
+        bucket: bucketName,
+        sizeBytes: buffer.length,
+        fileName: sanitizedName,
+      },
+    };
+  } catch (error: any) {
+    console.error('Error uploading IDML file to Storage:', error);
+    return { success: false, error: error.message || 'Failed to upload IDML file' };
+  }
+}
