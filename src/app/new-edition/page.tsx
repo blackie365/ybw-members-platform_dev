@@ -200,6 +200,8 @@ export default async function NewEditionPage() {
                     <img
                       src={latestCoverImage}
                       alt={`${latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'} Cover`}
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                       className="absolute inset-0 h-full w-full object-contain"
                     />
                     <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-transparent to-white/10" />
@@ -344,6 +346,8 @@ export default async function NewEditionPage() {
                   <img
                     src={fixMagazineImageUrl(issue.coverImage, IMAGE_VERSION)}
                     alt={issue.title}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">

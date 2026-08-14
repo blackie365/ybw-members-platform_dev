@@ -431,6 +431,8 @@ function AdditionalMediaGallery({
             <img
               src={fixMagazineImageUrl(item.src, imageVersion)}
               alt={item.alt}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-[1.04]"
               loading="lazy"
             />
@@ -524,6 +526,8 @@ function MediaFigure({
         <img
           src={fixMagazineImageUrl(item.src, imageVersion)}
           alt={item.alt}
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />
@@ -1327,6 +1331,8 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
           alt=""
           fill
           sizes="100vw"
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
           className={
             pdfUrl
               ? "object-cover blur-2xl scale-105 opacity-25"
@@ -1374,6 +1380,8 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
               alt={alt}
               fill
               sizes="100vw"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="object-contain"
             />
           </div>
@@ -1437,6 +1445,8 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
               alt={String(data?.brand || label || "Sponsor logo").trim()}
               width={256}
               height={64}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="h-auto max-h-16 w-auto object-contain"
               style={{ maxHeight: 64 }}
             />
@@ -1507,6 +1517,8 @@ export const PageEditorial = ({ data, imageVersion }: any) => {
                   <img
                     src={fixMagazineImageUrl(featureImage, imageVersion)}
                     alt={data.author}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -2809,6 +2821,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                       alt={logoAlt}
                       width={280}
                       height={72}
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                       className="h-auto max-h-16 w-auto object-contain"
                       style={{ maxHeight: 64 }}
                     />
@@ -2903,6 +2917,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                     alt={logoAlt}
                     width={280}
                     height={72}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="h-auto max-h-16 w-auto object-contain"
                     style={{ maxHeight: 64 }}
                   />
@@ -2956,6 +2972,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                       <img
                         src={fixMagazineImageUrl(featureImage, imageVersion)}
                         alt={data.brand}
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                     )}
@@ -2978,6 +2996,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                   <img
                     src={fixMagazineImageUrl(featureImage, imageVersion)}
                     alt={data.brand}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 )}
