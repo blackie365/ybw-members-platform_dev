@@ -1,8 +1,28 @@
 import { adminDb } from '@/lib/firebase-admin';
+import { db as clientFirestoreDb } from '@/lib/firebase';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { fixMagazineImageUrl, normalizeImageUrl } from '@/lib/magazine-utils';
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
+
+/**
+ * Pick a working Firestore instance.
+ *
+ * Order of preference:
+ *   1. Admin SDK (`adminDb`) — available when FIREBASE_PRIVATE_KEY +
+ *      FIREBASE_CLIENT_EMAIL are set (local dev, CI, some serverless envs).
+ *   2. Client SDK (`clientFirestoreDb`) — always available on Vercel because
+ *      it only needs NEXT_PUBLIC_FIREBASE_* env vars (already set there).
+ *
+ * Both Admin + Client SDKs expose the same collection/doc/where/orderBy/
+ * limit/get surface used in this file. serializeData() already handles both
+ * Timestamp variants (_seconds / seconds) so read results are identical.
+ */
+function getFirestore(): any {
+  if (adminDb) return adminDb;
+  if (clientFirestoreDb) return clientFirestoreDb as unknown as any;
+  return null;
+}
 
 const COLLECTION = 'magazine_reader_editions';
 const LEGACY_ISSUES_COLLECTION = 'magazine_issues';
@@ -517,42 +537,46 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
 }
 
 async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
-  const db = adminDb;
-  if (!db) return edition;
-
-  const issues = await getMagazineIssuesServer().catch(() => []);
-  const matchingIssue = issues.find((issue) => editionMatchesIssue(edition, issue));
-  if (!matchingIssue) {
+  const db = getFirestore();
+  if (!db) {
     return {
       ...edition,
       pages: (edition.pages || []).map(sanitizeReaderPage),
       pageCount: Array.isArray(edition.pages) ? edition.pages.length : 0,
+      coverImage: sanitizeImageUrl(edition.coverImage) || '',
     };
   }
 
-  const pagesSnapshot = await db
-    .collection(LEGACY_ISSUES_COLLECTION)
-    .doc(matchingIssue.id)
-    .collection('pages')
-    .orderBy('id', 'asc')
-    .get()
-    .catch(async () =>
-      db
-        .collection(LEGACY_ISSUES_COLLECTION)
-        .doc(matchingIssue.id)
-        .collection('pages')
-        .get(),
-    );
+  const issues = await getMagazineIssuesServer().catch(() => []);
+  const matchingIssue = issues.find((issue) => editionMatchesIssue(edition, issue)) ?? null;
+  const issueCover = matchingIssue ? sanitizeImageUrl(matchingIssue.coverImage) || '' : '';
+  let legacyPages: ReaderPage[] = [];
+  if (matchingIssue) {
+    const pagesSnapshot = await db
+      .collection(LEGACY_ISSUES_COLLECTION)
+      .doc(matchingIssue.id)
+      .collection('pages')
+      .orderBy('id', 'asc')
+      .get()
+      .catch(async () =>
+        db
+          .collection(LEGACY_ISSUES_COLLECTION)
+          .doc(matchingIssue.id)
+          .collection('pages')
+          .get(),
+      );
 
-  const legacyPages = pagesSnapshot.docs
-    .map((doc, index) =>
-      mapLegacyPageToReaderPage(
-        { docId: doc.id, ...serializeData(doc.data()) },
-        matchingIssue,
-        index,
-      ),
-    )
-    .filter(Boolean) as ReaderPage[];
+    const docs = pagesSnapshot?.docs ?? [];
+    legacyPages = docs
+      .map((doc: any, index: number) =>
+        mapLegacyPageToReaderPage(
+          { docId: doc.id, ...serializeData(doc.data ? doc.data() : doc) },
+          matchingIssue,
+          index,
+        ),
+      )
+      .filter(Boolean) as ReaderPage[];
+  }
 
   const legacyByKey = new Map<string, ReaderPage>();
   for (const page of legacyPages) {
@@ -645,7 +669,7 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
     coverImage:
       collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
       sanitizeImageUrl(edition.coverImage) ||
-      matchingIssue.coverImage ||
+      issueCover ||
       '',
     pages: collapsedPages,
     pageCount: collapsedPages.length,
@@ -653,55 +677,68 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
 }
 
 export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
-  if (!adminDb) return [];
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return [];
+  const snapshot = await firestore
     .collection(COLLECTION)
     .orderBy('publishDate', 'desc')
     .limit(limit)
     .get();
-  return snapshot.docs.map(doc => serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const docs = snapshot?.docs ?? [];
+  return Promise.all(docs.map(async (doc: any) =>
+    hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition),
+  ));
 }
 
 export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
     .limit(1)
     .get();
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const docs = snapshot?.docs ?? [];
+  if (docs.length === 0) return null;
+  const doc = docs[0];
+  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
 }
 
 export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
-  if (!adminDb) return null;
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
     .limit(1)
     .get();
-  return snapshot.empty ? null : snapshot.docs[0].id;
+  const docs = snapshot?.docs ?? [];
+  return docs.length === 0 ? null : docs[0].id;
 }
 
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
-  const doc = await adminDb.collection(COLLECTION).doc(id).get();
-  if (!doc.exists) return null;
-  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const doc = await firestore.collection(COLLECTION).doc(id).get();
+  const exists = typeof doc?.exists === 'boolean' ? doc.exists : Boolean(doc);
+  if (!exists) return null;
+  return hydrateEditionWithLegacyPages(serializeData({ id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
 }
 
 export async function upsertReaderEdition(edition: ReaderEdition): Promise<void> {
-  if (!adminDb) throw new Error('Firebase Admin not configured');
-  await adminDb.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
+  const firestore = getFirestore();
+  if (!firestore) throw new Error('Firebase not configured for server writes');
+  await firestore.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
 }
 
 export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
+  const firestore = getFirestore();
+  if (!firestore) return null;
 
-  const editionDoc = await adminDb.collection(COLLECTION).doc(editionId).get();
-  if (!editionDoc.exists) return null;
-  const edition = serializeData({ id: editionDoc.id, ...editionDoc.data() }) as ReaderEdition;
+  const editionDoc = await firestore.collection(COLLECTION).doc(editionId).get();
+  const exists = typeof editionDoc?.exists === 'boolean' ? editionDoc.exists : Boolean(editionDoc);
+  if (!exists) return null;
+  const edition = serializeData({ id: editionId, ...(editionDoc.data ? editionDoc.data() : editionDoc) }) as ReaderEdition;
 
   const issues = await getMagazineIssuesServer();
   const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition)) ?? null;
@@ -730,13 +767,15 @@ export async function syncReaderEditionCoverFromIssue(editionId: string): Promis
 }
 
 export async function syncReaderEditionsForIssue(issueId: string): Promise<number> {
-  if (!adminDb) return 0;
+  const firestore = getFirestore();
+  if (!firestore) return 0;
 
-  const issueDoc = await adminDb.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
-  if (!issueDoc.exists) return 0;
+  const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
+  const exists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
+  if (!exists) return 0;
   const issue = {
     id: issueDoc.id,
-    ...serializeData(issueDoc.data()),
+    ...serializeData(issueDoc.data ? issueDoc.data() : issueDoc),
   } as { title?: string; coverImage?: string; publishDate?: string };
   const issueCover = sanitizeImageUrl(issue.coverImage) || '';
   if (!issueCover) return 0;
@@ -748,6 +787,8 @@ export async function syncReaderEditionsForIssue(issueId: string): Promise<numbe
   let syncedCount = 0;
   for (const edition of matches) {
     if (edition.coverImage === issueCover) continue;
+    // cover sync is a write; requires Admin SDK. If adminDb missing, skip silently.
+    if (!adminDb) break;
     await upsertReaderEdition({
       ...edition,
       coverImage: issueCover,

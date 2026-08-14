@@ -1,7 +1,27 @@
 import { adminDb } from './firebase-admin';
+import { db as clientFirestoreDb } from './firebase';
 import { MagazineIssue, MagazinePage } from './magazine-service';
 import { siteContent } from './site-content';
 import { fixMagazineImageUrl } from './magazine-utils';
+
+/**
+ * Pick a working Firestore instance.
+ *
+ * Order of preference:
+ *   1. Admin SDK (`adminDb`) — available when FIREBASE_PRIVATE_KEY +
+ *      FIREBASE_CLIENT_EMAIL are set (local dev, CI, some serverless envs).
+ *   2. Client SDK (`clientFirestoreDb`) — always available on Vercel because
+ *      it only needs NEXT_PUBLIC_FIREBASE_* env vars (already set there).
+ *
+ * Both Admin + Client SDKs expose the same `.collection().doc().get()` /
+ * `.where().orderBy().limit().get()` surface used below; serializeData()
+ * already handles both Timestamp shapes so read results are interchangeable.
+ */
+function getFirestore(): any {
+  if (adminDb) return adminDb;
+  if (clientFirestoreDb) return clientFirestoreDb as unknown as any;
+  return null;
+}
 
 /**
  * Helper to serialize Firestore data for Next.js Server Components.
@@ -53,12 +73,13 @@ function serializeData(data: any) {
  */
 export async function getMagazineIssuesServer(): Promise<MagazineIssue[]> {
   try {
-    if (!adminDb) {
-      console.warn('adminDb not initialized, falling back to static content');
+    const firestore = getFirestore();
+    if (!firestore) {
+      console.warn('no firestore available, falling back to static content');
       return siteContent.magazine.issues as unknown as MagazineIssue[];
     }
     
-    const snapshot = await adminDb.collection('magazine_issues')
+    const snapshot = await firestore.collection('magazine_issues')
       .orderBy('publishDate', 'desc')
       .get();
     
@@ -67,8 +88,9 @@ export async function getMagazineIssuesServer(): Promise<MagazineIssue[]> {
       return siteContent.magazine.issues as unknown as MagazineIssue[];
     }
     
-    return snapshot.docs.map(doc => serializeData({
-      ...doc.data(),
+    const docs = snapshot.docs ?? [];
+    return docs.map((doc: any) => serializeData({
+      ...(doc.data ? doc.data() : doc),
       id: doc.id,
     }) as MagazineIssue);
   } catch (error) {
@@ -82,16 +104,18 @@ export async function getMagazineIssuesServer(): Promise<MagazineIssue[]> {
  */
 export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
   try {
-    if (!adminDb) return null;
+    const firestore = getFirestore();
+    if (!firestore) return null;
     
-    const snapshot = await adminDb.collection('magazine_issues')
+    const snapshot = await firestore.collection('magazine_issues')
       .orderBy('publishDate', 'desc')
       .limit(1)
       .get();
     
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
-      return serializeData({ ...doc.data(), id: doc.id }) as MagazineIssue;
+    const docs = snapshot?.docs ?? [];
+    if (docs.length > 0) {
+      const doc = docs[0];
+      return serializeData({ ...(doc.data ? doc.data() : doc), id: doc.id }) as MagazineIssue;
     }
     return null;
   } catch (error) {
@@ -105,12 +129,14 @@ export async function getLatestIssueServer(): Promise<MagazineIssue | null> {
  */
 export async function getMagazineIssueServer(issueId: string): Promise<MagazineIssue | null> {
   try {
-    if (!adminDb) return null;
+    const firestore = getFirestore();
+    if (!firestore) return null;
     
-    const doc = await adminDb.collection('magazine_issues').doc(issueId).get();
+    const doc = await firestore.collection('magazine_issues').doc(issueId).get();
     
-    if (doc.exists) {
-      return serializeData({ ...doc.data(), id: doc.id }) as MagazineIssue;
+    const exists = typeof doc.exists === 'boolean' ? doc.exists : Boolean(doc);
+    if (exists) {
+      return serializeData({ ...(doc.data ? doc.data() : doc), id: issueId }) as MagazineIssue;
     }
     return null;
   } catch (error) {
@@ -125,22 +151,24 @@ export async function getMagazineIssueServer(issueId: string): Promise<MagazineI
  */
 export async function getMagazinePagesServer(issueId: string): Promise<MagazinePage[]> {
   try {
-    if (!adminDb) {
-      console.warn('adminDb not initialized, falling back to static content');
+    const firestore = getFirestore();
+    if (!firestore) {
+      console.warn('no firestore available, falling back to static content');
       return siteContent.magazinePages as unknown as MagazinePage[];
     }
     
-    const snapshot = await adminDb.collection('magazine_issues').doc(issueId).collection('pages')
+    const snapshot = await firestore.collection('magazine_issues').doc(issueId).collection('pages')
       .orderBy('id', 'asc')
       .get();
     
-    if (snapshot.empty) {
+    const docs = snapshot?.docs ?? [];
+    if (docs.length === 0) {
       console.log(`No pages found in Firestore for issue ${issueId} (server). Returning empty array.`);
       return [];
     }
     
-    return snapshot.docs.map(doc => serializeData({
-      ...doc.data()
+    return docs.map((doc: any) => serializeData({
+      ...(doc.data ? doc.data() : doc)
     }) as MagazinePage);
   } catch (error) {
     console.error(`Error fetching pages for issue ${issueId} (server):`, error);
