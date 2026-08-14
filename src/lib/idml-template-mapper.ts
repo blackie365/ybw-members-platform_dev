@@ -98,6 +98,8 @@ export function detectAdPage(page: ParsedIdmlPage): boolean {
         .toLowerCase(),
     ),
   );
+  const anyLabelMatches = (predicate: (n: string) => boolean): boolean =>
+    Array.from(labelSet).some(predicate);
 
   // --- 1) EXPLICIT USER LABEL WINS. Always. ---
   // (matches: "AdFrame", "adframe", "Ad Frame", "ad_frame", "ad", "advert")
@@ -111,10 +113,26 @@ export function detectAdPage(page: ParsedIdmlPage): boolean {
   }
 
   // --- 2) NEGATIVE: reserved special pages are never ads. ---
+  // Any EditorsFrame / Editors{Title,Body,Image}Frame variant on the page
+  // → it's the Editor's Note page, NEVER an ad. Even if word count is low
+  // or only a hero graphic is placed. Also guards against future editors
+  // label variants like "EditorsHeadshotFrame" / "EditorIntro" etc.
+  const isEditorsLabel = (n: string) =>
+    n === "editorsframe" ||
+    n === "editorstitleframe" ||
+    n === "editorsbodyframe" ||
+    n === "editorsimageframe" ||
+    n.startsWith("editors") ||
+    n.startsWith("editor");
   if (
     labelSet.has("editorsframe") ||
+    labelSet.has("editorstitleframe") ||
+    labelSet.has("editorsbodyframe") ||
+    labelSet.has("editorsimageframe") ||
     labelSet.has("contentsframe") ||
-    labelSet.has("titleframe") // explicit TitleFrame means the page was authored as an article
+    labelSet.has("titleframe") ||
+    labelSet.has("bodyframe") ||
+    anyLabelMatches(isEditorsLabel)
   ) {
     return false;
   }
@@ -126,16 +144,44 @@ export function detectAdPage(page: ParsedIdmlPage): boolean {
   // --- 3) HEURISTIC fallback (forgotten AdFrame labels on pure ad pages) ---
   const hasAnyGraphic = (page.imageFileNames?.length || 0) > 0 ||
     (page.logoImageFileNames?.length || 0) > 0;
-  const hasExplicitBodyFrame = labelSet.has("bodyframe");
+  const hasExplicitBodyFrame =
+    labelSet.has("bodyframe") ||
+    labelSet.has("editorsbodyframe") ||
+    anyLabelMatches((n) => n.endsWith("bodyframe"));
   const hasArticleContent = page.stories.some((story) => {
     const wc = countWords(story.text || "");
     // Story with >= 30 real words = editorial, not an ad (ads have short copy)
     return wc >= 30;
   });
   if (hasExplicitBodyFrame || hasArticleContent) return false;
-  // If we reach here: no explicit label, no special page, low word count,
-  // no long story, no explicit body frame. If there are graphics placed → AD.
   return hasAnyGraphic;
+}
+
+/**
+ * True when the page has Editor's Note frame labels — either the legacy
+ * aggregate `EditorsFrame` OR the three-part split
+ * EditorsTitleFrame/EditorsBodyFrame/EditorsImageFrame. Also catches
+ * arbitrary Editors* variants so future labeling choices (EditorsQuote,
+ * EditorsHeadshotFrame, etc.) still identify the page correctly.
+ */
+export function isEditorsPage(page: ParsedIdmlPage): boolean {
+  const norm = (v: string) =>
+    String(v || "").trim().replace(/[\s._-]+/g, "").toLowerCase();
+  const labelSet = new Set(
+    [...(page.labels || []), ...(page.frames || []).map((f) => f.label || "")]
+      .map(norm),
+  );
+  if (
+    labelSet.has("editorsframe") ||
+    labelSet.has("editorstitleframe") ||
+    labelSet.has("editorsbodyframe") ||
+    labelSet.has("editorsimageframe")
+  ) {
+    return true;
+  }
+  return Array.from(labelSet).some(
+    (n) => n.startsWith("editors") || n.startsWith("editor"),
+  );
 }
 
 function uniqueStrings(values: Array<string | undefined | null>): string[] {
@@ -685,14 +731,21 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     );
 
   const editorNotePage =
+    sortedPages.find((p) => isEditorsPage(p)) ||
     sortedPages.find((p) => p.labels.includes("EditorsFrame")) ||
     sortedPages.find((p) => p.pageNumber === 5);
 
   const reservedPageNumbers = new Set<number>([1]);
   for (const page of sortedPages) {
-    if (page.labels.includes("ContentsFrame")) {
+    if (
+      page.labels.includes("ContentsFrame") ||
+      (page.frames || []).some((f) =>
+        /^\s*contents\s*frame\s*$/i.test(String(f.label || "").replace(/[\s._-]+/g, "")),
+      )
+    ) {
       reservedPageNumbers.add(page.pageNumber);
     }
+    if (isEditorsPage(page)) reservedPageNumbers.add(page.pageNumber);
     if (detectAdPage(page)) {
       reservedPageNumbers.add(page.pageNumber);
     }
@@ -701,24 +754,71 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   if (lastMeaningfulPage) reservedPageNumbers.add(lastMeaningfulPage.pageNumber);
 
   if (editorNotePage) {
-    const editorStories = getOrderedPageStories(editorNotePage).filter(
+    // Priority order: the frame with label EditorsTitleFrame → the story it
+    // links to → becomes the standalone title; then EditorsBodyFrame → the
+    // main body; then any remaining stories from getOrderedPageStories fill
+    // in the rest. This way, even if the user labeled their frames
+    // separately (EditorsTitleFrame / EditorsBodyFrame) instead of using the
+    // aggregate "EditorsFrame" tag, the content is extracted in the right
+    // semantic order.
+    const norm = (v: unknown): string =>
+      String(v || "").trim().replace(/[\s._-]+/g, "").toLowerCase();
+    const findFrameByLabel = (labelNorm: string) =>
+      editorNotePage.frames.find((f) => norm(f.label) === labelNorm);
+    const findStoryByFrame = (frame: ReturnType<typeof findFrameByLabel>) =>
+      frame && frame.storyId
+        ? editorNotePage.stories.find((s) => s.id === frame.storyId)
+        : undefined;
+
+    const titleFrame = findFrameByLabel("editorstitleframe");
+    const bodyFrame = findFrameByLabel("editorsbodyframe");
+    const imageFrame = findFrameByLabel("editorsimageframe");
+    const explicitTitleStory = findStoryByFrame(titleFrame);
+    const explicitBodyStory = findStoryByFrame(bodyFrame);
+
+    const baseOrdered = getOrderedPageStories(editorNotePage).filter(
       (story) => !shouldIgnoreDecorativeStory(story),
     );
-    const combinedText = editorStories
-      .map((story) => story.text.trim())
-      .filter(Boolean)
-      .join("\n\n");
-    const editorImages = getPageImages(editorNotePage);
+    const mergedParts: string[] = [];
+    if (explicitBodyStory?.text?.trim()) mergedParts.push(explicitBodyStory.text.trim());
+    for (const story of baseOrdered) {
+      if (explicitTitleStory && story.id === explicitTitleStory.id) continue;
+      if (explicitBodyStory && story.id === explicitBodyStory.id) continue;
+      if (story.text?.trim()) mergedParts.push(story.text.trim());
+    }
+    const combinedText = mergedParts.join("\n\n");
+    const allPageImages = getPageImages(editorNotePage);
+    const imageHintSet = new Set<string>(
+      (explicitTitleStory?.imageHints || []).concat(
+        (explicitBodyStory?.imageHints || []),
+      ).map((v) => String(v || "").trim()).filter(Boolean),
+    );
+    const explicitHeroImages = allPageImages.filter((url) => {
+      if (!url) return false;
+      const base = url.split("/").pop()?.split("?")[0] || "";
+      return imageHintSet.has(base);
+    });
+    const editorsImageFirst = imageFrame
+      ? allPageImages.slice(0, 1).concat(allPageImages)
+      : allPageImages;
+    const editorImages =
+      explicitHeroImages.length > 0
+        ? explicitHeroImages.concat(allPageImages)
+        : editorsImageFirst;
     const editorHero = editorImages[0] || "";
     const editorLogos = getLogoImages(editorNotePage);
     const editorLogo = editorLogos[0] || "";
+    const editorTitleRaw = explicitTitleStory
+      ? explicitTitleStory.title?.trim() || explicitTitleStory.text?.trim() || ""
+      : "";
+    const finalEditorTitle = editorTitleRaw || "Editor's Note";
 
     result.push({
       id: createPageId("page-editor", editorNotePage.pageNumber),
       position: 0,
       template: "editor-note",
       content: {
-        title: "Editor's Note",
+        title: finalEditorTitle,
         author: "",
         body: combinedText,
         imageUrl: editorHero,

@@ -576,19 +576,68 @@ function pageHasLabel(parsedPage: any, targetLabel: string): boolean {
     .filter(Boolean);
   const allLabels = Array.from(new Set([...labelsRaw, ...frameLabels])).filter(Boolean);
   const target = normLabel(targetLabel);
-  return allLabels.some((l) => normLabel(l) === target);
+  if (allLabels.some((l) => normLabel(l) === target)) return true;
+
+  // Aggregate label groups (e.g. targetLabel = "EditorsFrame" → matches
+  // EditorsTitleFrame / EditorsBodyFrame / EditorsImageFrame as well, so
+  // the three-part frame labeling pattern used in the August 2026 IDML
+  // gets identified as the editor page even without the aggregate tag.)
+  if (target === "editorsframe") {
+    const variants = ["editorstitleframe", "editorsbodyframe", "editorsimageframe"];
+    if (allLabels.some((l) => {
+      const n = normLabel(l);
+      return variants.includes(n) || n.startsWith("editors") || n.startsWith("editor");
+    })) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function extractPageText(parsedPage: any, includeTitles = true): string {
   const stories: any[] = Array.isArray(parsedPage?.stories) ? parsedPage.stories : [];
+  const allFrames: any[] = Array.isArray(parsedPage?.frames) ? parsedPage.frames : [];
+
+  // For EditorsFrame style pages: if the page uses the three-part labeling
+  // pattern (EditorsTitleFrame / EditorsBodyFrame) pull those stories
+  // explicitly (title first, body second) so we get semantic ordering even
+  // when frame order in the IDML XML is chaotic / later in the stack.
+  const findFrame = (label: string) =>
+    allFrames.find((f) => normLabel(f?.label) === normLabel(label));
+  const findStoryForFrame = (frame: any) =>
+    frame?.storyId ? stories.find((s) => s.id === frame.storyId) : undefined;
+
+  const explicitTitleFrame = findFrame("EditorsTitleFrame");
+  const explicitBodyFrame = findFrame("EditorsBodyFrame");
+  const explicitTitleStory = findStoryForFrame(explicitTitleFrame);
+  const explicitBodyStory = findStoryForFrame(explicitBodyFrame);
+
   const frameStoryIds = new Set<string>(
-    [...(parsedPage?.frames || [])]
-      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+    [...allFrames]
+      .sort((a: any, b: any) => {
+        // Keep original order-based sort, but bubble EditorsTitleFrame to
+        // the front and EditorsBodyFrame to second, so those stories are
+        // always serialized in the right order on Editor's Note pages.
+        const la = normLabel(a?.label);
+        const lb = normLabel(b?.label);
+        const ra = la === "editorstitleframe" ? 0 : la === "editorsbodyframe" ? 1 : 2;
+        const rb = lb === "editorstitleframe" ? 0 : lb === "editorsbodyframe" ? 1 : 2;
+        if (ra !== rb) return ra - rb;
+        return (a.order || 0) - (b.order || 0);
+      })
       .map((f: any) => f?.storyId)
       .filter(Boolean),
   );
   const seen = new Set<string>();
   const orderedStories: any[] = [];
+  if (explicitTitleStory) {
+    seen.add(explicitTitleStory.id);
+    orderedStories.push(explicitTitleStory);
+  }
+  if (explicitBodyStory && !seen.has(explicitBodyStory.id)) {
+    seen.add(explicitBodyStory.id);
+    orderedStories.push(explicitBodyStory);
+  }
   for (const fid of frameStoryIds) {
     const s = stories.find((st) => st.id === fid);
     if (s && !seen.has(s.id)) {
@@ -605,11 +654,12 @@ function extractPageText(parsedPage: any, includeTitles = true): string {
     }
   }
   const titleStoryIds = new Set<string>();
-  for (const f of parsedPage?.frames || []) {
+  for (const f of allFrames) {
     if (f?.isTitle) {
       titleStoryIds.add(f?.storyId);
     }
   }
+  if (explicitTitleStory?.id) titleStoryIds.add(explicitTitleStory.id);
   const textParts = orderedStories
     .filter((s) => includeTitles || !titleStoryIds.has(s.id))
     .map((s) => String(s?.text || '').trim())
@@ -623,7 +673,28 @@ function extractPageImageFileNames(parsedPage: any): string[] {
   const storyImages: string[] = (Array.isArray(parsedPage?.stories) ? parsedPage.stories : [])
     .flatMap((s: any) => Array.isArray(s?.imageHints) ? s.imageHints : [])
     .filter(Boolean);
-  return Array.from(new Set([...pageImages, ...storyImages])).filter((n) => !logoSet.has(n));
+
+  const explicitEditorsImages: string[] = [];
+  const remainingFramesImages: string[] = [];
+  const allFrames: any[] = Array.isArray(parsedPage?.frames) ? parsedPage.frames : [];
+  const editorsNorm = normLabel("EditorsImageFrame");
+  for (const frame of allFrames) {
+    const fn = normLabel(frame?.label) === editorsNorm
+      ? explicitEditorsImages
+      : remainingFramesImages;
+    if (Array.isArray(frame?.imageHints)) {
+      for (const hint of frame.imageHints) {
+        if (hint && !fn.includes(String(hint))) fn.push(String(hint));
+      }
+    }
+  }
+
+  const ordered = Array.from(new Set([
+    ...explicitEditorsImages,
+    ...pageImages,
+    ...storyImages,
+  ])).filter((n) => !logoSet.has(n));
+  return ordered;
 }
 
 function buildStoryLibraryItemsFromParsedIdml(
