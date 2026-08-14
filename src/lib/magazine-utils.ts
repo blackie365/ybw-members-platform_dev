@@ -7,7 +7,15 @@
  * String(undefined) etc. accidentally produced in earlier builds.
  *
  * Converts gs:// Firebase storage admin URIs to the equivalent public
- * storage.googleapis.com HTTPS URL so browsers can render the asset.
+ * Firebase Storage v0 REST API URL. The v0 API accepts BOTH legacy-style
+ * .appspot.com buckets AND modern alias-style .firebasestorage.app buckets
+ * directly in the `/v0/b/<bucket>/` path parameter. We therefore NO LONGER
+ * rewrite alias buckets to .appspot.com — projects created after mid-2024
+ * have NO physical .appspot.com bucket, so that rewrite produces 404. The
+ * alias spelling IS the real bucket name for these.
+ *
+ * Output format:
+ *   https://firebasestorage.googleapis.com/v0/b/<EXACT_BUCKET>/o/<safeSegmentEncodedPath>?alt=media
  *
  * Returns '' for anything that cannot be salvaged.
  */
@@ -52,55 +60,24 @@ export function normalizeImageUrl(value: unknown): string {
       const rest = raw.slice(5);
       const slash = rest.indexOf('/');
       if (slash <= 0) return '';
-      let bucket = rest.slice(0, slash);
+      const bucket = rest.slice(0, slash);
       const rawPath = rest.slice(slash + 1);
-      const safeSegmentEncodedPath = rawPath
+      if (!bucket || !rawPath) return '';
+
+      // Decode then re-encode each segment to safeSegmentEncodedPath form.
+      // This removes double-encoding and produces the exact form the v0 REST
+      // API `/o/<enc>` parameter expects.
+      let decPath: string;
+      try {
+        decPath = decodeURIComponent(rawPath.replace(/\+/g, ' '));
+      } catch {
+        decPath = rawPath;
+      }
+      const safe = decPath
         .split('/')
         .map((segment) => encodeURIComponent(segment))
         .join('/');
-      if (!bucket || !rawPath) return '';
-
-      // --- Firebase bucket-alias to real bucket name resolution ---------------
-      //
-      // PROBLEM: Since late 2023 the Firebase Admin SDK / gsutil URIs look like
-      // `gs://<projectId>.firebasestorage.app/<path>`.
-      // `<proj>.firebasestorage.app` is the Admin SDK bucket *alias* name. For
-      // projects CREATED PRIOR to the late-2024 DNS changeover, there is NO
-      // public DNS record that resolves this alias domain.  The browser
-      // reports `net::ERR_NAME_NOT_RESOLVED` on URLs that try to fetch
-      // `https://<alias.firebasestorage.app/…`.
-      //
-      // Live DevTools trace (see production ybw_frontend on
-      // yorkshirebusinesswoman.co.uk confirmed this for their August 2026 issue
-      // image `ybw_August_2026 23.15.05.jpg`.
-      //
-      // The REAL default GCS bucket id is always `<projectId>.appspot.com`
-      // for every Firebase project (regardless of whether the Admin SDK
-      // writes the alias spelling back in gs:// URIs). And they confirmed in
-      // DevTools a *successful* image fetch of
-      // `https://storage.googleapis.com/<projectId>.appspot.com/<path>`
-      // worked for another image in the same bucket (`KF-Elbow Rooms Interior.jpg`).
-      //
-      // So we NORMALIZE all alias-style buckets in gs:// back to the REAL
-      // `.<projectId>.appspot.com` spelling.
-      //
-      // Example rewrite:
-      //   gs://newmembersdirectory130325.firebasestorage.app/path/file.jpg
-      //   → bucket = newmembersdirectory130325.appspot.com
-      const bucketLower = bucket.toLowerCase();
-      if (bucketLower.endsWith('.firebasestorage.app')) {
-        const projectIdPart = bucketLower.slice(0, -'.firebasestorage.app'.length);
-        if (projectIdPart) bucket = `${projectIdPart}.appspot.com`;
-      }
-
-      // URL output: canonical Firebase Storage v0 REST API. Note: `storage.googleapis.com`
-      // CDN URLs require the object to be publicly readable via IAM/storage rules,
-      // which is the default for the default storage bucket on Firebase projects
-      // with Blaze plan, but for rules-protected buckets the v0 API is
-      // authoritative. So we emit the v0 API URL format, using the REAL bucket
-      // name we derived above:
-      //   https://firebasestorage.googleapis.com/v0/b/<REAL_BUCKET/o/<URL_ENCODED_OBJECT_PATH>?alt=media
-      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safeSegmentEncodedPath}?alt=media`;
+      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safe}?alt=media`;
     } catch {
       return '';
     }
@@ -112,108 +89,89 @@ export function normalizeImageUrl(value: unknown): string {
   return '';
 }
 
+function safeSegmentEncode(pathEncodedLike: string): string {
+  let dec: string;
+  try {
+    dec = decodeURIComponent(pathEncodedLike.replace(/\+/g, ' '));
+  } catch {
+    dec = pathEncodedLike;
+  }
+  return dec
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
 /**
  * Utility to convert various image URL formats to browser-safe public URLs.
- * Specifically handles Firebase Storage 'gs://' links and restricted GCS links.
+ * Specifically handles Firebase Storage 'gs://' links and legacy broken GCS
+ * link permutations stored in Firestore.
+ *
+ * CANONICAL OUTPUT FORMAT (confirmed on production for
+ * newmembersdirectory130325.firebasestorage.app):
+ *   https://firebasestorage.googleapis.com/v0/b/<EXACT_BUCKET_NAME>/o/<safeSegmentEncodedPath>?alt=media
+ *
+ *   Important: For projects created after mid-2024, the EXACT bucket name is
+ *   `<proj>.firebasestorage.app`. The legacy spelling `<proj>.appspot.com`
+ *   does NOT exist as a GCS bucket for those projects, so any rewrite to
+ *   that spelling results in HTTP 404. We therefore use the bucket name
+ *   exactly as reported by the Admin SDK / as it appears in incoming URLs.
+ *
+ *   Legacy .appspot.com buckets that really exist pass through untouched.
  */
 export function fixMagazineImageUrl(url: string, version?: string | number): string {
   const normalized = normalizeImageUrl(url);
   if (!normalized) return '';
-  
-  // Keep already-public Storage URLs untouched.
-  // Rewriting them to the Firebase API can trigger auth/rules checks and
-  // produce "Anonymous caller does not have storage.objects.get" errors.
-  // normalizeImageUrl has already done:
-  //   - stripping of backticks/quotes/brackets/spaces
-  //   - gs:// → public HTTPS conversion (alias → real bucket name rewrite
-  //     for *.firebasestorage.app Admin-SDK bucket aliases, then v0 REST API
-  //     URL format with real bucket name)
-  //   - rejection of "undefined"/null/none sentinels.
-  //
-  // One more read-side repair is needed: prior versions of
-  // normalizeImageUrl (before this fix) already converted gs:// URIs to HTTPS
-  // URLs in BROKEN form — for *.firebasestorage.app alias buckets they
-  // emitted either (a) the unroutable direct-CDN form:
-  //   https://<proj>.firebasestorage.app/<path>
-  // or (b) the v0 REST API form but with the ALIAS bucket name (which 404s on
-  // projects created before the DNS alias existed):
-  //   https://firebasestorage.googleapis.com/v0/b/<proj>.firebasestorage.app/o/<enc>?alt=media
-  //
-  // Both of these URL forms are already stored in 100s of legacy Firestore
-  // docs (StoryLibrary items, MagazinePage spread content, and ReaderEdition
-  // published pages). We normalize them to the correct canonical URL at
-  // render time so the admin doesn't need to re-publish / re-import:
-  //   https://firebasestorage.googleapis.com/v0/b/<proj>.appspot.com/o/<enc>?alt=media
+
   let finalUrl = normalized;
   {
-    // Pattern A: broken direct-CDN URL from PR #326.
-    //   https://<proj>.firebasestorage.app/<path (spaces %20-encoded)>
-    // Convert to canonical v0 REST API URL using real .appspot.com bucket.
-    const badDirectRe =
-      /^https:\/\/([^\/]+?\.firebasestorage\.app)\/([^?#]+)(?:\?[^#]*)?$/i;
-    const badDirect = finalUrl.match(badDirectRe);
-    if (badDirect) {
-      const [, aliasBucket, rawPathEncoded] = badDirect;
-      const bucketLower = aliasBucket.toLowerCase();
-      const projectIdPart = bucketLower.endsWith('.firebasestorage.app')
-        ? bucketLower.slice(0, -'.firebasestorage.app'.length)
-        : null;
-      if (projectIdPart) {
+    // Pass-through: already-canonical v0 REST API URLs (correct bucket + format).
+    const alreadyCanonical = /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[^\/]+\/o\/[^?#]+\?alt=media/i;
+    if (!alreadyCanonical.test(finalUrl)) {
+      // --- Pattern A: direct-CDN alias URL.
+      //   https://<proj>.firebasestorage.app/<path-in-any-encoding>
+      // Rewrite to canonical v0 REST API URL (works for ALL bucket types).
+      const aliasDirectRe = /^https:\/\/([^\/]+?\.firebasestorage\.app)\/([^?#]+)(?:\?[^#]*)?$/i;
+      const aliasDirect = finalUrl.match(aliasDirectRe);
+      if (aliasDirect) {
+        const [, bucket, rawPathEncoded] = aliasDirect;
         try {
-          const realBucket = `${projectIdPart}.appspot.com`;
-          // Raw path has spaces encoded to %20; decode fully then re-encode
-          // every segment (safeSegmentEncodedPath form) for the v0 API /o/.
-          const decPath = decodeURIComponent(rawPathEncoded.replace(/\+/g, ' '));
-          const safe = decPath.split('/').map(s => encodeURIComponent(s)).join('/');
-          finalUrl = `https://firebasestorage.googleapis.com/v0/b/${realBucket}/o/${safe}?alt=media`;
+          const safe = safeSegmentEncode(rawPathEncoded);
+          finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safe}?alt=media`;
         } catch {
           // keep original
         }
-      }
-    }
-
-    // Pattern B: broken v0 REST API URL using the ALIAS bucket name.
-    //   https://firebasestorage.googleapis.com/v0/b/<proj>.firebasestorage.app/o/<enc>[?alt=media]
-    // Rewrite the bucket name to real .appspot.com spelling.
-    const badRestAliasRe =
-      /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^\/]+?\.firebasestorage\.app)\/o\/([^?#]+)(?:\?[^#]*)?$/i;
-    const badRest = finalUrl.match(badRestAliasRe);
-    if (badRest) {
-      const [, aliasBucket, encObjPath] = badRest;
-      const bucketLower = aliasBucket.toLowerCase();
-      if (bucketLower.endsWith('.firebasestorage.app')) {
-        const projectIdPart = bucketLower.slice(0, -'.firebasestorage.app'.length);
-        if (projectIdPart) {
-          const realBucket = `${projectIdPart}.appspot.com`;
-          finalUrl = `https://firebasestorage.googleapis.com/v0/b/${realBucket}/o/${encObjPath}?alt=media`;
-        }
-      }
-    }
-
-    // Pattern C: broken direct-CDN URL via storage.googleapis.com with alias bucket in path.
-    //   https://storage.googleapis.com/<proj>.firebasestorage.app/<path>[?...]
-    // This format is produced by buildPublicStorageUrl (magazineActions.ts) during
-    // IDML import when the Admin SDK reports the .firebasestorage.app alias as
-    // bucket.name. The .firebasestorage.app alias has no public DNS record as a
-    // bucket name inside storage.googleapis.com/<path>/, so fetch 404s. Rewrite
-    // to the canonical v0 REST API URL with the real .appspot.com bucket.
-    const badGcsAliasRe =
-      /^https:\/\/storage\.googleapis\.com\/([^\/]+?\.firebasestorage\.app)\/([^?#]+)(?:\?[^#]*)?$/i;
-    const badGcs = finalUrl.match(badGcsAliasRe);
-    if (badGcs) {
-      const [, aliasBucket, rawPathEncoded] = badGcs;
-      const bucketLower = aliasBucket.toLowerCase();
-      const projectIdPart = bucketLower.endsWith('.firebasestorage.app')
-        ? bucketLower.slice(0, -'.firebasestorage.app'.length)
-        : null;
-      if (projectIdPart) {
-        try {
-          const realBucket = `${projectIdPart}.appspot.com`;
-          const decPath = decodeURIComponent(rawPathEncoded.replace(/\+/g, ' '));
-          const safe = decPath.split('/').map(s => encodeURIComponent(s)).join('/');
-          finalUrl = `https://firebasestorage.googleapis.com/v0/b/${realBucket}/o/${safe}?alt=media`;
-        } catch {
-          // keep original
+      } else {
+        // --- Pattern B: v0 REST API URL pointing to alias bucket but missing
+        // `?alt=media`, or having extra query params, or using over/under-encoded
+        // object path. Normalize to canonical v0 REST form.
+        const restAliasRe = /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^\/]+)\/o\/([^?#]+)(?:\?[^#]*)?$/i;
+        const restAlias = finalUrl.match(restAliasRe);
+        if (restAlias) {
+          const [, bucket, encObjPath] = restAlias;
+          try {
+            const safe = safeSegmentEncode(encObjPath);
+            finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safe}?alt=media`;
+          } catch {
+            // keep original
+          }
+        } else {
+          // --- Pattern C: storage.googleapis.com/<bucket>/<path>
+          // This format was emitted by OLD buildPublicStorageUrl for IDML
+          // uploads, but `storage.googleapis.com/<proj>.firebasestorage.app/...`
+          // 404s because the alias bucket name cannot be used inside the
+          // storage.googleapis.com/<path>/ virtual-host style path.
+          const badGcsRe = /^https:\/\/storage\.googleapis\.com\/([^\/]+)\/([^?#]+)(?:\?[^#]*)?$/i;
+          const badGcs = finalUrl.match(badGcsRe);
+          if (badGcs) {
+            const [, bucket, rawPathEncoded] = badGcs;
+            try {
+              const safe = safeSegmentEncode(rawPathEncoded);
+              finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safe}?alt=media`;
+            } catch {
+              // keep original
+            }
+          }
         }
       }
     }
@@ -228,12 +186,7 @@ export function fixMagazineImageUrl(url: string, version?: string | number): str
   return finalUrl;
 }
 
-/**
- * Converts a standard Issuu URL to a robust embed URL.
- * Handles formats like:
- * - https://issuu.com/blackie365/docs/ybw_feb_2026
- * - https://e.issuu.com/embed.html?d=ybw_feb_2026&u=blackie365
- */
+
 export function fixIssuuEmbedUrl(url: string): string {
   if (!url) return "https://e.issuu.com/embed.html?d=ybw_april-may_2026&u=blackie365";
   
