@@ -629,11 +629,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     setSaving(true);
     try {
-      const res = await saveMagazineStoryLibraryAction(id, storyLibrary);
+      const normalized = normalizeStoryLibrary(storyLibrary || []);
+      const res = await saveMagazineStoryLibraryAction(id, normalized);
       if (res.success) {
+        const saved = Array.isArray(res.data) ? res.data : normalized;
         setIssue((prev) => ({
           ...prev,
-          storyLibrary: Array.isArray(res.data) ? res.data : storyLibrary,
+          storyLibrary: normalizeStoryLibrary(saved),
         }));
         toast.success('Story library saved');
         await loadData(true);
@@ -690,29 +692,83 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
+  function normalizeImageUrl(raw: any): string {
+    if (typeof raw !== 'string') return '';
+    let value = raw.trim();
+    if (!value) return '';
+    while (/^[`'"<>\s]+|[`'"<>\s]+$/g.test(value)) {
+      value = value.replace(/^[`'"<>\s]+/, '').replace(/[`'"<>\s]+$/, '');
+    }
+    if (/^(undefined|null|none|n\/a)$/i.test(value)) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    const gsMatch = value.match(/^gs:\/\/([^/]+)\/(.+)$/i);
+    if (gsMatch) {
+      const bucket = gsMatch[1];
+      const path = gsMatch[2];
+      try {
+        const encodedPath = encodeURIComponent(path);
+        return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+      } catch {
+        return '';
+      }
+    }
+    return value && /^https?:/i.test(value) ? value : '';
+  }
+
+  function normalizeStoryLibrary<T extends any>(items: T[]): T[] {
+    if (!Array.isArray(items)) return [];
+    const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage', 'logo', 'pdfUrl'];
+    const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'logoImages', 'coverImages'];
+    return items.map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const next: any = { ...item };
+      for (const k of prim) {
+        if (k in next) {
+          next[k] = normalizeImageUrl(next[k]);
+        }
+      }
+      for (const k of arrs) {
+        if (Array.isArray(next[k])) {
+          next[k] = next[k]
+            .map((entry: any) => normalizeImageUrl(entry))
+            .filter((entry: string) => entry.length > 0);
+        }
+      }
+      if (typeof next.content === 'object' && next.content !== null) {
+        const c: any = { ...next.content };
+        for (const k of prim) {
+          if (k in c) c[k] = normalizeImageUrl(c[k]);
+        }
+        for (const k of arrs) {
+          if (Array.isArray(c[k])) {
+            c[k] = c[k].map((entry: any) => normalizeImageUrl(entry)).filter((s: string) => s.length > 0);
+          }
+        }
+        next.content = c;
+      }
+      return next as T;
+    });
+  }
+
   function pickStoryImage(story: any): string {
     if (!story) return '';
     const candidates: string[] = [];
-    const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo'];
+    const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage'];
     for (const k of prim) {
-      const v = story[k];
-      if (typeof v === 'string' && v.trim() && !/^(undefined|null)$/i.test(v.trim())) {
-        candidates.push(v.trim());
-      }
+      const normalized = normalizeImageUrl(story[k]);
+      if (normalized) candidates.push(normalized);
     }
-    const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames'];
+    const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'coverImages', 'logoImages'];
     for (const k of arrs) {
       const v = story[k];
       if (Array.isArray(v)) {
         for (const item of v) {
-          if (typeof item === 'string' && item.trim() && /^https?:/i.test(item.trim())) {
-            candidates.push(item.trim());
-          }
+          const normalized = normalizeImageUrl(item);
+          if (normalized) candidates.push(normalized);
         }
       }
     }
-    const first = candidates.find((c) => /^https?:/i.test(c)) || candidates[0] || '';
-    return /^(undefined|null)$/i.test(first) ? '' : first;
+    return candidates.find((c) => /^https?:\/\//i.test(c)) || candidates[0] || '';
   }
 
   function buildManualContentFromStory(story: any, pageType: string) {
@@ -882,10 +938,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         return ap - bp;
       })[0];
       const coverImageSource =
-        (typeof issue?.coverImage === 'string' && issue.coverImage.trim()) ||
+        normalizeImageUrl(issue?.coverImage) ||
         pickStoryImage(highestPriorityStory) ||
         '';
-      const coverImage = /^(undefined|null)$/i.test(coverImageSource) ? '' : coverImageSource;
+      const coverImage = coverImageSource;
       const coverTitle = String(issue?.title || highestPriorityStory?.title || 'New Edition').trim();
       const coverDescription = String(issue?.description || highestPriorityStory?.standfirst || '').trim();
       const newCoverPage = {
@@ -1007,8 +1063,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const bp = typeof b?.premiumReaderPriority === 'number' ? b.premiumReaderPriority : 999;
           return bp - ap;
         })[0];
-      const lastImageSource = pickStoryImage(lastStory) || (typeof issue?.coverImage === 'string' ? issue.coverImage.trim() : '') || '';
-      const lastImage = /^(undefined|null)$/i.test(lastImageSource) ? '' : lastImageSource;
+      const lastImageSource = pickStoryImage(lastStory) || normalizeImageUrl(issue?.coverImage) || '';
+      const lastImage = lastImageSource;
       const lastTitle = String(lastStory?.title || 'See You Next Issue').trim();
       const newBackCoverPage = {
         id: ++nextPageNumber,

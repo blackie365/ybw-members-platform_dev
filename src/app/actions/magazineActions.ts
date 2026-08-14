@@ -12,10 +12,68 @@ import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEdition
 
 function safeRevalidatePath(path: string) {
   try {
-    safeRevalidatePath(path);
+    revalidatePath(path);
   } catch (error) {
     console.warn(`safeRevalidatePath failed for ${path}:`, error);
   }
+}
+
+function normalizeImageUrl(raw: any): string {
+  if (typeof raw !== 'string') return '';
+  let value = raw.trim();
+  if (!value) return '';
+  while (/^[`'"<>\s]+|[`'"<>\s]+$/g.test(value)) {
+    value = value.replace(/^[`'"<>\s]+/, '').replace(/[`'"<>\s]+$/, '');
+  }
+  if (/^(undefined|null|none|n\/a)$/i.test(value)) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  const gsMatch = value.match(/^gs:\/\/([^/]+)\/(.+)$/i);
+  if (gsMatch) {
+    const bucket = gsMatch[1];
+    const path = gsMatch[2];
+    try {
+      const encodedPath = encodeURIComponent(path);
+      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+    } catch {
+      return '';
+    }
+  }
+  return value && /^https?:/i.test(value) ? value : '';
+}
+
+function normalizeStoryLibraryImageFields<T extends any>(items: T[]): T[] {
+  if (!Array.isArray(items)) return [];
+  const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage', 'logo', 'pdfUrl'];
+  const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'logoImages', 'coverImages'];
+  return items.map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const next: any = { ...item };
+    for (const k of prim) {
+      if (k in next) {
+        next[k] = normalizeImageUrl(next[k]);
+      }
+    }
+    for (const k of arrs) {
+      if (Array.isArray(next[k])) {
+        next[k] = next[k]
+          .map((entry: any) => normalizeImageUrl(entry))
+          .filter((entry: string) => entry.length > 0);
+      }
+    }
+    if (typeof next.content === 'object' && next.content !== null) {
+      const c: any = { ...next.content };
+      for (const k of prim) {
+        if (k in c) c[k] = normalizeImageUrl(c[k]);
+      }
+      for (const k of arrs) {
+        if (Array.isArray(c[k])) {
+          c[k] = c[k].map((entry: any) => normalizeImageUrl(entry)).filter((s: string) => s.length > 0);
+        }
+      }
+      next.content = c;
+    }
+    return next as T;
+  });
 }
 
 const STORY_LIBRARY_COLLECTION = 'magazine_story_library';
@@ -269,7 +327,8 @@ async function persistStoryLibraryForIssue(
 ): Promise<StoryLibraryItem[]> {
   if (!adminDb) throw new Error('Database not initialized');
 
-  const nextItems = normalizeStoryLibraryItems(storyLibrary);
+  const normalized = normalizeStoryLibraryImageFields(storyLibrary || []);
+  const nextItems = normalizeStoryLibraryItems(normalized);
   const existingItems = await getIssueStoryLibraryCollectionItems(issueId);
   const existingDocIds = new Set(existingItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
   const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
@@ -597,7 +656,7 @@ function buildStoryLibraryItemsFromParsedIdml(
         title: "Editor's Note",
         standfirst: deriveStandfirst(editorBody) || undefined,
         text: editorBody,
-        imageUrl: imageUrl ? imageUrls[imageUrl] : undefined,
+        imageUrl: imageUrl ? normalizeImageUrl(imageUrls[imageUrl]) : undefined,
         imageFileNames: editorImages,
         includedInPremiumReader: true,
         premiumReaderPriority: 85,
@@ -649,7 +708,7 @@ function buildStoryLibraryItemsFromParsedIdml(
       title: cleanTitle,
       standfirst: deriveStandfirst(cleanBody) || undefined,
       text: cleanBody,
-      imageUrl: imageUrl ? imageUrls[imageUrl] : undefined,
+      imageUrl: imageUrl ? normalizeImageUrl(imageUrls[imageUrl]) : undefined,
       imageFileNames,
       includedInPremiumReader: defaults.includedInPremiumReader,
       premiumReaderPriority: defaults.premiumReaderPriority,
@@ -1046,7 +1105,7 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
   let pages = mapIdmlToReaderPages(parsed.pages);
 
   const resolve = (name: string): string =>
-    name && imageUrls[name] ? imageUrls[name] : name;
+    normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
   pages = pages.map((page) => ({
     ...page,
     content: {
@@ -1069,7 +1128,7 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
       additionalImages: (page.content.additionalImages || []).map(resolve),
       // PDF ads keep special pdfUrl resolution for iframe/CTA src
       pdfUrl: page.content.pdfUrl
-        ? (imageUrls[page.content.pdfUrl] || page.content.pdfUrl)
+        ? normalizeImageUrl(imageUrls[page.content.pdfUrl] || page.content.pdfUrl) || undefined
         : undefined,
     },
   }));
