@@ -476,12 +476,19 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
 }
 
 function buildPublicStorageUrl(bucketName: string, filePath: string): string {
-  const encodedPath = String(filePath || '')
+  const safeSegmentEncodedPath = String(filePath || '')
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
 
-  return `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
+  let bucket = bucketName;
+  const bucketLower = bucket.toLowerCase();
+  if (bucketLower.endsWith('.firebasestorage.app')) {
+    const projectIdPart = bucketLower.slice(0, -'.firebasestorage.app'.length);
+    if (projectIdPart) bucket = `${projectIdPart}.appspot.com`;
+  }
+
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safeSegmentEncodedPath}?alt=media`;
 }
 
 function isPreferredStoryLibraryImageFileName(fileName: string): boolean {
