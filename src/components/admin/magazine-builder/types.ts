@@ -42,6 +42,7 @@ export interface StoryLibraryItem {
   standfirst?: string;
   text: string;
   imageUrl?: string;
+  pdfUrl?: string;
   includedInPremiumReader?: boolean;
   premiumReaderPriority?: number;
   premiumReaderContentType?: string;
