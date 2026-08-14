@@ -8,7 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, deleteReaderEdition } from '@/features/magazine/server/simple-reader';
 
 function safeRevalidatePath(path: string) {
   try {
@@ -1506,6 +1506,47 @@ export async function publishIdmlEditionAction(params: {
   } catch (error: any) {
     console.error('Error publishing IDML edition:', error);
     return { success: false, error: error.message || 'Failed to publish edition' };
+  }
+}
+
+export async function deleteReaderEditionAction(editionId: string) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Firebase Admin not configured');
+    if (!editionId) throw new Error('Edition ID is required');
+
+    await deleteReaderEdition(editionId);
+
+    if (adminDb) {
+      const snapshot = await adminDb.collection('magazine_issues')
+        .where('readerEditionId', '==', editionId)
+        .select()
+        .limit(20)
+        .get();
+      const unlinkPromises = snapshot.docs.map(async (doc) => {
+        try {
+          await adminDb!.collection('magazine_issues').doc(doc.id).update({
+            readerEditionId: null,
+            readerEditionSlug: null,
+            readerEditionPublished: false,
+            readerEditionTitle: null,
+            readerEditionPublishDate: null,
+            readerEditionPageCount: null,
+          });
+        } catch (unlinkErr) {
+          console.warn(`Failed to unlink edition from issue ${doc.id}:`, unlinkErr);
+        }
+      });
+      await Promise.all(unlinkPromises);
+    }
+
+    safeRevalidatePath('/magazine');
+    safeRevalidatePath('/new-edition');
+    safeRevalidatePath('/admin/magazine');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting reader edition:', error);
+    return { success: false, error: error.message || 'Failed to delete edition' };
   }
 }
 
