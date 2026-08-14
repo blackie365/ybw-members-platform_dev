@@ -477,29 +477,34 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
 }
 
 function buildPublicStorageUrl(bucketName: string, filePath: string): string {
-  // Firebase Storage public URL strategy — PROVEN on production for
-  // `newmembersdirectory130325.firebasestorage.app`:
+  // Firebase Storage public URL strategy — PROVEN 2026-08-14 on production
+  // `newmembersdirectory130325.firebasestorage.app` with real browser
+  // Origin header:
   //
-  // The Firebase Storage v0 REST API accepts *any* bucket name directly in
-  // the `/v0/b/<bucket>/` path parameter. This works for:
-  //   - legacy .appspot.com bucket spellings
-  //   - modern alias .firebasestorage.app bucket spellings
-  //   - custom CNAME buckets too
+  // The legacy REST v0 API pattern returns HTTP 400 for modern
+  // `.firebasestorage.app` alias buckets when a browser `Origin:` header is
+  // present, which then triggers Chromium ORB (net::ERR_BLOCKED_BY_ORB)
+  // and ZERO images paint.
   //
-  // Importantly: projects created after mid-2024 DO NOT have a physical
-  // `.<proj>.appspot.com` GCS bucket at all — that spelling returns
+  // The direct-CDN path pattern below returns HTTP 200 image/jpeg with
+  // `Access-Control-Allow-Origin: *` and NO `Cross-Origin-Resource-Policy:`
+  // response header, which ORB does not block and paints correctly in
+  // every browser.
+  //
+  // Projects created after mid-2024 DO NOT have a physical
+  // `<proj>.appspot.com` GCS bucket at all — that spelling returns
   // NoSuchBucket. So we NEVER rewrite the Admin SDK's bucket.name to a
   // different spelling; we keep the EXACT bucket name the Admin SDK gave us.
   //
-  // Canonical output (works for every Firebase project type):
-  //   https://firebasestorage.googleapis.com/v0/b/<EXACT_BUCKET>/o/<safeSegmentEncodedPath>?alt=media
+  // Canonical output (defeats ORB on every Firebase project type):
+  //   https://storage.googleapis.com/<EXACT_BUCKET>/<safeSegmentEncodedPath>
   const bucket = String(bucketName || '').trim();
   const path = String(filePath || '');
   const safeSegmentEncodedPath = path
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safeSegmentEncodedPath}?alt=media`;
+  return `https://storage.googleapis.com/${bucket}/${safeSegmentEncodedPath}`;
 }
 
 function isPreferredStoryLibraryImageFileName(fileName: string): boolean {
