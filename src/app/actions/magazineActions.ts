@@ -477,18 +477,28 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
 }
 
 function buildPublicStorageUrl(bucketName: string, filePath: string): string {
-  const safeSegmentEncodedPath = String(filePath || '')
+  // Firebase Storage public URL strategy — PROVEN on production for
+  // `newmembersdirectory130325.firebasestorage.app`:
+  //
+  // The Firebase Storage v0 REST API accepts *any* bucket name directly in
+  // the `/v0/b/<bucket>/` path parameter. This works for:
+  //   - legacy .appspot.com bucket spellings
+  //   - modern alias .firebasestorage.app bucket spellings
+  //   - custom CNAME buckets too
+  //
+  // Importantly: projects created after mid-2024 DO NOT have a physical
+  // `.<proj>.appspot.com` GCS bucket at all — that spelling returns
+  // NoSuchBucket. So we NEVER rewrite the Admin SDK's bucket.name to a
+  // different spelling; we keep the EXACT bucket name the Admin SDK gave us.
+  //
+  // Canonical output (works for every Firebase project type):
+  //   https://firebasestorage.googleapis.com/v0/b/<EXACT_BUCKET>/o/<safeSegmentEncodedPath>?alt=media
+  const bucket = String(bucketName || '').trim();
+  const path = String(filePath || '');
+  const safeSegmentEncodedPath = path
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-
-  let bucket = bucketName;
-  const bucketLower = bucket.toLowerCase();
-  if (bucketLower.endsWith('.firebasestorage.app')) {
-    const projectIdPart = bucketLower.slice(0, -'.firebasestorage.app'.length);
-    if (projectIdPart) bucket = `${projectIdPart}.appspot.com`;
-  }
-
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${safeSegmentEncodedPath}?alt=media`;
 }
 
