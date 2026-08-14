@@ -985,15 +985,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
-      case 'full-page-ad':
+      case 'full-page-ad': {
+        const storyPdf = normalizeImageUrl(story?.pdfUrl || (story as any)?.pdf || '');
         return {
           title: storyTitle || 'Advertisement',
           ...commonImageFields,
           backgroundImage: storyImage,
+          pdfUrl: storyPdf,
           alt: storyTitle || 'Advertisement',
           sourceRef: story.sourceRef,
           storyId: story.id,
         };
+      }
       default:
         return {
           title: storyTitle,

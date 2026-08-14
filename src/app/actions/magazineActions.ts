@@ -751,16 +751,20 @@ function buildStoryLibraryItemsFromParsedIdml(
     if (editorPage && Number(editorPage.pageNumber) === pageNo) continue;
     const adImages = extractPageImageFileNames(adPage);
     const adLogos: string[] = Array.isArray((adPage as any).logoImageFileNames) ? (adPage as any).logoImageFileNames : [];
+    const adPdfs = adImages.filter((value) => /\.pdf$/i.test(value));
     const imageFileName = adImages.find((v) => imageUrls[v]) || adLogos.find((v) => imageUrls[v]) || '';
+    const pdfFileName = adPdfs.find((v) => imageUrls[v]) || '';
     const firstStoryText = extractPageText(adPage, true).trim();
     const adTitle = /^advert(isement)?$/i.test(firstStoryText) ? 'Advertisement' : firstStoryText.substring(0, 80) || 'Advertisement';
     const imageUrl = imageFileName ? normalizeImageUrl(imageUrls[imageFileName]) : '';
+    const pdfUrl = pdfFileName ? normalizeImageUrl(imageUrls[pdfFileName]) : '';
     extraItems.push({
       id: `idml-full-page-ad-${pageNo}`,
       title: adTitle,
       standfirst: undefined,
       text: firstStoryText,
       imageUrl: imageUrl || undefined,
+      pdfUrl: pdfUrl || undefined,
       imageFileNames: Array.from(new Set([...adImages, ...adLogos])),
       includedInPremiumReader: true,
       premiumReaderPriority: 60000 + pageNo,

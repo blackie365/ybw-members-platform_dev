@@ -540,6 +540,36 @@ function parseSpreadFrames(spreadXml: string): Array<{
     pageEntry.labels.push(label);
   }
 
+  const pdfNodes = doc.getElementsByTagName('PDF');
+  for (let i = 0; i < pdfNodes.length; i++) {
+    const pdfNode = pdfNodes[i];
+    const parentNode = pdfNode.parentNode;
+    if (!parentNode) continue;
+
+    let pdfFileName = '';
+    const pdfLinks = (parentNode as any).getElementsByTagName('Link');
+    for (let linkIdx = 0; linkIdx < pdfLinks.length; linkIdx++) {
+      const linkNode = pdfLinks[linkIdx];
+      const candidate = extractFileNameFromUri(
+        linkNode.getAttribute('LinkResourceURI') || '',
+        linkNode.getAttribute('LinkResourceFormat') || '',
+      );
+      if (!/\.pdf$/i.test(candidate)) continue;
+      pdfFileName = candidate;
+      break;
+    }
+    if (!pdfFileName) continue;
+
+    const frame = (parentNode as any);
+    const frameTransform = (frame.getAttribute && frame.getAttribute('ItemTransform')) || '0 0 0 0 0 0';
+    const frameX = String(frameTransform).split(' ').map(Number)[4] || 0;
+    const { page: assignedPage } = getAssignedPage(frameX);
+    const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
+    if (!pageEntry.imageFileNames.includes(pdfFileName)) {
+      pageEntry.imageFileNames.push(pdfFileName);
+    }
+  }
+
   return result;
 }
 
