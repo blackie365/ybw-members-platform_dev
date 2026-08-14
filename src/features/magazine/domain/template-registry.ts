@@ -179,6 +179,7 @@ const REGISTRY: Record<string, TemplateRegistryEntry> = {
   "feature-full": featureEntry,
   "editor-note": editorNoteEntry,
   ad: adEntry,
+  "full-page-ad": adEntry,
   "back-cover": backCoverEntry,
 };
 

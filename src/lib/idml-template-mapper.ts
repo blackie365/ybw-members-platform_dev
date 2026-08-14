@@ -86,7 +86,7 @@ function shouldIgnoreDecorativeStory(story: ParsedIdmlStory | undefined): boolea
  *      story on the page is < 30 words — e.g. one line "Advertisement" or
  *      a brand tagline with 6 words) → AD.
  */
-function detectAdPage(page: ParsedIdmlPage): boolean {
+export function detectAdPage(page: ParsedIdmlPage): boolean {
   // --- 0) Empty page = ad / blank placeholder ---
   if (page.frames.length === 0 && page.stories.length === 0) return true;
 
@@ -680,6 +680,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     .find(
       (page) =>
         page.pageNumber > 5 &&
+        !detectAdPage(page) &&
         (page.stories.length > 0 || page.imageFileNames.length > 0),
     );
 
@@ -690,6 +691,9 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   const reservedPageNumbers = new Set<number>([1]);
   for (const page of sortedPages) {
     if (page.labels.includes("ContentsFrame")) {
+      reservedPageNumbers.add(page.pageNumber);
+    }
+    if (detectAdPage(page)) {
       reservedPageNumbers.add(page.pageNumber);
     }
   }
