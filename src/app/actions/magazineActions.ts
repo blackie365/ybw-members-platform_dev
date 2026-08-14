@@ -8,7 +8,8 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, deleteReaderEdition } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition } from '@/features/magazine/server/simple-reader';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 function safeRevalidatePath(path: string) {
   try {
@@ -1683,5 +1684,117 @@ export async function uploadIdmlFileToStorageAction(idmlBase64: string, fileName
   } catch (error: any) {
     console.error('Error uploading IDML file to Storage:', error);
     return { success: false, error: error.message || 'Failed to upload IDML file' };
+  }
+}
+
+export interface UnifiedEditionRow {
+  key: string;
+  source: 'magazine_issue' | 'reader_edition';
+  id: string;
+  slug?: string;
+  title: string;
+  description?: string;
+  coverImage: string;
+  publishDate: string;
+  pageCount?: number;
+  spreadCount?: number;
+  isLatest?: boolean;
+  isFeaturedFlipbook?: boolean;
+  linkedIssueId?: string;
+  linkedReaderEditionId?: string;
+  readerEditionSlug?: string;
+  readerEditionTitle?: string;
+  builderPath?: string;
+  viewerPath?: string;
+}
+
+export async function getEditionsListingAction(): Promise<{ success: boolean; data?: UnifiedEditionRow[]; error?: string }> {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+
+    const [issuesSnapshot, readerEditions] = await Promise.all([
+      adminDb.collection('magazine_issues').orderBy('publishDate', 'desc').limit(100).get(),
+      listReaderEditions(100).catch(() => []),
+    ]);
+
+    const readerByIssueId = new Map<string, ReaderEdition>();
+    for (const re of readerEditions) {
+      if (re.issueId) readerByIssueId.set(re.issueId, re);
+    }
+    const readerByLinkedId = new Map<string, UnifiedEditionRow>();
+    const seenReaderIds = new Set<string>();
+
+    const rows: UnifiedEditionRow[] = [];
+
+    for (const doc of issuesSnapshot.docs) {
+      const raw: any = doc.data() ?? {};
+      const issueId = doc.id;
+      const normalizeTs = (v: any): string => {
+        if (!v) return '';
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object' && 'seconds' in v) {
+          return new Date(v.seconds * 1000).toISOString();
+        }
+        if (v instanceof Date) return v.toISOString();
+        return String(v);
+      };
+      const tags = Array.isArray(raw.tags) ? raw.tags : [];
+      const spreadCount = tags.length;
+      const linkedRE = readerByIssueId.get(issueId);
+      const coverImageSrc = raw.coverImage || linkedRE?.coverImage || '';
+
+      rows.push({
+        key: `issue:${issueId}`,
+        source: 'magazine_issue',
+        id: issueId,
+        slug: raw.slug,
+        title: raw.title || 'Untitled issue',
+        description: raw.description || '',
+        coverImage: fixMagazineImageUrl(coverImageSrc),
+        publishDate: normalizeTs(raw.publishDate) || normalizeTs(raw.createdAt) || new Date().toISOString(),
+        pageCount: linkedRE?.pageCount,
+        spreadCount,
+        isLatest: !!raw.isLatest,
+        isFeaturedFlipbook: !!raw.isFeaturedFlipbook,
+        linkedReaderEditionId: linkedRE?.id || raw.readerEditionId || undefined,
+        readerEditionSlug: raw.readerEditionSlug || linkedRE?.slug,
+        readerEditionTitle: raw.readerEditionTitle || linkedRE?.title,
+        builderPath: `/admin/magazine/builder/${issueId}`,
+        viewerPath: raw.readerEditionId || linkedRE
+          ? `/magazine`
+          : undefined,
+      });
+      if (linkedRE) seenReaderIds.add(linkedRE.id);
+    }
+
+    for (const re of readerEditions) {
+      if (seenReaderIds.has(re.id)) continue;
+      rows.push({
+        key: `reader:${re.id}`,
+        source: 'reader_edition',
+        id: re.id,
+        slug: re.slug,
+        title: re.title || 'Untitled reader edition',
+        description: re.description || '',
+        coverImage: fixMagazineImageUrl(re.coverImage || ''),
+        publishDate: re.publishDate || re.createdAt || new Date().toISOString(),
+        pageCount: re.pageCount ?? (Array.isArray(re.pages) ? re.pages.length : undefined),
+        linkedIssueId: re.issueId,
+        viewerPath: `/new-edition`,
+        builderPath: re.issueId ? `/admin/magazine/builder/${re.issueId}` : undefined,
+      });
+    }
+
+    rows.sort((a, b) => {
+      const ta = new Date(a.publishDate).getTime() || 0;
+      const tb = new Date(b.publishDate).getTime() || 0;
+      return tb - ta;
+    });
+
+    return { success: true, data: rows };
+  } catch (error: any) {
+    console.error('Error in getEditionsListingAction:', error);
+    return { success: false, error: error.message || 'Failed to load editions listing' };
   }
 }
