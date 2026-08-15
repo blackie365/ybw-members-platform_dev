@@ -12,7 +12,13 @@ export interface ParsedFrame {
   left: number;
   bottom: number;
   right: number;
+  rawName: string;
+  namespace: 'article' | 'ad' | 'chrome' | '';
+  tags: { slug: string; role: string; index: number } | null;
+  imageFileName: string | null;
 }
+
+export type FrameNamespace = ParsedFrame['namespace'];
 
 export interface ParsedIdmlStory {
   id: string;
@@ -27,6 +33,20 @@ export interface ParsedIdmlImage {
   fileName: string;
   data: Buffer;
   mimeType: string;
+}
+
+export interface ParsedRoleImages {
+  hero: string[];
+  gallery: string[];
+  logo: string[];
+  pdf: string[];
+}
+
+export interface ParsedNamespaceBucket {
+  frames: ParsedFrame[];
+  titleStoryIds: Set<string>;
+  bodyStoryIds: Set<string>;
+  roleImages: ParsedRoleImages;
 }
 
 export interface ParsedIdmlPage {
@@ -44,6 +64,16 @@ export interface ParsedIdmlPage {
   // (e.g. "YBW roundel", "Sponsor X logo") that would look absurd if blown
   // up to full-width hero proportions.
   logoImageFileNames: string[];
+  // Derived bucketed namespaced frames (editor-injected intent tags).
+  // Backward compat: empty record means user didn't tag any frames with
+  // article:/ad:/chrome: prefix yet; legacy heuristic flow runs as before.
+  namespaceBuckets: Record<string, ParsedNamespaceBucket>;
+  adFrameCount: number;
+  chromeFrameCount: number;
+  // Per-page hero/gallery/pdf role deduped image pools derived directly from
+  // namespaced graphic frames (if present). Legacy page.imageFileNames is the
+  // fallback pool when these are empty.
+  explicitRoleImages: ParsedRoleImages;
 }
 
 export interface ParsedIdml {
@@ -271,6 +301,58 @@ function getFrameLabel(element: any): string {
   return '';
 }
 
+function getNameAttr(element: any): string {
+  if (!element || typeof element.getAttribute !== 'function') return '';
+  return String(element.getAttribute('Name') || '').trim();
+}
+
+const VALID_NAMESPACES = new Set(['article', 'ad', 'chrome']);
+
+function parseFrameTags(
+  rawNameAttr: string,
+  scriptLabel: string,
+): {
+  namespace: ParsedFrame['namespace'];
+  tags: ParsedFrame['tags'];
+  canonicalName: string;
+} {
+  const candidates: string[] = [];
+  if (rawNameAttr) candidates.push(rawNameAttr);
+  if (scriptLabel && scriptLabel !== rawNameAttr) candidates.push(scriptLabel);
+  for (const candidate of candidates) {
+    const clean = String(candidate || '').trim();
+    if (!clean) continue;
+    const parts = clean.split(':').map((p) => p.trim());
+    if (parts.length < 3) continue;
+    const prefix = parts[0].toLowerCase();
+    if (!VALID_NAMESPACES.has(prefix)) continue;
+    const slug = String(parts[1] || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const rest = parts.slice(2).join(':');
+    if (!slug || !rest) continue;
+    const dotIdx = rest.indexOf('.');
+    const roleRaw = (dotIdx >= 0 ? rest.slice(0, dotIdx) : rest)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+    const role = roleRaw || 'gallery';
+    const indexStr = dotIdx >= 0 ? rest.slice(dotIdx + 1) : '1';
+    const parsedIdx = parseInt(indexStr || '1', 10);
+    const index = Number.isFinite(parsedIdx) && parsedIdx >= 1 ? parsedIdx : 1;
+    return {
+      namespace: prefix as ParsedFrame['namespace'],
+      tags: { slug, role, index },
+      canonicalName: clean,
+    };
+  }
+  return { namespace: '', tags: null, canonicalName: rawNameAttr || scriptLabel || '' };
+}
+
+function emptyRoleImages(): ParsedRoleImages {
+  return { hero: [], gallery: [], logo: [], pdf: [] };
+}
+
 function isTitleFrame(
   story: ParsedIdmlStory | undefined,
   frameIndex: number,
@@ -335,6 +417,10 @@ function parseSpreadFrames(spreadXml: string): Array<{
   imageFileNames: string[];
   labels: string[];
   logoImageFileNames: string[];
+  namespaceBuckets: Record<string, ParsedNamespaceBucket>;
+  adFrameCount: number;
+  chromeFrameCount: number;
+  pageRoleImages: ParsedRoleImages;
 }> {
   const result: Array<{
     pageName: string;
@@ -344,6 +430,10 @@ function parseSpreadFrames(spreadXml: string): Array<{
     imageFileNames: string[];
     labels: string[];
     logoImageFileNames: string[];
+    namespaceBuckets: Record<string, ParsedNamespaceBucket>;
+    adFrameCount: number;
+    chromeFrameCount: number;
+    pageRoleImages: ParsedRoleImages;
   }> = [];
 
   const doc = new DOMParser().parseFromString(spreadXml, 'text/xml');
@@ -415,11 +505,43 @@ function parseSpreadFrames(spreadXml: string): Array<{
     };
   }
 
-  function getOrCreatePageEntry(pageName: string, assignedPage: typeof pageInfo[number]) {
+  type PageEntry = {
+    pageName: string;
+    pageTransform: { tx: number; ty: number };
+    pageBounds: { top: number; left: number; bottom: number; right: number };
+    frames: ParsedFrame[];
+    imageFileNames: string[];
+    labels: string[];
+    logoImageFileNames: string[];
+    namespaceBuckets: Record<string, ParsedNamespaceBucket>;
+    adFrameCount: number;
+    chromeFrameCount: number;
+    pageRoleImages: ParsedRoleImages;
+  };
+
+  function ensureBucket(
+    pageEntry: PageEntry,
+    namespace: ParsedFrame['namespace'],
+    slug: string,
+  ): ParsedNamespaceBucket | null {
+    if (!namespace || !slug) return null;
+    const key = `${namespace}:${slug}`;
+    if (!pageEntry.namespaceBuckets[key]) {
+      pageEntry.namespaceBuckets[key] = {
+        frames: [],
+        titleStoryIds: new Set(),
+        bodyStoryIds: new Set(),
+        roleImages: emptyRoleImages(),
+      };
+    }
+    return pageEntry.namespaceBuckets[key];
+  }
+
+  function getOrCreatePageEntry(pageName: string, assignedPage: typeof pageInfo[number]): PageEntry {
     const existing = result.find((r) => r.pageName === pageName);
     if (existing) return existing;
 
-    const entry = {
+    const entry: PageEntry = {
       pageName,
       pageTransform: { tx: assignedPage.tx, ty: assignedPage.ty },
       pageBounds: assignedPage.bounds,
@@ -427,6 +549,10 @@ function parseSpreadFrames(spreadXml: string): Array<{
       imageFileNames: [],
       labels: [],
       logoImageFileNames: [],
+      namespaceBuckets: {},
+      adFrameCount: 0,
+      chromeFrameCount: 0,
+      pageRoleImages: emptyRoleImages(),
     };
     result.push(entry);
     return entry;
@@ -441,13 +567,15 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const parentStory = frame.getAttribute('ParentStory') || '';
     const bounds = getFrameBounds(frame);
     const label = getFrameLabel(frame);
+    const rawName = getNameAttr(frame);
+    const { namespace, tags } = parseFrameTags(rawName, label);
 
     const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
     const frameX = frameTransform[4] || 0;
 
     const { position, page: assignedPage } = getAssignedPage(frameX);
     const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
-    pageEntry.frames.push({
+    const parsedFrame: ParsedFrame = {
       frameSelf,
       storyId: parentStory,
       isTitle: false,
@@ -458,8 +586,24 @@ function parseSpreadFrames(spreadXml: string): Array<{
       left: bounds.left,
       bottom: bounds.bottom,
       right: bounds.right,
-    });
+      rawName,
+      namespace,
+      tags,
+      imageFileName: null,
+    };
+    pageEntry.frames.push(parsedFrame);
     if (label) pageEntry.labels.push(label);
+    if (namespace === 'ad') pageEntry.adFrameCount++;
+    if (namespace === 'chrome') pageEntry.chromeFrameCount++;
+
+    if (namespace === 'article' && tags) {
+      const bucket = ensureBucket(pageEntry, namespace, tags.slug);
+      if (bucket) {
+        bucket.frames.push(parsedFrame);
+        if (tags.role === 'title' && parentStory) bucket.titleStoryIds.add(parentStory);
+        if ((tags.role === 'body' || !tags.role) && parentStory) bucket.bodyStoryIds.add(parentStory);
+      }
+    }
   }
 
   const graphicTags = ['Rectangle', 'Oval', 'Polygon'];
@@ -467,19 +611,62 @@ function parseSpreadFrames(spreadXml: string): Array<{
     const graphicFrames = doc.getElementsByTagName(tagName);
     for (let i = 0; i < graphicFrames.length; i++) {
       const frame = graphicFrames[i];
+      const frameSelf = frame.getAttribute('Self') || '';
+      const bounds = getFrameBounds(frame);
 
       const frameTransform = (frame.getAttribute('ItemTransform') || '0 0 0 0 0 0').split(' ').map(Number);
       const frameX = frameTransform[4] || 0;
-      const { page: assignedPage } = getAssignedPage(frameX);
+      const { position, page: assignedPage } = getAssignedPage(frameX);
       const pageEntry = getOrCreatePageEntry(assignedPage.name, assignedPage);
 
       const label = getFrameLabel(frame);
+      const rawName = getNameAttr(frame);
+      const { namespace, tags } = parseFrameTags(rawName, label);
       if (label) pageEntry.labels.push(label);
+      if (namespace === 'ad') pageEntry.adFrameCount++;
+      if (namespace === 'chrome') pageEntry.chromeFrameCount++;
 
-      if ((frame.getAttribute('ContentType') || '') !== 'GraphicType') continue;
+      const isGraphic = (frame.getAttribute('ContentType') || '') === 'GraphicType';
+      if (!isGraphic) {
+        pageEntry.frames.push({
+          frameSelf,
+          storyId: '',
+          isTitle: false,
+          label,
+          position,
+          order: frameOrder++,
+          top: bounds.top,
+          left: bounds.left,
+          bottom: bounds.bottom,
+          right: bounds.right,
+          rawName,
+          namespace,
+          tags,
+          imageFileName: null,
+        });
+        continue;
+      }
 
       const linkNodes = frame.getElementsByTagName('Link');
-      if (linkNodes.length === 0) continue;
+      if (linkNodes.length === 0) {
+        pageEntry.frames.push({
+          frameSelf,
+          storyId: '',
+          isTitle: false,
+          label,
+          position,
+          order: frameOrder++,
+          top: bounds.top,
+          left: bounds.left,
+          bottom: bounds.bottom,
+          right: bounds.right,
+          rawName,
+          namespace,
+          tags,
+          imageFileName: null,
+        });
+        continue;
+      }
 
       const isLogo = isLogoImageLabel(label);
       for (let linkIdx = 0; linkIdx < linkNodes.length; linkIdx++) {
@@ -496,9 +683,58 @@ function parseSpreadFrames(spreadXml: string): Array<{
           if (!pageEntry.logoImageFileNames.includes(fileName)) {
             pageEntry.logoImageFileNames.push(fileName);
           }
+          if (!pageEntry.pageRoleImages.logo.includes(fileName)) {
+            pageEntry.pageRoleImages.logo.push(fileName);
+          }
         } else {
           if (!pageEntry.imageFileNames.includes(fileName)) {
             pageEntry.imageFileNames.push(fileName);
+          }
+
+          let normalizedRole: keyof ParsedRoleImages | null = null;
+          if (isLogo) normalizedRole = 'logo';
+          else if (namespace === 'article' && tags) {
+            const r = (tags.role || 'gallery').toLowerCase();
+            if (r === 'hero') normalizedRole = 'hero';
+            else if (r === 'gallery' || r === 'image') normalizedRole = 'gallery';
+            else if (r === 'logo') normalizedRole = 'logo';
+            else if (r === 'pdf' || /\.pdf$/i.test(fileName)) normalizedRole = 'pdf';
+            else normalizedRole = 'gallery';
+          } else if (/\.pdf$/i.test(fileName)) normalizedRole = 'pdf';
+
+          if (normalizedRole && !pageEntry.pageRoleImages[normalizedRole].includes(fileName)) {
+            pageEntry.pageRoleImages[normalizedRole].push(fileName);
+          }
+
+          const graphicParsedFrame: ParsedFrame = {
+            frameSelf,
+            storyId: '',
+            isTitle: false,
+            label,
+            position,
+            order: frameOrder++,
+            top: bounds.top,
+            left: bounds.left,
+            bottom: bounds.bottom,
+            right: bounds.right,
+            rawName,
+            namespace,
+            tags,
+            imageFileName: fileName,
+          };
+          pageEntry.frames.push(graphicParsedFrame);
+
+          if (namespace === 'article' && tags) {
+            const bucket = ensureBucket(pageEntry, namespace, tags.slug);
+            if (bucket) {
+              bucket.frames.push(graphicParsedFrame);
+              if (normalizedRole && !bucket.roleImages[normalizedRole].includes(fileName)) {
+                bucket.roleImages[normalizedRole].push(fileName);
+              }
+              if (tags.role === 'logo' && !bucket.roleImages.logo.includes(fileName)) {
+                bucket.roleImages.logo.push(fileName);
+              }
+            }
           }
         }
       }
@@ -627,6 +863,10 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     imageFileNames: string[];
     labels: string[];
     logoImageFileNames: string[];
+    namespaceBuckets: Record<string, ParsedNamespaceBucket>;
+    adFrameCount: number;
+    chromeFrameCount: number;
+    pageRoleImages: ParsedRoleImages;
   }> = [];
 
   let pageNumber = 1;
@@ -722,9 +962,12 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
 
       const framesWithTitles = pageData.frames.map((frame, idx) => {
         const story = storyMap.get(frame.storyId);
+        let derivedTitle = false;
+        if (frame.namespace === 'article' && frame.tags?.role === 'title') derivedTitle = true;
+        else derivedTitle = isTitleFrame(story, idx, frame.label);
         return {
           ...frame,
-          isTitle: isTitleFrame(story, idx, frame.label),
+          isTitle: derivedTitle,
         };
       });
 
@@ -735,6 +978,10 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         imageFileNames: pageData.imageFileNames,
         labels: [...new Set(pageData.labels)],
         logoImageFileNames: pageData.logoImageFileNames,
+        namespaceBuckets: pageData.namespaceBuckets,
+        adFrameCount: pageData.adFrameCount,
+        chromeFrameCount: pageData.chromeFrameCount,
+        pageRoleImages: pageData.pageRoleImages,
       });
 
       pageNumber++;
@@ -744,12 +991,12 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   allPageData.sort((a, b) => a.pageNumber - b.pageNumber);
 
   const pages: ParsedIdmlPage[] = allPageData.map((pageData) => {
-    const storyIds = new Set(pageData.frames.map((f) => f.storyId));
+    const storyIds = new Set(pageData.frames.map((f) => f.storyId).filter(Boolean));
     const pageStories: ParsedIdmlStory[] = [];
     const allImageHints: string[] = [...pageData.imageFileNames];
 
     for (const storyId of storyIds) {
-      const story = storyMap.get(storyId);
+      const story = storyMap.get(storyId as string);
       if (story) {
         pageStories.push(story);
         allImageHints.push(...story.imageHints);
@@ -757,6 +1004,22 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     }
 
     const combinedText = pageStories.map((s) => s.text).join('\n\n');
+
+    const explicitRoleImages: ParsedRoleImages = emptyRoleImages();
+    const pushRole = (role: keyof ParsedRoleImages, val: string) => {
+      if (!val) return;
+      if (!explicitRoleImages[role].includes(val)) explicitRoleImages[role].push(val);
+    };
+    for (const v of pageData.pageRoleImages?.hero || []) pushRole('hero', v);
+    for (const v of pageData.pageRoleImages?.gallery || []) pushRole('gallery', v);
+    for (const v of pageData.pageRoleImages?.logo || []) pushRole('logo', v);
+    for (const v of pageData.pageRoleImages?.pdf || []) pushRole('pdf', v);
+    for (const bucket of Object.values(pageData.namespaceBuckets || {})) {
+      for (const v of bucket.roleImages?.hero || []) pushRole('hero', v);
+      for (const v of bucket.roleImages?.gallery || []) pushRole('gallery', v);
+      for (const v of bucket.roleImages?.logo || []) pushRole('logo', v);
+      for (const v of bucket.roleImages?.pdf || []) pushRole('pdf', v);
+    }
 
     return {
       pageNumber: pageData.pageNumber,
@@ -768,6 +1031,10 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       totalWordCount: countWords(combinedText),
       textPreview: combinedText.replace(/\s+/g, ' ').slice(0, 180),
       logoImageFileNames: pageData.logoImageFileNames || [],
+      namespaceBuckets: pageData.namespaceBuckets || {},
+      adFrameCount: pageData.adFrameCount || 0,
+      chromeFrameCount: pageData.chromeFrameCount || 0,
+      explicitRoleImages,
     };
   });
 
