@@ -696,27 +696,23 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
       return sanitizeReaderPage({ ...page, template: nextTemplate, content });
     })
     .sort((left, right) => {
-      // Canonical structural role order before position sort. This
-      // guarantees Cover → Contents → Editor's Note → Articles → Back
-      // Cover regardless of whether legacy pages had position=0 for all
-      // structural pages or conflicting numeric pageNumber values due
-      // to prior build bugs.
+      const lPos = typeof left.position === 'number' ? left.position : 0;
+      const rPos = typeof right.position === 'number' ? right.position : 0;
+      if (lPos !== rPos) return lPos - rPos;
       const ROLE: Record<string, number> = {
         cover: 0,
         contents: 1,
         'editor-note': 2,
-        'feature-left': 10,
-        'feature-right': 11,
+        'feature-full': 10,
+        'feature-left': 11,
+        'feature-right': 12,
         ad: 20,
         'full-page-ad': 20,
         'back-cover': 99,
       };
       const lRole = ROLE[String(left.template || '').trim().toLowerCase()] ?? 100;
       const rRole = ROLE[String(right.template || '').trim().toLowerCase()] ?? 100;
-      if (lRole !== rRole) return lRole - rRole;
-      const lPos = typeof left.position === 'number' ? left.position : 0;
-      const rPos = typeof right.position === 'number' ? right.position : 0;
-      return lPos - rPos;
+      return lRole - rRole;
     });
   const collapsedPages = collapseSplitStoryPages(pages);
 
