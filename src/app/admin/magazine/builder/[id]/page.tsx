@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, use, useCallback, useRef, useMemo } from 'react';
-import { 
-  ArrowLeft, 
-  Save, 
+import {
+  ArrowLeft,
+  Save,
   Loader2,
   ExternalLink,
   Sparkles,
@@ -13,9 +13,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
-  getMagazinePagesAction, 
-  getMagazineIssuesAction, 
+import {
+  getMagazinePagesAction,
+  getMagazineIssuesAction,
   getMagazineStoryLibraryAction,
   updateMagazineIssueAction,
   saveMagazineStoryLibraryAction,
@@ -31,6 +31,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
@@ -312,17 +314,72 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       });
     }, 5 * 60 * 1000);
     try {
-      toast.info('Extracting stories from IDML… (this can take 30–60s for a full issue)', { id: toastId });
       if (!file || file.size <= 0) throw new Error('Please select a valid .idml file');
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('Failed to read IDML file'));
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.readAsDataURL(file);
-      });
-      const idmlBase64 = (dataUrl || '').replace(/^data:[^;]+;base64,/, '');
-      if (!idmlBase64) throw new Error('Empty IDML file');
-      const res = await importIdmlToStoryLibraryAction(String(id), idmlBase64, file.name);
+
+      const MAX_INLINE_BASE64_BYTES = 1.5 * 1024 * 1024; // 1.5 MB — under Next/Vercel server action 4MB body limit
+      const useStorageUpload = storage && file.size > MAX_INLINE_BASE64_BYTES;
+
+      let res: any;
+      if (useStorageUpload) {
+        // LARGE FILE: upload to Firebase Storage first, import via storagePath.
+        // Identical to the working "old stored-IDML route" (ManualImporter handleImportFromStoredPath):
+        // admin SDK bucket.file().download() with service-account creds bypasses security rules
+        // and there is no huge server action request body to hit the Next size limit (which was
+        // the actual cause of "Unexpected response was received" → Sync failed toast).
+        toast.info('Uploading IDML to Storage for processing… (large file)', { id: toastId });
+        const filePath = `magazine-import/${file.name}`;
+        const storageRef = ref(storage, filePath);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        await new Promise<void>((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+              toast.info(`Uploading: ${pct}%`, { id: toastId });
+            },
+            (error) => reject(error),
+            () => resolve(),
+          );
+        });
+
+        toast.info('Extracting stories from Storage IDML… (this can take 30–60s for a full issue)', { id: toastId });
+
+        // Derive gs:// URL from getDownloadURL so we use the exact working stored-IDML transport.
+        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        const match = downloadUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+        const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
+        const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
+        const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
+        if (!bucketName || !objectPath) {
+          throw new Error('Failed to derive storage path for uploaded IDML');
+        }
+        const storagePath = `gs://${bucketName}/${objectPath}`;
+
+        // Call the working storage-path API route (same as the old ManualImporter stored-path route).
+        const apiRes = await fetch('/api/admin/magazine/story-library/import-idml', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            issueId: String(id),
+            storagePath,
+            fileName: file.name,
+          }),
+        });
+        res = await apiRes.json();
+      } else {
+        // SMALL FILE: inline base64 via server action (legacy path, still fine for <1.5MB).
+        toast.info('Extracting stories from IDML…', { id: toastId });
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error('Failed to read IDML file'));
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.readAsDataURL(file);
+        });
+        const idmlBase64 = (dataUrl || '').replace(/^data:[^;]+;base64,/, '');
+        if (!idmlBase64) throw new Error('Empty IDML file');
+        res = await importIdmlToStoryLibraryAction(String(id), idmlBase64, file.name);
+      }
+
       if (!res || !res.success) {
         const errMsg = res && 'error' in res ? String((res as any).error || '') : '';
         throw new Error(errMsg || 'IDML import failed');
@@ -356,7 +413,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const msg = typeof rawMsg === 'string' ? rawMsg : String(rawMsg);
       if (msg.toLowerCase().includes('unexpected response was received')) {
         toast.error(
-          'Sync failed. Try clicking the Issue Spreads tab again, or refresh the page if this keeps happening.',
+          'Import request was too large for the inline path. The Storage-upload fallback should now handle it — please try the upload again, or refresh the page.',
           { id: toastId },
         );
       } else {
