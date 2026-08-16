@@ -312,19 +312,31 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     value,
     accept = 'image/*,application/pdf',
     hint,
+    mode = 'any',
   }: {
     label: string;
     field: string;
     value?: string;
     accept?: string;
     hint?: string;
+    mode?: 'image' | 'pdf' | 'any';
   }) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
+    const looksLikePdf = /\.pdf(\?|$)/i.test(String(value || '').split('?')[0]);
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Label>{label}</Label>
+          <Label className="inline-flex items-center gap-2">
+            {label}
+            {mode === 'pdf' && looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-stone-500 bg-stone-200/60 rounded-full px-2 py-0.5">PDF</span>
+            ) : mode === 'image' && value && !looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">Image</span>
+            ) : looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 border border-amber-200">PDF — tap to open in reader</span>
+            ) : null}
+          </Label>
           {value ? (
             <button
               type="button"
@@ -382,6 +394,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               </Button>
             </div>
             {hint ? <p className="text-[10px] text-muted-foreground">{hint}</p> : null}
+            {looksLikePdf && mode === 'image' ? (
+              <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1 border border-amber-200">
+                ⚠️ PDF placed in an image-only slot. Reader will fall back to the tap-to-open PDF card.
+                For pixel-perfect display, export this page from InDesign as <strong>PNG 150dpi</strong> and upload the PNG instead.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1410,6 +1428,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'full-page-ad':
         return (
           <div className="space-y-4">
+            <div className="rounded-xl border border-[#a3413a]/25 bg-gradient-to-br from-[#a3413a]/5 via-amber-50/40 to-transparent p-4 space-y-2">
+              <p className="text-sm font-semibold text-[#6a2b26] inline-flex items-center gap-2">
+                💡 PDF display in the online magazine reader
+              </p>
+              <p className="text-xs text-stone-700 leading-relaxed">
+                Browsers <strong>cannot reliably embed PDFs inline</strong> from Firebase Storage due to
+                X-Frame-Options / Content-Security-Policy / Chromium ORB blocks.
+              </p>
+              <ul className="text-[11px] text-stone-600 space-y-1 list-disc pl-5 marker:text-[#a3413a]">
+                <li><strong>Perfect (recommended):</strong> Export each PDF ad page to PNG from InDesign (<code>File → Export → PNG, 150 dpi</code>) and upload the PNG into <em>Main Advertisement</em>.</li>
+                <li><strong>Works fine:</strong> Upload the PDF → reader shows a large tap-friendly <em>&ldquo;📄 Open Advert PDF&rdquo;</em> card that opens the PDF in a new tab, with a blurred gradient behind it.</li>
+              </ul>
+            </div>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} placeholder="Advertisement" />
@@ -1422,20 +1453,23 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               label="Main Advertisement (Image or PDF)"
               field="image"
               value={safeContent.image}
-              hint="Foreground ad artwork shown on top of the background media. PDFs accepted."
+              hint="Foreground ad artwork (PNG = renders inline perfectly, PDF = tap-to-open card shown)."
             />
             <SingleImageRow
-              label="Background Image / PDF (Optional)"
+              label="Background Image / Underlay (Image)"
               field="backgroundImage"
               value={safeContent.backgroundImage}
-              hint="Used behind the main ad when no background video is set. PDFs accepted."
+              mode="image"
+              accept="image/*"
+              hint="Blurred backdrop. (PDFs not accepted here — backdrop only shows pixel-perfect image renders.)"
             />
             <SingleImageRow
-              label="PDF Only Render (Optional)"
+              label="PDF (Shown as tap-to-open card)"
               field="pdfUrl"
               value={safeContent.pdfUrl}
-              hint="Separate PDF URL — set ONLY if you want PDF-based rendering instead of image."
-              accept="application/pdf,image/*"
+              mode="pdf"
+              accept="application/pdf"
+              hint="Dedicated PDF slot. Upload a PDF to show the tap-to-open card without setting a main image."
             />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Background Video URL (Optional)</Label>
