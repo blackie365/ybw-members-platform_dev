@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, uploadIdmlFileToStorageAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, uploadIdmlFileToStorageAction, importIdmlFromStoragePathForPublishAction } from '@/app/actions/magazineActions';
 
 function normalizeImageUrl(raw: any): string {
   if (typeof raw !== 'string') return '';
@@ -854,21 +854,22 @@ export function ManualImporter({
         );
       });
 
+      let resolvedGsUrl: string | null = null;
       try {
         const match = fileUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
         const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
         const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
         const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
         if (bucketName && objectPath) {
-          const gsUrl = `gs://${bucketName}/${objectPath}`;
+          resolvedGsUrl = `gs://${bucketName}/${objectPath}`;
           setLastIdmlStorageUpload({
-            gsUrl,
+            gsUrl: resolvedGsUrl,
             httpsUrl: fileUrl,
             path: objectPath,
             fileName: file.name,
             sizeBytes: file.size,
           });
-          setStoredIdmlPath(gsUrl);
+          setStoredIdmlPath(resolvedGsUrl);
         }
       } catch (parseErr) {
         console.warn('[IDML] Failed to derive Storage URL for stored-path field:', parseErr);
@@ -876,7 +877,17 @@ export function ManualImporter({
 
       toast.info('Parsing IDML on server...', { id: 'upload-progress' });
 
-      const result = await importIdmlFromUrlAction(fileUrl, file.name);
+      // CRITICAL FIX: use the gs:// storage path → admin SDK download route,
+      // NOT the Firebase Storage public URL + uncredentialed server fetch.
+      // The URL fetch fails (400/403) because server actions have no Firebase
+      // Auth / Storage rule context, but admin SDK bypasses rules entirely —
+      // this is why the "old upload route" (stored-path import) always worked.
+      let result: any;
+      if (resolvedGsUrl) {
+        result = await importIdmlFromStoragePathForPublishAction(resolvedGsUrl, file.name);
+      } else {
+        result = await importIdmlFromUrlAction(fileUrl, file.name);
+      }
 
       if (!result.success) {
         toast.error(result.error || 'Failed to parse IDML', { id: 'upload-progress' });

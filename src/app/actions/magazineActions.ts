@@ -223,6 +223,61 @@ function parseGoogleStoragePath(storagePath: string): { bucketName?: string; obj
   return { objectPath: trimmed.replace(/^\/+/, '') };
 }
 
+function isFirebaseStorageUrl(url: string): { bucket?: string; objectPath?: string } | null {
+  const s = String(url || '').trim();
+  if (!s) return null;
+
+  try {
+    const u = new URL(s);
+    const host = u.hostname.toLowerCase();
+
+    // Pattern A: firebasestorage.googleapis.com/v0/b/<bucket>/o/<encodedPath>[...]
+    if (host === 'firebasestorage.googleapis.com' || host === 'www.firebasestorage.googleapis.com') {
+      const m = u.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
+      if (m) {
+        const bucket = decodeURIComponent(m[1]);
+        const objectPath = decodeURIComponent(m[2]).replace(/\+/g, ' ');
+        return { bucket, objectPath };
+      }
+    }
+
+    // Pattern B: storage.googleapis.com/<bucket>/<path> (buildPublicStorageUrl format)
+    if (host === 'storage.googleapis.com' || host === 'www.storage.googleapis.com') {
+      const parts = u.pathname.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        const bucket = parts[0];
+        const objectPath = parts.slice(1).map(decodeURIComponent).join('/');
+        return { bucket, objectPath };
+      }
+    }
+
+    // Pattern C: storage.cloud.google.com/<bucket>/<path>
+    if (host.endsWith('.firebasestorage.app')) {
+      const parts = u.pathname.split('/').filter(Boolean);
+      if (parts.length >= 1) {
+        return { bucket: host, objectPath: parts.map(decodeURIComponent).join('/') };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadIdmlBufferFromStoragePath(storagePath: string): Promise<{ buffer: Buffer; bucketName: string; objectPath: string }> {
+  if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+
+  const { bucketName, objectPath } = parseGoogleStoragePath(storagePath);
+  if (!objectPath) throw new Error('Storage path has no object');
+
+  const bucket = bucketName ? adminStorage.bucket(bucketName) : adminStorage.bucket();
+  const [buffer] = await bucket.file(objectPath).download();
+  if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: gs://${bucketName || bucket.name}/${objectPath}`);
+
+  return { buffer, bucketName: bucketName || bucket.name, objectPath };
+}
+
 function mapStoryLibraryItemToCollectionDoc(
   issueId: string,
   item: StoryLibraryItem,
@@ -1220,17 +1275,52 @@ export async function importIdmlAction(idmlBase64: string, fileName: string) {
   }
 }
 
+export async function importIdmlFromStoragePathForPublishAction(storagePath: string, fileName?: string) {
+  try {
+    await checkAdmin();
+    if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+
+    const { buffer, objectPath } = await downloadIdmlBufferFromStoragePath(storagePath);
+    const resolvedFileName =
+      String(fileName || '').trim() ||
+      objectPath.split('/').pop()?.trim() ||
+      'imported.idml';
+
+    const data = await processIdmlBuffer(buffer, resolvedFileName);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('Error importing IDML from storage path (publish route):', error);
+    return { success: false, error: error.message || 'Failed to import IDML file from storage path' };
+  }
+}
+
 export async function importIdmlFromUrlAction(fileUrl: string, fileName: string) {
   try {
     await checkAdmin();
 
-    const response = await fetch(fileUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.statusText}`);
-    }
+    let buffer: Buffer;
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // If the URL is a Firebase Storage URL, bypass public fetch entirely and
+    // download via the Admin SDK (service-account credentials). This avoids
+    // the 400/403 we get from plain uncredentialed fetch against Firebase
+    // Storage REST API when security rules require request.auth != null.
+    const firebaseInfo = isFirebaseStorageUrl(fileUrl);
+    if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
+      if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+      const gs = firebaseInfo.bucket && firebaseInfo.objectPath
+        ? `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`
+        : '';
+      const downloaded = await downloadIdmlBufferFromStoragePath(gs);
+      buffer = downloaded.buffer;
+    } else {
+      // Non-Firebase URL (e.g. Issuu PDF, external CDN): regular uncredentialed fetch still works.
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    }
 
     const data = await processIdmlBuffer(buffer, fileName);
     return { success: true, data };
@@ -1395,11 +1485,28 @@ export async function importIdmlToStoryLibraryFromUrlAction(issueId: string, fil
   try {
     await checkAdmin();
 
+    let buffer: Buffer;
+
+    const firebaseInfo = isFirebaseStorageUrl(fileUrl);
+    if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
+      if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+      const gs = `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`;
+      const downloaded = await downloadIdmlBufferFromStoragePath(gs);
+      buffer = downloaded.buffer;
+      const resolvedFromObject = String(fileName || '').trim() || downloaded.objectPath.split('/').pop() || 'imported.idml';
+      return await importIdmlBufferToStoryLibrary(
+        issueId,
+        buffer,
+        resolvedFromObject,
+        'magazineActions.ts:importIdmlToStoryLibraryFromUrlAction[firebase-url]',
+      );
+    }
+
+    // Non-Firebase URL (external CDN, Issuu etc.) — plain fetch is fine.
     const response = await fetch(fileUrl);
     if (!response.ok) {
       throw new Error(`Failed to download file: ${response.statusText}`);
     }
-
     const arrayBuffer = await response.arrayBuffer();
     return await importIdmlBufferToStoryLibrary(
       issueId,
@@ -1420,18 +1527,11 @@ export async function importIdmlToStoryLibraryFromStoragePathAction(
 ) {
   try {
     await checkAdmin();
-
     if (!adminStorage) {
       throw new Error('Storage not initialized');
     }
 
-    const { bucketName, objectPath } = parseGoogleStoragePath(storagePath);
-    if (!objectPath) {
-      throw new Error('Storage path must include an object path');
-    }
-
-    const bucket = bucketName ? adminStorage.bucket(bucketName) : adminStorage.bucket();
-    const [buffer] = await bucket.file(objectPath).download();
+    const { buffer, objectPath } = await downloadIdmlBufferFromStoragePath(storagePath);
     const resolvedFileName =
       String(fileName || '').trim() ||
       objectPath.split('/').pop()?.trim() ||
