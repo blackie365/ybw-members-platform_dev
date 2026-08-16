@@ -8,7 +8,7 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 function safeRevalidatePath(path: string) {
@@ -1563,6 +1563,20 @@ export async function deleteReaderEditionAction(editionId: string) {
   } catch (error: any) {
     console.error('Error deleting reader edition:', error);
     return { success: false, error: error.message || 'Failed to delete edition' };
+  }
+}
+
+export async function getReaderEditionByIssueIdAction(issueId: string): Promise<{ success: boolean; data?: ReaderEdition | null; error?: string }> {
+  try {
+    await checkAdmin();
+    if (!issueId) return { success: true, data: null };
+    const edition = await getReaderEditionByIssueId(issueId);
+    if (!edition) return { success: true, data: null };
+    const hydrated = await hydrateEditionWithLegacyPages(edition);
+    return { success: true, data: hydrated };
+  } catch (error: any) {
+    console.error('getReaderEditionByIssueIdAction error:', error);
+    return { success: false, error: error.message || 'Failed to fetch reader edition' };
   }
 }
 
