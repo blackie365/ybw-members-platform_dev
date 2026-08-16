@@ -30,6 +30,8 @@ export interface MagazinePage {
   storyId?: string;
   sourceRef?: string;
   generatedFromStoryLibrary?: boolean;
+  readOnly?: boolean;
+  sourceReaderEditionId?: string;
   content: any;
   createdAt: string;
   updatedAt?: string;

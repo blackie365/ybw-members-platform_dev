@@ -31,10 +31,16 @@ interface PageEditorProps {
   onSave: (content: any) => void;
   onChangeType?: (type: string) => void;
   isSaving: boolean;
+  readOnly?: boolean;
 }
 
-export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
-  const [content, setContent] = useState<any>({});
+export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: forcedReadOnly }: PageEditorProps) {
+  const readOnly = Boolean(forcedReadOnly) || Boolean(page?.readOnly);
+  const [content, _setContent] = useState<any>({});
+  const setContent: typeof _setContent = (updater: any) => {
+    if (readOnly) return;
+    _setContent(updater as any);
+  };
   const [rawJsonDraft, setRawJsonDraft] = useState<string>('{}');
   const [rawJsonError, setRawJsonError] = useState<string>('');
   const rawJsonFocusedRef = useRef(false);
@@ -1600,11 +1606,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Select
                 value={page.type}
                 onValueChange={(nextType) => {
+                  if (readOnly) return;
                   if (nextType === page.type) return;
                   setPendingType(nextType);
                   setIsTypeDialogOpen(true);
                 }}
-                disabled={isSaving}
+                disabled={isSaving || readOnly}
               >
                 <SelectTrigger className="h-9 w-[220px] bg-white">
                   <SelectValue placeholder="Layout" />
@@ -1618,12 +1625,20 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={() => onSave(content)} disabled={isSaving || hasJsonErrors} className="bg-accent text-white">
+            <Button
+              onClick={() => !readOnly && onSave(content)}
+              disabled={isSaving || hasJsonErrors || readOnly}
+              className="bg-accent text-white"
+            >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Page
+              {readOnly ? 'Read Only' : 'Save Page'}
             </Button>
           </div>
-          {hasJsonErrors ? (
+          {readOnly ? (
+            <p className="text-[10px] text-muted-foreground/80 sm:text-right">
+              Published via IDML — re-publish the InDesign export to edit this spread.
+            </p>
+          ) : hasJsonErrors ? (
             <p className="text-[10px] text-destructive sm:text-right">Fix JSON errors above before saving.</p>
           ) : null}
         </div>
@@ -1637,6 +1652,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             className="font-mono text-[10px] mt-2 bg-muted/30 focus:bg-white transition-colors" 
             rows={5}
             value={rawJsonDraft}
+            readOnly={readOnly}
             onFocus={() => {
               rawJsonFocusedRef.current = true;
             }}
@@ -1647,6 +1663,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               }
             }}
             onChange={(e) => {
+              if (readOnly) return;
               const next = e.target.value;
               setRawJsonDraft(next);
               try {
@@ -1687,7 +1704,13 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         </div>
       </CardContent>
 
-      <AlertDialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
+      <AlertDialog
+        open={isTypeDialogOpen && !readOnly}
+        onOpenChange={(next) => {
+          if (readOnly) return;
+          setIsTypeDialogOpen(next);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Change layout?</AlertDialogTitle>
@@ -1700,11 +1723,14 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               onClick={() => {
                 setPendingType(null);
               }}
+              disabled={readOnly}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={readOnly}
               onClick={() => {
+                if (readOnly) return;
                 if (!pendingType) return;
                 onChangeType?.(pendingType);
                 setPendingType(null);

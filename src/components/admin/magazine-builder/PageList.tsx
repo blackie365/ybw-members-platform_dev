@@ -111,12 +111,18 @@ export function PageList({
                 key={page.docId}
                 onDragOver={(e) => {
                   if (!draggedPageId || draggedPageId === page.docId || isSaving) return;
+                  if (page.readOnly) return;
+                  const draggedPage = sortedPages.find(p => p.docId === draggedPageId);
+                  if (draggedPage?.readOnly) return;
                   e.preventDefault();
                   setDropTargetPageId(page.docId);
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
                   if (!draggedPageId || draggedPageId === page.docId || isSaving) return;
+                  if (page.readOnly) return;
+                  const draggedPage = sortedPages.find(p => p.docId === draggedPageId);
+                  if (draggedPage?.readOnly) return;
                   onMovePageTo(draggedPageId, index + 1);
                   setDraggedPageId(null);
                   setDropTargetPageId(null);
@@ -129,12 +135,15 @@ export function PageList({
                   selectedPageId === page.docId 
                     ? 'border-accent bg-accent/5 shadow-sm' 
                     : 'border-border/50 bg-card hover:border-accent/30'
-                } ${dropTargetPageId === page.docId ? 'border-accent ring-1 ring-accent/30 bg-accent/5' : ''}`}
+                } ${dropTargetPageId === page.docId ? 'border-accent ring-1 ring-accent/30 bg-accent/5' : ''} ${
+                  page.readOnly ? 'bg-muted/20 border-dashed border-muted-foreground/20' : ''
+                }`}
               >
                 <button
                   type="button"
-                  draggable={!isSaving}
+                  draggable={!isSaving && !page.readOnly}
                   onDragStart={(e) => {
+                    if (page.readOnly) return;
                     e.stopPropagation();
                     setDraggedPageId(page.docId);
                     setDropTargetPageId(page.docId);
@@ -142,10 +151,12 @@ export function PageList({
                     e.dataTransfer.setData('text/plain', page.docId);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:text-accent active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={isSaving}
+                  className={`flex h-8 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-accent active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40 ${
+                    page.readOnly ? 'invisible' : 'cursor-grab'
+                  }`}
+                  disabled={isSaving || page.readOnly}
                   aria-label={`Drag to reorder ${page.content?.title || page.content?.name || 'page'}`}
-                  title="Drag to reorder"
+                  title={page.readOnly ? 'Published via IDML — reorder in the IDML file' : 'Drag to reorder'}
                 >
                   <GripVertical className="h-3.5 w-3.5" />
                 </button>
@@ -157,9 +168,16 @@ export function PageList({
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-[9px] uppercase tracking-widest truncate">
-                      {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}
-                    </h4>
+                    <div className="flex items-center gap-1">
+                      <h4 className="font-bold text-[9px] uppercase tracking-widest truncate">
+                        {PAGE_TYPES.find(t => t.id === page.type)?.label || page.type}
+                      </h4>
+                      {page.readOnly && (
+                        <span className="text-[8px] font-medium text-muted-foreground/80 uppercase tracking-wide shrink-0 bg-muted/50 px-1.5 py-[1px] rounded border border-muted">
+                          IDML
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[8px] text-muted-foreground uppercase tracking-tight truncate">
                       {page.content?.title || page.content?.name || 'Untitled'}
                     </p>
@@ -172,9 +190,10 @@ export function PageList({
                       variant="ghost" 
                       size="icon" 
                       className="h-4 w-4 text-muted-foreground hover:text-accent" 
-                      disabled={index === 0 || isSaving}
+                      disabled={index === 0 || isSaving || page.readOnly}
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (page.readOnly) return;
                         onMovePage(page.docId, 'up');
                       }}
                     >
@@ -184,9 +203,10 @@ export function PageList({
                       variant="ghost" 
                       size="icon" 
                       className="h-4 w-4 text-muted-foreground hover:text-accent" 
-                      disabled={index === sortedPages.length - 1 || isSaving}
+                      disabled={index === sortedPages.length - 1 || isSaving || page.readOnly}
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (page.readOnly) return;
                         onMovePage(page.docId, 'down');
                       }}
                     >
@@ -200,7 +220,7 @@ export function PageList({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-muted-foreground hover:text-accent"
-                          disabled={isSaving}
+                          disabled={isSaving || page.readOnly}
                           onClick={(e) => {
                             e.stopPropagation();
                           }}
@@ -210,9 +230,10 @@ export function PageList({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          disabled={isSaving}
+                          disabled={isSaving || page.readOnly}
                           onSelect={(e) => {
                             e.preventDefault();
+                            if (page.readOnly) return;
                             setMoveDialogPageId(page.docId);
                             setMoveTargetValue(String(index + 1));
                           }}
@@ -223,10 +244,10 @@ export function PageList({
                         {PAGE_TYPES.map((t) => (
                           <DropdownMenuItem
                             key={t.id}
-                            disabled={isSaving || t.id === page.type}
+                            disabled={isSaving || t.id === page.type || page.readOnly}
                             onSelect={(e) => {
                               e.preventDefault();
-                              if (t.id === page.type) return;
+                              if (page.readOnly || t.id === page.type) return;
                               if (!confirm('Change layout for this spread?')) return;
                               onChangeType(page.docId, t.id);
                             }}
@@ -243,9 +264,11 @@ export function PageList({
                     className="h-6 w-6 text-muted-foreground hover:text-destructive transition-colors" 
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (page.readOnly) return;
                       onDeletePage(page.docId);
                     }}
-                    disabled={isSaving}
+                    disabled={isSaving || page.readOnly}
+                    title={page.readOnly ? 'Published via IDML — delete the ReaderEdition to remove' : 'Delete spread'}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>

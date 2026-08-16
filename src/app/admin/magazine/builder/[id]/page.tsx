@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use, useCallback, useRef } from 'react';
+import { useState, useEffect, use, useCallback, useRef, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -24,7 +24,8 @@ import {
   updateMagazinePageAction,
   deleteMagazinePageAction,
   getGhostPostsAction,
-  importIdmlToStoryLibraryAction
+  importIdmlToStoryLibraryAction,
+  getReaderEditionByIssueIdAction
 } from '@/app/actions/magazineActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -201,6 +202,56 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   });
 
   const [pages, setPages] = useState<MagazinePage[]>([]);
+  const [readerEditionPages, setReaderEditionPages] = useState<MagazinePage[]>([]);
+  const [readerEditionId, setReaderEditionId] = useState<string | null>(null);
+
+  const convertReaderPagesToShadow = useCallback((readerPages: any[], editionId: string): MagazinePage[] => {
+    const now = new Date().toISOString();
+    const startId = 10_000;
+    const arr = Array.isArray(readerPages) ? readerPages : [];
+    return arr.map((rp: any, i: number) => {
+      const pos = typeof rp.position === 'number' ? rp.position : i + 1;
+      const typeFallback = String(rp.template || 'feature-left').trim().toLowerCase()
+        .replace(/^editorial$/i, 'editorial');
+      const type = typeFallback === 'ad' ? 'full-page-ad' : typeFallback;
+      const content = { ...(rp.content || {}) };
+      const title = content.title || rp.title || '';
+      const body = content.body || content.text || '';
+      return {
+        docId: `reader:${editionId}:page:${i}:${pos}`,
+        id: startId + pos,
+        type,
+        readOnly: true,
+        generatedFromStoryLibrary: true,
+        sourceReaderEditionId: editionId,
+        sourceRef: String(rp.id || ''),
+        storyId: String(rp.storyId || content.storyId || ''),
+        content: {
+          ...content,
+          title,
+          name: title,
+          body,
+          text: body,
+          position: pos,
+          template: rp.template,
+        },
+        createdAt: rp.createdAt || now,
+        updatedAt: rp.updatedAt || now,
+      } satisfies MagazinePage;
+    });
+  }, []);
+
+  const mergedDisplayedPages = useMemo<MagazinePage[]>(() => {
+    const rePages = Array.isArray(readerEditionPages) ? readerEditionPages : [];
+    const legacyPages = Array.isArray(pages) ? pages : [];
+    if (rePages.length === 0) return legacyPages;
+    // Shadow pages all have id = 10_000 + position (1..N). Legacy pages have id = 1..M. We want
+    // the shadow IDML pages to appear FIRST in the list (real print order), legacy pages LAST.
+    // So bump legacy ids to 100_000_000 + original id so PageList sort puts them after.
+    const reSorted = [...rePages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const legacyBumped = legacyPages.map(lp => ({ ...lp, id: 100_000_000 + (lp.id || 0) }));
+    return [...reSorted, ...legacyBumped];
+  }, [readerEditionPages, pages]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isIdmlImporting, setIsIdmlImporting] = useState(false);
@@ -548,17 +599,43 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
         }
 
+        // Load linked ReaderEdition (IDML publish path) — convert to shadow
+        // read-only spreads so the "Issue Spreads" column shows all 61 pages
+        // from the IDML publish, not just the 6 legacy hand-created pages.
+        let loadedReaderPages: MagazinePage[] = [];
+        let loadedReaderId: string | null = null;
+        try {
+          const reRes = await getReaderEditionByIssueIdAction(id);
+          if (reRes?.success && reRes?.data) {
+            const re = reRes.data as any;
+            const reId = String(re.id || '');
+            const rp = Array.isArray(re.pages) ? re.pages : [];
+            if (reId && rp.length > 0) {
+              loadedReaderId = reId;
+              loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+            }
+          }
+        } catch (reErr) {
+          console.warn('ReaderEdition fetch in builder failed (non-fatal):', reErr);
+        }
+
         // Intentionally NO end-of-load runSingleFlightSync.
         // See JSDoc-style note at top of loadData for rationale.
 
         setPages(loadedPages);
+        setReaderEditionPages(loadedReaderPages);
+        setReaderEditionId(loadedReaderId);
+        if (loadedReaderPages.length > 0 && !selectedPageId) {
+          const first = loadedReaderPages[0];
+          if (first?.docId) setSelectedPageId(first.docId);
+        }
       } catch (error) {
         console.error('Failed to load data:', error);
         if (!silent) toast.error('Failed to load magazine data');
       } finally {
         if (!silent) setLoading(false);
       }
-  }, [id, isNew]);
+  }, [id, isNew, convertReaderPagesToShadow, selectedPageId]);
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => { issueRef.current = issue; }, [issue]);
@@ -1464,6 +1541,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleSavePageContent = async (pageDocId: string, content: any) => {
+    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+    if (shadowPage?.readOnly) {
+      toast.warning('Published IDML pages are read-only. Re-publish the IDML to edit.');
+      return;
+    }
     // Optimistically update local state to reflect changes immediately
     const nextPages = pages.map((p) =>
       p.docId === pageDocId ? { ...p, content } : p,
@@ -1502,6 +1584,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleChangePageType = async (pageDocId: string, type: string) => {
+    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+    if (shadowPage?.readOnly) {
+      toast.warning('Published IDML pages are read-only. Re-publish the IDML to change layout.');
+      return;
+    }
     const nextPages = pages.map((p) => (p.docId === pageDocId ? { ...p, type } : p));
     setPages(nextPages);
 
@@ -1525,6 +1612,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
+    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+    if (shadowPage?.readOnly) {
+      toast.warning('Published IDML pages are read-only. Reorder the InDesign document then re-publish.');
+      return;
+    }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
     if (currentIndex === -1) return;
@@ -1540,6 +1632,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePageToPosition = async (pageDocId: string, targetPosition: number) => {
+    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+    if (shadowPage?.readOnly) {
+      toast.warning('Published IDML pages are read-only. Reorder the InDesign document then re-publish.');
+      return;
+    }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
     if (currentIndex === -1) return;
@@ -1555,13 +1652,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeleteAllPages = async () => {
-    const total = pages.length;
+    const editableLegacy = pages.filter(p => !p.readOnly);
+    const total = editableLegacy.length;
     if (total === 0) return;
 
     setSaving(true);
     try {
       const generatedSpreadIds = new Set(
-        pages
+        editableLegacy
           .filter((p) => p && Boolean(p.generatedFromStoryLibrary) && typeof p.docId === 'string')
           .map((p) => p.docId)
       );
@@ -1625,7 +1723,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let deleted = 0;
       let failed = 0;
       const deletedDocIds = new Set<string>();
-      for (const page of pages) {
+      for (const page of editableLegacy) {
         if (!page || typeof page.docId !== 'string') {
           failed++;
           continue;
@@ -1652,7 +1750,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // loadData tail that can recreate them. Spreads only come back when the
       // admin explicitly clicks Smart Batch Fill or re-imports IDML.
       didSpreadSyncOnTabRef.current = true;
-      const remainingPages = pages.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
+      const remainingPages = editableLegacy.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
         .sort((a, b) => (a.id || 0) - (b.id || 0));
       setPages(remainingPages);
 
@@ -1678,6 +1776,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const handleDeletePage = async (pageDocId: string) => {
     if (typeof pageDocId !== 'string' || !pageDocId) return;
+    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+    if (shadowPage?.readOnly) {
+      toast.warning('Published IDML pages are read-only. Delete the ReaderEdition in Firebase or re-publish.');
+      return;
+    }
     const pageToDelete = pages.find((page) => page.docId === pageDocId);
     const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
     const confirmMessage = isGeneratedSpread
@@ -2145,7 +2248,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             </div>
             <div className="lg:col-span-3 min-w-[280px]">
               <PageList 
-                pages={pages}
+                pages={mergedDisplayedPages}
                 selectedPageId={selectedPageId}
                 onSelectPage={setSelectedPageId}
                 onDeletePage={handleDeletePage}
@@ -2162,7 +2265,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               <div className="lg:sticky lg:top-6">
                 <StoryLibraryPanel
                   stories={issue.storyLibrary || []}
-                  selectedPage={pages.find(p => p.docId === selectedPageId)}
+                  selectedPage={mergedDisplayedPages.find(p => p.docId === selectedPageId)}
                   isSaving={saving}
                   onApplyStory={handleApplyStoryToSelectedPage}
                   onToggleInclusion={handleToggleStoryLibraryInclusion}
@@ -2173,7 +2276,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             </div>
             <div className="lg:col-span-4">
               <PageEditor 
-                page={pages.find(p => p.docId === selectedPageId)}
+                page={mergedDisplayedPages.find(p => p.docId === selectedPageId)}
                 onSave={(content) => {
                   if (selectedPageId) {
                     handleSavePageContent(selectedPageId, content);
@@ -2185,6 +2288,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   }
                 }}
                 isSaving={saving}
+                readOnly={Boolean(mergedDisplayedPages.find(p => p.docId === selectedPageId)?.readOnly)}
               />
             </div>
           </div>

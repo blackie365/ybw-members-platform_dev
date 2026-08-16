@@ -592,7 +592,7 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
   });
 }
 
-async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
+export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
   const db = getFirestore();
   if (!db) {
     return {
@@ -766,6 +766,27 @@ export async function getReaderEditionIdBySlug(slug: string): Promise<string | n
     .get();
   const docs = snapshot?.docs ?? [];
   return docs.length === 0 ? null : docs[0].id;
+}
+
+export async function getReaderEditionByIssueId(issueId: string): Promise<ReaderEdition | null> {
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const explicitSnapshot = await firestore
+    .collection(COLLECTION)
+    .where('issueId', '==', issueId)
+    .orderBy('publishDate', 'desc')
+    .limit(1)
+    .get();
+  const explicitDocs = explicitSnapshot?.docs ?? [];
+  if (explicitDocs.length > 0) {
+    const doc = explicitDocs[0];
+    return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
+  }
+  const issueDoc = await firestore.collection('magazine_issues').doc(issueId).get();
+  const issueRaw = issueDoc?.exists && issueDoc.data ? issueDoc.data() : null;
+  const linkedId = issueRaw ? String((issueRaw as any).readerEditionId || '').trim() : '';
+  if (!linkedId) return null;
+  return getReaderEditionById(linkedId);
 }
 
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
