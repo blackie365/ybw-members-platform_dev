@@ -1858,13 +1858,41 @@ async function syncReaderEditionToLegacyIssue(
   }
 
   // 3b. CREATE fresh legacy page doc for each flat ReaderPage with id = position.
+  // Source-template → page.type mapping (PAGE_TYPES.id values that PageEditor
+  // switch() actually renders; anything not in this map falls through to the
+  // "coming soon" default case so it is critical we only emit PAGE_TYPE ids).
+  const SOURCE_TEMPLATE_TO_PAGE_TYPE: Record<string, string> = {
+    'cover': 'cover',
+    'contents': 'contents',
+    'editor-note': 'editorial',
+    'letter-from-editor': 'editorial',
+    'masthead': 'editorial',
+    'news-in-brief': 'column',
+    'news-in-brief-page': 'column',
+    'news-brief': 'column',
+    'feature-full': 'feature-full',
+    'feature-left': 'feature-left',
+    'feature-right': 'feature-right',
+    'two-column': 'column',
+    'three-column': 'column',
+    'listing-directory': 'partner',
+    'directory-page': 'partner',
+    'member-profile': 'spotlight',
+    'gallery': 'lifestyle',
+    'gallery-grid': 'lifestyle',
+    'photo-essay': 'lifestyle',
+    'advertisement': 'full-page-ad',
+    'full-page-ad': 'full-page-ad',
+    'ad': 'full-page-ad',
+    'sponsor-spotlight': 'partner',
+    'back-cover': 'back-cover',
+  };
   const legacyPageCount = flatPages.length;
   for (let i = 0; i < flatPages.length; i++) {
     const rp: any = flatPages[i];
     const pos = typeof rp.position === 'number' ? rp.position : i + 1;
-    const template = String(rp.template || '').toLowerCase();
-    const type = template === 'ad' ? 'full-page-ad' :
-                 template === 'editorial' ? 'editor-note' : template;
+    const sourceTemplate = String(rp.template || '').toLowerCase();
+    const type = SOURCE_TEMPLATE_TO_PAGE_TYPE[sourceTemplate] || 'feature-full';
     const content = rp.content && typeof rp.content === 'object' ? { ...rp.content } : {};
     const title = String(content.title || rp.title || '').trim();
     const body = String(content.body || content.text || '').trim();
@@ -1880,11 +1908,13 @@ async function syncReaderEditionToLegacyIssue(
       type,
       storyId,
       sourceReaderEditionId: editionId,
+      sourceTemplate: rp.template || '',
       generatedFromStoryLibrary: true,
       sourceRef: `reader-edition:${editionId}:page:${pos}`,
       content,
       createdAt: rp.createdAt || now,
       updatedAt: now,
+      name: title || `${String(rp.template || 'Page')} ${pos}`,
     };
     const docRef = pagesRef.doc();
     batch.set(docRef, legacyDoc);

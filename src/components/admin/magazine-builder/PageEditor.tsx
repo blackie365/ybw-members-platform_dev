@@ -988,6 +988,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
             </div>
           </div>
         );
+      case 'feature-full':
       case 'feature-left': case'feature-right':
         return (
           <div className="space-y-4">
