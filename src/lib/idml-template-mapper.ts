@@ -1226,10 +1226,18 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         sourcePage.stories[0]?.title?.trim() ||
         sourcePage.stories[0]?.text?.trim() ||
         "";
-      const clean = String(raw).replace(/\s+/g, " ").trim();
+      let clean = String(raw).replace(/\s+/g, " ").trim();
+      clean = clean
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
       if (!clean) continue;
       const words = clean.split(/\s+/).slice(0, 16);
-      const fallbackTitle = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+      let fallbackTitle = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+      fallbackTitle = fallbackTitle
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
       if (!fallbackTitle) continue;
       art.title = fallbackTitle;
       articleTitleFallbacks.set(sourcePage.pageNumber, fallbackTitle);
@@ -1306,13 +1314,31 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         (sourcePage.stories[0]?.title?.trim() ??
           sourcePage.stories[0]?.text?.trim() ??
           "");
-      const clean = String(raw).replace(/\s+/g, " ").trim();
+      let clean = String(raw).replace(/\s+/g, " ").trim();
+      clean = clean.replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "").trim();
+      clean = clean.replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "").trim();
       if (!clean) return "";
       const words = clean.split(/\s+/).slice(0, fallbackWordMax);
-      return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+      let joined = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+      joined = joined
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
+      return joined;
     };
     const pageTitle = detectPageTitle(14);
-    const pageBody = article?.pageBodies?.[pageNum] || getPageBodyText(sourcePage);
+    const pageBodyRaw = article?.pageBodies?.[pageNum] || getPageBodyText(sourcePage);
+    const pageBody = (() => {
+      const lines = String(pageBodyRaw || "").split("\n");
+      const kept = lines
+        .map((l) => l.trim())
+        .filter((l) => {
+          if (!l) return false;
+          if (/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g.test(l)) return false;
+          return true;
+        });
+      return kept.join("\n").trim();
+    })();
     const pageWordCount = pageBody ? countWords(pageBody) : sourcePage.totalWordCount || 0;
     const hasAnyArticleFrames = sourcePage.frames.some((f) =>
       /^\s*(bodyframe|titleframe|textframe)\s*$/i.test(
@@ -1416,15 +1442,63 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       const standalonePosition = sourcePage.frames[0]?.position || "right";
       const standaloneTemplate = getFeatureTemplate(standalonePosition, false);
       const standFirst = getStandfirst(pageBody);
+      const standaloneTitleRaw = (() => {
+        const t = pageTitle || `Page ${pageNum}`;
+        return String(t)
+          .replace(/\s+/g, " ")
+          .trim();
+      })();
+      const standaloneTitleClean = standaloneTitleRaw
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
+      const standaloneTitleFellBack =
+        !standaloneTitleClean ||
+        /^Page\s+\d+$/i.test(standaloneTitleClean) ||
+        /^\d+$/g.test(standaloneTitleClean);
+      if (
+        standaloneTitleFellBack &&
+        pageBody.length < 55 &&
+        pageImages.length > 0 &&
+        !hasAnyArticleFrames
+      ) {
+        const pageLogo = pageLogos[0] || "";
+        const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+        const adHero = rasterImages[0] || pageLogo;
+        result.push({
+          id: createPageId(`page-${pageNum}`, "ad-fallback"),
+          position: 0,
+          template: "ad",
+          content: {
+            title: "Advertisement",
+            label: "Advertisement",
+            body: pageBody || "",
+            imageUrl: adHero,
+            imageUrls: rasterImages,
+            image: adHero,
+            featureImage: adHero,
+            heroImage: adHero,
+            mainImage: adHero,
+            backgroundImage: adHero,
+            images: rasterImages,
+            gallery: rasterImages,
+            logoImage: pageLogo,
+            logoImages: pageLogos,
+            partnerLogo: pageLogo,
+            pdfUrl: pdfImage || undefined,
+          },
+        });
+        continue;
+      }
       result.push({
         id: createPageId(
           `page-${pageNum}`,
-          pageTitle.slice(0, 24) || pageNum,
+          standaloneTitleClean.slice(0, 24) || pageNum,
         ),
         position: 0,
         template: standaloneTemplate as ReaderPageTemplate,
         content: {
-          title: pageTitle || `Page ${pageNum}`,
+          title: standaloneTitleClean || `Page ${pageNum}`,
           body: pageBody,
           standfirst: standFirst,
           imageUrl: pageImages[0] || "",
@@ -1457,18 +1531,37 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       position,
       pageNum !== article.startPage,
     );
-    const finalTitle =
-      (article.title || "").trim().length >= 2
-        ? article.title.trim()
-        : detectPageTitle(16) || article.title.trim();
+    const isContinuation = pageNum !== article.startPage;
+    const articleTitleClean = (() => {
+      const t = String(article.title || "").trim();
+      return t
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
+    })();
+    const pageLocalClean = (() => {
+      const t = detectPageTitle(16);
+      return t
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
+    })();
+    const finalTitle = (isContinuation
+      ? articleTitleClean || pageLocalClean || String(pageNum)
+      : articleTitleClean || pageLocalClean || String(pageNum)
+    ).trim();
+    const finalTitleFellBack =
+      !finalTitle ||
+      /^Page\s+\d+$/i.test(finalTitle) ||
+      /^\d+$/g.test(finalTitle);
 
     // --- Final safety: if an article "wrapped" this page but in reality it's
     // an image-only ad (no title, no body text, only images) → force to ad
     // template instead of writing a blank feature-full page. ---
     if (
-      !finalTitle &&
-      ((article.body || "").trim().length < 40 ||
-        (pageBody || "").trim().length < 40) &&
+      finalTitleFellBack &&
+      ((article.body || "").trim().length < 55 ||
+        (pageBody || "").trim().length < 55) &&
       pageImages.length > 0
     ) {
       const pageLogo = pageLogos[0] || "";
