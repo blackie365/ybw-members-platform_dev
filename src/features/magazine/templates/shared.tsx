@@ -1317,9 +1317,14 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
   const resolvedImage = image
     ? fixMagazineImageUrl(image, imageVersion)
     : "";
-  const resolvedBg = backgroundImage
-    ? fixMagazineImageUrl(backgroundImage, imageVersion)
-    : resolvedImage;
+  const looksLikePdf = (url: string) =>
+    /\.pdf(\?|$)/i.test(url.split("?")[0] || "");
+  const resolvedBg =
+    backgroundImage && !looksLikePdf(backgroundImage)
+      ? fixMagazineImageUrl(backgroundImage, imageVersion)
+      : resolvedImage && !looksLikePdf(resolvedImage)
+        ? resolvedImage
+        : "";
 
   return (
     <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
@@ -1343,16 +1348,34 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
       )}
 
+      {/* PDF handling: DO NOT use inline iframes (Firebase Storage blocks with XFO/CSP + Chromium ORB
+          rejects them for .pdf). Instead render a large tap-friendly centre card that opens the PDF
+          in a new tab. A blurred image background + gradient fallback ensure the page is NEVER blank. */}
       {pdfUrl ? (
-        <iframe
-          src={pdfUrl}
-          className="absolute inset-0 h-full w-full border-0 z-[2] bg-white/[0.02]"
-          title={alt}
-          allowFullScreen
-          allow="clipboard-write; fullscreen; popups; popups-to-escape-sandbox; top-navigation-by-user-activation"
-          referrerPolicy="no-referrer-when-downgrade"
-          loading="lazy"
-        />
+        <div className="absolute inset-0 z-[2] flex items-center justify-center p-8 sm:p-12 lg:p-16">
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="group w-full max-w-md flex flex-col items-center gap-5 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.45)] hover:shadow-[0_24px_100px_rgba(163,65,58,0.35)] hover:border-white/30 hover:bg-white/10 transition-all p-8 text-center"
+          >
+            <div className="h-20 w-20 rounded-2xl bg-[#a3413a]/80 border border-white/20 flex items-center justify-center text-5xl shadow-lg group-hover:scale-105 transition-transform">
+              📄
+            </div>
+            <div className="space-y-2">
+              <p className="text-xl font-bold text-white tracking-tight">
+                {label || "Advertisement"}
+              </p>
+              <p className="text-sm text-white/75 leading-relaxed">
+                Tap to open the full advertisement PDF in a new tab.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#a3413a] text-white text-sm font-semibold shadow-[0_10px_30px_rgba(163,65,58,0.4)] group-hover:bg-[#bb4f46] transition-colors">
+              Open Advert PDF
+              <ExternalLink className="h-4 w-4 ml-1" />
+            </div>
+          </a>
+        </div>
       ) : videoUrl ? (
         <video
           src={fixMagazineImageUrl(videoUrl, imageVersion)}
@@ -1369,8 +1392,9 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
         />
       ) : null}
 
-      {/* For non-PDF, non-video ads: show the main creative at full contain size */}
-      {!pdfUrl && !videoUrl && resolvedImage ? (
+      {/* For non-PDF, non-video ads: show the main creative at full contain size
+          (skip if resolvedImage is itself a PDF — Next.js Image cannot render it) */}
+      {!pdfUrl && !videoUrl && resolvedImage && !looksLikePdf(resolvedImage) ? (
         <div
           className={`absolute inset-0 ${hasBackgroundMedia ? "p-6 sm:p-8 lg:p-10" : ""}`}
         >
@@ -3212,13 +3236,32 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
             </div>
             {(data.videoUrl || featureImage || data.pdfUrl) && (
-              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative">
+              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative rounded-2xl border border-stone-200/80 shadow-sm bg-stone-50">
                 {data.pdfUrl ? (
-                  <iframe
-                    src={fixMagazineImageUrl(data.pdfUrl, imageVersion)}
-                    title={data.title || data.nextIssue || kicker}
-                    className="absolute inset-0 w-full h-full border-0"
-                  />
+                  <a
+                    href={fixMagazineImageUrl(data.pdfUrl, imageVersion)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="absolute inset-0 flex items-center justify-center p-6 bg-gradient-to-br from-[#faf8f5] via-white to-stone-100 text-center group hover:from-stone-100 hover:via-white hover:to-[#f5efe8] transition-colors"
+                  >
+                    <div className="flex flex-col items-center gap-4 max-w-xs">
+                      <div className="h-16 w-16 rounded-2xl bg-[#a3413a]/90 border border-white/20 flex items-center justify-center text-4xl shadow-md group-hover:scale-105 transition-transform">
+                        📄
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-base font-bold text-stone-900 tracking-tight">
+                          {data.title || data.nextIssue || "Back Cover Media"}
+                        </p>
+                        <p className="text-xs text-stone-500 leading-relaxed">
+                          Tap to open the PDF in a new tab.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#a3413a] text-white text-xs font-semibold shadow-md group-hover:bg-[#bb4f46] transition-colors">
+                        Open PDF
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+                  </a>
                 ) : data.videoUrl ? (
                   <>
                     {featureImage && (
