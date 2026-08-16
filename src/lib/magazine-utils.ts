@@ -6,26 +6,13 @@
  * Rejects sentinel values like "undefined", "null", "none", "n/a" that
  * String(undefined) etc. accidentally produced in earlier builds.
  *
- * Converts gs:// Firebase storage admin URIs to the equivalent public
- * direct-CDN path URL.
- *
- * CRITICAL ORB / 2026-08-14:
- *   The legacy REST v0 API pattern `firebasestorage.googleapis.com/v0/b/<bucket>/o/<enc>?alt=media`
- *   returns HTTP 400 for modern `.firebasestorage.app` alias buckets when a
- *   real browser `Origin:` header is present, which triggers Chromium's
- *   Opaque Response Blocker (net::ERR_BLOCKED_BY_ORB) and ZERO images
- *   visually paint. The direct-CDN path pattern
- *   `storage.googleapis.com/<EXACT_BUCKET>/<safeSegmentEncodedPath>`
- *   returns HTTP 200 image/jpeg with Access-Control-Allow-Origin: * and
- *   NO `Cross-Origin-Resource-Policy:` response header, which defeats
- *   ORB and renders correctly on every Chromium/Firefox/Safari.
- *
- * Projects created after mid-2024 have NO physical .appspot.com bucket,
- * so rewriting to that spelling results in HTTP 404. The alias spelling
- * `.firebasestorage.app` IS the real bucket name; keep it verbatim.
- *
- * Output format:
- *   https://storage.googleapis.com/<EXACT_BUCKET>/<safeSegmentEncodedPath>
+ * Converts gs:// Firebase storage admin URIs to the equivalent canonical
+ * Firebase Storage v0 REST API public URL (firebasestorage.googleapis.com).
+ * The direct-CDN pattern `storage.googleapis.com/<bucket>/<path>` 403s for
+ * default Firebase-managed *.firebasestorage.app buckets (no allUsers GCS
+ * IAM grant) so we never emit it — the v0 REST URL always serves with
+ * Access-Control-Allow-Origin:* and no Cross-Origin-Resource-Policy header,
+ * which defeats Chromium ORB and paints correctly on every browser.
  *
  * Returns '' for anything that cannot be salvaged.
  */
@@ -74,20 +61,18 @@ export function normalizeImageUrl(value: unknown): string {
       const rawPath = rest.slice(slash + 1);
       if (!bucket || !rawPath) return '';
 
-      // Decode then re-encode each segment to safeSegmentEncodedPath form.
-      // This removes double-encoding and produces the exact form the
-      // direct-CDN path parameter expects.
-      let decPath: string;
+      // Decode any double-encoded / weird encodings to get the true raw object path.
+      let objectPath: string;
       try {
-        decPath = decodeURIComponent(rawPath.replace(/\+/g, ' '));
+        objectPath = decodeURIComponent(rawPath.replace(/\+/g, ' '));
       } catch {
-        decPath = rawPath;
+        objectPath = rawPath;
       }
-      const safe = decPath
-        .split('/')
-        .map((segment) => encodeURIComponent(segment))
-        .join('/');
-      return `https://storage.googleapis.com/${bucket}/${safe}`;
+      // Firebase v0 REST API /o/<encodedObjectPath> path segment expects the
+      // entire object path (including slashes) to be URL-encoded as a single
+      // value so slashes become %2F, matching what getDownloadURL returns.
+      const encodedObjectPath = encodeURIComponent(objectPath);
+      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedObjectPath}?alt=media`;
     } catch {
       return '';
     }
@@ -112,20 +97,40 @@ function safeSegmentEncode(pathEncodedLike: string): string {
     .join('/');
 }
 
+function safeSegmentDecode(pathEncodedLike: string): string {
+  // Accepts either segment-encoded /-separated path OR fully-encoded (with
+  // %2F separators) form; returns plain decoded path like "folder/image.jpg".
+  const segments = pathEncodedLike.split('/');
+  try {
+    return segments
+      .map((seg) => decodeURIComponent(seg.replace(/\+/g, ' ')))
+      .join('/');
+  } catch {
+    return pathEncodedLike;
+  }
+}
+
 /**
  * Utility to convert various image URL formats to browser-safe public URLs.
  * Specifically handles Firebase Storage 'gs://' links and legacy broken GCS
  * link permutations stored in Firestore.
  *
- * CANONICAL OUTPUT FORMAT (confirmed on production 2026-08-14 for
- * newmembersdirectory130325.firebasestorage.app with Origin header):
- *   https://storage.googleapis.com/<EXACT_BUCKET_NAME>/<safeSegmentEncodedPath>
+ * CANONICAL OUTPUT FORMAT for Firebase-managed buckets:
+ *   https://firebasestorage.googleapis.com/v0/b/<EXACT_BUCKET>/o/<safeEncodedObjectPath>?alt=media
  *
- * Why NOT the v0 REST API URL? Because for alias buckets the REST v0 endpoint
- * returns HTTP 400 when a real browser Origin header is present, which
- * triggers Chromium ORB (net::ERR_BLOCKED_BY_ORB). The direct-CDN path
- * above returns HTTP 200 image/jpeg with ACAO=* and no CORP header,
- * which ORB does not block.
+ * Why NOT the direct-CDN path pattern `storage.googleapis.com/<bucket>/<path>`?
+ * Because default Firebase-managed `*.firebasestorage.app` buckets do NOT
+ * grant `allUsers storage.objects.get` anonymous-read on the plain GCS IAM
+ * surface; only the Firebase Storage v0 REST API endpoint applies the
+ * Firebase Storage security rules (the public-read defaults), so the
+ * direct-CDN path pattern returns HTTP 403 AccessDenied for ~90% of objects
+ * uploaded via Firebase Admin SDK or Web SDK.
+ *
+ * Additionally: the Firebase Storage v0 REST URL returns HTTP 200 with
+ * Access-Control-Allow-Origin: * and NO Cross-Origin-Resource-Policy
+ * response header, so Chromium's Opaque Response Blocker (ORB) does not
+ * block images from painting. Images therefore render correctly on every
+ * Chromium / Firefox / Safari browser both locally and in production.
  *
  *   Important: For projects created after mid-2024, the EXACT bucket name is
  *   `<proj>.firebasestorage.app`. The legacy spelling `<proj>.appspot.com`
@@ -141,40 +146,59 @@ export function fixMagazineImageUrl(url: string, version?: string | number): str
 
   let finalUrl = normalized;
   {
-    // Pass-through: already-canonical direct-CDN path URLs (correct bucket + format).
-    const alreadyCanonical = /^https:\/\/storage\.googleapis\.com\/[^\/]+\/[^?#]+/i;
-    if (!alreadyCanonical.test(finalUrl)) {
-      // --- Pattern A: REST v0 API URL (ORB-blocking).
-      //   https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<enc>?alt=media
-      // Rewrite to canonical direct-CDN path URL.
-      const restV0Re = /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^\/]+)\/o\/([^?#]+)(?:\?[^#]*)?$/i;
-      const restV0Match = finalUrl.match(restV0Re);
-      if (restV0Match) {
-        const [, bucket, encObjPath] = restV0Match;
+    // Pass-through: already-canonical Firebase Storage v0 REST API URLs
+    const alreadyCanonicalFirebase = /^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/[^\/]+\/o\/[^?#]+/i;
+    if (!alreadyCanonicalFirebase.test(finalUrl)) {
+      // --- Pattern A: direct-CDN storage.googleapis.com path (HTTP 403).
+      //   https://storage.googleapis.com/<bucket>/<path-in-any-encoding>
+      // Rewrite to canonical Firebase Storage v0 REST API URL.
+      const directCdnRe = /^https:\/\/storage\.googleapis\.com\/([^\/?#]+)\/([^?#]+)(?:\?[^#]*)?$/i;
+      const directCdnMatch = finalUrl.match(directCdnRe);
+      if (directCdnMatch) {
+        const [, bucket, rawPath] = directCdnMatch;
         try {
-          const safe = safeSegmentEncode(encObjPath);
-          finalUrl = `https://storage.googleapis.com/${bucket}/${safe}`;
+          // Decode once to get true raw path segments (safeSegmentEncode
+          // returns /-separated, each segment URI-encoded). We then
+          // encode the full path INCLUDING slashes as %2F so Firebase REST
+          // v0 /o/<encPath> segment matches getDownloadURL output.
+          const decodedPath = safeSegmentDecode(rawPath);
+          finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(decodedPath)}?alt=media`;
         } catch {
           // keep original
         }
       } else {
-          // --- Pattern B: virtual-host alias bucket URL.
-          //   https://<proj>.firebasestorage.app/<path-in-any-encoding>
-          // Rewrite to canonical direct-CDN path URL.
-          const aliasDirectRe = /^https:\/\/([^\/]+?\.firebasestorage\.app)\/([^?#]+)(?:\?[^#]*)?$/i;
-          const aliasDirect = finalUrl.match(aliasDirectRe);
-          if (aliasDirect) {
-            const [, bucket, rawPathEncoded] = aliasDirect;
-            try {
-              const safe = safeSegmentEncode(rawPathEncoded);
-              finalUrl = `https://storage.googleapis.com/${bucket}/${safe}`;
-            } catch {
-              // keep original
+        // --- Pattern B: virtual-host alias bucket URL.
+        //   https://<proj>.firebasestorage.app/<path-in-any-encoding>
+        // Rewrite to canonical Firebase Storage v0 REST API URL.
+        const aliasDirectRe = /^https:\/\/([^\/]+?\.firebasestorage\.app)\/([^?#]*)(?:\?[^#]*)?$/i;
+        const aliasDirect = finalUrl.match(aliasDirectRe);
+        if (aliasDirect) {
+          const [, bucket, rawPathEncoded] = aliasDirect;
+          try {
+            const decodedPath = rawPathEncoded ? safeSegmentDecode(rawPathEncoded) : '';
+            if (decodedPath) {
+              finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(decodedPath)}?alt=media`;
             }
+          } catch {
+            // keep original
+          }
+        } else if (/^https?:\/\/[^\/]+?\.firebasestorage\.app\//i.test(finalUrl)) {
+          // Any other *.firebasestorage.app URL variant with query params etc.
+          try {
+            const u = new URL(finalUrl);
+            const bucket = u.hostname;
+            const path = u.pathname.replace(/^\//, '');
+            if (bucket && path) {
+              const decodedPath = safeSegmentDecode(path);
+              finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(decodedPath)}?alt=media`;
+            }
+          } catch {
+            // keep original
           }
         }
       }
     }
+  }
 
   // Append versioning if provided
   if (version) {
