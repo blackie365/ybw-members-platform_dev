@@ -94,8 +94,9 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
       ["cover", 0],
       ["contents", 1],
       ["editor-note", 2],
-      ["feature-left", 10],
-      ["feature-right", 11],
+      ["feature-full", 10],
+      ["feature-left", 11],
+      ["feature-right", 12],
       ["ad", 20],
       ["full-page-ad", 20],
       ["back-cover", 99],
@@ -106,12 +107,12 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     };
 
     return raw.sort((left, right) => {
-      const lRole = roleOf(left.template);
-      const rRole = roleOf(right.template);
-      if (lRole !== rRole) return lRole - rRole;
       const lPos = typeof left.position === "number" ? left.position : 0;
       const rPos = typeof right.position === "number" ? right.position : 0;
-      return lPos - rPos;
+      if (lPos !== rPos) return lPos - rPos;
+      const lRole = roleOf(left.template);
+      const rRole = roleOf(right.template);
+      return lRole - rRole;
     });
   }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
