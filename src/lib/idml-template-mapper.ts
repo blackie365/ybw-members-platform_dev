@@ -851,7 +851,20 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       );
 
       currentArticle = {
-        title: titleStory?.title || "",
+        title: (() => {
+          const s = String(titleStory?.title || "").trim();
+          if (s.length >= 2) return s;
+          const t = String(titleStory?.text || "")
+            .replace(/\s+/g, " ")
+            .trim();
+          if (!t) return "";
+          return t
+            .split(/\s+/)
+            .slice(0, 14)
+            .join(" ")
+            .replace(/[.!?,;:]+$/g, "")
+            .trim();
+        })(),
         author: "",
         bodyParts: (() => {
           if (openingBody) return [openingBody];
@@ -1181,6 +1194,44 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     }
   }
 
+  const byStartPage = new Map<number, Article>();
+  for (const a of articles) byStartPage.set(a.startPage, a);
+  for (const sourcePage of sortedPages) {
+    const art = byStartPage.get(sourcePage.pageNumber);
+    if (!art) continue;
+    if ((art.title || "").trim().length >= 2) continue;
+    const orderedEntries = getOrderedPageStoryEntries(sourcePage);
+    const titleFrameEntry = orderedEntries.find((e) =>
+      isArticleTitleEntry(e, orderedEntries.indexOf(e)),
+    );
+    const titleStory =
+      titleFrameEntry?.story ||
+      orderedEntries.find((e) =>
+        /titleframe|headline|cover.?title|article.?heading/i.test(
+          String(e.frame?.label || ""),
+        ),
+      )?.story ||
+      orderedEntries.find((e) => {
+        const words = String(e.story?.text || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(/\s+/).length;
+        return words >= 2 && words <= 20;
+      })?.story ||
+      orderedEntries[0]?.story;
+    const candidate = String(titleStory?.title || titleStory?.text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (candidate.length >= 2) {
+      art.title = candidate
+        .split(/\s+/)
+        .slice(0, 16)
+        .join(" ")
+        .replace(/[.!?,;:]+$/g, "")
+        .trim();
+    }
+  }
+
   for (const sourcePage of sortedPages) {
     const pageNum = sourcePage.pageNumber;
     if (reservedPageNumbers.has(pageNum)) continue;
@@ -1217,8 +1268,209 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       continue;
     }
 
+    function detectPageTitle(fallbackWordMax = 14): string {
+      const orderedE = getOrderedPageStoryEntries(sourcePage);
+      const tfe = orderedE.find((e, idx) => isArticleTitleEntry(e, idx));
+      const tStory =
+        tfe?.story ||
+        orderedE.find((e) =>
+          /titleframe|headline|cover.?title|article.?heading/i.test(
+            String(e.frame?.label || ""),
+          ),
+        )?.story ||
+        (orderedE.length > 0 &&
+        String(orderedE[0].story?.text || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(/\s+/).length >= 2 &&
+        String(orderedE[0].story?.text || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(/\s+/).length <= 20
+          ? orderedE[0].story
+          : undefined) ||
+        sourcePage.stories[0];
+      const s1 = String(tStory?.title || "").trim();
+      if (s1.length >= 2) return s1;
+      let s2 = String(tStory?.text || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      s2 = s2.replace(/^<\?[A-Za-z_:][\w:.-]*\s+.*?\?>$/g, "").trim();
+      if (s2) {
+        const cleaned = s2
+          .split(/\s+/)
+          .slice(0, fallbackWordMax)
+          .join(" ")
+          .replace(/[.!?,;:]+$/g, "")
+          .trim();
+        if (!/^<\?[A-Za-z_:][\w:.-]*\s+.*?\?>$/g.test(cleaned)) return cleaned;
+      }
+      return `Page ${pageNum}`;
+    }
+    let fallbackTitle = detectPageTitle(14);
+    const aceMarkerRe =
+      /^<\?[A-Za-z_:][\w:.-]*\s+.*?\?>$/;
+    if (aceMarkerRe.test(fallbackTitle)) fallbackTitle = `Page ${pageNum}`;
+    const allEntries = getOrderedPageStoryEntries(sourcePage).filter(
+      (e) => !shouldIgnoreDecorativeStory(e.story),
+    );
+    const pageBodyRaw = getBodyTextFromStoryEntries(allEntries);
+    const pageBody = pageBodyRaw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !aceMarkerRe.test(l))
+      .join("\n")
+      .trim();
+    const pageWordCount = pageBody ? pageBody.trim().split(/\s+/).length : 0;
+    const hasAnyArticleFrames = sourcePage.labels.some((l) =>
+      /article:/i.test(l),
+    );
+    const pageImagesHere = getPageImages(sourcePage);
+    const logosHere = getLogoImages(sourcePage);
+    const logo1 = logosHere[0] || "";
+    const { rasterImages: rastersHere, pdfImage: pdfHere } =
+      splitRasterAndPdfImages(pageImagesHere);
+    const rastersHero = rastersHere[0] || logo1 || "";
+    const allStoriesOnPage = sourcePage.stories.filter(
+      (s) => !shouldIgnoreDecorativeStory(s),
+    );
+    const longStoryOnPage = allStoriesOnPage.some((s) => {
+      const t = String(s.text || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !aceMarkerRe.test(l))
+        .join("\n");
+      return t.trim().length >= 180;
+    });
+    const finePrintRe =
+      /terms\s*&?\s*conditions|subject\s+to\s+status|t\s*&\s*c|available\s+at|for\s+illustrative\s+purposes|all\s+rights\s+reserved|©\s*\d{4}|copyright|prices?\s+from|prices?\s+correct|errors?\s+and\s+omissions|print\s+specification/i;
+    const adFinePrint = finePrintRe.test(pageBody);
+    const titleFellBackToPageN =
+      !fallbackTitle ||
+      /^Page\s+\d+$/i.test(fallbackTitle);
+    const lookslikeAd =
+      pageImagesHere.length > 0 &&
+      !hasAnyArticleFrames &&
+      !longStoryOnPage &&
+      (adFinePrint ||
+        pageWordCount < 35 ||
+        (!!pdfHere && pageWordCount < 240) ||
+        titleFellBackToPageN);
+    const isImageOnlyNoStory =
+      titleFellBackToPageN &&
+      pageBody.length < 40 &&
+      pageWordCount < 18 &&
+      pageImagesHere.length > 0 &&
+      !longStoryOnPage;
+
     const article = articleByPage.get(pageNum);
-    if (!article) continue;
+
+    if (!article) {
+      if (lookslikeAd || isImageOnlyNoStory) {
+        result.push({
+          id: createPageId(`page-${pageNum}`, `ad-${fallbackTitle.slice(0, 12)}`),
+          position: 0,
+          template: "ad",
+          content: {
+            title: "Advertisement",
+            label: "Advertisement",
+            body: pageBody.trim().length >= 15 ? pageBody : "",
+            imageUrl: rastersHero,
+            imageUrls: rastersHere,
+            image: rastersHero,
+            featureImage: rastersHero,
+            heroImage: rastersHero,
+            mainImage: rastersHero,
+            backgroundImage: rastersHero,
+            images: rastersHere,
+            gallery: rastersHere,
+            logoImage: logo1,
+            logoImages: logosHere,
+            partnerLogo: logo1,
+            pdfUrl: pdfHere || undefined,
+          },
+        });
+        continue;
+      }
+      const ordered = sourcePage.stories.filter(
+        (s) => !shouldIgnoreDecorativeStory(s),
+      );
+      const titleS =
+        ordered.find((s) =>
+          /titleframe|headline|cover.?title|article.?heading/i.test(
+            String(
+              sourcePage.frames.find((f) => f.storyId === s.id)?.label || "",
+            ),
+          ),
+        ) || ordered[0];
+      const titleText = (() => {
+        const raw = String(titleS?.title || "")
+          .trim();
+        if (raw.length >= 2) return raw;
+        const t = String(titleS?.text || "")
+          .replace(/\s+/g, " ")
+          .trim();
+        if (!t) return fallbackTitle || `Page ${pageNum}`;
+        return t
+          .split(/\s+/)
+          .slice(0, 16)
+          .join(" ")
+          .replace(/[.!?,;:]+$/g, "")
+          .trim() || `Page ${pageNum}`;
+      })();
+      const bodyStories = ordered.filter((s) => s.id !== titleS?.id);
+      const bodyText =
+        pageBody.trim() ||
+        bodyStories
+          .map((s) => String(s.text || "").trim())
+          .filter(Boolean)
+          .join("\n\n") ||
+        String(titleS?.text || "")
+          .replace(/\s+/g, " ")
+          .trim();
+      const gallery = uniqueStrings([
+        ...(rastersHere.length > 1 ? rastersHere.slice(1) : []),
+        ...(rastersHere.length > 0 ? rastersHere.slice(1) : []),
+      ]);
+      const pos =
+        sourcePage.frames[0]?.position ||
+        (pageImagesHere.length > 0 ? "full" : "right");
+      const tmpl = getFeatureTemplate(pos, false);
+      const standfirst = getStandfirst(bodyText) || "";
+      result.push({
+        id: createPageId(
+          `page-${pageNum}`,
+          titleText.slice(0, 24) || pageNum,
+        ),
+        position: 0,
+        template: tmpl,
+        content: {
+          title: titleText,
+          author: "",
+          name: "",
+          body: bodyText,
+          standfirst,
+          imageUrl: rastersHero,
+          imageUrls: uniqueStrings([rastersHero, ...gallery]),
+          image: rastersHero,
+          featureImage: rastersHero,
+          heroImage: rastersHero,
+          mainImage: rastersHero,
+          images: gallery,
+          gallery,
+          additionalImages: gallery.slice(1),
+          logoImage: logo1,
+          logoImages: logosHere,
+          partnerLogo: logo1,
+          pullQuotes: [],
+          kicker: "Feature",
+          mediaLayout: pos === "full" ? "background" : "standard",
+          weight: 3,
+          isContinuation: false,
+        },
+      });
+      continue;
+    }
 
     const pagePosition = article.pagePositions.find(
       (p) => p.page === pageNum,
@@ -1229,15 +1481,63 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       position,
       pageNum !== article.startPage,
     );
+    const finalTitleRaw =
+      (article.title || "").trim().length >= 2
+        ? article.title.trim()
+        : detectPageTitle(16) || article.title.trim();
+    const finalTitle = aceMarkerRe.test(finalTitleRaw)
+      ? `Page ${pageNum}`
+      : finalTitleRaw;
+    const finalBodyLen = Math.max(
+      (article.body || "").trim().length,
+      (pageBody || "").trim().length,
+    );
+    const finalFellBackToPageN =
+      !finalTitle || /^Page\s+\d+$/i.test(finalTitle);
+    if (
+      (finalFellBackToPageN || !finalTitle) &&
+      finalBodyLen < 55 &&
+      (pageImagesHere.length > 0 || !!pdfHere)
+    ) {
+      result.push({
+        id: createPageId(`page-${pageNum}`, "ad-blank-title"),
+        position: 0,
+        template: "ad",
+        content: {
+          title: "Advertisement",
+          label: "Advertisement",
+          body: finalBodyLen >= 15 ? pageBody || article.body || "" : "",
+          imageUrl: rastersHero,
+          imageUrls: rastersHere,
+          image: rastersHero,
+          featureImage: rastersHero,
+          heroImage: rastersHero,
+          mainImage: rastersHero,
+          backgroundImage: rastersHero,
+          images: rastersHere,
+          gallery: rastersHere,
+          logoImage: logo1,
+          logoImages: logosHere,
+          partnerLogo: logo1,
+          pdfUrl: pdfHere || undefined,
+        },
+      });
+      continue;
+    }
 
     result.push({
       id: createPageId(
         `page-${pageNum}`,
-        article.title.slice(0, 24) || pageNum,
+        (finalTitle || article.title || String(pageNum)).slice(0, 24),
       ),
       position: 0,
       template,
-      content: buildFeatureContent(article, sourcePage, pageNum, position),
+      content: buildFeatureContent(
+        { ...article, title: finalTitle || article.title || "" },
+        sourcePage,
+        pageNum,
+        position,
+      ),
     });
   }
 
