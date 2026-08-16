@@ -9,7 +9,7 @@ import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
-import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
 
 function safeRevalidatePath(path: string) {
   try {
@@ -362,17 +362,19 @@ function normalizeStoryLibraryItems(storyLibrary: StoryLibraryItem[]): StoryLibr
   return Array.isArray(storyLibrary)
     ? storyLibrary
         .filter(Boolean)
-        .map((item) => ({
-          ...item,
-          title: String(item.title || '').trim(),
-          text: normalizeStoryText(item.text || ''),
-          standfirst: String(item.standfirst || '').trim() || undefined,
-          imageUrl: String(item.imageUrl || '').trim() || undefined,
-          imageFileNames: Array.isArray(item.imageFileNames)
-            ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
-            : undefined,
-          sourceRef: String(item.sourceRef || '').trim() || undefined,
-        }))
+        .map((item) =>
+          normalizeStoryLibraryItem({
+            ...item,
+            title: String(item.title || '').trim(),
+            text: normalizeStoryText(item.text || ''),
+            standfirst: String(item.standfirst || '').trim() || undefined,
+            imageUrl: String(item.imageUrl || '').trim() || undefined,
+            imageFileNames: Array.isArray(item.imageFileNames)
+              ? item.imageFileNames.map((value) => String(value || '').trim()).filter(Boolean)
+              : undefined,
+            sourceRef: String(item.sourceRef || '').trim() || undefined,
+          } as StoryLibraryItem),
+        )
         .filter((item) => item.title || item.text)
     : [];
 }
@@ -1165,10 +1167,11 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set({
-      ...data,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+    const payload: any = { ...data, updatedAt: new Date().toISOString() };
+    if (payload.content && typeof payload.content === 'object') {
+      payload.content = normalizeMagazinePageContent(payload.content);
+    }
+    await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
 
     // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
     // The client already updates pages state optimistically, and triggering a
@@ -1187,11 +1190,15 @@ export async function addMagazinePageAction(issueId: string, data: any) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add({
+    const payload: any = {
       ...data,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: new Date().toISOString(),
+    };
+    if (payload.content && typeof payload.content === 'object') {
+      payload.content = normalizeMagazinePageContent(payload.content);
+    }
+    const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
 
     // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
     // See updateMagazinePageAction above — Next.js cache reads race with
@@ -1893,13 +1900,14 @@ async function syncReaderEditionToLegacyIssue(
     const pos = typeof rp.position === 'number' ? rp.position : i + 1;
     const sourceTemplate = String(rp.template || '').toLowerCase();
     const type = SOURCE_TEMPLATE_TO_PAGE_TYPE[sourceTemplate] || 'feature-full';
-    const content = rp.content && typeof rp.content === 'object' ? { ...rp.content } : {};
+    let content = rp.content && typeof rp.content === 'object' ? { ...rp.content } : {};
     const title = String(content.title || rp.title || '').trim();
     const body = String(content.body || content.text || '').trim();
     if (title) content.title = title;
     if (body) { content.body = body; content.text = body; }
     content.position = pos;
     content.template = rp.template;
+    content = normalizeMagazinePageContent(content);
     const storyLibraryForPosition = nextStoryLibrary.find((s) => s.sourceRef === `reader-edition:${editionId}:page:${pos}`);
     const storyId = storyLibraryForPosition?.id || String(rp.storyId || content.storyId || '').trim() || undefined;
 

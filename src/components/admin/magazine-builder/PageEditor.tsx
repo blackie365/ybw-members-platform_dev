@@ -25,6 +25,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PAGE_TYPES, MagazinePage } from './types';
+import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
 
 interface PageEditorProps {
   page: MagazinePage | undefined;
@@ -221,8 +222,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     if (rawJsonFocusedRef.current) return;
     if (rawJsonError) return;
 
-    const nextContent = page.content || {};
-    const nextJson = JSON.stringify(nextContent || {});
+    const loadedContent = normalizeMagazinePageContent(page.content || {});
+    const nextJson = JSON.stringify(loadedContent || {});
     const currentJson = JSON.stringify(content || {});
     const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
     const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
@@ -232,29 +233,29 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
 
     lastLoadedDocIdRef.current = page.docId;
     lastSyncedContentJsonRef.current = nextJson;
-    setContent(nextContent);
-    setRawJsonDraft(JSON.stringify(nextContent || {}, null, 2));
+    setContent(loadedContent);
+    setRawJsonDraft(JSON.stringify(loadedContent || {}, null, 2));
     setRawJsonError('');
 
     if (page.type === 'lifestyle') {
-      const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
+      const initial = Array.isArray((loadedContent as any)?.images) ? (loadedContent as any).images : [];
       setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
     } else {
       setLifestyleImagesDraft('[]');
     }
 
-    setPullQuotesDraft(stringifyPullQuotes((nextContent as any)?.pullQuotes || (nextContent as any)?.quotes || ''));
-    setContentsItemsDraft(stringifyJson((nextContent as any)?.items || []));
+    setPullQuotesDraft(stringifyPullQuotes((loadedContent as any)?.pullQuotes || (loadedContent as any)?.quotes || ''));
+    setContentsItemsDraft(stringifyJson((loadedContent as any)?.items || []));
     setContentsItemsError('');
-    setNewsDraft(stringifyJson((nextContent as any)?.news || []));
+    setNewsDraft(stringifyJson((loadedContent as any)?.news || []));
     setNewsError('');
-    setTipsDraft(stringifyJson((nextContent as any)?.tips || []));
+    setTipsDraft(stringifyJson((loadedContent as any)?.tips || []));
     setTipsError('');
-    setHighlightsDraft(stringifyJson((nextContent as any)?.highlights || []));
+    setHighlightsDraft(stringifyJson((loadedContent as any)?.highlights || []));
     setHighlightsError('');
-    setSocialsDraft(stringifyJson((nextContent as any)?.socials || []));
+    setSocialsDraft(stringifyJson((loadedContent as any)?.socials || []));
     setSocialsError('');
-    setStatsDraft(stringifyStats((nextContent as any)?.stats));
+    setStatsDraft(stringifyStats((loadedContent as any)?.stats));
     setStatsError('');
     setPendingType(null);
     setIsTypeDialogOpen(false);
@@ -1627,7 +1628,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               </Select>
             )}
             <Button
-              onClick={() => !readOnly && onSave(content)}
+              onClick={() => !readOnly && onSave(normalizeMagazinePageContent(content))}
               disabled={isSaving || hasJsonErrors || readOnly}
               className="bg-accent text-white"
             >
