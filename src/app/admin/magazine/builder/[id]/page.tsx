@@ -25,7 +25,8 @@ import {
   deleteMagazinePageAction,
   getGhostPostsAction,
   importIdmlToStoryLibraryAction,
-  getReaderEditionByIssueIdAction
+  getReaderEditionByIssueIdAction,
+  runSyncLegacyFromReaderEditionAction,
 } from '@/app/actions/magazineActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -247,16 +248,35 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const rePages = Array.isArray(readerEditionPages) ? readerEditionPages : [];
     const legacyPages = Array.isArray(pages) ? pages : [];
     if (rePages.length === 0) return legacyPages;
-    // Shadow pages all have id = 10_000 + position (1..N). Legacy pages have id = 1..M. We want
-    // the shadow IDML pages to appear FIRST in the list (real print order), legacy pages LAST.
-    // So bump legacy ids to 100_000_000 + original id so PageList sort puts them after.
-    const reSorted = [...rePages].sort((a, b) => (a.id || 0) - (b.id || 0));
+
+    // For each shadow (read-only IDML) page: if there is an editable legacy
+    // page at the SAME PRINT POSITION (legacy.id == shadow.id - 10_000 because
+    // shadow ids are bumped 10_000 + position), prefer the EDITABLE legacy
+    // page and SKIP the shadow. This eliminates the 61-row duplication we'd
+    // otherwise get after syncReaderEditionToLegacyIssue has written editable
+    // legacy pages for positions 1..N. Only show shadow pages for positions
+    // where no editable legacy page exists yet (pre-sync, or a manually-
+    // removed position the admin is about to restore from the ReaderEdition).
+    const shadowBumpedIdToLegacy = new Map<number, MagazinePage>();
+    for (const lp of legacyPages) {
+      const n = typeof lp.id === 'number' ? lp.id : Number(lp.id || 0);
+      const matchingShadowBumpedId = 10_000 + n;
+      shadowBumpedIdToLegacy.set(matchingShadowBumpedId, lp);
+    }
+
+    const reSorted = [...rePages]
+      .sort((a, b) => (a.id || 0) - (b.id || 0))
+      .filter((shadowPage) => {
+        const sId = typeof shadowPage.id === 'number' ? shadowPage.id : Number(shadowPage.id || 0);
+        return !shadowBumpedIdToLegacy.has(sId);
+      });
     const legacyBumped = legacyPages.map(lp => ({ ...lp, id: 100_000_000 + (lp.id || 0) }));
     return [...reSorted, ...legacyBumped];
   }, [readerEditionPages, pages]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isIdmlImporting, setIsIdmlImporting] = useState(false);
+  const [isSyncingReaderToBuilder, setIsSyncingReaderToBuilder] = useState(false);
   const [idmlFileName, setIdmlFileName] = useState<string>('');
   const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -424,6 +444,54 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       setIsIdmlImporting(false);
     }
   };
+
+  const handleSyncReaderEditionToBuilder = useCallback(async () => {
+    if (isNew) {
+      toast.error('Please create the edition first');
+      return;
+    }
+    if (isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing) {
+      toast.info('Still processing previous sync/import…');
+      return;
+    }
+    if (!readerEditionId) {
+      toast.error('No published ReaderEdition linked to this issue yet. Publish via the ManualImporter → Auto-Import IDML tab first.');
+      return;
+    }
+
+    setIsSyncingReaderToBuilder(true);
+    const toastId = 'reader-to-builder-sync';
+    try {
+      toast.info('Syncing published ReaderEdition into Story Library + Spread Builder (editable pages)…', { id: toastId });
+      const res = await runSyncLegacyFromReaderEditionAction(String(id));
+      if (!res?.success) throw new Error(res?.error || 'Sync failed');
+      const sl = Number(res?.data?.storyLibraryCount || 0);
+      const lp = Number(res?.data?.legacyPageCount || 0);
+      toast.success(`Synced ${sl} Story Library items + ${lp} editable spreads (Cover → Back Cover). Contents page links regenerated.`, { id: toastId });
+
+      // Reload legacy pages and story library + reader pages from server so UI shows post-sync state without manual refresh.
+      const [newPagesRes, newStoryRes, newReaderRes] = await Promise.all([
+        getMagazinePagesAction(id),
+        getMagazineStoryLibraryAction(id),
+        getReaderEditionByIssueIdAction(id),
+      ]);
+      if (newPagesRes?.success && Array.isArray(newPagesRes.data)) setPages(newPagesRes.data as MagazinePage[]);
+      if (newStoryRes?.success && Array.isArray((newStoryRes as any).data?.storyLibrary)) {
+        setIssue((prev) => ({ ...prev, storyLibrary: (newStoryRes as any).data.storyLibrary }));
+      }
+      if (newReaderRes?.success && newReaderRes.data) {
+        setReaderEditionId(String(newReaderRes.data.id || ''));
+        const hydratedPages: any[] = Array.isArray((newReaderRes.data as any).pages) ? (newReaderRes.data as any).pages : [];
+        setReaderEditionPages(convertReaderPagesToShadow(hydratedPages, String(newReaderRes.data.id || '')));
+      }
+      setActiveTab('builder');
+    } catch (err: any) {
+      console.error('[handleSyncReaderEditionToBuilder]', err);
+      toast.error(err?.message || err?.toString?.() || 'Sync failed', { id: toastId });
+    } finally {
+      setIsSyncingReaderToBuilder(false);
+    }
+  }, [id, isNew, readerEditionId, isSyncingReaderToBuilder, isIdmlImporting, isBatchSyncing, convertReaderPagesToShadow]);
 
   const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
@@ -2209,18 +2277,43 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                       </Button>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => idmlFileInputRef.current?.click()}
-                    disabled={isIdmlImporting}
-                    className="bg-accent hover:bg-accent/90 text-white transition-all"
-                  >
-                    {isIdmlImporting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      onClick={() => idmlFileInputRef.current?.click()}
+                      disabled={isIdmlImporting}
+                      className="bg-accent hover:bg-accent/90 text-white transition-all"
+                    >
+                      {isIdmlImporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSyncReaderEditionToBuilder}
+                      disabled={isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing || !readerEditionId}
+                      title={
+                        !readerEditionId
+                          ? 'Publish via ManualImporter → Auto-Import IDML first (or link a ReaderEdition to this issue)'
+                          : 'Convert the already-published IDML ReaderEdition pages into editable Story Library items + Builder spread pages (id=position), then auto-rebuild the Contents page links. Re-runnable; replaces spreads 1..N with latest from ReaderEdition.'
+                      }
+                      className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all whitespace-nowrap"
+                    >
+                      {isSyncingReaderToBuilder ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <BookOpen className="h-4 w-4 mr-2" />
+                      )}
+                      {isSyncingReaderToBuilder
+                        ? 'Syncing…'
+                        : readerEditionId
+                          ? 'Sync Published IDML → Builder'
+                          : 'Sync Published IDML → Builder (publish first)'}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2255,42 +2348,67 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 Every article is extracted into the Story Library (Editor&rsquo;s Note, spotlights and short profiles included),
                 then spreads are created and ordered by priority: Cover → Contents → Articles → Back cover.
               </p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1">
-                  <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                    InDesign File
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 rounded-md border border-border bg-muted/10 px-3 py-2 text-xs text-muted-foreground truncate">
-                      {idmlFileName || 'No file selected'}
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                      InDesign File
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-md border border-border bg-muted/10 px-3 py-2 text-xs text-muted-foreground truncate">
+                        {idmlFileName || 'No file selected'}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => idmlFileInputRef.current?.click()}
+                        disabled={isIdmlImporting || isNew}
+                        className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
+                      >
+                        {isIdmlImporting ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        {isIdmlImporting ? 'Importing…' : 'Select .idml File'}
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => idmlFileInputRef.current?.click()}
-                      disabled={isIdmlImporting || isNew}
-                      className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
-                    >
-                      {isIdmlImporting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      {isIdmlImporting ? 'Importing…' : 'Select .idml File'}
-                    </Button>
                   </div>
+                  <Button
+                    onClick={() => idmlFileInputRef.current?.click()}
+                    disabled={isIdmlImporting || isNew}
+                    className="bg-accent hover:bg-accent/90 text-white transition-all sm:mt-6"
+                  >
+                    {isIdmlImporting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
+                  </Button>
                 </div>
                 <Button
-                  onClick={() => idmlFileInputRef.current?.click()}
-                  disabled={isIdmlImporting || isNew}
-                  className="bg-accent hover:bg-accent/90 text-white transition-all sm:mt-6"
+                  type="button"
+                  variant="outline"
+                  onClick={handleSyncReaderEditionToBuilder}
+                  disabled={isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing || isNew || !readerEditionId}
+                  title={
+                    !readerEditionId
+                      ? 'Publish via ManualImporter → Auto-Import IDML first (or link a ReaderEdition to this issue)'
+                      : 'Convert the already-published IDML ReaderEdition pages into editable Story Library items + Builder spread pages (id=position). Re-runnable; replaces spreads 1..N with latest from ReaderEdition.'
+                  }
+                  className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all self-start"
                 >
-                  {isIdmlImporting ? (
+                  {isSyncingReaderToBuilder ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <Upload className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                   )}
-                  {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
+                  {isSyncingReaderToBuilder
+                    ? 'Syncing Published IDML → Story Library + Spreads…'
+                    : readerEditionId
+                      ? 'Sync Published IDML → Story Library + Spreads'
+                      : 'Sync Published IDML → Builder (publish via Auto-Import first)'}
                 </Button>
               </div>
             </div>

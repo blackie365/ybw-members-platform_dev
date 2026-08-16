@@ -1,14 +1,14 @@
 'use server';
 
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
-import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 function safeRevalidatePath(path: string) {
@@ -1612,6 +1612,21 @@ export async function publishIdmlEditionAction(params: {
     await syncReaderEditionCoverFromIssue(edition.id).catch((error) => {
       console.error('Failed to sync edition cover with matched issue:', error);
     });
+
+    if (params.issueId) {
+      try {
+        const syncStats = await syncReaderEditionToLegacyIssue(edition.id, params.issueId);
+        console.info(
+          `[publishIdmlEditionAction] Synced ReaderEdition → legacy: ${syncStats.storyLibraryCount} StoryLibrary items, ${syncStats.legacyPageCount} spread pages`,
+        );
+      } catch (legacySyncError: any) {
+        console.warn(
+          '[publishIdmlEditionAction] publish OK but legacy sync failed (issue,readerEdition,err):',
+          params.issueId, edition.id, legacySyncError?.message || legacySyncError,
+        );
+      }
+    }
+
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
     if (params.issueId) {
@@ -1677,6 +1692,224 @@ export async function getReaderEditionByIssueIdAction(issueId: string): Promise<
   } catch (error: any) {
     console.error('getReaderEditionByIssueIdAction error:', error);
     return { success: false, error: error.message || 'Failed to fetch reader edition' };
+  }
+}
+
+function pickImageFromReaderPageContent(content: any): string {
+  if (!content || typeof content !== 'object') return '';
+  const candidates = [
+    content.imageUrl,
+    content.coverImage,
+    content.heroImage,
+    content.featureImage,
+    content.mainImage,
+    content.backgroundImage,
+    content.image,
+    Array.isArray(content.imageUrls) ? content.imageUrls[0] : undefined,
+    Array.isArray(content.images) ? content.images[0] : undefined,
+    Array.isArray(content.gallery) ? content.gallery[0] : undefined,
+  ];
+  for (const c of candidates) {
+    const s = String(c || '').trim();
+    if (/^https?:\/\//i.test(s)) return s;
+  }
+  return '';
+}
+
+function slugifyStoryId(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80) || `story-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function buildStoryLibraryItemsFromReaderPages(
+  issueId: string,
+  editionId: string,
+  readerPages: any[],
+): StoryLibraryItem[] {
+  const now = new Date().toISOString();
+  const arr = Array.isArray(readerPages) ? readerPages : [];
+  const out: StoryLibraryItem[] = [];
+  const usedSlugs = new Set<string>();
+
+  for (let i = 0; i < arr.length; i++) {
+    const rp = arr[i];
+    const template = String(rp.template || '').toLowerCase();
+    const content = rp.content || {};
+
+    // Ads + chrome pages (cover, contents, back cover) don't get a Story Library
+    // entry. The builder handles those as reserved layouts, and the auto-Contents
+    // generator filters them out anyway via buildContentsItemsFromPages.
+    const skipTemplates = new Set(['ad', 'full-page-ad', 'cover', 'contents', 'back-cover']);
+    if (skipTemplates.has(template)) continue;
+
+    const title = String(
+      content.title || content.headline || content.name || content.brand || rp.title || '',
+    ).trim();
+    if (!title) continue;
+
+    const standfirst = String(
+      content.standfirst || content.subtitle || content.intro || content.description || content.kicker || '',
+    ).trim() || undefined;
+    const author = String(content.author || content.byline || '').trim() || undefined;
+    const text = String(
+      content.body || content.text || content.article || content.storyText || '',
+    ).trim();
+    const imageUrl = pickImageFromReaderPageContent(content) || undefined;
+    const position = typeof rp.position === 'number' ? rp.position : i + 1;
+
+    let slug = slugifyStoryId(title);
+    let n = 2;
+    while (usedSlugs.has(slug)) { slug = `${slugifyStoryId(title)}-${n}`; n += 1; }
+    usedSlugs.add(slug);
+
+    // premiumReaderPriority controls the ordering BOTH in Story Library dropdown
+    // AND in the auto-Contents generator (sort by priority then title), so the
+    // print ordinal position drives the canonical order.
+    const premiumReaderPriority = position;
+
+    const id = `${issueId}-library-reader-edition-${editionId}-${String(position).padStart(4, '0')}-${slug}`;
+    out.push({
+      id,
+      title,
+      author,
+      standfirst,
+      text,
+      imageUrl,
+      includedInPremiumReader: true,
+      premiumReaderPriority,
+      premiumReaderContentType:
+        template === 'editor-note' ? 'editorial' :
+        template === 'feature-full' || template === 'feature-left' || template === 'feature-right' ? 'feature' :
+        template === 'spotlight' ? 'spotlight' :
+        template === 'column' ? 'column' :
+        template === 'lifestyle' ? 'lifestyle' :
+        template === 'partner' ? 'partner' : 'feature',
+      premiumReaderPlacementPreference: template,
+      imageFileNames: Array.isArray(content.imageFileNames) ? content.imageFileNames : undefined,
+      sourceRef: `reader-edition:${editionId}:page:${position}`,
+      source: {
+        type: 'reader-edition',
+        fileName: String(rp.content?.source?.fileName || ''),
+        path: `readerPages[${i}]@${editionId}`,
+      },
+      createdAt: rp.createdAt || rp.updatedAt || now,
+    } satisfies StoryLibraryItem);
+  }
+  return out;
+}
+
+async function syncReaderEditionToLegacyIssue(
+  editionId: string,
+  issueId: string,
+): Promise<{
+  storyLibraryCount: number;
+  legacyPageCount: number;
+  removedLegacyIds: string[];
+}> {
+  if (!adminDb) throw new Error('Database not initialized');
+  if (!editionId) throw new Error('ReaderEdition id is required');
+  if (!issueId) throw new Error('Issue id is required');
+
+  // 1. Fetch raw flat ReaderEdition pages (source of truth, 61 flat pages).
+  // Use getReaderEditionById, NOT the hydrate helper that merges legacy pages
+  // in on top — we want the IDML-published pages, not the old 6-spread pages.
+  const edition = await getReaderEditionById(editionId);
+  if (!edition) throw new Error(`ReaderEdition not found: ${editionId}`);
+  const flatPages = Array.isArray(edition.pages) ? edition.pages : [];
+  if (flatPages.length === 0) throw new Error(`ReaderEdition ${editionId} has an empty pages array`);
+
+  // 2. Build StoryLibrary items from the flat ReaderPages.
+  const nextStoryLibrary = buildStoryLibraryItemsFromReaderPages(issueId, editionId, flatPages);
+  await persistStoryLibraryForIssue(issueId, nextStoryLibrary);
+
+  // 3. Build legacy MagazinePage[] docs — one per flat ReaderPage — with
+  //    explicit id = ReaderPage.position (1..N, print ordinal) so the
+  //    auto-Contents builder (buildContentsItemsFromPages) and builder spread
+  //    list both sort into the correct print order.
+  const pagesRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
+  const existingSnap = await pagesRef.orderBy('id', 'asc').get();
+  const existingById = new Map<number, { docId: string; data: MagazinePage }>();
+  const existingGeneratedFromReader = new Set<string>();
+  for (const doc of existingSnap.docs) {
+    const d = doc.data() as MagazinePage;
+    const num = typeof d.id === 'number' ? d.id : Number(d.id || 0);
+    existingById.set(num, { docId: doc.id, data: d });
+    if (d.sourceReaderEditionId === editionId) {
+      existingGeneratedFromReader.add(doc.id);
+    }
+  }
+
+  const now = new Date().toISOString();
+  const batch = adminDb.batch();
+  const removedLegacyIds: string[] = [];
+
+  // 3a. DELETE existing legacy pages whose numeric id falls inside 1..max(ReaderPage.position).
+  //     These positions are owned by the IDML flat order now. Pages with ids outside this range
+  //     (e.g. user-added spreads at id=100+) are preserved and appended in the builder merge.
+  const maxPrintId = Math.max(...flatPages.map((rp: any) => typeof rp.position === 'number' ? rp.position : 0));
+  for (const [idNum, info] of existingById) {
+    if (idNum > 0 && idNum <= maxPrintId) {
+      batch.delete(pagesRef.doc(info.docId));
+      removedLegacyIds.push(info.docId);
+    }
+  }
+
+  // 3b. CREATE fresh legacy page doc for each flat ReaderPage with id = position.
+  const legacyPageCount = flatPages.length;
+  for (let i = 0; i < flatPages.length; i++) {
+    const rp: any = flatPages[i];
+    const pos = typeof rp.position === 'number' ? rp.position : i + 1;
+    const template = String(rp.template || '').toLowerCase();
+    const type = template === 'ad' ? 'full-page-ad' :
+                 template === 'editorial' ? 'editor-note' : template;
+    const content = rp.content && typeof rp.content === 'object' ? { ...rp.content } : {};
+    const title = String(content.title || rp.title || '').trim();
+    const body = String(content.body || content.text || '').trim();
+    if (title) content.title = title;
+    if (body) { content.body = body; content.text = body; }
+    content.position = pos;
+    content.template = rp.template;
+    const storyLibraryForPosition = nextStoryLibrary.find((s) => s.sourceRef === `reader-edition:${editionId}:page:${pos}`);
+    const storyId = storyLibraryForPosition?.id || String(rp.storyId || content.storyId || '').trim() || undefined;
+
+    const legacyDoc: any = {
+      id: pos,
+      type,
+      storyId,
+      sourceReaderEditionId: editionId,
+      generatedFromStoryLibrary: true,
+      sourceRef: `reader-edition:${editionId}:page:${pos}`,
+      content,
+      createdAt: rp.createdAt || now,
+      updatedAt: now,
+    };
+    const docRef = pagesRef.doc();
+    batch.set(docRef, legacyDoc);
+  }
+
+  await batch.commit();
+
+  return { storyLibraryCount: nextStoryLibrary.length, legacyPageCount, removedLegacyIds };
+}
+
+export async function runSyncLegacyFromReaderEditionAction(
+  issueId: string,
+): Promise<{ success: boolean; data?: { storyLibraryCount: number; legacyPageCount: number; editionId: string | null } | null; error?: string }> {
+  try {
+    await checkAdmin();
+    if (!issueId) return { success: true, data: null };
+    const edition = await getReaderEditionByIssueId(issueId);
+    if (!edition) return { success: false, error: 'No ReaderEdition linked to this issue. Publish via Auto-Import IDML first.' };
+    const stats = await syncReaderEditionToLegacyIssue(edition.id, issueId);
+    safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+    safeRevalidatePath('/magazine');
+    return { success: true, data: { ...stats, editionId: edition.id } };
+  } catch (error: any) {
+    console.error('runSyncLegacyFromReaderEditionAction error:', error);
+    return { success: false, error: error.message || 'Failed to sync ReaderEdition into legacy builder systems' };
   }
 }
 
