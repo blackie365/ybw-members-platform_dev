@@ -233,3 +233,86 @@ export function fixIssuuEmbedUrl(url: string): string {
     return url;
   }
 }
+
+const IMAGE_FIELD_SPECS: Array<{ key: string; array?: boolean }> = [
+  { key: 'image' }, { key: 'imageUrl' }, { key: 'coverImage' },
+  { key: 'featureImage' }, { key: 'heroImage' }, { key: 'mainImage' },
+  { key: 'backgroundImage' }, { key: 'logoImage' }, { key: 'partnerLogo' },
+  { key: 'pdfUrl' }, { key: 'videoUrl' },
+  { key: 'imageUrls', array: true }, { key: 'images', array: true },
+  { key: 'gallery', array: true }, { key: 'additionalImages', array: true },
+  { key: 'logoImages', array: true },
+];
+
+/**
+ * Bidirectional normalisation of MagazinePage.content — makes the editor
+ * UI "just work" regardless of whether content was populated from the
+ * legacy editor's own field names (text/intro/quote), the IDML import's
+ * extracted fields (body/standfirst), or any other hybrid source.
+ *
+ * Also runs fixMagazineImageUrl() over every known image / PDF / video
+ * URL field so broken storage.googleapis.com URLs get rewritten to the
+ * working firebasestorage.googleapis.com v0 REST form.
+ *
+ * Idempotent: calling this twice on the same object is a no-op after the
+ * first normalisation pass.
+ */
+export function normalizeMagazinePageContent(contentIn: any): any {
+  if (!contentIn || typeof contentIn !== 'object') return {};
+  const out = { ...contentIn };
+
+  // 1) text ↔ body (PageEditor reads "Main Text" from .text; IDML imports
+  //    populate .body). Keep both populated.
+  const hasText = typeof out.text === 'string';
+  const hasBody = typeof out.body === 'string';
+  if (hasText && !hasBody) out.body = out.text;
+  else if (hasBody && !hasText) out.text = out.body;
+  else if (hasText && hasBody && !out.text && !!out.body) out.text = out.body;
+
+  // 2) intro ↔ standfirst (PageEditor reads .intro; IDML imports populate
+  //    .standfirst). Keep both populated.
+  const hasIntro = typeof out.intro === 'string';
+  const hasStandfirst = typeof out.standfirst === 'string';
+  if (hasIntro && !hasStandfirst) out.standfirst = out.intro;
+  else if (hasStandfirst && !hasIntro) out.intro = out.standfirst;
+
+  // 3) image URL fields → rewrite broken storage.googleapis.com URLs.
+  for (const spec of IMAGE_FIELD_SPECS) {
+    const raw = out[spec.key];
+    if (spec.array) {
+      if (Array.isArray(raw)) {
+        out[spec.key] = raw.map((item: any) => {
+          if (typeof item === 'string') return fixMagazineImageUrl(item);
+          if (item && typeof item.url === 'string') {
+            const fixed = fixMagazineImageUrl(item.url);
+            return fixed === item.url ? item : { ...item, url: fixed };
+          }
+          return item;
+        });
+      }
+    } else if (typeof raw === 'string') {
+      out[spec.key] = fixMagazineImageUrl(raw);
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Same normalisation as normalizeMagazinePageContent, but applied to a
+ * StoryLibraryItem shape. Keeps story text + imageUrl fields in sync on
+ * the Story Library panel (which also reads .text and the image picker
+ * writes .imageUrl).
+ */
+export function normalizeStoryLibraryItem(itemIn: any): any {
+  if (!itemIn || typeof itemIn !== 'object') return {};
+  const out = { ...itemIn };
+  const hasText = typeof out.text === 'string';
+  const hasBody = typeof out.body === 'string';
+  if (hasText && !hasBody) out.body = out.text;
+  else if (hasBody && !hasText) out.text = out.body;
+  if (typeof out.imageUrl === 'string') out.imageUrl = fixMagazineImageUrl(out.imageUrl);
+  if (typeof out.standfirst === 'string' && !out.summary) out.summary = out.standfirst;
+  else if (typeof out.summary === 'string' && !out.standfirst) out.standfirst = out.summary;
+  return out;
+}
