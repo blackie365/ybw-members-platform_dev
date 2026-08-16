@@ -851,7 +851,14 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       );
 
       currentArticle = {
-        title: titleStory?.title || "",
+        title: (() => {
+          const s = titleStory?.title?.trim() || "";
+          if (s.length >= 2) return s;
+          const t = String(titleStory?.text || "").replace(/\s+/g, " ").trim();
+          if (!t) return "";
+          const words = t.split(/\s+/).slice(0, 14);
+          return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+        })(),
         author: "",
         bodyParts: (() => {
           if (openingBody) return [openingBody];
@@ -1181,6 +1188,54 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     }
   }
 
+  // --- Pre-compute title fallback for every article that has title="" (a
+  // common parser case when story.title is empty but story.text has the 4-14
+  // word headline). Ensures Contents page entries are non-empty AND avoids
+  // running the per-page title lookup twice. ---
+  const articleTitleFallbacks = new Map<number, string>();
+  {
+    const byStartPage = new Map<number, Article>();
+    for (const a of articles) byStartPage.set(a.startPage, a);
+    for (const sourcePage of sortedPages) {
+      const art = byStartPage.get(sourcePage.pageNumber);
+      if (!art || (art.title || "").trim().length >= 2) continue;
+      const explicitTitleFrame = sourcePage.frames.find(
+        (f) =>
+          /^\s*title\s*frame\s*$/i.test(
+            String(f.label || "").replace(/[\s._-]+/g, ""),
+          ),
+      );
+      const titleStory =
+        (explicitTitleFrame
+          ? sourcePage.stories.find((s) => s.id === explicitTitleFrame.storyId)
+          : undefined) ||
+        getOrderedPageStories(sourcePage).find((s) => {
+          const txt = s.text?.trim() || "";
+          const wc = countWords(txt);
+          return wc >= 2 && wc <= 20;
+        }) ||
+        sourcePage.stories.find((s) => Boolean((s.title || s.text || "").trim()));
+      const explicitRaw = explicitTitleFrame
+        ? titleStory?.title?.trim() || titleStory?.text?.trim()
+        : undefined;
+      const raw =
+        explicitRaw ||
+        titleStory?.title?.trim() ||
+        titleStory?.text?.trim() ||
+        art.title?.trim() ||
+        sourcePage.stories[0]?.title?.trim() ||
+        sourcePage.stories[0]?.text?.trim() ||
+        "";
+      const clean = String(raw).replace(/\s+/g, " ").trim();
+      if (!clean) continue;
+      const words = clean.split(/\s+/).slice(0, 16);
+      const fallbackTitle = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+      if (!fallbackTitle) continue;
+      art.title = fallbackTitle;
+      articleTitleFallbacks.set(sourcePage.pageNumber, fallbackTitle);
+    }
+  }
+
   for (const sourcePage of sortedPages) {
     const pageNum = sourcePage.pageNumber;
     if (reservedPageNumbers.has(pageNum)) continue;
@@ -1218,7 +1273,180 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     }
 
     const article = articleByPage.get(pageNum);
-    if (!article) continue;
+    const pageImages = getPageImages(sourcePage);
+    const pageLogos = getLogoImages(sourcePage);
+    const detectPageTitle = (fallbackWordMax = 14): string => {
+      if (article?.title?.trim()) return article.title.trim();
+      const explicitTitleFrame = sourcePage.frames.find(
+        (f) =>
+          /^\s*title\s*frame\s*$/i.test(
+            String(f.label || "").replace(/[\s._-]+/g, ""),
+          ),
+      );
+      const titleStory =
+        (explicitTitleFrame
+          ? sourcePage.stories.find((s) => s.id === explicitTitleFrame.storyId)
+          : undefined) ||
+        getOrderedPageStories(sourcePage).find((s) => {
+          const txt = s.text?.trim() || "";
+          const wc = countWords(txt);
+          return wc >= 2 && wc <= 20;
+        }) ||
+        sourcePage.stories.find((s) =>
+          Boolean((s.title || s.text || "").trim()),
+        );
+      const explicitRaw = explicitTitleFrame
+        ? titleStory?.title?.trim() || titleStory?.text?.trim()
+        : undefined;
+      const raw =
+        explicitRaw ||
+        (article?.title ? String(article.title).trim() : "") ||
+        titleStory?.title?.trim() ||
+        titleStory?.text?.trim() ||
+        (sourcePage.stories[0]?.title?.trim() ??
+          sourcePage.stories[0]?.text?.trim() ??
+          "");
+      const clean = String(raw).replace(/\s+/g, " ").trim();
+      if (!clean) return "";
+      const words = clean.split(/\s+/).slice(0, fallbackWordMax);
+      return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+    };
+    const pageTitle = detectPageTitle(14);
+    const pageBody = article?.pageBodies?.[pageNum] || getPageBodyText(sourcePage);
+    const pageWordCount = pageBody ? countWords(pageBody) : sourcePage.totalWordCount || 0;
+    const hasAnyArticleFrames = sourcePage.frames.some((f) =>
+      /^\s*(bodyframe|titleframe|textframe)\s*$/i.test(
+        String(f.label || "").replace(/[\s._-]+/g, ""),
+      ),
+    );
+    const lookslikeAd = (() => {
+      if (article && article.title.trim().length > 3) return false;
+      if (hasAnyArticleFrames) return false;
+      if (pageWordCount >= 90) return false;
+      const hasPdf = pageImages.some((u) => /\.pdf($|\?)/i.test(u || ""));
+      const hasShortAdWords =
+        /(advertisement|sponsored|©|all rights reserved|terms and conditions|registered office|tel\.|www\.|email:|t: ?\+?\d|e: ?[a-z0-9.]+@)/i.test(
+          pageBody,
+        );
+      return (
+        (pageImages.length >= 1 && pageWordCount < 55) ||
+        (pageImages.length >= 1 && pageLogos.length >= 1) ||
+        hasPdf ||
+        hasShortAdWords
+      );
+    })();
+
+    // --- Special case: 6 of the 9 pure-image ad pages have NO stories, NO
+    // title, NO article body detected (0 words) but DO have 1+ image. These
+    // are "Advertisement" pages by definition, not feature-full with empty
+    // title. Force them into ad so the reader renders the PDF tap-to-open
+    // card (PR #341) instead of a blank "article" shell. ---
+    const isImageOnlyNoStory =
+      !pageTitle &&
+      (pageBody || "").trim().length < 25 &&
+      pageWordCount < 12 &&
+      pageImages.length > 0 &&
+      (sourcePage.stories.length === 0 ||
+        !sourcePage.stories.some((s) => String(s.text || s.title || "").trim().length > 40));
+    if (isImageOnlyNoStory && !article) {
+      const pageLogo = pageLogos[0] || "";
+      const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+      const adHero = rasterImages[0] || pageLogo;
+      result.push({
+        id: createPageId(`page-${pageNum}`, "ad"),
+        position: 0,
+        template: "ad",
+        content: {
+          title: "Advertisement",
+          label: "Advertisement",
+          body: pageBody || "",
+          imageUrl: adHero,
+          imageUrls: rasterImages,
+          image: adHero,
+          featureImage: adHero,
+          heroImage: adHero,
+          mainImage: adHero,
+          backgroundImage: adHero,
+          images: rasterImages,
+          gallery: rasterImages,
+          logoImage: pageLogo,
+          logoImages: pageLogos,
+          partnerLogo: pageLogo,
+          pdfUrl: pdfImage || undefined,
+        },
+      });
+      continue;
+    }
+
+    // --- No article mapped to this page? NEVER drop the page (was the
+    // "only 5 pages created" bug — 52 pages skipped in v1). Decide by
+    // ad-look heuristic → ad page, else standalone feature page from
+    // the page's OWN stories/images. ---
+    if (!article) {
+      if (lookslikeAd) {
+        const pageLogo = pageLogos[0] || "";
+        const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+        const adHero = rasterImages[0] || pageLogo;
+        result.push({
+          id: createPageId(`page-${pageNum}`, "ad"),
+          position: 0,
+          template: "ad",
+          content: {
+            title: "Advertisement",
+            label: "Advertisement",
+            body: pageBody || "",
+            imageUrl: adHero,
+            imageUrls: rasterImages,
+            image: adHero,
+            featureImage: adHero,
+            heroImage: adHero,
+            mainImage: adHero,
+            backgroundImage: adHero,
+            images: rasterImages,
+            gallery: rasterImages,
+            logoImage: pageLogo,
+            logoImages: pageLogos,
+            partnerLogo: pageLogo,
+            pdfUrl: pdfImage || undefined,
+          },
+        });
+        continue;
+      }
+
+      const standalonePosition = sourcePage.frames[0]?.position || "right";
+      const standaloneTemplate = getFeatureTemplate(standalonePosition, false);
+      const standFirst = getStandfirst(pageBody);
+      result.push({
+        id: createPageId(
+          `page-${pageNum}`,
+          pageTitle.slice(0, 24) || pageNum,
+        ),
+        position: 0,
+        template: standaloneTemplate as ReaderPageTemplate,
+        content: {
+          title: pageTitle || `Page ${pageNum}`,
+          body: pageBody,
+          standfirst: standFirst,
+          imageUrl: pageImages[0] || "",
+          imageUrls: pageImages,
+          image: pageImages[0] || "",
+          featureImage: pageImages[0] || "",
+          heroImage: pageImages[0] || "",
+          mainImage: pageImages[0] || "",
+          coverImage: pageImages[0] || "",
+          images: pageImages.slice(1),
+          gallery: pageImages.slice(1),
+          additionalImages: pageImages.slice(1),
+          logoImage: pageLogos[0] || "",
+          logoImages: pageLogos,
+          partnerLogo: pageLogos[0] || "",
+          pullQuotes: [],
+          kicker: "Feature",
+          weight: 3,
+        },
+      });
+      continue;
+    }
 
     const pagePosition = article.pagePositions.find(
       (p) => p.page === pageNum,
@@ -1229,15 +1457,62 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       position,
       pageNum !== article.startPage,
     );
+    const finalTitle =
+      (article.title || "").trim().length >= 2
+        ? article.title.trim()
+        : detectPageTitle(16) || article.title.trim();
+
+    // --- Final safety: if an article "wrapped" this page but in reality it's
+    // an image-only ad (no title, no body text, only images) → force to ad
+    // template instead of writing a blank feature-full page. ---
+    if (
+      !finalTitle &&
+      ((article.body || "").trim().length < 40 ||
+        (pageBody || "").trim().length < 40) &&
+      pageImages.length > 0
+    ) {
+      const pageLogo = pageLogos[0] || "";
+      const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
+      const adHero = rasterImages[0] || pageLogo;
+      result.push({
+        id: createPageId(`page-${pageNum}`, "ad"),
+        position: 0,
+        template: "ad",
+        content: {
+          title: "Advertisement",
+          label: "Advertisement",
+          body: pageBody || "",
+          imageUrl: adHero,
+          imageUrls: rasterImages,
+          image: adHero,
+          featureImage: adHero,
+          heroImage: adHero,
+          mainImage: adHero,
+          backgroundImage: adHero,
+          images: rasterImages,
+          gallery: rasterImages,
+          logoImage: pageLogo,
+          logoImages: pageLogos,
+          partnerLogo: pageLogo,
+          pdfUrl: pdfImage || undefined,
+        },
+      });
+      continue;
+    }
 
     result.push({
       id: createPageId(
         `page-${pageNum}`,
-        article.title.slice(0, 24) || pageNum,
+        finalTitle.slice(0, 24) || pageNum,
       ),
       position: 0,
       template,
-      content: buildFeatureContent(article, sourcePage, pageNum, position),
+      content: buildFeatureContent(
+        { ...article, title: finalTitle },
+        sourcePage,
+        pageNum,
+        position,
+      ),
     });
   }
 
