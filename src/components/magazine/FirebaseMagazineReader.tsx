@@ -369,12 +369,13 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
       ['contents', 1],
       ['editorial', 2],
       ['editor-note', 2],
-      ['feature-left', 10],
-      ['feature-right', 11],
-      ['column', 12],
-      ['lifestyle', 13],
-      ['spotlight', 14],
-      ['partner', 15],
+      ['feature-full', 10],
+      ['feature-left', 11],
+      ['feature-right', 12],
+      ['column', 13],
+      ['lifestyle', 14],
+      ['spotlight', 15],
+      ['partner', 16],
       ['ad', 20],
       ['full-page-ad', 20],
       ['back-cover', 99],
@@ -388,12 +389,12 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     };
 
     const sortedPages = [...pages].sort((left, right) => {
-      const lRole = roleOf(left.type);
-      const rRole = roleOf(right.type);
-      if (lRole !== rRole) return lRole - rRole;
       const lid = typeof left.id === 'number' ? left.id : 9999;
       const rid = typeof right.id === 'number' ? right.id : 9999;
-      return lid - rid;
+      if (lid !== rid) return lid - rid;
+      const lRole = roleOf(left.type);
+      const rRole = roleOf(right.type);
+      return lRole - rRole;
     });
 
     const fallbackEditorial = buildFallbackEditorialPage(sortedPages, issue);
