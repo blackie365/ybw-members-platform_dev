@@ -1,7 +1,11 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { db as clientFirestoreDb } from '@/lib/firebase';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
-import { fixMagazineImageUrl, normalizeImageUrl } from '@/lib/magazine-utils';
+import {
+  fixMagazineImageUrl,
+  hydrateReaderEditionContents,
+  normalizeImageUrl,
+} from '@/lib/magazine-utils';
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
 
@@ -715,8 +719,7 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
       return lRole - rRole;
     });
   const collapsedPages = collapseSplitStoryPages(pages);
-
-  return {
+  const rebuilt: ReaderEdition = {
     ...edition,
     coverImage:
       collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
@@ -726,6 +729,8 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     pages: collapsedPages,
     pageCount: collapsedPages.length,
   };
+  const hydrated = hydrateReaderEditionContents(rebuilt);
+  return (hydrated as ReaderEdition | null) ?? rebuilt;
 }
 
 export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {

@@ -316,3 +316,180 @@ export function normalizeStoryLibraryItem(itemIn: any): any {
   else if (typeof out.summary === 'string' && !out.standfirst) out.standfirst = out.summary;
   return out;
 }
+
+export interface ReaderContentsItem {
+  page: number;
+  category: string;
+  title: string;
+}
+
+const READER_CONTENTS_CATEGORY_BY_TEMPLATE: Record<string, string> = {
+  'editor-note': 'EDITORIAL',
+  'letter-from-editor': 'EDITORIAL',
+  masthead: 'EDITORIAL',
+  editorial: 'EDITORIAL',
+  'feature-full': 'FEATURE',
+  'feature-left': 'FEATURE',
+  'feature-right': 'FEATURE',
+  'news-in-brief': 'EXPERT',
+  'news-brief': 'EXPERT',
+  'two-column': 'EXPERT',
+  'three-column': 'EXPERT',
+  column: 'EXPERT',
+  gallery: 'LIFESTYLE',
+  'gallery-grid': 'LIFESTYLE',
+  'photo-essay': 'LIFESTYLE',
+  lifestyle: 'LIFESTYLE',
+  'member-profile': 'SPOTLIGHT',
+  spotlight: 'SPOTLIGHT',
+  'listing-directory': 'PARTNER',
+  'directory-page': 'PARTNER',
+  'sponsor-spotlight': 'PARTNER',
+  partner: 'PARTNER',
+};
+
+const READER_STRUCTURAL_NON_ARTICLE_TEMPLATES = new Set([
+  'cover',
+  'contents',
+  'ad',
+  'advertisement',
+  'full-page-ad',
+  'back-cover',
+]);
+
+/**
+ * Given any ReaderPage[] array (the flat pages stored in a ReaderEdition),
+ * rebuild the Table of Contents items list.
+ *
+ * Works even for legacy IDML-published ReaderEditions where the mapper had
+ * written 2 garbage rows or duplicated article rows across spread halves.
+ *
+ * Rules:
+ *  - Skip structural non-article templates (cover/contents/ad/back cover).
+ *  - Skip any rows with no readable title.
+ *  - Skip templates that are not known article categories.
+ *  - Extract print page number from the page.id string pattern like
+ *    "page-7-west-yorkshire-law-firm-mswckjyn" → pageNumber = 7. Falls back
+ *    to page.pageNumber, page.position, then (final safety) array index + 1.
+ *  - De-duplicate every article by category + title (case-insensitive,
+ *    whitespace collapsed) → KEEPS ONLY THE LOWEST PRINT PAGE NUMBER for
+ *    each story, i.e. the FIRST spread of the article. No duplicated rows
+ *    for articles that span feature-full + feature-right or left+right.
+ */
+export function buildReaderContentsItemsFromPages<
+  P extends {
+    id?: unknown;
+    template?: unknown;
+    pageNumber?: unknown;
+    position?: unknown;
+    content?: any;
+    title?: unknown;
+    name?: unknown;
+  },
+>(pages: P[]): ReaderContentsItem[] {
+  if (!Array.isArray(pages) || pages.length === 0) return [];
+
+  function titleFrom(p: P): string {
+    const c: any = (p as any).content || {};
+    return String(
+      c.title || c.headline || c.name || c.brand || p.title || p.name || '',
+    ).trim();
+  }
+  function pageNumFrom(p: P, slotIdx: number): number {
+    if (typeof (p as any).pageNumber === 'number' && Number.isFinite((p as any).pageNumber)) {
+      return (p as any).pageNumber;
+    }
+    const idStr = String(p.id || '');
+    let m = idStr.match(/^page[-_](\d+)[-_]/);
+    if (m) return Number(m[1]);
+    m = idStr.match(/[-_](\d+)[-_]?[^-_]*$/);
+    if (m) return Number(m[1]);
+    const pos = Number((p as any).position || 0);
+    if (Number.isFinite(pos) && pos > 0) return pos;
+    return slotIdx + 1;
+  }
+  function normId(s: string): string {
+    return s.toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  const withMeta = pages
+    .map((p, slotIndex) => ({
+      p,
+      slotIndex,
+      template: String((p as any).template || '').toLowerCase(),
+      title: titleFrom(p),
+      pageNumber: pageNumFrom(p, slotIndex),
+    }))
+    .sort((a, b) => a.pageNumber - b.pageNumber);
+
+  const seenArticleKeys = new Set<string>();
+  const out: ReaderContentsItem[] = [];
+  for (const entry of withMeta) {
+    if (READER_STRUCTURAL_NON_ARTICLE_TEMPLATES.has(entry.template)) continue;
+    if (!entry.title) continue;
+    const category = READER_CONTENTS_CATEGORY_BY_TEMPLATE[entry.template];
+    if (!category) continue;
+    if (!Number.isFinite(entry.pageNumber) || entry.pageNumber <= 0) continue;
+    const articleKey = `${category.toLowerCase()}:${normId(entry.title)}`;
+    if (seenArticleKeys.has(articleKey)) continue;
+    seenArticleKeys.add(articleKey);
+    out.push({ page: entry.pageNumber, category, title: entry.title });
+  }
+  return out;
+}
+
+/**
+ * Idempotent ReaderEdition normaliser:
+ *   1. Rebuilds Contents items and writes them to the template=='contents'
+ *      page's content.items.
+ *   2. Ensures every page has a crisp position/pageNumber set
+ *      (print-page-number extracted from page.id when possible), so
+ *      MagazineShell's findPageIndexByClickHint can resolve clicked items.
+ *
+ * Returns a new ReaderEdition (or input reference if nothing to fix) so
+ * simple-reader.ts can apply it server-side on every fetch.
+ */
+export function hydrateReaderEditionContents<T extends { pages: any[] }>(editionIn: T | null | undefined): T | null {
+  if (!editionIn || !Array.isArray(editionIn.pages) || editionIn.pages.length === 0) {
+    return (editionIn as T | null) ?? null;
+  }
+  const rebuiltItems = buildReaderContentsItemsFromPages(editionIn.pages);
+
+  // Extract print page numbers (same algorithm as buildReaderContentsItems)
+  // so page lookups work. Safe to write even for old data.
+  function pageNumFrom(p: any, idx: number): number {
+    if (typeof p.pageNumber === 'number' && Number.isFinite(p.pageNumber)) return p.pageNumber;
+    const idStr = String(p.id || '');
+    let m = idStr.match(/^page[-_](\d+)[-_]/);
+    if (m) return Number(m[1]);
+    m = idStr.match(/[-_](\d+)[-_]?[^-_]*$/);
+    if (m) return Number(m[1]);
+    const pos = Number(p.position || 0);
+    if (Number.isFinite(pos) && pos > 0) return pos;
+    return idx + 1;
+  }
+
+  let changed = false;
+  const newPages = editionIn.pages.map((page, idx) => {
+    const wantNum = pageNumFrom(page, idx);
+    const template = String(page.template || '').toLowerCase();
+    const isContents = template === 'contents';
+    const contentsNeedFix =
+      isContents &&
+      (!page.content ||
+        !Array.isArray(page.content.items) ||
+        page.content.items.length !== rebuiltItems.length);
+    const numNeedFix = Number(page.position) !== wantNum || Number(page.pageNumber) !== wantNum;
+
+    if (!contentsNeedFix && !numNeedFix) return page;
+    changed = true;
+    const next: any = { ...page, position: wantNum, pageNumber: wantNum };
+    if (isContents) {
+      next.content = { ...(page.content || {}), items: rebuiltItems };
+    }
+    return next;
+  });
+
+  if (!changed) return editionIn as T;
+  return { ...(editionIn as any), pages: newPages } as T;
+}
