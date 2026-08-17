@@ -71,6 +71,7 @@ const StoryLibraryPanel = dynamic<StoryLibraryPanelProps>(() => import('@/compon
 
 const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
   editorial: 'EDITORIAL',
+  'feature-full': 'FEATURE',
   'feature-left': 'FEATURE',
   'feature-right': 'FEATURE',
   column: 'EXPERT',
@@ -98,7 +99,8 @@ function getContentsTitleForPage(page: MagazinePage): string {
 
 function buildContentsItemsFromPages(pages: MagazinePage[]) {
   const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
-  const seen = new Set<string>();
+  const seenArticleKeys = new Set<string>();
+  const seenRows = new Set<string>();
 
   return sortedPages.flatMap((page) => {
     if (page.type === 'cover' || page.type === 'contents' || page.type === 'full-page-ad' || page.type === 'back-cover') {
@@ -107,28 +109,22 @@ function buildContentsItemsFromPages(pages: MagazinePage[]) {
 
     const title = getContentsTitleForPage(page);
     if (!title) return [];
-
-    // Treat feature-right as the continuation side of a feature spread when a matching
-    // feature-left page already exists, so Contents only lists the story once.
-    if (page.type === 'feature-right') {
-      const normalizedTitle = title.toLowerCase();
-      const hasMatchingFeatureLeft = sortedPages.some((candidate) =>
-        candidate.docId !== page.docId &&
-        candidate.type === 'feature-left' &&
-        getContentsTitleForPage(candidate).toLowerCase() === normalizedTitle,
-      );
-      if (hasMatchingFeatureLeft) return [];
-    }
-
     const category = CONTENTS_CATEGORY_BY_TYPE[page.type];
     if (!category) return [];
-
     const pageNumber = Number(page.id || 0);
     if (!Number.isFinite(pageNumber) || pageNumber <= 0) return [];
 
-    const key = `${pageNumber}:${category}:${title.toLowerCase()}`;
-    if (seen.has(key)) return [];
-    seen.add(key);
+    // De-duplicate by article title (case insensitive, whitespace collapsed)
+    // so every story appears exactly once in the Contents — pointing at its
+    // FIRST spread (lowest page number) even if the article spans
+    // feature-full + feature-right or feature-left + feature-right.
+    const articleKey = `${category.toLowerCase()}:${normalizeBuilderIdentity(title)}`;
+    if (seenArticleKeys.has(articleKey)) return [];
+    seenArticleKeys.add(articleKey);
+
+    const rowKey = `${pageNumber}:${category}:${title.toLowerCase()}`;
+    if (seenRows.has(rowKey)) return [];
+    seenRows.add(rowKey);
 
     return [{
       page: pageNumber,
