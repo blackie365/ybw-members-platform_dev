@@ -225,6 +225,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     const loadedContent = normalizeMagazinePageContent(page.content || {});
     const nextJson = JSON.stringify(loadedContent || {});
     const currentJson = JSON.stringify(content || {});
+    if (nextJson === currentJson) return;
     const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
     const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
     const shouldSync = isNewDoc || !hasLocalEdits;
