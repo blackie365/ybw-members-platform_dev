@@ -1821,11 +1821,16 @@ async function syncReaderEditionToLegacyIssue(
   if (!editionId) throw new Error('ReaderEdition id is required');
   if (!issueId) throw new Error('Issue id is required');
 
-  // 1. Fetch raw flat ReaderEdition pages (source of truth, 61 flat pages).
-  // Use getReaderEditionById, NOT the hydrate helper that merges legacy pages
-  // in on top — we want the IDML-published pages, not the old 6-spread pages.
-  const edition = await getReaderEditionById(editionId);
-  if (!edition) throw new Error(`ReaderEdition not found: ${editionId}`);
+  // 1. Fetch the COLLAPSED ReaderEdition (hydrateEditionWithLegacyPages
+  // merges legacy overrides and runs collapseSplitStoryPages, then
+  // hydrateReaderEditionContents re-applies print page numbers via id
+  // regex after the collapse). The output matches exactly what the public
+  // reader renders as "digital magazine pages" — so each legacy page we
+  // write here corresponds 1:1 to a rendered magazine page (spread rows
+  // in the Issue Builder match the rows the reader actually shows).
+  const rawEdition = await getReaderEditionById(editionId);
+  if (!rawEdition) throw new Error(`ReaderEdition not found: ${editionId}`);
+  const edition = (await hydrateEditionWithLegacyPages(rawEdition)) || rawEdition;
   const flatPages = Array.isArray(edition.pages) ? edition.pages : [];
   if (flatPages.length === 0) throw new Error(`ReaderEdition ${editionId} has an empty pages array`);
 

@@ -97,8 +97,29 @@ function getContentsTitleForPage(page: MagazinePage): string {
   ).trim();
 }
 
+function extractPrintPageNumberFromBuilderPage(page: MagazinePage | any | null | undefined): number | null {
+  if (!page) return null;
+  if (typeof page.pageNumber === 'number' && Number.isFinite(page.pageNumber) && page.pageNumber > 0) {
+    return page.pageNumber;
+  }
+  const contentPos = Number(page?.content?.position || page?.content?.pageNumber || 0);
+  if (Number.isFinite(contentPos) && contentPos > 0) return contentPos;
+  const idStr = String(page?.sourceRef || page?.id || '');
+  let m = idStr.match(/^page[-_](\d+)[-_]/);
+  if (m) return Number(m[1]);
+  const numericId = typeof page.id === 'number' ? page.id : Number(page.id || 0);
+  if (Number.isFinite(numericId) && numericId > 0 && numericId < 10_000) return numericId;
+  const pos = typeof page.position === 'number' ? page.position : Number(page.position || 0);
+  if (Number.isFinite(pos) && pos > 0) return pos;
+  return null;
+}
+
 function buildContentsItemsFromPages(pages: MagazinePage[]) {
-  const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+  const sortedPages = [...pages].sort((a, b) => {
+    const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
+    const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
+    return la - lb;
+  });
   const seenArticleKeys = new Set<string>();
   const seenRows = new Set<string>();
 
@@ -111,7 +132,7 @@ function buildContentsItemsFromPages(pages: MagazinePage[]) {
     if (!title) return [];
     const category = CONTENTS_CATEGORY_BY_TYPE[page.type];
     if (!category) return [];
-    const pageNumber = Number(page.id || 0);
+    const pageNumber = extractPrintPageNumberFromBuilderPage(page) ?? Number(page.id || 0);
     if (!Number.isFinite(pageNumber) || pageNumber <= 0) return [];
 
     // De-duplicate by article title (case insensitive, whitespace collapsed)
@@ -209,7 +230,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const startId = 10_000;
     const arr = Array.isArray(readerPages) ? readerPages : [];
     return arr.map((rp: any, i: number) => {
-      const pos = typeof rp.position === 'number' ? rp.position : i + 1;
+      const printNum = extractPrintPageNumberFromBuilderPage(rp);
+      const slotPos = typeof rp.position === 'number' ? rp.position : i + 1;
+      const pos = Number.isFinite(printNum) && printNum! > 0 ? printNum! : slotPos;
       const typeFallback = String(rp.template || 'feature-left').trim().toLowerCase()
         .replace(/^editorial$/i, 'editorial');
       const type = typeFallback === 'ad' ? 'full-page-ad' : typeFallback;
@@ -232,6 +255,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           body,
           text: body,
           position: pos,
+          pageNumber: Number.isFinite(printNum) && printNum! > 0 ? printNum : undefined,
           template: rp.template,
         },
         createdAt: rp.createdAt || now,
@@ -243,31 +267,55 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const mergedDisplayedPages = useMemo<MagazinePage[]>(() => {
     const rePages = Array.isArray(readerEditionPages) ? readerEditionPages : [];
     const legacyPages = Array.isArray(pages) ? pages : [];
-    if (rePages.length === 0) return legacyPages;
-
-    // For each shadow (read-only IDML) page: if there is an editable legacy
-    // page at the SAME PRINT POSITION (legacy.id == shadow.id - 10_000 because
-    // shadow ids are bumped 10_000 + position), prefer the EDITABLE legacy
-    // page and SKIP the shadow. This eliminates the 61-row duplication we'd
-    // otherwise get after syncReaderEditionToLegacyIssue has written editable
-    // legacy pages for positions 1..N. Only show shadow pages for positions
-    // where no editable legacy page exists yet (pre-sync, or a manually-
-    // removed position the admin is about to restore from the ReaderEdition).
-    const shadowBumpedIdToLegacy = new Map<number, MagazinePage>();
-    for (const lp of legacyPages) {
-      const n = typeof lp.id === 'number' ? lp.id : Number(lp.id || 0);
-      const matchingShadowBumpedId = 10_000 + n;
-      shadowBumpedIdToLegacy.set(matchingShadowBumpedId, lp);
+    if (rePages.length === 0) {
+      return [...legacyPages].sort((a, b) => {
+        const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
+        const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
+        return la - lb;
+      });
     }
 
-    const reSorted = [...rePages]
-      .sort((a, b) => (a.id || 0) - (b.id || 0))
-      .filter((shadowPage) => {
-        const sId = typeof shadowPage.id === 'number' ? shadowPage.id : Number(shadowPage.id || 0);
-        return !shadowBumpedIdToLegacy.has(sId);
-      });
-    const legacyBumped = legacyPages.map(lp => ({ ...lp, id: 100_000_000 + (lp.id || 0) }));
-    return [...reSorted, ...legacyBumped];
+    // Key each page by its PRINT page number (the same scheme the digital
+    // magazine uses). If the admin has run "Sync Reader → Builder", legacy
+    // pages exist for exactly those print positions — prefer the EDITABLE
+    // legacy page over its read-only shadow so the builder's PageEditor
+    // doesn't fall through to read-only mode when there's editable data.
+    const legacyByPrint = new Map<number, MagazinePage>();
+    for (const lp of legacyPages) {
+      const pn = extractPrintPageNumberFromBuilderPage(lp);
+      if (pn && pn > 0) legacyByPrint.set(pn, lp);
+    }
+    const shadowByPrint = new Map<number, MagazinePage>();
+    for (const sp of rePages) {
+      const pn = extractPrintPageNumberFromBuilderPage(sp);
+      if (pn && pn > 0) shadowByPrint.set(pn, sp);
+    }
+    const allPrintNumbers = new Set<number>([
+      ...legacyByPrint.keys(),
+      ...shadowByPrint.keys(),
+    ]);
+    const merged: MagazinePage[] = [];
+    for (const printNum of allPrintNumbers) {
+      const legacy = legacyByPrint.get(printNum);
+      const shadow = shadowByPrint.get(printNum);
+      // Preserve any extra user-added legacy pages outside Reader range too:
+      if (legacy) merged.push(legacy);
+      else if (shadow) merged.push(shadow);
+    }
+    // Append user-added legacy spreads whose print position is NOT set / is
+    // outside the ReaderEdition range (manually-added standalone pages).
+    const seenDocIds = new Set(merged.map((p) => p.docId));
+    for (const lp of legacyPages) {
+      if (!seenDocIds.has(lp.docId)) merged.push(lp);
+    }
+    for (const sp of rePages) {
+      if (!seenDocIds.has(sp.docId)) merged.push(sp);
+    }
+    return merged.sort((a, b) => {
+      const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
+      const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
+      return la - lb;
+    });
   }, [readerEditionPages, pages]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
