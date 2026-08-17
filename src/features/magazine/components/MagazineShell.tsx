@@ -42,6 +42,37 @@ function formatEditionDate(dateString: string): string {
   }
 }
 
+function extractPrintPageNumber(page: ReaderPage | null | undefined): number | null {
+  if (!page) return null;
+  if (typeof (page as any).pageNumber === 'number' && Number.isFinite((page as any).pageNumber)) {
+    return (page as any).pageNumber;
+  }
+  if (typeof page.position === 'number' && Number.isFinite(page.position) && page.position > 0) {
+    return page.position;
+  }
+  const idStr = String(page.id || '');
+  const m = idStr.match(/^page[-_](\d+)[-_]/);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+function findRenderedIndexByPrintPageNumber(
+  entries: Array<{ page: ReaderPage }>,
+  pageNum: number,
+): number {
+  const byNumber = entries
+    .map((entry, index) => ({ entry, index }))
+    .filter(
+      ({ entry }) =>
+        Number(entry.page.position) === pageNum ||
+        Number((entry.page as any).pageNumber) === pageNum,
+    );
+  if (byNumber.length > 0) return byNumber[0].index;
+  const fallback = pageNum - 1;
+  if (fallback >= 0 && fallback < entries.length) return fallback;
+  return -1;
+}
+
 export default function MagazineShell({ edition }: MagazineShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -54,17 +85,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
     loadTemplateRenderers();
     setRenderersLoaded(true);
     setImageVersion(Date.now().toString());
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const pageParam = Number.parseInt(params.get("page") ?? "", 10);
-      if (Number.isFinite(pageParam) && pageParam >= 1) {
-        const idx = pageParam - 1;
-        if (idx < (Array.isArray(edition.pages) ? edition.pages.length : 0)) {
-          setCurrentPage(idx);
-        }
-      }
-    } catch {}
-  }, [edition]);
+  }, []);
 
   const pages = useMemo(() => {
     const raw = Array.isArray(edition.pages) ? [...edition.pages] : [];
@@ -275,15 +296,35 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
   }, [renderedPages, goToPage, findPageIndexByClickHint]);
 
   useEffect(() => {
+    if (renderedPages.length === 0) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pageParam = Number.parseInt(params.get("page") ?? "", 10);
+      if (Number.isFinite(pageParam) && pageParam >= 1) {
+        const idx = findRenderedIndexByPrintPageNumber(renderedPages, pageParam);
+        if (idx >= 0) setCurrentPage(idx);
+      }
+    } catch {}
+    // Intentionally run only once after renderedPages first settles — user
+    // manual navigation via goToPage / prev / next updates currentPage live.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderedPages.length > 0]);
+
+  useEffect(() => {
     if (stageRef.current) {
       stageRef.current.scrollTop = 0;
     }
+    const current = renderedPages[currentPage];
+    const printPage = extractPrintPageNumber(current?.page);
+    const pageParam = Number.isFinite(printPage) && printPage! > 0
+      ? String(printPage)
+      : String(currentPage + 1);
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set("page", String(currentPage + 1));
+      url.searchParams.set("page", pageParam);
       window.history.replaceState(null, "", url.toString());
     } catch {}
-  }, [currentPage]);
+  }, [currentPage, renderedPages]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
