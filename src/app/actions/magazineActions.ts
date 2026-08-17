@@ -9,7 +9,7 @@ import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
-import { fixMagazineImageUrl, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, hydrateReaderEditionContents, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
 
 function safeRevalidatePath(path: string) {
   try {
@@ -1595,7 +1595,8 @@ export async function publishIdmlEditionAction(params: {
       issueId: params.issueId || undefined,
     };
 
-    await upsertReaderEdition(edition);
+    const hydrated = hydrateReaderEditionContents(edition) ?? edition;
+    await upsertReaderEdition(hydrated as ReaderEdition);
 
     if (params.issueId) {
       try {
