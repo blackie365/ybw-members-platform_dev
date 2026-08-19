@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { BookOpen, FileText } from 'lucide-react';
+import { BookOpen, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ export interface StoryLibraryPanelProps {
   onApplyStory: (story: StoryLibraryItem) => void;
   onToggleInclusion: (storyId: string) => void;
   onRemoveStory: (storyId: string) => void;
+  onDeleteAll?: () => Promise<void> | void;
 }
 
 const isIncludedInPremiumReader = (item: StoryLibraryItem) => item.includedInPremiumReader !== false;
@@ -27,8 +28,12 @@ export function StoryLibraryPanel({
   onApplyStory,
   onToggleInclusion,
   onRemoveStory,
+  onDeleteAll,
 }: StoryLibraryPanelProps) {
   const [query, setQuery] = useState('');
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
+  const [deleteAllInput, setDeleteAllInput] = useState('');
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredStories = useMemo(() => {
@@ -48,9 +53,27 @@ export function StoryLibraryPanel({
     <Card className="border-accent/20 w-full overflow-hidden">
       <CardHeader className="bg-accent/5 px-4 py-3">
         <div className="flex items-start gap-2 text-accent">
-          <BookOpen className="h-5 w-5 mt-0.5" />
-          <div>
-            <CardTitle className="text-base">Story Library</CardTitle>
+          <BookOpen className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base flex items-center justify-between gap-3 flex-wrap">
+              <span>Story Library</span>
+              {onDeleteAll && stories.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0 self-start"
+                  onClick={() => {
+                    setConfirmingDeleteAll(true);
+                    setDeleteAllInput('');
+                  }}
+                  disabled={isSaving || isDeletingAll}
+                >
+                  <Trash2 className="h-3 w-3 mr-1.5" />
+                  Delete All
+                </Button>
+              ) : null}
+            </CardTitle>
             <CardDescription className="text-[10px] text-muted-foreground">
               Choose a spread first, then apply a saved story into that layout.
             </CardDescription>
@@ -144,6 +167,66 @@ export function StoryLibraryPanel({
             </p>
           </div>
         )}
+
+        {confirmingDeleteAll ? (
+          <div className="border border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-900 rounded-md p-4 space-y-3">
+            <div>
+              <p className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-widest">
+                Delete all {stories.length} stories from the Story Library?
+              </p>
+              <p className="text-[11px] text-red-700/90 dark:text-red-400/90 mt-1">
+                This will also remove them from your premium reader spread sync.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-widest text-red-700 dark:text-red-400">
+                Type <span className="font-mono font-bold">DELETE ALL</span> to confirm
+              </Label>
+              <Input
+                value={deleteAllInput}
+                onChange={(e) => setDeleteAllInput(e.target.value)}
+                placeholder="DELETE ALL"
+                className="font-mono"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => {
+                  setConfirmingDeleteAll(false);
+                  setDeleteAllInput('');
+                }}
+                disabled={isDeletingAll}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                disabled={isSaving || isDeletingAll || deleteAllInput.trim() !== 'DELETE ALL'}
+                onClick={async () => {
+                  if (deleteAllInput.trim() !== 'DELETE ALL') return;
+                  setIsDeletingAll(true);
+                  try {
+                    await onDeleteAll?.();
+                  } finally {
+                    setIsDeletingAll(false);
+                    setConfirmingDeleteAll(false);
+                    setDeleteAllInput('');
+                  }
+                }}
+              >
+                {isDeletingAll ? 'Deleting…' : 'Delete all stories'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

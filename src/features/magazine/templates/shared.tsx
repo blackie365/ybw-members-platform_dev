@@ -9,10 +9,10 @@
  * All page components are exported so template renderers can import them.
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { fixMagazineImageUrl } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 
@@ -431,6 +431,8 @@ function AdditionalMediaGallery({
             <img
               src={fixMagazineImageUrl(item.src, imageVersion)}
               alt={item.alt}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-[1.04]"
               loading="lazy"
             />
@@ -524,6 +526,8 @@ function MediaFigure({
         <img
           src={fixMagazineImageUrl(item.src, imageVersion)}
           alt={item.alt}
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />
@@ -1293,10 +1297,11 @@ export const PageCover = ({ data, imageVersion }: any) => {
 // FULL PAGE AD
 // ─────────────────────────────────────────────
 export const PageFullPageAd = ({ data, imageVersion }: any) => {
-  const image = String(data?.image || "").trim();
+  const image = String(data?.image || data?.featureImage || "").trim();
   const backgroundImage = String(data?.backgroundImage || "").trim();
   const videoUrl = String(data?.videoUrl || "").trim();
-  const pdfUrl = String(data?.pdfUrl || "").trim();
+  const rawPdf = String(data?.pdfUrl || "").trim();
+  const pdfUrl = rawPdf ? fixMagazineImageUrl(rawPdf, imageVersion) : "";
   const label = String(data?.label || "Advertisement").trim();
   const alt = String(data?.alt || label || "Advertisement").trim();
   const hasBackgroundMedia = Boolean(videoUrl || backgroundImage);
@@ -1306,24 +1311,78 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
       ? rawLink
       : `https://${rawLink}`
     : "";
+  const logo = String(
+    data?.logoImage || data?.partnerLogo || "",
+  ).trim();
+  const resolvedImage = image
+    ? fixMagazineImageUrl(image, imageVersion)
+    : "";
+  const looksLikePdf = (url: string) =>
+    /\.pdf(\?|$)/i.test(url.split("?")[0] || "");
+  const resolvedBg =
+    backgroundImage && !looksLikePdf(backgroundImage)
+      ? fixMagazineImageUrl(backgroundImage, imageVersion)
+      : resolvedImage && !looksLikePdf(resolvedImage)
+        ? resolvedImage
+        : "";
 
   return (
     <div className="relative min-h-full bg-[#0c0a09] overflow-hidden">
-      {pdfUrl ? (
-        <iframe
-          src={fixMagazineImageUrl(pdfUrl, imageVersion)}
-          className="absolute inset-0 h-full w-full border-0"
-          title={alt}
+      {/* ALWAYS render the blurred backdrop first (image or gradient) so
+          even if iframe/video/PDF fails the page isn't pitch blank. */}
+      {resolvedBg ? (
+        <Image
+          src={resolvedBg}
+          alt=""
+          fill
+          sizes="100vw"
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
+          className={
+            pdfUrl
+              ? "object-cover blur-2xl scale-105 opacity-25"
+              : "object-cover blur-2xl scale-105 opacity-35"
+          }
         />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
+      )}
+
+      {/* PDF handling: DO NOT use inline iframes (Firebase Storage blocks with XFO/CSP + Chromium ORB
+          rejects them for .pdf). Instead render a large tap-friendly centre card that opens the PDF
+          in a new tab. A blurred image background + gradient fallback ensure the page is NEVER blank. */}
+      {pdfUrl ? (
+        <div className="absolute inset-0 z-[2] flex items-center justify-center p-8 sm:p-12 lg:p-16">
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="group w-full max-w-md flex flex-col items-center gap-5 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.45)] hover:shadow-[0_24px_100px_rgba(163,65,58,0.35)] hover:border-white/30 hover:bg-white/10 transition-all p-8 text-center"
+          >
+            <div className="h-20 w-20 rounded-2xl bg-[#a3413a]/80 border border-white/20 flex items-center justify-center text-5xl shadow-lg group-hover:scale-105 transition-transform">
+              📄
+            </div>
+            <div className="space-y-2">
+              <p className="text-xl font-bold text-white tracking-tight">
+                {label || "Advertisement"}
+              </p>
+              <p className="text-sm text-white/75 leading-relaxed">
+                Tap to open the full advertisement PDF in a new tab.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#a3413a] text-white text-sm font-semibold shadow-[0_10px_30px_rgba(163,65,58,0.4)] group-hover:bg-[#bb4f46] transition-colors">
+              Open Advert PDF
+              <ExternalLink className="h-4 w-4 ml-1" />
+            </div>
+          </a>
+        </div>
       ) : videoUrl ? (
         <video
           src={fixMagazineImageUrl(videoUrl, imageVersion)}
           poster={
             backgroundImage
               ? fixMagazineImageUrl(backgroundImage, imageVersion)
-              : image
-                ? fixMagazineImageUrl(image, imageVersion)
-                : undefined
+              : resolvedImage || undefined
           }
           autoPlay
           muted
@@ -1331,46 +1390,32 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         />
-      ) : backgroundImage ? (
-        <Image
-          src={fixMagazineImageUrl(backgroundImage, imageVersion)}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover"
-        />
-      ) : image ? (
-        <Image
-          src={fixMagazineImageUrl(image, imageVersion)}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover blur-2xl scale-105 opacity-35"
-        />
       ) : null}
 
-      {pdfUrl ? null : image ? (
+      {/* For non-PDF, non-video ads: show the main creative at full contain size
+          (skip if resolvedImage is itself a PDF — Next.js Image cannot render it) */}
+      {!pdfUrl && !videoUrl && resolvedImage && !looksLikePdf(resolvedImage) ? (
         <div
           className={`absolute inset-0 ${hasBackgroundMedia ? "p-6 sm:p-8 lg:p-10" : ""}`}
         >
           <div className="relative w-full h-full">
             <Image
-              src={fixMagazineImageUrl(image, imageVersion)}
+              src={resolvedImage}
               alt={alt}
               fill
               sizes="100vw"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               className="object-contain"
             />
           </div>
         </div>
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0c0a09] via-[#141210] to-[#0c0a09]" />
-      )}
+      ) : null}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/22 via-transparent to-black/8" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10 z-[1] pointer-events-none" />
 
       <div className="absolute top-5 left-5 z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm border border-white/10">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur-sm border border-white/10">
           <span className="h-1.5 w-1.5 rounded-full bg-[#a3413a]" />
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
             {label || "Advertisement"}
@@ -1378,7 +1423,31 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
         </div>
       </div>
 
-      {href ? (
+      {/* Priority 1: PDF link button (always show if PDF exists, browsers often block inline PDF iframes on mobile Safari / strict CSP) */}
+      {pdfUrl ? (
+        <div className="absolute bottom-6 right-6 z-10 flex flex-wrap gap-2 items-end justify-end">
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#a3413a]/90 hover:bg-[#a3413a] text-white text-xs font-semibold backdrop-blur-md border border-white/15 transition-colors shadow-[0_6px_24px_rgba(163,65,58,0.35)]"
+          >
+            📄 Open Advert PDF
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white text-xs font-semibold hover:bg-white/15 hover:border-white/25 transition-colors"
+            >
+              Visit
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          ) : null}
+        </div>
+      ) : href ? (
         <div className="absolute bottom-6 right-6 z-10">
           <a
             href={href}
@@ -1389,6 +1458,23 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
             Visit
             <ArrowRight className="h-4 w-4" />
           </a>
+        </div>
+      ) : null}
+
+      {logo ? (
+        <div className="absolute bottom-6 left-6 z-10 pointer-events-none">
+          <div className="flex items-center max-w-[42%] px-3 py-2 rounded-xl bg-black/45 backdrop-blur-sm border border-white/10">
+            <Image
+              src={fixMagazineImageUrl(logo, imageVersion)}
+              alt={String(data?.brand || label || "Sponsor logo").trim()}
+              width={256}
+              height={64}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              className="h-auto max-h-16 w-auto object-contain"
+              style={{ maxHeight: 64 }}
+            />
+          </div>
         </div>
       ) : null}
     </div>
@@ -1455,6 +1541,8 @@ export const PageEditorial = ({ data, imageVersion }: any) => {
                   <img
                     src={fixMagazineImageUrl(featureImage, imageVersion)}
                     alt={data.author}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -1550,6 +1638,18 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
     data,
     String(data.title || "Contents").trim(),
   );
+
+  const [slug, setSlug] = useState("");
+  useEffect(() => {
+    if (editionSlug) {
+      setSlug(editionSlug);
+      return;
+    }
+    try {
+      const match = window.location.pathname.match(/\/magazine\/read\/([^/?]+)/);
+      if (match) setSlug(decodeURIComponent(match[1]));
+    } catch {}
+  }, [editionSlug]);
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [liveNewsLoading, setLiveNewsLoading] = useState(false);
   const showLiveNews = news.length === 0;
@@ -1633,15 +1733,20 @@ export const PageContents = ({ data, imageVersion, editionSlug }: any) => {
             const pageLabel = Number.isFinite(pageNum)
               ? String(pageNum).padStart(2, "0")
               : "";
-            const pageHref = editionSlug && Number.isFinite(pageNum)
-              ? `/magazine/read/${editionSlug}?page=${pageNum}`
-              : undefined;
+            const hashHref = Number.isFinite(pageNum)
+              ? `#page-${pageNum}`
+              : "#";
+            const pageHref =
+              slug && Number.isFinite(pageNum)
+                ? `/magazine/read/${slug}?page=${pageNum}`
+                : hashHref;
             return (
               <a
                 key={`${pageLabel}-${item?.title ?? i}`}
                 href={pageHref}
                 data-page={Number.isFinite(pageNum) ? String(pageNum) : undefined}
                 className={`scroll-reveal scroll-reveal-delay-${Math.min(i + 1, 4)} group cursor-pointer rounded-xl overflow-hidden border border-white/[0.07] bg-white/[0.04] hover:bg-white/[0.07] hover:border-[#a3413a]/30 transition-all duration-300 text-left w-full block`}
+                aria-label={item?.title ? `Jump to page ${pageLabel}: ${String(item.title)}` : undefined}
               >
                 <div className="p-5 flex flex-col h-full min-h-[130px] relative">
                   <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden">
@@ -2689,6 +2794,10 @@ export const PagePartner = ({ data, imageVersion }: any) => {
   );
   const featureImage = String(data.featureImage || data.image || "").trim();
   const backgroundMedia = featureImage;
+  const logo = String(
+    data?.logoImage || data?.partnerLogo || "",
+  ).trim();
+  const logoAlt = String(data?.brand || data?.title || "Partner logo").trim();
 
   if (isFullBackground) {
     return (
@@ -2727,6 +2836,22 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">
                   {kicker}
                 </p>
+              )}
+              {logo && (
+                <div className="scroll-reveal scroll-reveal-delay-1">
+                  <div className="inline-flex px-4 py-2.5 rounded-2xl bg-black/35 backdrop-blur-sm border border-white/10">
+                    <Image
+                      src={fixMagazineImageUrl(logo, imageVersion)}
+                      alt={logoAlt}
+                      width={280}
+                      height={72}
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      className="h-auto max-h-16 w-auto object-contain"
+                      style={{ maxHeight: 64 }}
+                    />
+                  </div>
+                </div>
               )}
               <div>
                 <h2 className="text-section-lg font-serif font-600 text-white">
@@ -2808,6 +2933,22 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                 {kicker}
               </p>
             )}
+            {logo && (
+              <div className="scroll-reveal scroll-reveal-delay-1">
+                <div className="inline-flex px-4 py-2.5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+                  <Image
+                    src={fixMagazineImageUrl(logo, imageVersion)}
+                    alt={logoAlt}
+                    width={280}
+                    height={72}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    className="h-auto max-h-16 w-auto object-contain"
+                    style={{ maxHeight: 64 }}
+                  />
+                </div>
+              </div>
+            )}
             <h2 className="text-section-lg font-serif font-600 text-white">
               {renderTitleArt(data.title || data.brand)}
             </h2>
@@ -2855,6 +2996,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                       <img
                         src={fixMagazineImageUrl(featureImage, imageVersion)}
                         alt={data.brand}
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                     )}
@@ -2877,6 +3020,8 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                   <img
                     src={fixMagazineImageUrl(featureImage, imageVersion)}
                     alt={data.brand}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
                 )}
@@ -3091,13 +3236,32 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
               </div>
             </div>
             {(data.videoUrl || featureImage || data.pdfUrl) && (
-              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative">
+              <div className="overflow-hidden aspect-[4/3] lg:aspect-auto relative rounded-2xl border border-stone-200/80 shadow-sm bg-stone-50">
                 {data.pdfUrl ? (
-                  <iframe
-                    src={fixMagazineImageUrl(data.pdfUrl, imageVersion)}
-                    title={data.title || data.nextIssue || kicker}
-                    className="absolute inset-0 w-full h-full border-0"
-                  />
+                  <a
+                    href={fixMagazineImageUrl(data.pdfUrl, imageVersion)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="absolute inset-0 flex items-center justify-center p-6 bg-gradient-to-br from-[#faf8f5] via-white to-stone-100 text-center group hover:from-stone-100 hover:via-white hover:to-[#f5efe8] transition-colors"
+                  >
+                    <div className="flex flex-col items-center gap-4 max-w-xs">
+                      <div className="h-16 w-16 rounded-2xl bg-[#a3413a]/90 border border-white/20 flex items-center justify-center text-4xl shadow-md group-hover:scale-105 transition-transform">
+                        📄
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-base font-bold text-stone-900 tracking-tight">
+                          {data.title || data.nextIssue || "Back Cover Media"}
+                        </p>
+                        <p className="text-xs text-stone-500 leading-relaxed">
+                          Tap to open the PDF in a new tab.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#a3413a] text-white text-xs font-semibold shadow-md group-hover:bg-[#bb4f46] transition-colors">
+                        Open PDF
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </div>
+                    </div>
+                  </a>
                 ) : data.videoUrl ? (
                   <>
                     {featureImage && (

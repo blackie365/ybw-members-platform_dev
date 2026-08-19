@@ -1,8 +1,32 @@
 import { adminDb } from '@/lib/firebase-admin';
+import { db as clientFirestoreDb } from '@/lib/firebase';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
-import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import {
+  fixMagazineImageUrl,
+  hydrateReaderEditionContents,
+  normalizeImageUrl,
+} from '@/lib/magazine-utils';
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
+
+/**
+ * Pick a working Firestore instance.
+ *
+ * Order of preference:
+ *   1. Admin SDK (`adminDb`) — available when FIREBASE_PRIVATE_KEY +
+ *      FIREBASE_CLIENT_EMAIL are set (local dev, CI, some serverless envs).
+ *   2. Client SDK (`clientFirestoreDb`) — always available on Vercel because
+ *      it only needs NEXT_PUBLIC_FIREBASE_* env vars (already set there).
+ *
+ * Both Admin + Client SDKs expose the same collection/doc/where/orderBy/
+ * limit/get surface used in this file. serializeData() already handles both
+ * Timestamp variants (_seconds / seconds) so read results are identical.
+ */
+function getFirestore(): any {
+  if (adminDb) return adminDb;
+  if (clientFirestoreDb) return clientFirestoreDb as unknown as any;
+  return null;
+}
 
 const COLLECTION = 'magazine_reader_editions';
 const LEGACY_ISSUES_COLLECTION = 'magazine_issues';
@@ -12,6 +36,17 @@ const STRUCTURAL_TEMPLATES = new Set<ReaderPage['template']>([
   'editor-note',
   'back-cover',
 ]);
+// When merging a STRUCTURAL base page (cover/contents/editor-note/back-cover)
+// with its legacy counterpart, the template is only allowed to remain in this
+// set. If the legacy page somehow had a different template (due to a corrupted
+// Firestore write or a prior bug), we force the base structural template so we
+// never, for example, end up rendering an editor-note page with a contents grid.
+const STRUCTURAL_TEMPLATE_PINNED: Record<string, ReaderPage['template']> = {
+  cover: 'cover',
+  contents: 'contents',
+  'editor-note': 'editor-note',
+  'back-cover': 'back-cover',
+};
 
 function serializeData(data: any): any {
   if (!data) return data;
@@ -62,28 +97,10 @@ function editionMatchesIssue(edition: ReaderEdition, issue: { title?: string; pu
   return sameTitle || sameMonth;
 }
 
-function isRenderableImageUrl(value: unknown): value is string {
-  const url = String(value || '').trim();
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  const looksLikeUrl =
-    lower.startsWith('https://') ||
-    lower.startsWith('http://') ||
-    lower.startsWith('gs://') ||
-    lower.startsWith('/') ||
-    lower.startsWith('./') ||
-    lower.startsWith('../') ||
-    lower.startsWith('data:');
-
-  if (!looksLikeUrl) return false;
-  if (/\.(?:ai|eps|indd|pdf|psd)(?:$|[?#])/i.test(lower)) return false;
-  return true;
-}
-
 function sanitizeImageUrl(value: unknown): string {
-  const url = String(value || '').trim();
-  if (!isRenderableImageUrl(url)) return '';
-  return fixMagazineImageUrl(url);
+  const normalized = normalizeImageUrl(value);
+  if (!normalized) return '';
+  return fixMagazineImageUrl(normalized);
 }
 
 function sanitizeUrlList(values: unknown): string[] {
@@ -192,19 +209,67 @@ function dedupeTextParts(parts: Array<unknown>, exclusions: Array<unknown> = [])
   return deduped;
 }
 function sanitizeReaderPage(page: ReaderPage): ReaderPage {
-  const backgroundImage = sanitizeImageUrl(page.content?.backgroundImage);
-  const rawImageUrls = sanitizeUrlList(page.content?.imageUrls);
-  const imageUrl = sanitizeImageUrl(page.content?.imageUrl) || rawImageUrls[0] || '';
-  const imageUrls = rawImageUrls.filter(
-    (url) => url !== imageUrl && url !== backgroundImage,
+  const c: Record<string, unknown> = (page?.content && typeof page.content === 'object')
+    ? (page.content as Record<string, unknown>)
+    : {};
+
+  const backgroundImage = sanitizeImageUrl(
+    c.backgroundImage || (c as any).coverImage || ''
   );
-  const standfirst = String(page.content?.standfirst || '').trim();
-  const quote = String(page.content?.quote || '').trim();
+
+  const cascadeMain = [
+    c.imageUrl,
+    c.featureImage,
+    c.image,
+    c.heroImage,
+    c.mainImage,
+    c.primaryImage,
+    c.secondaryImage,
+    c.topImage,
+    c.leftImage,
+    c.rightImage,
+    c.bottomImage,
+    c.coverImage,
+    c.logoImage,
+    c.partnerLogo,
+    c.logo,
+  ].map((v) => sanitizeImageUrl(v)).filter(Boolean);
+
+  const urlListsConcat = [
+    c.imageUrls,
+    c.images,
+    c.gallery,
+    c.additionalImages,
+    c.mediaItems,
+    c.galleryItems,
+    c.logoImages,
+  ];
+
+  const rawList: string[] = [];
+  for (const listEntry of urlListsConcat) {
+    rawList.push(...sanitizeUrlList(listEntry));
+  }
+
+  const seen = new Set<string>();
+  const mergedList: string[] = [];
+  for (const u of [...cascadeMain, ...rawList]) {
+    if (!u || seen.has(u)) continue;
+    seen.add(u);
+    mergedList.push(u);
+  }
+
+  const imageUrl = cascadeMain[0] || mergedList[0] || '';
+  const imageUrls = mergedList.filter(
+    (url) => url && url !== imageUrl && url !== backgroundImage,
+  );
+
+  const standfirst = String(c.standfirst || c.intro || c.headline || '').trim();
+  const quote = String(c.quote || '').trim();
   const body = dedupeTextParts(
-    splitTextIntoParagraphs(page.content?.body),
+    splitTextIntoParagraphs(c.body || c.text || c.article || c.content),
     [standfirst],
   ).join('\n\n');
-  const pullQuotes = dedupeTextParts(page.content?.pullQuotes || [], [
+  const pullQuotes = dedupeTextParts(Array.isArray(c.pullQuotes) ? (c.pullQuotes as unknown[]) : [], [
     standfirst,
     quote,
     body,
@@ -213,33 +278,41 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   return {
     ...page,
     content: {
-      ...page.content,
-      title: String(page.content?.title || '').trim(),
+      ...(page.content as any),
+      title: String(c.title || c.headline || '').trim(),
       body,
       standfirst: standfirst || undefined,
-      author: String(page.content?.author || '').trim() || undefined,
-      name: String(page.content?.name || '').trim() || undefined,
-      kicker: String(page.content?.kicker || '').trim() || undefined,
+      author: String(c.author || c.name || c.byline || '').trim() || undefined,
+      name: String(c.name || c.author || '').trim() || undefined,
+      kicker: String(c.kicker || c.section || c.category || '').trim() || undefined,
       imageUrl: imageUrl || undefined,
       backgroundImage: backgroundImage || undefined,
       imageUrls,
+      featureImage: imageUrl || undefined,
+      image: imageUrl || undefined,
       quote: quote || undefined,
       pullQuotes,
-      continuationLabel: String(page.content?.continuationLabel || '').trim() || undefined,
-      snapshotLabel: String(page.content?.snapshotLabel || '').trim() || undefined,
-      nextIssue: String(page.content?.nextIssue || '').trim() || undefined,
-      ctaLabel: String(page.content?.ctaLabel || '').trim() || undefined,
-      ctaHref: String(page.content?.ctaHref || '').trim() || undefined,
-      label: String(page.content?.label || '').trim() || undefined,
-      videoUrl: String(page.content?.videoUrl || '').trim() || undefined,
-      items: Array.isArray(page.content?.items)
-        ? page.content.items
+      continuationLabel: String(c.continuationLabel || '').trim() || undefined,
+      snapshotLabel: String(c.snapshotLabel || '').trim() || undefined,
+      nextIssue: String(c.nextIssue || '').trim() || undefined,
+      ctaLabel: String(c.ctaLabel || c.callToAction || '').trim() || undefined,
+      ctaHref: String(c.ctaHref || c.linkUrl || c.url || '').trim() || undefined,
+      label: String(c.label || c.brand || c.sponsor || '').trim() || undefined,
+      videoUrl: String(c.videoUrl || '').trim() || undefined,
+      pdfUrl: String(c.pdfUrl || '').trim() || undefined,
+      partnerLogo: sanitizeImageUrl(c.partnerLogo || c.logoImage || '') || undefined,
+      logoImage: sanitizeImageUrl(c.logoImage || c.partnerLogo || c.logo || '') || undefined,
+      items: Array.isArray(c.items)
+        ? (c.items as Array<any>)
             .map((item) => ({
-              title: String(item?.title || '').trim(),
-              page: String(item?.page || '').trim(),
+              title: String(item?.title || item?.name || item?.headline || '').trim(),
+              page: String(item?.page || item?.pageNumber || '').trim(),
             }))
             .filter((item) => item.title)
-        : [],
+        : (Array.isArray(c.contents) ? (c.contents as Array<any>).map((x: any)=>({
+            title: String(x?.title || x?.name || '').trim(),
+            page: String(x?.page || '').trim(),
+          })).filter((x:any)=>x.title) : []),
     },
   };
 }
@@ -454,7 +527,15 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
   const base = sanitizeReaderPage(basePage);
   if (!legacyPage) return base;
 
-  const preferLegacy = STRUCTURAL_TEMPLATES.has(base.template);
+  // Structural templates (cover/contents/editor-note/back-cover) are PINNED to
+  // their original base template. Even if a legacy page had a corrupted template
+  // field (e.g. editor-note stored with type=contents due to a prior build bug),
+  // we keep the base structural template so the correct renderer always runs.
+  const isStructural = STRUCTURAL_TEMPLATES.has(base.template);
+  const preferLegacy = isStructural;
+  const pinnedTemplate: ReaderPage['template'] = isStructural
+    ? STRUCTURAL_TEMPLATE_PINNED[base.template as keyof typeof STRUCTURAL_TEMPLATE_PINNED] ?? base.template
+    : base.template;
   const baseImages = sanitizeUrlList(base.content.imageUrls);
   const legacyImages = sanitizeUrlList(legacyPage.content.imageUrls);
   const imageUrl = preferLegacy
@@ -467,9 +548,20 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
     (url, index, all) => url !== imageUrl && url !== backgroundImage && all.indexOf(url) === index,
   );
 
+  // Contents items (the grid of cards with categories + page numbers) ONLY
+  // belong on the `contents` template. Never let them bleed into other
+  // templates — that produces the "rik-rak of contents pages" symptom on the
+  // Editorial or Cover pages.
+  const baseHasItems = Array.isArray(base.content.items) && base.content.items.length > 0;
+  const mergedItems = baseHasItems
+    ? base.content.items
+    : (pinnedTemplate === 'contents' ? (legacyPage.content.items ?? []) : []);
+
   return sanitizeReaderPage({
     ...base,
-    template: preferLegacy ? legacyPage.template || base.template : base.template,
+    template: isStructural
+      ? pinnedTemplate
+      : (preferLegacy ? legacyPage.template || base.template : base.template),
     content: {
       ...base.content,
       title: preferLegacy
@@ -494,10 +586,7 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
       pullQuotes: [...(base.content.pullQuotes || []), ...(legacyPage.content.pullQuotes || [])].filter(
         (quote, index, all) => quote && all.indexOf(quote) === index,
       ),
-      items:
-        Array.isArray(base.content.items) && base.content.items.length > 0
-          ? base.content.items
-          : legacyPage.content.items,
+      items: mergedItems,
       ctaLabel: base.content.ctaLabel || legacyPage.content.ctaLabel,
       ctaHref: base.content.ctaHref || legacyPage.content.ctaHref,
       label: base.content.label || legacyPage.content.label,
@@ -507,43 +596,47 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
   });
 }
 
-async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
-  const db = adminDb;
-  if (!db) return edition;
-
-  const issues = await getMagazineIssuesServer().catch(() => []);
-  const matchingIssue = issues.find((issue) => editionMatchesIssue(edition, issue));
-  if (!matchingIssue) {
+export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
+  const db = getFirestore();
+  if (!db) {
     return {
       ...edition,
       pages: (edition.pages || []).map(sanitizeReaderPage),
       pageCount: Array.isArray(edition.pages) ? edition.pages.length : 0,
+      coverImage: sanitizeImageUrl(edition.coverImage) || '',
     };
   }
 
-  const pagesSnapshot = await db
-    .collection(LEGACY_ISSUES_COLLECTION)
-    .doc(matchingIssue.id)
-    .collection('pages')
-    .orderBy('id', 'asc')
-    .get()
-    .catch(async () =>
-      db
-        .collection(LEGACY_ISSUES_COLLECTION)
-        .doc(matchingIssue.id)
-        .collection('pages')
-        .get(),
-    );
+  const issues = await getMagazineIssuesServer().catch(() => []);
+  const matchingIssue = issues.find((issue) => editionMatchesIssue(edition, issue)) ?? null;
+  const issueCover = matchingIssue ? sanitizeImageUrl(matchingIssue.coverImage) || '' : '';
+  let legacyPages: ReaderPage[] = [];
+  if (matchingIssue) {
+    const pagesSnapshot = await db
+      .collection(LEGACY_ISSUES_COLLECTION)
+      .doc(matchingIssue.id)
+      .collection('pages')
+      .orderBy('id', 'asc')
+      .get()
+      .catch(async () =>
+        db
+          .collection(LEGACY_ISSUES_COLLECTION)
+          .doc(matchingIssue.id)
+          .collection('pages')
+          .get(),
+      );
 
-  const legacyPages = pagesSnapshot.docs
-    .map((doc, index) =>
-      mapLegacyPageToReaderPage(
-        { docId: doc.id, ...serializeData(doc.data()) },
-        matchingIssue,
-        index,
-      ),
-    )
-    .filter(Boolean) as ReaderPage[];
+    const docs = pagesSnapshot?.docs ?? [];
+    legacyPages = docs
+      .map((doc: any, index: number) =>
+        mapLegacyPageToReaderPage(
+          { docId: doc.id, ...serializeData(doc.data ? doc.data() : doc) },
+          matchingIssue,
+          index,
+        ),
+      )
+      .filter(Boolean) as ReaderPage[];
+  }
 
   const legacyByKey = new Map<string, ReaderPage>();
   for (const page of legacyPages) {
@@ -568,71 +661,162 @@ async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<Re
 
   const pages = [...mergedPages, ...appendedLegacyPages]
     .map(sanitizeReaderPage)
-    .sort((left, right) => left.position - right.position);
+    .map((page) => {
+      // FINAL READ-SIDE DEFENSE: Never let a page that reads like an
+      // Editor's Note (title / body contain "Editor's Note" / "From the
+      // Editor" / "Editorial") be rendered as template=contents, even if
+      // a legacy publish bug (pre-2026-08-14) wrote that template field
+      // into the ReaderEdition pages[] doc. This is the user-reported
+      // issue for `ybw_August_2026.idml pages-5-5` (storyId
+      // ...library-idml-editorial-5) which showed the rik-rak Contents
+      // grid instead of PageEditorial.
+      const template = String(page.template || '').trim().toLowerCase();
+      const ct = page.content?.title && typeof page.content.title === 'string'
+        ? page.content.title.trim().toLowerCase()
+        : '';
+      const cb = page.content?.body && typeof page.content.body === 'string'
+        ? page.content.body.trim().slice(0, 320).toLowerCase()
+        : (page.content?.text && typeof page.content.text === 'string'
+          ? page.content.text.trim().slice(0, 320).toLowerCase()
+          : '');
+      const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${ct} ${cb}`);
+      const looksLikeAd = /\b(advertisement|advert|ad page|sponsor|sponsored by)\b/.test(`${ct} ${cb}`) &&
+        !Array.isArray(page.content?.items);
+      const hasItems = Array.isArray(page.content?.items) && page.content.items.length > 0;
+      let nextTemplate = page.template;
+      if (template === 'editor-note') nextTemplate = 'editor-note';
+      else if (template === 'contents' && looksLikeEditorial) nextTemplate = 'editor-note';
+      else if (looksLikeEditorial && !hasItems) nextTemplate = 'editor-note';
+      else if (template === 'ad' || template === 'full-page-ad') nextTemplate = 'ad';
+      else if (looksLikeAd && !looksLikeEditorial) nextTemplate = 'ad';
+      let content = page.content;
+      if (nextTemplate === 'editor-note') {
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'ad') {
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'contents') {
+        content = { ...(content || {}) };
+      }
+      return sanitizeReaderPage({ ...page, template: nextTemplate, content });
+    })
+    .sort((left, right) => {
+      const lPos = typeof left.position === 'number' ? left.position : 0;
+      const rPos = typeof right.position === 'number' ? right.position : 0;
+      if (lPos !== rPos) return lPos - rPos;
+      const ROLE: Record<string, number> = {
+        cover: 0,
+        contents: 1,
+        'editor-note': 2,
+        'feature-full': 10,
+        'feature-left': 11,
+        'feature-right': 12,
+        ad: 20,
+        'full-page-ad': 20,
+        'back-cover': 99,
+      };
+      const lRole = ROLE[String(left.template || '').trim().toLowerCase()] ?? 100;
+      const rRole = ROLE[String(right.template || '').trim().toLowerCase()] ?? 100;
+      return lRole - rRole;
+    });
   const collapsedPages = collapseSplitStoryPages(pages);
-
-  return {
+  const rebuilt: ReaderEdition = {
     ...edition,
     coverImage:
       collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
       sanitizeImageUrl(edition.coverImage) ||
-      matchingIssue.coverImage ||
+      issueCover ||
       '',
     pages: collapsedPages,
     pageCount: collapsedPages.length,
   };
+  const hydrated = hydrateReaderEditionContents(rebuilt);
+  return (hydrated as ReaderEdition | null) ?? rebuilt;
 }
 
 export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
-  if (!adminDb) return [];
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return [];
+  const snapshot = await firestore
     .collection(COLLECTION)
     .orderBy('publishDate', 'desc')
     .limit(limit)
     .get();
-  return snapshot.docs.map(doc => serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const docs = snapshot?.docs ?? [];
+  return Promise.all(docs.map(async (doc: any) =>
+    hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition),
+  ));
 }
 
 export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
     .limit(1)
     .get();
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const docs = snapshot?.docs ?? [];
+  if (docs.length === 0) return null;
+  const doc = docs[0];
+  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
 }
 
 export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
-  if (!adminDb) return null;
-  const snapshot = await adminDb
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
     .limit(1)
     .get();
-  return snapshot.empty ? null : snapshot.docs[0].id;
+  const docs = snapshot?.docs ?? [];
+  return docs.length === 0 ? null : docs[0].id;
+}
+
+export async function getReaderEditionByIssueId(issueId: string): Promise<ReaderEdition | null> {
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const explicitSnapshot = await firestore
+    .collection(COLLECTION)
+    .where('issueId', '==', issueId)
+    .orderBy('publishDate', 'desc')
+    .limit(1)
+    .get();
+  const explicitDocs = explicitSnapshot?.docs ?? [];
+  if (explicitDocs.length > 0) {
+    const doc = explicitDocs[0];
+    return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
+  }
+  const issueDoc = await firestore.collection('magazine_issues').doc(issueId).get();
+  const issueRaw = issueDoc?.exists && issueDoc.data ? issueDoc.data() : null;
+  const linkedId = issueRaw ? String((issueRaw as any).readerEditionId || '').trim() : '';
+  if (!linkedId) return null;
+  return getReaderEditionById(linkedId);
 }
 
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
-  const doc = await adminDb.collection(COLLECTION).doc(id).get();
-  if (!doc.exists) return null;
-  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...doc.data() }) as ReaderEdition);
+  const firestore = getFirestore();
+  if (!firestore) return null;
+  const doc = await firestore.collection(COLLECTION).doc(id).get();
+  const exists = typeof doc?.exists === 'boolean' ? doc.exists : Boolean(doc);
+  if (!exists) return null;
+  return hydrateEditionWithLegacyPages(serializeData({ id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
 }
 
 export async function upsertReaderEdition(edition: ReaderEdition): Promise<void> {
-  if (!adminDb) throw new Error('Firebase Admin not configured');
-  await adminDb.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
+  const firestore = getFirestore();
+  if (!firestore) throw new Error('Firebase not configured for server writes');
+  await firestore.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
 }
 
 export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {
-  if (!adminDb) return null;
+  const firestore = getFirestore();
+  if (!firestore) return null;
 
-  const editionDoc = await adminDb.collection(COLLECTION).doc(editionId).get();
-  if (!editionDoc.exists) return null;
-  const edition = serializeData({ id: editionDoc.id, ...editionDoc.data() }) as ReaderEdition;
+  const editionDoc = await firestore.collection(COLLECTION).doc(editionId).get();
+  const exists = typeof editionDoc?.exists === 'boolean' ? editionDoc.exists : Boolean(editionDoc);
+  if (!exists) return null;
+  const edition = serializeData({ id: editionId, ...(editionDoc.data ? editionDoc.data() : editionDoc) }) as ReaderEdition;
 
   const issues = await getMagazineIssuesServer();
   const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition)) ?? null;
@@ -661,13 +845,15 @@ export async function syncReaderEditionCoverFromIssue(editionId: string): Promis
 }
 
 export async function syncReaderEditionsForIssue(issueId: string): Promise<number> {
-  if (!adminDb) return 0;
+  const firestore = getFirestore();
+  if (!firestore) return 0;
 
-  const issueDoc = await adminDb.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
-  if (!issueDoc.exists) return 0;
+  const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
+  const exists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
+  if (!exists) return 0;
   const issue = {
     id: issueDoc.id,
-    ...serializeData(issueDoc.data()),
+    ...serializeData(issueDoc.data ? issueDoc.data() : issueDoc),
   } as { title?: string; coverImage?: string; publishDate?: string };
   const issueCover = sanitizeImageUrl(issue.coverImage) || '';
   if (!issueCover) return 0;
@@ -679,6 +865,8 @@ export async function syncReaderEditionsForIssue(issueId: string): Promise<numbe
   let syncedCount = 0;
   for (const edition of matches) {
     if (edition.coverImage === issueCover) continue;
+    // cover sync is a write; requires Admin SDK. If adminDb missing, skip silently.
+    if (!adminDb) break;
     await upsertReaderEdition({
       ...edition,
       coverImage: issueCover,

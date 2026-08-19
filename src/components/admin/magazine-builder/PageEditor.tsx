@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type, Palette } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -25,21 +25,32 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PAGE_TYPES, MagazinePage } from './types';
+import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
 
 interface PageEditorProps {
   page: MagazinePage | undefined;
   onSave: (content: any) => void;
   onChangeType?: (type: string) => void;
   isSaving: boolean;
+  readOnly?: boolean;
 }
 
-export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorProps) {
-  const [content, setContent] = useState<any>({});
+export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: forcedReadOnly }: PageEditorProps) {
+  const readOnly = Boolean(forcedReadOnly) || Boolean(page?.readOnly);
+  const [content, _setContent] = useState<any>({});
+  const setContent: typeof _setContent = (updater: any) => {
+    if (readOnly) return;
+    _setContent(updater as any);
+  };
   const [rawJsonDraft, setRawJsonDraft] = useState<string>('{}');
   const [rawJsonError, setRawJsonError] = useState<string>('');
   const rawJsonFocusedRef = useRef(false);
   const [lifestyleImagesDraft, setLifestyleImagesDraft] = useState<string>('[]');
   const [pullQuotesDraft, setPullQuotesDraft] = useState<string>('');
+  const lastLoadedDocIdRef = useRef<string | null>(null);
+  const lastSyncedContentJsonRef = useRef<string>('');
+  const [pendingType, setPendingType] = useState<string | null>(null);
+  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
   const [contentsItemsDraft, setContentsItemsDraft] = useState<string>('[]');
   const [contentsItemsError, setContentsItemsError] = useState<string>('');
   const [newsDraft, setNewsDraft] = useState<string>('[]');
@@ -52,10 +63,6 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
   const [socialsError, setSocialsError] = useState<string>('');
   const [statsDraft, setStatsDraft] = useState<string>('[]');
   const [statsError, setStatsError] = useState<string>('');
-  const lastLoadedDocIdRef = useRef<string | null>(null);
-  const lastSyncedContentJsonRef = useRef<string>('');
-  const [pendingType, setPendingType] = useState<string | null>(null);
-  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
 
   const stringifyJson = (value: any) => JSON.stringify(value ?? null, null, 2);
 
@@ -215,9 +222,10 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     if (rawJsonFocusedRef.current) return;
     if (rawJsonError) return;
 
-    const nextContent = page.content || {};
-    const nextJson = JSON.stringify(nextContent || {});
+    const loadedContent = normalizeMagazinePageContent(page.content || {});
+    const nextJson = JSON.stringify(loadedContent || {});
     const currentJson = JSON.stringify(content || {});
+    if (nextJson === currentJson) return;
     const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
     const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
     const shouldSync = isNewDoc || !hasLocalEdits;
@@ -226,29 +234,29 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
 
     lastLoadedDocIdRef.current = page.docId;
     lastSyncedContentJsonRef.current = nextJson;
-    setContent(nextContent);
-    setRawJsonDraft(JSON.stringify(nextContent || {}, null, 2));
+    setContent(loadedContent);
+    setRawJsonDraft(JSON.stringify(loadedContent || {}, null, 2));
     setRawJsonError('');
 
     if (page.type === 'lifestyle') {
-      const initial = Array.isArray((nextContent as any)?.images) ? (nextContent as any).images : [];
+      const initial = Array.isArray((loadedContent as any)?.images) ? (loadedContent as any).images : [];
       setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
     } else {
       setLifestyleImagesDraft('[]');
     }
 
-    setPullQuotesDraft(stringifyPullQuotes((nextContent as any)?.pullQuotes || (nextContent as any)?.quotes || ''));
-    setContentsItemsDraft(stringifyJson((nextContent as any)?.items || []));
+    setPullQuotesDraft(stringifyPullQuotes((loadedContent as any)?.pullQuotes || (loadedContent as any)?.quotes || ''));
+    setContentsItemsDraft(stringifyJson((loadedContent as any)?.items || []));
     setContentsItemsError('');
-    setNewsDraft(stringifyJson((nextContent as any)?.news || []));
+    setNewsDraft(stringifyJson((loadedContent as any)?.news || []));
     setNewsError('');
-    setTipsDraft(stringifyJson((nextContent as any)?.tips || []));
+    setTipsDraft(stringifyJson((loadedContent as any)?.tips || []));
     setTipsError('');
-    setHighlightsDraft(stringifyJson((nextContent as any)?.highlights || []));
+    setHighlightsDraft(stringifyJson((loadedContent as any)?.highlights || []));
     setHighlightsError('');
-    setSocialsDraft(stringifyJson((nextContent as any)?.socials || []));
+    setSocialsDraft(stringifyJson((loadedContent as any)?.socials || []));
     setSocialsError('');
-    setStatsDraft(stringifyStats((nextContent as any)?.stats));
+    setStatsDraft(stringifyStats((loadedContent as any)?.stats));
     setStatsError('');
     setPendingType(null);
     setIsTypeDialogOpen(false);
@@ -263,19 +271,303 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     });
   }, [content, rawJsonError]);
 
-  if (!page) {
-    return (
-      <Card className="h-full border-dashed flex items-center justify-center text-center p-12 bg-muted/10">
-        <div className="max-w-xs">
-          <Edit2 className="h-8 w-8 text-muted-foreground mx-auto mb-4 opacity-20" />
-          <p className="text-sm text-muted-foreground">Select a page from the list to edit its content.</p>
-        </div>
-      </Card>
-    );
-  }
-
   const updateContent = (field: string, value: any) => {
     setContent((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const uploadOneFile = useCallback(async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'magazine-import');
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || `Upload failed (${res.status})`);
+    }
+    const data = await res.json();
+    if (!data.url) throw new Error('Upload response missing url');
+    return data.url;
+  }, []);
+
+  const Thumbnail = ({ src, size = 64 }: { src: string; size?: number }) => {
+    if (!src || typeof src !== 'string') return null;
+    const isPdf = /\.pdf(\?|$)/i.test(src);
+    if (isPdf) {
+      return (
+        <div
+          className="shrink-0 rounded-md border bg-muted/40 flex items-center justify-center text-muted-foreground"
+          style={{ width: size, height: size }}
+          title={src}
+        >
+          <FileImage className="h-5 w-5" />
+        </div>
+      );
+    }
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className="shrink-0 rounded-md border object-cover bg-muted/20"
+        style={{ width: size, height: size }}
+      />
+    );
+  };
+
+  const SingleImageRow = ({
+    label,
+    field,
+    value,
+    accept = 'image/*,application/pdf',
+    hint,
+    mode = 'any',
+  }: {
+    label: string;
+    field: string;
+    value?: string;
+    accept?: string;
+    hint?: string;
+    mode?: 'image' | 'pdf' | 'any';
+  }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [busy, setBusy] = useState(false);
+    const looksLikePdf = /\.pdf(\?|$)/i.test(String(value || '').split('?')[0]);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="inline-flex items-center gap-2">
+            {label}
+            {mode === 'pdf' && looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-stone-500 bg-stone-200/60 rounded-full px-2 py-0.5">PDF</span>
+            ) : mode === 'image' && value && !looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">Image</span>
+            ) : looksLikePdf ? (
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 border border-amber-200">PDF — tap to open in reader</span>
+            ) : null}
+          </Label>
+          {value ? (
+            <button
+              type="button"
+              className="text-[10px] text-muted-foreground hover:text-destructive inline-flex items-center gap-1"
+              onClick={() => updateContent(field, undefined)}
+              title="Clear image"
+            >
+              <X className="h-3 w-3" /> Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="flex items-stretch gap-2">
+          {value ? (
+            <div className="shrink-0 self-start">
+              <Thumbnail src={value} size={52} />
+            </div>
+          ) : null}
+          <div className="flex flex-col flex-1 gap-2">
+            <div className="flex gap-2">
+              <Input
+                value={value || ''}
+                onChange={(e) => updateContent(field, e.target.value)}
+                placeholder="https://storage.googleapis.com/… or leave blank to upload"
+              />
+              <input
+                ref={inputRef}
+                type="file"
+                accept={accept}
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    setBusy(true);
+                    const url = await uploadOneFile(f);
+                    updateContent(field, url);
+                  } catch (err: any) {
+                    alert('Upload failed: ' + (err?.message || err));
+                  } finally {
+                    setBusy(false);
+                    if (inputRef.current) inputRef.current.value = '';
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+                className="shrink-0"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1.5" />}
+                {busy ? 'Uploading…' : 'Upload'}
+              </Button>
+            </div>
+            {hint ? <p className="text-[10px] text-muted-foreground">{hint}</p> : null}
+            {looksLikePdf && mode === 'image' ? (
+              <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1 border border-amber-200">
+                ⚠️ PDF placed in an image-only slot. Reader will fall back to the tap-to-open PDF card.
+                For pixel-perfect display, export this page from InDesign as <strong>PNG 150dpi</strong> and upload the PNG instead.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const GalleryUploadList = ({
+    label,
+    field,
+    arrayValue,
+    rowsHint,
+    accept = 'image/*,application/pdf',
+  }: {
+    label: string;
+    field: string;
+    arrayValue?: string[];
+    rowsHint?: string;
+    accept?: string;
+  }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const multiInputRef = useRef<HTMLInputElement>(null);
+    const [busySingle, setBusySingle] = useState(false);
+    const [busyMulti, setBusyMulti] = useState(false);
+    const urls: string[] = Array.isArray(arrayValue)
+      ? (arrayValue as any[])
+          .map((v: any) => (typeof v === 'string' ? v : String(v?.src || v?.url || v?.image || '')))
+          .filter(Boolean)
+      : [];
+
+    const replaceAll = (next: string[]) => {
+      updateContent(field, next);
+      updateContent('gallery', next);
+      updateContent('additionalImages', next);
+      updateContent('imageUrls', next);
+    };
+
+    const removeAt = (i: number) => {
+      const next = urls.slice();
+      next.splice(i, 1);
+      replaceAll(next);
+    };
+
+    const move = (i: number, dir: -1 | 1) => {
+      const j = i + dir;
+      if (j < 0 || j >= urls.length) return;
+      const next = urls.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      replaceAll(next);
+    };
+
+    return (
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        <div className="grid grid-cols-1 gap-2">
+          {urls.map((u, i) => (
+            <div
+              key={`${u.slice(-24)}-${i}`}
+              className="flex items-stretch gap-2 rounded-md border bg-muted/10 p-2"
+            >
+            <Thumbnail src={u} size={48} />
+            <Input
+              className="flex-1 min-w-0"
+              value={u}
+              onChange={(e) => {
+                const next = urls.slice();
+                next[i] = e.target.value;
+                replaceAll(next);
+              }}
+            />
+            <div className="flex flex-col items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, -1)} title="Move up">↑</Button>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, 1)} title="Move down">↓</Button>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-auto w-9 shrink-0 text-destructive"
+              onClick={() => removeAt(i)}
+              title="Remove"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                setBusySingle(true);
+                const url = await uploadOneFile(f);
+                replaceAll([...urls, url]);
+              } catch (err: any) {
+                alert('Upload failed: ' + (err?.message || err));
+              } finally {
+                setBusySingle(false);
+                if (inputRef.current) inputRef.current.value = '';
+              }
+            }}
+          />
+          <input
+            ref={multiInputRef}
+            type="file"
+            multiple
+            accept={accept}
+            className="hidden"
+            onChange={async (e) => {
+              const files = Array.from(e.target.files || []);
+              if (!files.length) return;
+              try {
+                setBusyMulti(true);
+                const added: string[] = [];
+                for (const f of files) added.push(await uploadOneFile(f));
+                replaceAll([...urls, ...added]);
+              } catch (err: any) {
+                alert('Upload failed: ' + (err?.message || err));
+              } finally {
+                setBusyMulti(false);
+                if (multiInputRef.current) multiInputRef.current.value = '';
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={busySingle}
+          >
+            {busySingle ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <ImagePlus className="h-4 w-4 mr-1.5" />}
+            {busySingle ? 'Adding…' : 'Add one'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => multiInputRef.current?.click()}
+            disabled={busyMulti}
+          >
+            {busyMulti ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Upload className="h-4 w-4 mr-1.5" />}
+            {busyMulti ? 'Uploading…' : 'Upload many'}
+          </Button>
+          {rowsHint ? <p className="text-[10px] text-muted-foreground ml-auto sm:ml-2">{rowsHint}</p> : null}
+        </div>
+        <Textarea
+          rows={3}
+          placeholder="…or paste URLs, one per line or JSON array."
+          value={urls.join('\n')}
+          onChange={(e) => replaceAll(parseImageUrls(e.target.value))}
+          className="font-mono text-[11px] mt-1"
+        />
+      </div>
+    );
   };
 
   const insertTextAtCursor = (field: string, before: string, after: string = '') => {
@@ -478,8 +770,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
     </div>
   );
 
+  if (!page) {
+    return (
+      <Card className="h-full border-dashed flex items-center justify-center text-center p-12 bg-muted/10">
+        <div className="max-w-xs">
+          <Edit2 className="h-8 w-8 text-muted-foreground mx-auto mb-4 opacity-20" />
+          <p className="text-sm text-muted-foreground">Select a page from the list to edit its content.</p>
+        </div>
+      </Card>
+    );
+  }
+
   const renderEditorFields = () => {
-    const safeContent = content || {};
+    const safeContent: any = content || {};
     
     switch (page.type) {
       case 'cover':
@@ -512,12 +815,20 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Input value={safeContent.issue || ''} onChange={(e) => updateContent('issue', e.target.value)} />
             </div>
             <div className="space-y-2 col-span-2">
-              <Label>Cover Background Image</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
+              <SingleImageRow
+                label="Cover Background Image"
+                field="image"
+                value={safeContent.image}
+                hint="Background of the entire cover spread."
+              />
             </div>
             <div className="space-y-2 col-span-2">
-              <Label>Cover Feature Image (Optional)</Label>
-              <Input value={safeContent.featureImage || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+              <SingleImageRow
+                label="Cover Feature Image (Optional)"
+                field="featureImage"
+                value={safeContent.featureImage}
+                hint="Promotional overlay image."
+              />
             </div>
             <div className="space-y-2 col-span-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
@@ -539,31 +850,26 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 <Input value={safeContent.author || ''} onChange={(e) => updateContent('author', e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Feature Image</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+                <SingleImageRow
+                  label="Feature Image"
+                  field="featureImage"
+                  value={(safeContent.featureImage ?? safeContent.image) || ''}
+                />
             </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Additional Images (Inline / Gallery)</Label>
-              <Textarea
-                rows={3}
-                placeholder="One image URL per line (or paste a JSON array)"
-                value={(() => {
-                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
-                  return '';
-                })()}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  updateContent('images', parseImageUrls(next));
-                }}
+            <div className="col-span-2">
+              <GalleryUploadList
+                label="Additional Images (Inline / Gallery)"
+                field="images"
+                arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
+                rowsHint="First 4 images inline in text, rest in gallery below."
               />
-              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
             </div>
           </div>
-            <div className="space-y-2">
-              <Label>Background Image (Optional)</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
+            <SingleImageRow
+              label="Background Image (Optional)"
+              field="image"
+              value={safeContent.image}
+            />
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
@@ -684,6 +990,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             </div>
           </div>
         );
+      case 'feature-full':
       case 'feature-left': case'feature-right':
         return (
           <div className="space-y-4">
@@ -703,27 +1010,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Feature Image</Label>
               <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Additional Images (Inline / Gallery)</Label>
-              <Textarea
-                rows={3}
-                placeholder="One image URL per line (or paste a JSON array)"
-                value={(() => {
-                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
-                  return '';
-                })()}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  updateContent('images', parseImageUrls(next));
-                }}
+            <div className="col-span-2">
+              <GalleryUploadList
+                label="Additional Images (Inline / Gallery)"
+                field="images"
+                arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
+                rowsHint="First 4 images inline in text, rest in gallery below."
               />
-              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
             </div>
-            <div className="space-y-2">
-              <Label>Background Image (Optional)</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
+            <SingleImageRow
+              label="Background Image (Optional)"
+              field="image"
+              value={safeContent.image}
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -820,30 +1119,21 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Author Name</Label>
               <Input value={safeContent.author || ''} onChange={(e) => updateContent('author', e.target.value)} />
             </div>
+            <SingleImageRow label="Background Image" field="image" value={safeContent.image} />
             <div className="space-y-2">
-              <Label>Background Image</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Feature Image (Optional)</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>Additional Images (Inline / Gallery)</Label>
-              <Textarea
-                rows={3}
-                placeholder="One image URL per line (or paste a JSON array)"
-                value={(() => {
-                  const arr = safeContent.images || safeContent.additionalImages || safeContent.gallery || [];
-                  if (Array.isArray(arr)) return arr.map(a => typeof a === 'string' ? a : String(a?.src || a?.url || a?.image || '').trim()).filter(Boolean).join('\n');
-                  return '';
-                })()}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  updateContent('images', parseImageUrls(next));
-                }}
+              <SingleImageRow
+                label="Feature Image (Optional)"
+                field="featureImage"
+                value={(safeContent.featureImage ?? safeContent.image) || ''}
               />
-              <p className="text-[10px] text-muted-foreground">Up to 4 images will be floated inline in the text. Remaining images form a gallery at the bottom.</p>
+            </div>
+            <div className="col-span-2">
+              <GalleryUploadList
+                label="Additional Images (Inline / Gallery)"
+                field="images"
+                arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
+                rowsHint="First 4 images inline in text, rest in gallery below."
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
@@ -922,18 +1212,24 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} />
             </div>
+            <SingleImageRow
+              label="Logo Image URL (Optional)"
+              field="logo"
+              value={safeContent.logo}
+              accept="image/*"
+            />
             <div className="space-y-2">
-              <Label>Logo Image URL (Optional)</Label>
-              <Input value={safeContent.logo || ''} onChange={(e) => updateContent('logo', e.target.value)} />
+              <SingleImageRow
+                label="Lifestyle Image"
+                field="featureImage"
+                value={(safeContent.featureImage ?? safeContent.image) || ''}
+              />
             </div>
-            <div className="space-y-2">
-              <Label>Lifestyle Image</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Background Image (Optional)</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
+            <SingleImageRow
+              label="Background Image (Optional)"
+              field="image"
+              value={safeContent.image}
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -950,19 +1246,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Additional Images (One URL per line or JSON Array)</Label>
-              <Textarea
-                rows={4}
-                value={lifestyleImagesDraft}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setLifestyleImagesDraft(next);
-                  updateContent('images', parseImageUrls(next));
-                }}
-              />
-              <p className="text-[10px] text-muted-foreground">Paste one image URL per line (recommended) or use JSON: {"[\"https://.../image1.jpg\", \"https://.../image2.jpg\"]"}</p>
-            </div>
+            <GalleryUploadList
+              label="Additional Images (lifestyle gallery)"
+              field="images"
+              arrayValue={
+                (Array.isArray(safeContent.images) && safeContent.images.length)
+                  ? safeContent.images
+                  : (safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || [])
+              }
+              rowsHint="Used as a lifestyle gallery; reorder with ↑/↓ arrows."
+            />
             <div className="space-y-2">
               <Label>Main Text</Label>
               <FormattingToolbar field="text" />
@@ -1036,10 +1329,11 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Spotlight Image</Label>
               <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Background Image (Optional)</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
+            <SingleImageRow
+              label="Background Image (Optional)"
+              field="image"
+              value={safeContent.image}
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -1113,10 +1407,11 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Feature Image</Label>
               <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Background Image (Optional)</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
+            <SingleImageRow
+              label="Background Image (Optional)"
+              field="image"
+              value={safeContent.image}
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -1142,6 +1437,19 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
       case 'full-page-ad':
         return (
           <div className="space-y-4">
+            <div className="rounded-xl border border-[#a3413a]/25 bg-gradient-to-br from-[#a3413a]/5 via-amber-50/40 to-transparent p-4 space-y-2">
+              <p className="text-sm font-semibold text-[#6a2b26] inline-flex items-center gap-2">
+                💡 PDF display in the online magazine reader
+              </p>
+              <p className="text-xs text-stone-700 leading-relaxed">
+                Browsers <strong>cannot reliably embed PDFs inline</strong> from Firebase Storage due to
+                X-Frame-Options / Content-Security-Policy / Chromium ORB blocks.
+              </p>
+              <ul className="text-[11px] text-stone-600 space-y-1 list-disc pl-5 marker:text-[#a3413a]">
+                <li><strong>Perfect (recommended):</strong> Export each PDF ad page to PNG from InDesign (<code>File → Export → PNG, 150 dpi</code>) and upload the PNG into <em>Main Advertisement</em>.</li>
+                <li><strong>Works fine:</strong> Upload the PDF → reader shows a large tap-friendly <em>&ldquo;📄 Open Advert PDF&rdquo;</em> card that opens the PDF in a new tab, with a blurred gradient behind it.</li>
+              </ul>
+            </div>
             <div className="space-y-2">
               <Label>Title</Label>
               <Input value={safeContent.title || ''} onChange={(e) => updateContent('title', e.target.value)} placeholder="Advertisement" />
@@ -1150,16 +1458,28 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>Label (Optional)</Label>
               <Input value={safeContent.label || ''} onChange={(e) => updateContent('label', e.target.value)} placeholder="Advertisement" />
             </div>
-            <div className="space-y-2">
-              <Label>Image URL</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} placeholder="https://..." />
-              <p className="text-[10px] text-muted-foreground">This is the main foreground ad artwork shown on top of the background media.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Background Image URL (Optional)</Label>
-              <Input value={safeContent.backgroundImage || ''} onChange={(e) => updateContent('backgroundImage', e.target.value)} placeholder="https://..." />
-              <p className="text-[10px] text-muted-foreground">Used behind the main ad image when no background video is set.</p>
-            </div>
+            <SingleImageRow
+              label="Main Advertisement (Image or PDF)"
+              field="image"
+              value={safeContent.image}
+              hint="Foreground ad artwork (PNG = renders inline perfectly, PDF = tap-to-open card shown)."
+            />
+            <SingleImageRow
+              label="Background Image / Underlay (Image)"
+              field="backgroundImage"
+              value={safeContent.backgroundImage}
+              mode="image"
+              accept="image/*"
+              hint="Blurred backdrop. (PDFs not accepted here — backdrop only shows pixel-perfect image renders.)"
+            />
+            <SingleImageRow
+              label="PDF (Shown as tap-to-open card)"
+              field="pdfUrl"
+              value={safeContent.pdfUrl}
+              mode="pdf"
+              accept="application/pdf"
+              hint="Dedicated PDF slot. Upload a PDF to show the tap-to-open card without setting a main image."
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Background Video URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -1209,14 +1529,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Label>CTA Button Text</Label>
               <Input value={safeContent.cta || ''} onChange={(e) => updateContent('cta', e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Background Image</Label>
-              <Input value={safeContent.image || ''} onChange={(e) => updateContent('image', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Feature Image (Optional)</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
-            </div>
+            <SingleImageRow label="Background Image" field="image" value={safeContent.image} />
+            <SingleImageRow
+              label="Feature Image (Optional)"
+              field="featureImage"
+              value={(safeContent.featureImage ?? safeContent.image) || ''}
+            />
             <div className="space-y-2">
               <Label className="text-accent flex items-center gap-1.5 font-bold"><Edit2 className="h-3 w-3" /> Video Background URL (Optional)</Label>
               <Input value={safeContent.videoUrl || ''} onChange={(e) => updateContent('videoUrl', e.target.value)} placeholder="https://...mp4" />
@@ -1291,11 +1609,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               <Select
                 value={page.type}
                 onValueChange={(nextType) => {
+                  if (readOnly) return;
                   if (nextType === page.type) return;
                   setPendingType(nextType);
                   setIsTypeDialogOpen(true);
                 }}
-                disabled={isSaving}
+                disabled={isSaving || readOnly}
               >
                 <SelectTrigger className="h-9 w-[220px] bg-white">
                   <SelectValue placeholder="Layout" />
@@ -1309,12 +1628,20 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={() => onSave(content)} disabled={isSaving || hasJsonErrors} className="bg-accent text-white">
+            <Button
+              onClick={() => !readOnly && onSave(normalizeMagazinePageContent(content))}
+              disabled={isSaving || hasJsonErrors || readOnly}
+              className="bg-accent text-white"
+            >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Page
+              {readOnly ? 'Read Only' : 'Save Page'}
             </Button>
           </div>
-          {hasJsonErrors ? (
+          {readOnly ? (
+            <p className="text-[10px] text-muted-foreground/80 sm:text-right">
+              Published via IDML — re-publish the InDesign export to edit this spread.
+            </p>
+          ) : hasJsonErrors ? (
             <p className="text-[10px] text-destructive sm:text-right">Fix JSON errors above before saving.</p>
           ) : null}
         </div>
@@ -1328,6 +1655,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
             className="font-mono text-[10px] mt-2 bg-muted/30 focus:bg-white transition-colors" 
             rows={5}
             value={rawJsonDraft}
+            readOnly={readOnly}
             onFocus={() => {
               rawJsonFocusedRef.current = true;
             }}
@@ -1338,6 +1666,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               }
             }}
             onChange={(e) => {
+              if (readOnly) return;
               const next = e.target.value;
               setRawJsonDraft(next);
               try {
@@ -1378,7 +1707,13 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
         </div>
       </CardContent>
 
-      <AlertDialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
+      <AlertDialog
+        open={isTypeDialogOpen && !readOnly}
+        onOpenChange={(next) => {
+          if (readOnly) return;
+          setIsTypeDialogOpen(next);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Change layout?</AlertDialogTitle>
@@ -1391,11 +1726,14 @@ export function PageEditor({ page, onSave, onChangeType, isSaving }: PageEditorP
               onClick={() => {
                 setPendingType(null);
               }}
+              disabled={readOnly}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={readOnly}
               onClick={() => {
+                if (readOnly) return;
                 if (!pendingType) return;
                 onChangeType?.(pendingType);
                 setPendingType(null);

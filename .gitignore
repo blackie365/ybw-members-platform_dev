@@ -23,6 +23,10 @@ members.csv
 .trae-auth-firebase/
 .trae-vercel-home/
 dev-repos/
+.tmp-audit/
+tsconfig.tsbuildinfo
+tsconfig.typecheck.tsbuildinfo
+*.tsbuildinfo
 
 # Exclude sensitive data and archives
 *.csv

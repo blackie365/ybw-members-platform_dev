@@ -13,6 +13,7 @@ export const PAGE_TYPES = [
   { id: 'cover', label: 'Main Cover', icon: ImageIcon },
   { id: 'editorial', label: 'Editor\'s Note', icon: Type },
   { id: 'contents', label: 'Table of Contents', icon: List },
+  { id: 'feature-full', label: 'Full Feature Spread', icon: Layout },
   { id: 'feature-left', label: 'Hero Spread (Left)', icon: Layout },
   { id: 'feature-right', label: 'Hero Quote (Right)', icon: Layout },
   { id: 'column', label: 'Expert Column', icon: Type },
@@ -30,6 +31,8 @@ export interface MagazinePage {
   storyId?: string;
   sourceRef?: string;
   generatedFromStoryLibrary?: boolean;
+  readOnly?: boolean;
+  sourceReaderEditionId?: string;
   content: any;
   createdAt: string;
   updatedAt?: string;
@@ -42,6 +45,7 @@ export interface StoryLibraryItem {
   standfirst?: string;
   text: string;
   imageUrl?: string;
+  pdfUrl?: string;
   includedInPremiumReader?: boolean;
   premiumReaderPriority?: number;
   premiumReaderContentType?: string;

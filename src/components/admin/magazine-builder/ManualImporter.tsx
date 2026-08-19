@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,9 +12,88 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import type { ReaderPage } from '@/features/magazine/domain/types';
-import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction } from '@/app/actions/magazineActions';
+import { importIdmlFromUrlAction, publishIdmlEditionAction, saveIdmlDraft, loadLatestIdmlDraft, deleteIdmlDraft, extractIdmlStoryLibraryAction, importIdmlToStoryLibraryAction, uploadIdmlFileToStorageAction, importIdmlFromStoragePathForPublishAction } from '@/app/actions/magazineActions';
+
+function normalizeImageUrl(raw: any): string {
+  if (typeof raw !== 'string') return '';
+  let value = raw.trim();
+  if (!value) return '';
+  while (/^[`'"<>\s]+|[`'"<>\s]+$/g.test(value)) {
+    value = value.replace(/^[`'"<>\s]+/, '').replace(/[`'"<>\s]+$/, '');
+  }
+  if (/^(undefined|null|none|n\/a)$/i.test(value)) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  const gsMatch = value.match(/^gs:\/\/([^/]+)\/(.+)$/i);
+  if (gsMatch) {
+    const bucket = gsMatch[1];
+    const path = gsMatch[2];
+    try {
+      const encodedPath = encodeURIComponent(path);
+      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+    } catch {
+      return '';
+    }
+  }
+  return value && /^https?:/i.test(value) ? value : '';
+}
+
+function normalizeStoryLibrary<T extends any>(items: T[]): T[] {
+  if (!Array.isArray(items)) return [];
+  const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage', 'logo', 'pdfUrl'];
+  const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'logoImages', 'coverImages'];
+  return items.map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const next: any = { ...item };
+    for (const k of prim) {
+      if (k in next) {
+        next[k] = normalizeImageUrl(next[k]);
+      }
+    }
+    for (const k of arrs) {
+      if (Array.isArray(next[k])) {
+        next[k] = next[k]
+          .map((entry: any) => normalizeImageUrl(entry))
+          .filter((entry: string) => entry.length > 0);
+      }
+    }
+    if (typeof next.content === 'object' && next.content !== null) {
+      const c: any = { ...next.content };
+      for (const k of prim) {
+        if (k in c) c[k] = normalizeImageUrl(c[k]);
+      }
+      for (const k of arrs) {
+        if (Array.isArray(c[k])) {
+          c[k] = c[k].map((entry: any) => normalizeImageUrl(entry)).filter((s: string) => s.length > 0);
+        }
+      }
+      next.content = c;
+    }
+    return next as T;
+  });
+}
+
+function pickStoryImage(story: any): string {
+  if (!story) return '';
+  const candidates: string[] = [];
+  const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage'];
+  for (const k of prim) {
+    const normalized = normalizeImageUrl(story[k]);
+    if (normalized) candidates.push(normalized);
+  }
+  const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'coverImages', 'logoImages'];
+  for (const k of arrs) {
+    const v = story[k];
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const normalized = normalizeImageUrl(item);
+        if (normalized) candidates.push(normalized);
+      }
+    }
+  }
+  return candidates.find((c) => /^https?:\/\//i.test(c)) || candidates[0] || '';
+}
 
 const decodeXmlEntities = (value: string) => {
   try {
@@ -49,18 +128,22 @@ const deriveStandfirst = (value: string) => {
   return sentence.length <= 180 ? sentence : `${sentence.slice(0, 180).trimEnd()}...`;
 };
 
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = '';
-
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    const chunk = bytes.subarray(index, index + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary);
-};
+const arrayBufferToBase64 = (buffer: ArrayBuffer): Promise<string> =>
+  new Promise<string>((resolve, reject) => {
+    try {
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to encode file'));
+      reader.onload = () => {
+        const raw = String(reader.result || '');
+        const stripped = raw.replace(/^data:[^;]+;base64,/, '');
+        resolve(stripped);
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      reject(err);
+    }
+  });
 
 const getFileNameFromStoragePath = (value: string) => {
   const trimmed = String(value || '').trim().replace(/^gs:\/\//i, '');
@@ -101,6 +184,7 @@ export interface ManualImporterProps {
   isImporting: boolean;
   selectedPageId?: string;
   selectedPageType?: string;
+  selectedPage?: MagazinePage | null | undefined;
   issueId?: string;
   storyLibrary?: StoryLibraryItem[];
   onSaveStoryLibrary?: (storyLibrary: StoryLibraryItem[]) => Promise<void>;
@@ -183,6 +267,7 @@ export function ManualImporter({
   isImporting,
   selectedPageId,
   selectedPageType,
+  selectedPage,
   issueId,
   storyLibrary,
   onSaveStoryLibrary,
@@ -192,6 +277,7 @@ export function ManualImporter({
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [standfirst, setStandfirst] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
@@ -211,6 +297,14 @@ export function ManualImporter({
   const [serverIdmlFileName, setServerIdmlFileName] = useState('');
   const [showServerIdmlPreview, setShowServerIdmlPreview] = useState(false);
   const [serverIdmlDraftId, setServerIdmlDraftId] = useState('');
+  const [lastIdmlStorageUpload, setLastIdmlStorageUpload] = useState<{
+    gsUrl: string;
+    httpsUrl: string;
+    path: string;
+    fileName: string;
+    sizeBytes: number;
+  } | null>(null);
+  const [isStoringIdml, setIsStoringIdml] = useState(false);
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
@@ -229,6 +323,9 @@ export function ManualImporter({
       if (result.success && result.data) {
         const draft = result.data as any;
         const draftPages = Array.isArray(draft.pages) ? draft.pages : [];
+        if (serverIdmlPages.length > 0 || idmlFileName) {
+          return;
+        }
         setServerIdmlPages(draftPages);
         setServerIdmlMeta(draft.metadata || (draftPages.length > 0 ? buildFallbackIdmlDraftMeta(draftPages, draft.fileName || '') : null));
         setServerIdmlStats(draft.stats || (draftPages.length > 0 ? deriveIdmlDraftStats(draftPages) : null));
@@ -237,7 +334,31 @@ export function ManualImporter({
         setShowServerIdmlPreview(draftPages.length > 0);
       }
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selectedPageId || !selectedPage) {
+      setTitle('');
+      setAuthor('');
+      setStandfirst('');
+      setRawText('');
+      setImageUrl('');
+      setImageHints([]);
+      setSelectedStoryPath('');
+      return;
+    }
+    const content = selectedPage.content || {};
+    const manualContent = content.manualContent || content;
+    const storyObj = content.story || manualContent.story || content.article || manualContent.article || {};
+
+    setTitle(String(manualContent.title || content.title || storyObj.title || '').trim());
+    setAuthor(String(manualContent.author || manualContent.name || content.author || content.name || storyObj.author || '').trim());
+    setStandfirst(String(manualContent.intro || manualContent.standfirst || manualContent.role || manualContent.headline || content.intro || content.standfirst || content.role || storyObj.standfirst || '').trim());
+    setRawText(String(manualContent.text || manualContent.body || manualContent.bio || content.text || content.body || content.bio || storyObj.text || storyObj.body || '').trim());
+    setImageUrl(pickStoryImage(storyObj) || pickStoryImage(manualContent) || pickStoryImage(content) || '');
+    setImageHints(Array.isArray(content.imageFileNames) ? content.imageFileNames : Array.isArray(storyObj.imageFileNames) ? storyObj.imageFileNames : Array.isArray(manualContent.imageFileNames) ? manualContent.imageFileNames : []);
+  }, [selectedPageId, selectedPage]);
 
   const applyInDesignStory = (story: ParsedInDesignStory) => {
     if (story.title) setTitle(story.title);
@@ -376,7 +497,8 @@ export function ManualImporter({
       toast.error('Please create the edition first');
       return;
     }
-    await onSaveStoryLibrary(next);
+    const normalized = normalizeStoryLibrary(Array.isArray(next) ? next : []);
+    await onSaveStoryLibrary(normalized);
   };
 
   const handleSaveSelectedStoryToLibrary = async () => {
@@ -454,61 +576,104 @@ export function ManualImporter({
       return;
     }
 
+    const normalizedImage = normalizeImageUrl(imageUrl);
+    const imgList = normalizedImage ? [normalizedImage] : [];
+    const commonImageFields = normalizedImage
+      ? {
+          image: normalizedImage,
+          featureImage: normalizedImage,
+          heroImage: normalizedImage,
+          mainImage: normalizedImage,
+          photo: normalizedImage,
+          imageUrl: normalizedImage,
+          coverImage: normalizedImage,
+          images: imgList,
+          gallery: imgList,
+          additionalImages: imgList,
+        }
+      : {
+          image: '',
+          featureImage: '',
+          heroImage: '',
+          mainImage: '',
+          photo: '',
+          imageUrl: '',
+          coverImage: '',
+          images: [],
+          gallery: [],
+          additionalImages: [],
+        };
+
     // Map manual fields to the selected template type
-    const manualContent: any = {};
+    const manualContent: any = { ...commonImageFields };
     
     switch (selectedPageType) {
       case 'editorial':
         manualContent.title = title || 'Editorial';
         manualContent.author = author || 'Gill Laidler';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
+        manualContent.headshot = normalizedImage;
+        manualContent.portrait = normalizedImage;
         break;
       case 'column':
         manualContent.title = title || 'Expert Column';
         manualContent.author = author || 'Guest Contributor';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'feature-left': case'feature-right':
         manualContent.name = author || 'Featured Guest';
         manualContent.title = title || 'Feature Story';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
-        manualContent.quote = rawText.substring(0, 100) + '...';
+        manualContent.quote = standfirst || rawText.substring(0, 100) + '...';
         break;
       case 'spotlight':
         manualContent.title = title || 'Member Spotlight';
         manualContent.name = author || 'Member Name';
+        manualContent.role = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.bio = rawText;
-        manualContent.image = imageUrl;
+        manualContent.headshot = normalizedImage;
+        manualContent.portrait = normalizedImage;
+        manualContent.message = standfirst || rawText.substring(0, 140) + '...';
         break;
       case 'lifestyle':
         manualContent.title = title || 'Lifestyle';
+        manualContent.kicker = 'Lifestyle';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'partner':
         manualContent.title = title || 'Partner Feature';
         manualContent.brand = author || 'Partner Name';
         manualContent.headline = title || 'Partner Feature';
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
+        manualContent.partnerLogo = normalizedImage;
+        manualContent.logoImage = normalizedImage;
+        manualContent.offer = standfirst;
         break;
       case 'back-cover':
         manualContent.title = title || 'Next Edition';
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         break;
       case 'full-page-ad':
         manualContent.title = title || 'Advertisement';
-        manualContent.image = imageUrl;
+        manualContent.backgroundImage = normalizedImage;
         manualContent.alt = title || 'Advertisement';
         break;
       default:
         manualContent.text = rawText;
-        manualContent.image = imageUrl;
         manualContent.title = title;
+        manualContent.intro = standfirst;
+        manualContent.standfirst = standfirst;
     }
 
     // Mock a post object for the existing onImport handler
@@ -525,6 +690,7 @@ export function ManualImporter({
       setImageUrl('');
       setTitle('');
       setAuthor('');
+      setStandfirst('');
     } catch (err) {
       toast.error('Failed to import manual content');
     }
@@ -573,7 +739,7 @@ export function ManualImporter({
           res = await response.json();
         } else {
           const fileBuffer = await file.arrayBuffer();
-          const idmlBase64 = arrayBufferToBase64(fileBuffer);
+          const idmlBase64 = await arrayBufferToBase64(fileBuffer);
           res = canSaveDirectly
             ? await importIdmlToStoryLibraryAction(String(issueId), idmlBase64, file.name)
             : await extractIdmlStoryLibraryAction(idmlBase64, file.name);
@@ -688,9 +854,40 @@ export function ManualImporter({
         );
       });
 
+      let resolvedGsUrl: string | null = null;
+      try {
+        const match = fileUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
+        const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
+        const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
+        const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
+        if (bucketName && objectPath) {
+          resolvedGsUrl = `gs://${bucketName}/${objectPath}`;
+          setLastIdmlStorageUpload({
+            gsUrl: resolvedGsUrl,
+            httpsUrl: fileUrl,
+            path: objectPath,
+            fileName: file.name,
+            sizeBytes: file.size,
+          });
+          setStoredIdmlPath(resolvedGsUrl);
+        }
+      } catch (parseErr) {
+        console.warn('[IDML] Failed to derive Storage URL for stored-path field:', parseErr);
+      }
+
       toast.info('Parsing IDML on server...', { id: 'upload-progress' });
 
-      const result = await importIdmlFromUrlAction(fileUrl, file.name);
+      // CRITICAL FIX: use the gs:// storage path → admin SDK download route,
+      // NOT the Firebase Storage public URL + uncredentialed server fetch.
+      // The URL fetch fails (400/403) because server actions have no Firebase
+      // Auth / Storage rule context, but admin SDK bypasses rules entirely —
+      // this is why the "old upload route" (stored-path import) always worked.
+      let result: any;
+      if (resolvedGsUrl) {
+        result = await importIdmlFromStoragePathForPublishAction(resolvedGsUrl, file.name);
+      } else {
+        result = await importIdmlFromUrlAction(fileUrl, file.name);
+      }
 
       if (!result.success) {
         toast.error(result.error || 'Failed to parse IDML', { id: 'upload-progress' });
@@ -736,6 +933,7 @@ export function ManualImporter({
         title: publishMeta.title,
         description: publishMeta.description,
         coverImage: publishMeta.coverImage,
+        issueId: issueId,
       });
 
       if (!result.success) {
@@ -743,7 +941,11 @@ export function ManualImporter({
         return;
       }
 
-      toast.success(`Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`);
+      toast.success(
+        issueId
+          ? `Published "${publishMeta.title}" (${serverIdmlPages.length} pages) — linked to issue ${issueId}`
+          : `Published "${publishMeta.title}" (${serverIdmlPages.length} pages)`,
+      );
       if (serverIdmlDraftId) {
         deleteIdmlDraft(serverIdmlDraftId).catch((err) => console.warn('[IDML] Failed to delete draft:', err));
       }
@@ -826,6 +1028,16 @@ export function ManualImporter({
             </div>
 
             <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Standfirst / Intro / Role</Label>
+              <Textarea 
+                placeholder="Short intro, role, or 1-line standfirst that renders above the main body..." 
+                rows={3}
+                value={standfirst}
+                onChange={(e) => setStandfirst(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Image URL (Firebase/Ghost/Public)</Label>
               <div className="flex gap-2">
                 <Input 
@@ -865,17 +1077,21 @@ export function ManualImporter({
           </>
         )}
 
-        <div id="story-library" className="rounded-lg border border-border bg-background p-4 space-y-4">
+        <div id="story-library" className="rounded-lg border-2 border-accent/40 bg-accent/5 p-4 space-y-4">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Import from InDesign</p>
-            <p className="text-[10px] text-muted-foreground">
-              Upload one IDML file and the system can pull the stories into the Story Library automatically. Linked images can still be uploaded separately by filename.
+            <p className="text-xs font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+              <BookOpen className="h-3.5 w-3.5" />
+              Import IDML → Story Library → Issue Spreads
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <strong>Recommended path for Issue Spreads:</strong> upload your full <code className="bg-background px-1 rounded border border-border">.idml</code> below.
+              Stories are extracted into the Story Library, then spreads auto-create (Cover → Contents → Articles → Back cover) the next time you visit the <strong>Spread Builder</strong> tab.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">InDesign story file (ICML/XML)</Label>
+              <Label className="text-xs uppercase tracking-wider text-foreground/80">Full InDesign Issue (.idml)</Label>
               <Input
                 type="file"
                 accept=".idml,.icml,.xml,.txt"
@@ -887,7 +1103,8 @@ export function ManualImporter({
                 }}
               />
               <p className="text-[10px] text-muted-foreground">
-                For full issue ingestion, use `IDML`. Single `ICML/XML` files are still supported for one-off imports.
+                Upload a full <code>.idml</code> to extract every article into the Story Library.
+                ICML/XML/TXT also accepted for single-story imports.
               </p>
             </div>
 
@@ -904,6 +1121,10 @@ export function ManualImporter({
                   handleUploadImages(files);
                 }}
               />
+              <p className="text-[10px] text-muted-foreground">
+                Images embedded inside the IDML are extracted automatically.
+                Add linked graphics here by filename if needed.
+              </p>
             </div>
           </div>
 
@@ -1166,6 +1387,89 @@ export function ManualImporter({
               Parsing IDML file on server...
             </div>
           )}
+
+          {lastIdmlStorageUpload ? (
+            <div className="space-y-3 rounded-md border border-accent/40 bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+                    File saved to Firebase Storage
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {lastIdmlStorageUpload.fileName} ·{' '}
+                    {(lastIdmlStorageUpload.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] shrink-0"
+                  onClick={() => {
+                    if (!lastIdmlStorageUpload) return;
+                    setStoredIdmlPath(lastIdmlStorageUpload.gsUrl);
+                    toast.success('Stored IDML path filled with Firebase Storage URL');
+                  }}
+                >
+                  Fill stored path
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    gs:// URL (use in Stored IDML path)
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.gsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.gsUrl);
+                          toast.success('Copied gs:// URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    HTTPS download URL
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.httpsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.httpsUrl);
+                          toast.success('Copied HTTPS URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {canRenderServerIdmlControls && renderableServerIdmlMeta && (
             <div className="space-y-4">
