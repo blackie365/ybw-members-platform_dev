@@ -407,9 +407,8 @@ function collapseSplitStoryPages(pages: ReaderPage[]): ReaderPage[] {
     });
   }
 
-  return collapsed.map((page, index) => ({
+  return collapsed.map((page) => ({
     ...page,
-    position: index + 1,
     content: {
       ...page.content,
       isContinuation: false,
@@ -702,21 +701,7 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     .sort((left, right) => {
       const lPos = typeof left.position === 'number' ? left.position : 0;
       const rPos = typeof right.position === 'number' ? right.position : 0;
-      if (lPos !== rPos) return lPos - rPos;
-      const ROLE: Record<string, number> = {
-        cover: 0,
-        contents: 1,
-        'editor-note': 2,
-        'feature-full': 10,
-        'feature-left': 11,
-        'feature-right': 12,
-        ad: 20,
-        'full-page-ad': 20,
-        'back-cover': 99,
-      };
-      const lRole = ROLE[String(left.template || '').trim().toLowerCase()] ?? 100;
-      const rRole = ROLE[String(right.template || '').trim().toLowerCase()] ?? 100;
-      return lRole - rRole;
+      return lPos - rPos;
     });
   const collapsedPages = collapseSplitStoryPages(pages);
   const rebuilt: ReaderEdition = {

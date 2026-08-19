@@ -108,33 +108,10 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       });
     }
 
-    // Canonical role order ensures Cover → Contents → Editor's Note →
-    // Articles → Back Cover even if legacy published ReaderEdition pages
-    // had position collisions (position 0 for all structural pages) or
-    // incorrect numeric assignments from earlier build bugs.
-    const ROLE = new Map([
-      ["cover", 0],
-      ["contents", 1],
-      ["editor-note", 2],
-      ["feature-full", 10],
-      ["feature-left", 11],
-      ["feature-right", 12],
-      ["ad", 20],
-      ["full-page-ad", 20],
-      ["back-cover", 99],
-    ]);
-    const roleOf = (t: unknown): number => {
-      const k = String(t || "").trim().toLowerCase();
-      return ROLE.has(k) ? Number(ROLE.get(k)) : 100;
-    };
-
     return raw.sort((left, right) => {
       const lPos = typeof left.position === "number" ? left.position : 0;
       const rPos = typeof right.position === "number" ? right.position : 0;
-      if (lPos !== rPos) return lPos - rPos;
-      const lRole = roleOf(left.template);
-      const rRole = roleOf(right.template);
-      return lRole - rRole;
+      return lPos - rPos;
     });
   }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
