@@ -22,6 +22,7 @@ import {
 
 interface MagazineShellProps {
   edition: ReaderEdition;
+  editionSlug?: string;
 }
 
 function humanizeTemplate(template: string): string {
@@ -73,7 +74,7 @@ function findRenderedIndexByPrintPageNumber(
   return -1;
 }
 
-export default function MagazineShell({ edition }: MagazineShellProps) {
+export default function MagazineShell({ edition, editionSlug }: MagazineShellProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -495,6 +496,7 @@ export default function MagazineShell({ edition }: MagazineShellProps) {
                 page={current.page}
                 viewModel={current.viewModel}
                 imageVersion={imageVersion}
+                editionSlug={editionSlug}
               />
             ) : current ? (
               <section className="mx-auto max-w-6xl px-6 py-16">

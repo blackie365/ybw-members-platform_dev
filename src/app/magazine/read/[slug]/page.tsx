@@ -20,5 +20,5 @@ export default async function MagazineReadPage({ params }: { params: Promise<{ s
     redirect('/new-edition');
   }
 
-  return <MagazineShell edition={edition} />;
+  return <MagazineShell edition={edition} editionSlug={slug} />;
 }
