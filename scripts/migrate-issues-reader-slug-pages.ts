@@ -431,8 +431,21 @@ async function main() {
       const looksLikeArticleTitle = (s: string) =>
         /(achieves|appoints|announces|awarded|launches|partners|reveals|celebrates|expands|secures|acquires|invests|welcomes|hosts|new\s+[a-z]+\s+(deal|fund|role|initiative)|strategy|results|quarter|profit|growth|record|survey|report)\b/i.test(s) ||
         /^(?:the|a|an|west|east|north|south|new|leading|top|major|global|local|leading|award-winning|multi-award)\b/i.test(s);
+      const editionYearRegex = /(?:19|20)\d{2}/;
+      const seasonMonthWords = ['january','february','march','april','may','june','july','august','september','october','november','december','winter','spring','summer','autumn','fall'];
+      const editionNouns = ['edition','issue','magazine','businesswoman','ybw'];
+      const looksLikeEditionSlug = (s: string) => {
+        const norm = `-${s.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-`;
+        const hasYear = editionYearRegex.test(s);
+        const hasSeasonMonth = seasonMonthWords.some((k) => norm.includes(`-${k}-`));
+        const hasEditionNoun = editionNouns.some((k) => norm.includes(`-${k}-`));
+        return (hasYear && (hasSeasonMonth || hasEditionNoun)) || (hasSeasonMonth && hasEditionNoun);
+      };
       const looksLikeBadArticleSlug = (s: string) =>
-        looksLikeArticleTitle(s) && !/(?:january|february|march|april|may|june|july|august|september|october|november|december|winter|spring|summer|autumn|fall|edition|issue|businesswoman|ybw|20\d{2}|yorkshire)/i.test(s);
+        looksLikeArticleTitle(s) && !looksLikeEditionSlug(s);
+
+      let legacyRewriteSlug: string | null = null;
+      let legacyRewriteTitle: string | null = null;
 
       if (legacyReader?.id) {
         try {
@@ -448,15 +461,11 @@ async function main() {
             const reWriteIssueSlug = currentSlugField && looksLikeBadArticleSlug(currentSlugField);
             const reWriteIssueRESlug = currentRESlug && looksLikeBadArticleSlug(currentRESlug);
 
-            if (looksLikeBadArticleSlug(derivedSlug) && String(issue.title || '').toLowerCase().includes('law')) {
-              // Hardened override for the 2026 summer issue. The title here is
-              // a genuine edition-level title but the slugify cascade can pick
-              // up a poisoned readerEditionSlug from a legacy doc that was
-              // written with the cover-page story headline as its slug.
-              // Derive a clean edition slug from the issue title directly.
+            if (looksLikeBadArticleSlug(derivedSlug)) {
               const issueTitle = String(issue.title || '').trim();
               const cleanFromTitle = slugify(issueTitle).toLowerCase();
               if (cleanFromTitle && !looksLikeBadArticleSlug(cleanFromTitle)) {
+                console.log(`   • derivedSlug "${derivedSlug}" flagged as article-poisoned → using title slug "${cleanFromTitle}"`);
                 derivedSlug = cleanFromTitle;
               }
             }
@@ -467,16 +476,18 @@ async function main() {
                 id: issue.id,
                 title: issueTitleClean,
                 ghostSyncTag: issue.ghostSyncTag,
-                readerEditionSlug: issue.readerEditionSlug,
+                readerEditionSlug: '',
                 slug: '',
               }).toLowerCase();
               if (!looksLikeBadArticleSlug(issueSlugClean)) {
-                if (looksLikeBadArticleSlug(derivedSlug)) {
-                  console.log(`   • issue slug was article-poisoned "${derivedSlug}" → "${issueSlugClean}"`);
+                if (derivedSlug !== issueSlugClean) {
+                  console.log(`   • overriding slug "${derivedSlug}" → edition-level "${issueSlugClean}" (legacy metadata was poisoned)`);
                   derivedSlug = issueSlugClean;
                 }
                 if (reWriteLegacySlug || reWriteLegacyTitle) {
-                  console.log(`   • legacy ReaderEdition ${legacyReader.id} slug="${legacySlug}" (article-poisoned) → will rewrite slug+title to edition-level "${derivedSlug}" / "${issueTitleClean || legacyTitle}"`);
+                  legacyRewriteSlug = derivedSlug;
+                  legacyRewriteTitle = issueTitleClean || legacyTitle;
+                  console.log(`   • legacy ReaderEdition ${legacyReader.id} slug="${legacySlug}" title="${legacyTitle}" (article-poisoned) → will rewrite slug+title to edition-level "${legacyRewriteSlug}" / "${legacyRewriteTitle}"`);
                 }
               }
             }
@@ -485,11 +496,17 @@ async function main() {
       }
 
       const currentSlug = String(issue.slug || '').trim().toLowerCase();
-      const needsSlug = currentSlug !== derivedSlug;
-      if (needsSlug) {
+      const currentRESlugNow = String(issue.readerEditionSlug || '').trim().toLowerCase();
+      const needsSlug = currentSlug !== derivedSlug || currentRESlugNow !== derivedSlug;
+      if (currentSlug !== derivedSlug) {
         console.log(`   • slug: "${currentSlug || '(none)'}" → "${derivedSlug}"`);
         stats.issuesSlugUpdated++;
-      } else if (currentSlug) {
+      }
+      if (currentRESlugNow !== derivedSlug) {
+        console.log(`   • readerEditionSlug: "${currentRESlugNow || '(none)'}" → "${derivedSlug}"`);
+        if (currentSlug === derivedSlug) stats.issuesSlugUpdated++;
+      }
+      if (currentSlug === derivedSlug && currentRESlugNow === derivedSlug && currentSlug) {
         console.log(`   • slug OK: "${currentSlug}"`);
       }
 
@@ -524,6 +541,7 @@ async function main() {
             issueDocRef,
             {
               slug: derivedSlug,
+              readerEditionSlug: derivedSlug,
               schemaVersion: CURRENT_READER_SCHEMA_VERSION,
               updatedAt: new Date().toISOString(),
               ...(issue.readerEditionId
@@ -547,12 +565,36 @@ async function main() {
         if (!DRY) {
           await db.collection('magazine_issues').doc(issue.id).set(
             {
-              ...(needsSlug ? { slug: derivedSlug } : {}),
+              ...(needsSlug ? { slug: derivedSlug, readerEditionSlug: derivedSlug } : {}),
               ...(needsSchemaStamp ? { schemaVersion: CURRENT_READER_SCHEMA_VERSION } : {}),
               updatedAt: new Date().toISOString(),
             },
             { merge: true },
           );
+        }
+      }
+
+      if (!DRY && (legacyRewriteSlug || legacyRewriteTitle)) {
+        const rewriteEditionId = issue.readerEditionId || legacyReader?.id;
+        if (rewriteEditionId) {
+          try {
+            const editionPayload: Record<string, unknown> = {};
+            if (legacyRewriteSlug) editionPayload.slug = legacyRewriteSlug;
+            if (legacyRewriteTitle) editionPayload.title = legacyRewriteTitle;
+            editionPayload.schemaVersion = CURRENT_READER_SCHEMA_VERSION;
+            editionPayload.updatedAt = new Date().toISOString();
+            await db
+              .collection('magazine_reader_editions')
+              .doc(rewriteEditionId)
+              .set(editionPayload, { merge: true });
+            console.log(
+              `   • ✅ legacy ReaderEdition id=${rewriteEditionId} APPLIED slug+title rewrite: ${JSON.stringify(editionPayload)}`,
+            );
+          } catch (rewriteErr: any) {
+            console.warn(
+              `   • ⚠️  failed to rewrite legacy ReaderEdition id=${rewriteEditionId}: ${String(rewriteErr?.message || rewriteErr)}`,
+            );
+          }
         }
       }
     } catch (err: any) {
