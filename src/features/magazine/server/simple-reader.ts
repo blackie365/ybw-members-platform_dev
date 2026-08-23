@@ -606,32 +606,29 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
 export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
   const db = getFirestore();
 
-  if (isReaderSchemaCurrent(edition) && typeof (edition as any).pageCount === 'number') {
-    const pages = (edition.pages || []).map(sanitizeReaderPage);
-    return {
-      ...edition,
-      pages,
-      pageCount: pages.length,
-      coverImage: sanitizeImageUrl(edition.coverImage) || '',
-      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-    };
-  }
+  // ── Schema-version fast path scope ──────────────────────────────────────
+  // CURRENT_READER_SCHEMA_VERSION only means we can SKIP the expensive
+  // per-page async content hydration step (fetching StoryLibrary matches,
+  // InDesign frame lookups, etc.). We MUST STILL ALWAYS perform the
+  // deterministic read-side normalization pipeline:
+  //   1. position ASC sort        (legacy stored positions are non-contiguous
+  //                                after old split-story publish writes)
+  //   2. read-side template defense (editor-note vs contents vs ad cleanup
+  //                                for pre-2026-08-14 publish bugs)
+  //   3. collapseSplitStoryPages  (A/B split halves → one logical story)
+  //   4. renumber position 1..N   (guarantees MagazineShell pages.sort is
+  //                                stable and "page 1" is actually the cover)
+  //   5. cover image derivation    (from template=cover page content)
+  // Without these, a legacy doc stamped schemaVersion=1 is returned raw and
+  // the reader shows mid-edition articles on page 1 (garbage stored order)
+  // and split-story duplicates with blank A/B halves.
+  const schemaCurrent = isReaderSchemaCurrent(edition) && typeof (edition as any).pageCount === 'number';
 
-  if (!db) {
-    return {
-      ...edition,
-      pages: (edition.pages || []).map(sanitizeReaderPage),
-      pageCount: Array.isArray(edition.pages) ? edition.pages.length : 0,
-      coverImage: sanitizeImageUrl(edition.coverImage) || '',
-      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-    };
-  }
-
-  const issues = await getMagazineIssuesServer().catch(() => []);
+  const issues = db ? await getMagazineIssuesServer().catch(() => []) : [];
   const matchingIssue = issues.find((issue) => editionMatchesIssue(edition, issue)) ?? null;
   const issueCover = matchingIssue ? sanitizeImageUrl(matchingIssue.coverImage) || '' : '';
   let legacyPages: ReaderPage[] = [];
-  if (matchingIssue) {
+  if (db && matchingIssue) {
     const pagesSnapshot = await db
       .collection(LEGACY_ISSUES_COLLECTION)
       .doc(matchingIssue.id)
@@ -666,30 +663,29 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     }
   }
 
-  const mergedPages = (edition.pages || []).map((page) =>
-    mergeReaderPageWithLegacy(page, legacyByKey.get(buildLegacyLookupKey(page))),
-  );
+  const rawPages: ReaderPage[] = Array.isArray(edition.pages) ? [...edition.pages] : [];
+  let pages: ReaderPage[];
 
-  const existingKeys = new Set(mergedPages.map((page) => buildLegacyLookupKey(page)));
-  const maxPosition = mergedPages.reduce((max, page) => Math.max(max, Number(page.position) || 0), 0);
-  const appendedLegacyPages = legacyPages
-    .filter((page) => !existingKeys.has(buildLegacyLookupKey(page)))
-    .map((page, index) => ({
-      ...page,
-      position: maxPosition + index + 1,
-    }));
+  if (legacyPages.length > 0) {
+    const mergedPages = rawPages.map((page) =>
+      mergeReaderPageWithLegacy(page, legacyByKey.get(buildLegacyLookupKey(page))),
+    );
+    const existingKeys = new Set(mergedPages.map((page) => buildLegacyLookupKey(page)));
+    const maxPosition = mergedPages.reduce((max, page) => Math.max(max, Number(page.position) || 0), 0);
+    const appendedLegacyPages = legacyPages
+      .filter((page) => !existingKeys.has(buildLegacyLookupKey(page)))
+      .map((page, index) => ({
+        ...page,
+        position: maxPosition + index + 1,
+      }));
+    pages = [...mergedPages, ...appendedLegacyPages];
+  } else {
+    pages = rawPages;
+  }
 
-  const pages = [...mergedPages, ...appendedLegacyPages]
+  pages = pages
     .map(sanitizeReaderPage)
     .map((page) => {
-      // FINAL READ-SIDE DEFENSE: Never let a page that reads like an
-      // Editor's Note (title / body contain "Editor's Note" / "From the
-      // Editor" / "Editorial") be rendered as template=contents, even if
-      // a legacy publish bug (pre-2026-08-14) wrote that template field
-      // into the ReaderEdition pages[] doc. This is the user-reported
-      // issue for `ybw_August_2026.idml pages-5-5` (storyId
-      // ...library-idml-editorial-5) which showed the rik-rak Contents
-      // grid instead of PageEditorial.
       const template = String(page.template || '').trim().toLowerCase();
       const ct = page.content?.title && typeof page.content.title === 'string'
         ? page.content.title.trim().toLowerCase()
@@ -740,8 +736,17 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     pageCount: collapsedPagesRenumbered.length,
     schemaVersion: CURRENT_READER_SCHEMA_VERSION,
   };
-  const hydrated = hydrateReaderEditionContents(rebuilt);
-  const out = (hydrated as ReaderEdition | null) ?? rebuilt;
+
+  // Only skip the expensive per-page content hydration pipeline when the
+  // schema already matches the current version; otherwise run it to pick up
+  // any content-field aliases / URL fixes written by newer import code.
+  let out: ReaderEdition;
+  if (schemaCurrent) {
+    out = rebuilt;
+  } else {
+    const hydrated = hydrateReaderEditionContents(rebuilt);
+    out = (hydrated as ReaderEdition | null) ?? rebuilt;
+  }
   if (typeof (out as any).schemaVersion !== 'number') {
     (out as any).schemaVersion = CURRENT_READER_SCHEMA_VERSION;
   }
