@@ -8,7 +8,7 @@ import {
   isReaderSchemaCurrent,
   normalizeImageUrl,
 } from '@/lib/magazine-utils';
-export { CURRENT_READER_SCHEMA_VERSION };
+export { CURRENT_READER_SCHEMA_VERSION, normalizeReaderEditionStructural };
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
 import {
@@ -425,6 +425,87 @@ function collapseSplitStoryPages(pages: ReaderPage[]): ReaderPage[] {
   }));
 }
 
+/**
+ * Deterministic read-side structural normalization pipeline.
+ *
+ * This MUST run on BOTH:
+ *   1. Legacy magazine_reader_editions doc path (hydrateEditionWithLegacyPages)
+ *   2. Builder-primary magazine_issues → pages subcollection path
+ *      (mapBuilderIssueToReaderEdition output)
+ *
+ * Without this, split-story A/B halves are not collapsed → 62 raw pages
+ * instead of 46 logical pages, stored non-contiguous positions break
+ * pages.sort(), and pre-2026-08 template misassignments (contents page labelled
+ * editor-note due to "editorial" text in intro) leak through into the reader.
+ *
+ * Pipeline order (idempotent):
+ *   1. sanitizeReaderPage per page (dedupe body, alias body/text, URL fix)
+ *   2. read-side template defense (editorial-vs-contents-vs-ad classification)
+ *   3. position ASC sort (guarantees pages.sort is stable)
+ *   4. collapseSplitStoryPages (A/B halves → single logical story)
+ *   5. renumber position 1..N (guarantees findPageIndexByClickHint works)
+ *   6. cover image derivation (from first template=cover page)
+ */
+function normalizeReaderEditionStructural<T extends ReaderEdition>(
+  edition: T,
+  pagesIn: ReaderPage[],
+  issueCoverFallback: string = '',
+): T & { pages: ReaderPage[]; pageCount: number; schemaVersion: number } {
+  const pagesStructural = pagesIn
+    .map(sanitizeReaderPage)
+    .map((page) => {
+      const template = String(page.template || '').trim().toLowerCase();
+      const ct = page.content?.title && typeof page.content.title === 'string'
+        ? page.content.title.trim().toLowerCase()
+        : '';
+      const cb = page.content?.body && typeof page.content.body === 'string'
+        ? page.content.body.trim().slice(0, 320).toLowerCase()
+        : (page.content?.text && typeof page.content.text === 'string'
+          ? page.content.text.trim().slice(0, 320).toLowerCase()
+          : '');
+      const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${ct} ${cb}`);
+      const looksLikeAd = /\b(advertisement|advert|ad page|sponsor|sponsored by)\b/.test(`${ct} ${cb}`) &&
+        !Array.isArray(page.content?.items);
+      const hasItems = Array.isArray(page.content?.items) && page.content.items.length > 0;
+      let nextTemplate = page.template;
+      if (template === 'editor-note') nextTemplate = 'editor-note';
+      else if (template === 'contents' && looksLikeEditorial) nextTemplate = 'editor-note';
+      else if (looksLikeEditorial && !hasItems) nextTemplate = 'editor-note';
+      else if (template === 'ad' || template === 'full-page-ad') nextTemplate = 'ad';
+      else if (looksLikeAd && !looksLikeEditorial) nextTemplate = 'ad';
+      let content = page.content;
+      if (nextTemplate === 'editor-note') {
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'ad') {
+        content = { ...(content || {}), items: [] };
+      } else if (nextTemplate === 'contents') {
+        content = { ...(content || {}) };
+      }
+      return sanitizeReaderPage({ ...page, template: nextTemplate, content });
+    })
+    .sort((left, right) => {
+      const lPos = typeof left.position === 'number' ? left.position : 0;
+      const rPos = typeof right.position === 'number' ? right.position : 0;
+      return lPos - rPos;
+    });
+  const collapsedPages = collapseSplitStoryPages(pagesStructural);
+  const collapsedPagesRenumbered = collapsedPages.map((page, index) => ({
+    ...page,
+    position: index + 1,
+  }));
+  return {
+    ...edition,
+    coverImage:
+      collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
+      sanitizeImageUrl(edition.coverImage) ||
+      issueCoverFallback ||
+      '',
+    pages: collapsedPagesRenumbered,
+    pageCount: collapsedPagesRenumbered.length,
+    schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+  };
+}
+
 function mapLegacyTypeToTemplate(type: unknown): ReaderPage['template'] | null {
   switch (String(type || '').trim()) {
     case 'cover':
@@ -683,59 +764,7 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     pages = rawPages;
   }
 
-  pages = pages
-    .map(sanitizeReaderPage)
-    .map((page) => {
-      const template = String(page.template || '').trim().toLowerCase();
-      const ct = page.content?.title && typeof page.content.title === 'string'
-        ? page.content.title.trim().toLowerCase()
-        : '';
-      const cb = page.content?.body && typeof page.content.body === 'string'
-        ? page.content.body.trim().slice(0, 320).toLowerCase()
-        : (page.content?.text && typeof page.content.text === 'string'
-          ? page.content.text.trim().slice(0, 320).toLowerCase()
-          : '');
-      const looksLikeEditorial = /\b(editor('?s)? note|from the editor|editorial)\b/.test(`${ct} ${cb}`);
-      const looksLikeAd = /\b(advertisement|advert|ad page|sponsor|sponsored by)\b/.test(`${ct} ${cb}`) &&
-        !Array.isArray(page.content?.items);
-      const hasItems = Array.isArray(page.content?.items) && page.content.items.length > 0;
-      let nextTemplate = page.template;
-      if (template === 'editor-note') nextTemplate = 'editor-note';
-      else if (template === 'contents' && looksLikeEditorial) nextTemplate = 'editor-note';
-      else if (looksLikeEditorial && !hasItems) nextTemplate = 'editor-note';
-      else if (template === 'ad' || template === 'full-page-ad') nextTemplate = 'ad';
-      else if (looksLikeAd && !looksLikeEditorial) nextTemplate = 'ad';
-      let content = page.content;
-      if (nextTemplate === 'editor-note') {
-        content = { ...(content || {}), items: [] };
-      } else if (nextTemplate === 'ad') {
-        content = { ...(content || {}), items: [] };
-      } else if (nextTemplate === 'contents') {
-        content = { ...(content || {}) };
-      }
-      return sanitizeReaderPage({ ...page, template: nextTemplate, content });
-    })
-    .sort((left, right) => {
-      const lPos = typeof left.position === 'number' ? left.position : 0;
-      const rPos = typeof right.position === 'number' ? right.position : 0;
-      return lPos - rPos;
-    });
-  const collapsedPages = collapseSplitStoryPages(pages);
-  const collapsedPagesRenumbered = collapsedPages.map((page, index) => ({
-    ...page,
-    position: index + 1,
-  }));
-  const rebuilt: ReaderEdition & { schemaVersion?: number } = {
-    ...edition,
-    coverImage:
-      collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
-      sanitizeImageUrl(edition.coverImage) ||
-      issueCover ||
-      '',
-    pages: collapsedPagesRenumbered,
-    pageCount: collapsedPagesRenumbered.length,
-    schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-  };
+  const rebuilt = normalizeReaderEditionStructural(edition, pages, issueCover);
 
   // Only skip the expensive per-page content hydration pipeline when the
   // schema already matches the current version; otherwise run it to pick up
@@ -784,13 +813,18 @@ async function getReaderEditionFromBuilderIssue(
     schemaVersion?: number;
     readerEditionSlug?: string;
     slug?: string;
+    coverImage?: string;
   } = {
     ...(serializeData(issueRaw) as any),
     id: issueId,
   };
   const pages = await loadBuilderPages(firestore, issueId);
   if (pages.length === 0) return null;
-  return mapBuilderIssueToReaderEdition(issue, pages);
+  const mapped = mapBuilderIssueToReaderEdition(issue, pages);
+  const issueCover = sanitizeImageUrl(issue.coverImage) || '';
+  const structural = normalizeReaderEditionStructural(mapped, mapped.pages, issueCover);
+  const hydrated = hydrateReaderEditionContents(structural);
+  return (hydrated as ReaderEdition | null) ?? structural;
 }
 
 async function findBuilderIssueBySlug(
@@ -982,8 +1016,12 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
         const issue = {
           ...(serializeData(raw) as any),
           id,
-        } as MagazineIssue & { id: string };
-        return mapBuilderIssueToReaderEdition(issue, pages);
+        } as MagazineIssue & { id: string; coverImage?: string };
+        const mapped = mapBuilderIssueToReaderEdition(issue, pages);
+        const issueCover = sanitizeImageUrl(issue.coverImage) || '';
+        const structural = normalizeReaderEditionStructural(mapped, mapped.pages, issueCover);
+        const hydrated = hydrateReaderEditionContents(structural);
+        return (hydrated as ReaderEdition | null) ?? structural;
       }
     } catch (err) {
       console.warn('[getReaderEditionById] builder-primary failed, legacy fallback:', err);
