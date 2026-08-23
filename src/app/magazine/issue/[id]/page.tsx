@@ -11,6 +11,7 @@ import {
 } from '@/features/magazine/server/simple-reader';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
+import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -39,7 +40,7 @@ function pickLinkedReaderEdition(
   return byMatch || null;
 }
 
-export default async function DigitalMagazinePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DigitalMagazinePage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
   const [directIssue, allIssues, readerEditions] = await Promise.all([
     getMagazineIssueServer(id),
@@ -50,6 +51,27 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
 
   if (!issue) {
     redirect('/new-edition');
+  }
+
+  const canonicalSlug = deriveIssueSlug({
+    id: String(issue.id || ''),
+    title: String(issue.title || ''),
+    ghostSyncTag: String((issue as any).ghostSyncTag || ''),
+    readerEditionSlug: String((issue as any).readerEditionSlug || ''),
+    slug: String((issue as any).slug || ''),
+  }).trim().toLowerCase();
+  const fallbackIdSlug = `issue-${String(issue.id || '').toLowerCase()}`;
+  if (canonicalSlug && canonicalSlug !== fallbackIdSlug) {
+    const sp = await searchParams;
+    const query = new URLSearchParams();
+    if (sp) {
+      for (const [k, v] of Object.entries(sp)) {
+        if (Array.isArray(v)) v.forEach((val) => query.append(k, String(val || '')));
+        else if (v) query.set(k, String(v));
+      }
+    }
+    const queryStr = query.toString();
+    redirect(queryStr ? `/magazine/read/${canonicalSlug}?${queryStr}` : `/magazine/read/${canonicalSlug}`);
   }
 
   // Prefer a linked ReaderEdition whenever one exists — its pages[] are already
