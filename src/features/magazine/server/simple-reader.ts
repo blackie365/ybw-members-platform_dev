@@ -725,6 +725,10 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
       return lPos - rPos;
     });
   const collapsedPages = collapseSplitStoryPages(pages);
+  const collapsedPagesRenumbered = collapsedPages.map((page, index) => ({
+    ...page,
+    position: index + 1,
+  }));
   const rebuilt: ReaderEdition & { schemaVersion?: number } = {
     ...edition,
     coverImage:
@@ -732,8 +736,8 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
       sanitizeImageUrl(edition.coverImage) ||
       issueCover ||
       '',
-    pages: collapsedPages,
-    pageCount: collapsedPages.length,
+    pages: collapsedPagesRenumbered,
+    pageCount: collapsedPagesRenumbered.length,
     schemaVersion: CURRENT_READER_SCHEMA_VERSION,
   };
   const hydrated = hydrateReaderEditionContents(rebuilt);
