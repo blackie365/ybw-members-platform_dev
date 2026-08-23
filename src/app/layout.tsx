@@ -80,11 +80,15 @@ export default async function RootLayout({
   children
 
 }: Readonly<{children: React.ReactNode;}>) {
-  const trendingPosts = await getPosts({
+  const trendingPostsPromise = getPosts({
     limit: 8,
     filter: "published_at:>='2024-01-01'",
     order: 'published_at DESC'
   }).catch(() => []);
+  const timeoutPromise = new Promise<any[]>((resolve) => {
+    setTimeout(() => resolve([]), 300);
+  });
+  const trendingPosts = await Promise.race([trendingPostsPromise, timeoutPromise]);
 
   let headerAd: any | undefined;
   try {

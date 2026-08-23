@@ -8,8 +8,19 @@ import { getPosts } from '@/lib/ghost';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
-import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages } from '@/features/magazine/server/simple-reader';
+import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages, CURRENT_READER_SCHEMA_VERSION } from '@/features/magazine/server/simple-reader';
 import { fixMagazineImageUrl, hydrateReaderEditionContents, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
+import {
+  deriveIssueSlug,
+} from '@/features/magazine/domain/builder-to-reader';
+import {
+  ReaderEditionSchema,
+  ReaderPageSchema,
+  MagazinePageSchema,
+  StoryLibraryItemSchema,
+  MagazineIssueSchema,
+  safeParseMagazine,
+} from '@/features/magazine/domain/validation-schemas';
 
 function safeRevalidatePath(path: string) {
   try {
@@ -971,19 +982,45 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     if (!adminDb) throw new Error("Database not initialized");
 
     const { id: _ignoredId, ...rest } = data ?? {};
-    await adminDb.collection('magazine_issues').doc(issueId).update({
-      ...rest,
-      updatedAt: new Date().toISOString()
-    });
+    const issueDoc = await adminDb.collection('magazine_issues').doc(issueId).get();
+    const existing = issueDoc.exists ? issueDoc.data() : {};
+    const mergedTitle = String(rest.title ?? existing?.title ?? '').trim();
+    const mergedTag = String(rest.ghostSyncTag ?? existing?.ghostSyncTag ?? '').trim();
+    const mergedReaderSlug = String(rest.readerEditionSlug ?? existing?.readerEditionSlug ?? '').trim();
+    const currentSlug = String(rest.slug ?? existing?.slug ?? '').trim();
+    const slug = currentSlug || deriveIssueSlug({
+      id: issueId,
+      title: mergedTitle,
+      ghostSyncTag: mergedTag,
+      readerEditionSlug: mergedReaderSlug,
+    }).toLowerCase();
 
-    await syncReaderEditionsForIssue(issueId).catch((error) => {
-      console.error('Failed to sync reader edition covers for issue:', error);
+    const validated = safeParseMagazine(
+      MagazineIssueSchema,
+      {
+        ...existing,
+        ...rest,
+        id: issueId,
+        slug,
+        title: mergedTitle,
+      },
+      `updateMagazineIssueAction issueId=${issueId}`,
+    );
+    if (!validated.ok) {
+      return { success: false, error: validated.error, validationIssues: validated.issues };
+    }
+
+    const { id: _idFromValidated, ...cleanValidated } = validated.value as any;
+    await adminDb.collection('magazine_issues').doc(issueId).update({
+      ...cleanValidated,
+      slug,
+      updatedAt: new Date().toISOString()
     });
 
     safeRevalidatePath('/admin/magazine');
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
-    return { success: true };
+    return { success: true, slug };
   } catch (error: any) {
     console.error("Error in updateMagazineIssueAction:", error);
     return { success: false, error: error.message };
@@ -1016,7 +1053,22 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
     await checkAdmin();
     if (!adminDb) throw new Error('Database not initialized');
 
-    const resolvedItems = await persistStoryLibraryForIssue(issueId, storyLibrary);
+    const validatedItems: StoryLibraryItem[] = [];
+    for (let i = 0; i < (Array.isArray(storyLibrary) ? storyLibrary.length : 0); i += 1) {
+      const raw = storyLibrary[i];
+      const parsed = safeParseMagazine(
+        StoryLibraryItemSchema,
+        raw,
+        `StoryLibraryItem[${i}] title="${String((raw as any)?.title || '').slice(0, 60)}"`,
+      );
+      if (!parsed.ok) {
+        console.error('[saveMagazineStoryLibraryAction] validation failed:\n', parsed.error);
+        return { success: false, error: parsed.error, validationIssues: parsed.issues };
+      }
+      validatedItems.push(parsed.value as unknown as StoryLibraryItem);
+    }
+
+    const resolvedItems = await persistStoryLibraryForIssue(issueId, validatedItems);
 
     // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
     // The builder page client already updates issue.storyLibrary state optimistically after
@@ -1048,10 +1100,6 @@ export async function setLatestMagazineIssueAction(issueId: string) {
         tx.update(doc.ref, { isLatest: false, updatedAt: now });
       }
       tx.set(issuesRef.doc(issueId), { isLatest: true, updatedAt: now }, { merge: true });
-    });
-
-    await syncReaderEditionsForIssue(issueId).catch((error) => {
-      console.error('Failed to sync reader edition covers for latest issue:', error);
     });
 
     safeRevalidatePath('/admin/magazine');
@@ -1095,20 +1143,36 @@ export async function createMagazineIssueAction(data: any) {
     if (!adminDb) throw new Error("Database not initialized");
 
     const { id: _ignoredId, ...rest } = data ?? {};
-    const docRef = await adminDb.collection('magazine_issues').add({
+    const slug = deriveIssueSlug({
+      id: 'new',
+      title: String(rest.title || '').trim(),
+      ghostSyncTag: String(rest.ghostSyncTag || '').trim(),
+      readerEditionSlug: String(rest.readerEditionSlug || '').trim(),
+      slug: String(rest.slug || '').trim(),
+    }).toLowerCase();
+
+    const payload = {
       ...rest,
+      slug,
+      title: String(rest.title || '').trim(),
+    };
+    const validated = safeParseMagazine(MagazineIssueSchema, payload, 'createMagazineIssueAction');
+    if (!validated.ok) {
+      return { success: false, error: validated.error, validationIssues: validated.issues };
+    }
+
+    const { id: _vId, ...cleanCreate } = validated.value as any;
+    const docRef = await adminDb.collection('magazine_issues').add({
+      ...cleanCreate,
+      slug,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    });
-
-    await syncReaderEditionsForIssue(docRef.id).catch((error) => {
-      console.error('Failed to sync reader edition covers for new issue:', error);
     });
 
     safeRevalidatePath('/admin/magazine');
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
-    return { success: true, id: docRef.id };
+    return { success: true, id: docRef.id, slug };
   } catch (error: any) {
     console.error("Error in createMagazineIssueAction:", error);
     return { success: false, error: error.message };
@@ -1167,17 +1231,18 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const payload: any = { ...data, updatedAt: new Date().toISOString() };
-    if (payload.content && typeof payload.content === 'object') {
-      payload.content = normalizeMagazinePageContent(payload.content);
+    const raw: any = { docId: pageId, id: data?.id ?? 0, type: data?.type ?? 'feature-full', ...data, updatedAt: new Date().toISOString() };
+    if (raw.content && typeof raw.content === 'object') {
+      raw.content = normalizeMagazinePageContent(raw.content);
     }
+    const validated = safeParseMagazine(MagazinePageSchema, raw, `MagazinePage pageId=${pageId} (updateMagazinePageAction)`);
+    if (!validated.ok) {
+      console.error('[updateMagazinePageAction] validation failed:\n', validated.error);
+      return { success: false, error: validated.error, validationIssues: validated.issues };
+    }
+    const payload: any = { ...validated.value };
+    delete payload.docId;
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
-
-    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
-    // The client already updates pages state optimistically, and triggering a
-    // Next.js revalidate races with subsequent getMagazinePagesAction() reads
-    // which may return stale cached page records, causing "deleted pages
-    // reappear after a couple seconds" or saves to flip back.
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -1190,20 +1255,26 @@ export async function addMagazinePageAction(issueId: string, data: any) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const payload: any = {
+    const now = new Date().toISOString();
+    const raw: any = {
+      docId: `new-${Math.random().toString(36).slice(2, 10)}`,
+      id: data?.id ?? 0,
+      type: data?.type ?? 'feature-full',
       ...data,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-    if (payload.content && typeof payload.content === 'object') {
-      payload.content = normalizeMagazinePageContent(payload.content);
+    if (raw.content && typeof raw.content === 'object') {
+      raw.content = normalizeMagazinePageContent(raw.content);
     }
+    const validated = safeParseMagazine(MagazinePageSchema, raw, 'MagazinePage (addMagazinePageAction)');
+    if (!validated.ok) {
+      console.error('[addMagazinePageAction] validation failed:\n', validated.error);
+      return { success: false, error: validated.error, validationIssues: validated.issues };
+    }
+    const payload: any = { ...validated.value };
+    delete payload.docId;
     const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
-
-    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
-    // See updateMagazinePageAction above — Next.js cache reads race with
-    // fresh Firestore writes and cause "deleted pages come back" on the
-    // builder admin page.
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -1346,36 +1417,48 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
 
   const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
 
-  let pages = mapIdmlToReaderPages(parsed.pages);
+  const rawMappedPages = mapIdmlToReaderPages(parsed.pages);
 
   const resolve = (name: string): string =>
     normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
-  pages = pages.map((page) => ({
-    ...page,
+  let pages: Array<ReaderPage & { content: Record<string, unknown> }> = rawMappedPages.map((page) => ({
+    ...(page as ReaderPage),
     content: {
-      ...page.content,
-      imageUrl: resolve(page.content.imageUrl || ''),
-      imageUrls: (page.content.imageUrls || []).map(resolve),
-      backgroundImage: resolve(page.content.backgroundImage || ''),
+      ...(page.content as Record<string, unknown>),
+      imageUrl: resolve(String(page.content.imageUrl || '')),
+      imageUrls: (Array.isArray(page.content.imageUrls) ? page.content.imageUrls : []).map(resolve),
+      backgroundImage: resolve(String(page.content.backgroundImage || '')),
       // Logo image resolution (separate key; never mixed into hero/gallery)
-      logoImage: resolve(page.content.logoImage || ''),
-      logoImages: (page.content.logoImages || []).map(resolve),
-      partnerLogo: resolve(page.content.partnerLogo || page.content.logoImage || ''),
+      logoImage: resolve(String(page.content.logoImage || '')),
+      logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map(resolve),
+      partnerLogo: resolve(String(page.content.partnerLogo || page.content.logoImage || '')),
       // Canonical aliases (mapper populates these too; resolve so they're all valid URLs)
-      image: resolve(page.content.image || ''),
-      featureImage: resolve(page.content.featureImage || ''),
-      heroImage: resolve(page.content.heroImage || ''),
-      mainImage: resolve(page.content.mainImage || ''),
-      coverImage: resolve(page.content.coverImage || ''),
-      images: (page.content.images || []).map(resolve),
-      gallery: (page.content.gallery || []).map(resolve),
-      additionalImages: (page.content.additionalImages || []).map(resolve),
+      image: resolve(String(page.content.image || '')),
+      featureImage: resolve(String(page.content.featureImage || '')),
+      heroImage: resolve(String(page.content.heroImage || '')),
+      mainImage: resolve(String(page.content.mainImage || '')),
+      coverImage: resolve(String(page.content.coverImage || '')),
+      images: (Array.isArray(page.content.images) ? page.content.images : []).map(resolve),
+      gallery: (Array.isArray(page.content.gallery) ? page.content.gallery : []).map(resolve),
+      additionalImages: (Array.isArray(page.content.additionalImages) ? page.content.additionalImages : []).map(resolve),
       // PDF ads keep special pdfUrl resolution for iframe/CTA src
       pdfUrl: page.content.pdfUrl
-        ? normalizeImageUrl(imageUrls[page.content.pdfUrl] || page.content.pdfUrl) || undefined
+        ? normalizeImageUrl(imageUrls[String(page.content.pdfUrl)] || String(page.content.pdfUrl)) || undefined
         : undefined,
-    },
-  }));
+    } as Record<string, unknown>,
+  })) as Array<ReaderPage & { content: Record<string, unknown> }>;
+
+  for (let i = 0; i < pages.length; i += 1) {
+    const validated = safeParseMagazine<ReaderPage>(
+      ReaderPageSchema,
+      pages[i],
+      `IDML mapped page[${i}] id="${String(pages[i].id || '')}"`,
+    );
+    if (!validated.ok) {
+      throw new Error(validated.error);
+    }
+    pages[i] = validated.value;
+  }
 
   const metadata = buildEditionMetadata(pages, fileName);
 
@@ -1582,7 +1665,7 @@ export async function publishIdmlEditionAction(params: {
 
     const existingId = await getReaderEditionIdBySlug(slug);
 
-    const edition: ReaderEdition = {
+    const rawEdition: ReaderEdition & { schemaVersion?: number } = {
       id: existingId ?? `idml-${slug}-${Date.now().toString(36)}`,
       slug,
       title: params.title,
@@ -1595,8 +1678,14 @@ export async function publishIdmlEditionAction(params: {
       issueId: params.issueId || undefined,
     };
 
-    const hydrated = hydrateReaderEditionContents(edition) ?? edition;
-    await upsertReaderEdition(hydrated as ReaderEdition);
+    const validated = safeParseMagazine(ReaderEditionSchema, rawEdition, 'ReaderEdition (publishIdmlEditionAction)');
+    if (!validated.ok) {
+      console.error('[publishIdmlEditionAction] Zod validation failed:\n', validated.error);
+      return { success: false, error: validated.error, validationIssues: validated.issues };
+    }
+
+    const edition: ReaderEdition = hydrateReaderEditionContents(validated.value) ?? validated.value;
+    await upsertReaderEdition(edition);
 
     if (params.issueId) {
       try {
@@ -1606,10 +1695,12 @@ export async function publishIdmlEditionAction(params: {
           await issueRef.set({
             readerEditionId: edition.id,
             readerEditionSlug: edition.slug,
+            slug: edition.slug,
             readerEditionPublished: true,
             readerEditionTitle: edition.title,
             readerEditionPublishDate: edition.publishDate || now,
             readerEditionPageCount: edition.pageCount,
+            schemaVersion: CURRENT_READER_SCHEMA_VERSION,
           }, { merge: true }).catch((err) => console.warn('Failed to link reader edition to magazine_issue:', err));
         }
       } catch (syncError: any) {

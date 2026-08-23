@@ -2,12 +2,20 @@ import { adminDb } from '@/lib/firebase-admin';
 import { db as clientFirestoreDb } from '@/lib/firebase';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import {
+  CURRENT_READER_SCHEMA_VERSION,
   fixMagazineImageUrl,
   hydrateReaderEditionContents,
+  isReaderSchemaCurrent,
   normalizeImageUrl,
 } from '@/lib/magazine-utils';
+export { CURRENT_READER_SCHEMA_VERSION };
 import type { ReaderEdition, ReaderPage } from '../domain/types';
 import { editionRecordsMatch } from '../domain/edition-match';
+import {
+  mapBuilderIssueToReaderEdition,
+  deriveIssueSlug,
+} from '../domain/builder-to-reader';
+import type { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 
 /**
  * Pick a working Firestore instance.
@@ -597,12 +605,25 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
 
 export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Promise<ReaderEdition> {
   const db = getFirestore();
+
+  if (isReaderSchemaCurrent(edition) && typeof (edition as any).pageCount === 'number') {
+    const pages = (edition.pages || []).map(sanitizeReaderPage);
+    return {
+      ...edition,
+      pages,
+      pageCount: pages.length,
+      coverImage: sanitizeImageUrl(edition.coverImage) || '',
+      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+    };
+  }
+
   if (!db) {
     return {
       ...edition,
       pages: (edition.pages || []).map(sanitizeReaderPage),
       pageCount: Array.isArray(edition.pages) ? edition.pages.length : 0,
       coverImage: sanitizeImageUrl(edition.coverImage) || '',
+      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
     };
   }
 
@@ -704,7 +725,7 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
       return lPos - rPos;
     });
   const collapsedPages = collapseSplitStoryPages(pages);
-  const rebuilt: ReaderEdition = {
+  const rebuilt: ReaderEdition & { schemaVersion?: number } = {
     ...edition,
     coverImage:
       collapsedPages.find((page) => page.template === 'cover')?.content.imageUrl ||
@@ -713,28 +734,165 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
       '',
     pages: collapsedPages,
     pageCount: collapsedPages.length,
+    schemaVersion: CURRENT_READER_SCHEMA_VERSION,
   };
   const hydrated = hydrateReaderEditionContents(rebuilt);
-  return (hydrated as ReaderEdition | null) ?? rebuilt;
+  const out = (hydrated as ReaderEdition | null) ?? rebuilt;
+  if (typeof (out as any).schemaVersion !== 'number') {
+    (out as any).schemaVersion = CURRENT_READER_SCHEMA_VERSION;
+  }
+  return out;
+}
+
+async function loadBuilderPages(firestore: any, issueId: string): Promise<MagazinePage[]> {
+  const snap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .doc(issueId)
+    .collection('pages')
+    .orderBy('id', 'asc')
+    .get()
+    .catch(async () =>
+      firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).collection('pages').get(),
+    );
+  const docs = snap?.docs ?? [];
+  return docs.map((doc: any) => {
+    const raw = doc.data ? doc.data() : doc;
+    const serialized = serializeData(raw);
+    return {
+      docId: doc.id,
+      ...serialized,
+    } as MagazinePage;
+  });
+}
+
+async function getReaderEditionFromBuilderIssue(
+  firestore: any,
+  issueId: string,
+  issueRaw: Record<string, unknown>,
+): Promise<ReaderEdition | null> {
+  const issue: MagazineIssue & {
+    id: string;
+    schemaVersion?: number;
+    readerEditionSlug?: string;
+    slug?: string;
+  } = {
+    ...(serializeData(issueRaw) as any),
+    id: issueId,
+  };
+  const pages = await loadBuilderPages(firestore, issueId);
+  if (pages.length === 0) return null;
+  return mapBuilderIssueToReaderEdition(issue, pages);
+}
+
+async function findBuilderIssueBySlug(
+  firestore: any,
+  slug: string,
+): Promise<{ issueId: string; issueRaw: Record<string, unknown> } | null> {
+  const slugLower = String(slug || '').trim().toLowerCase();
+  if (!slugLower) return null;
+
+  // 1. Direct equality on `slug` / `readerEditionSlug`
+  const slugSnap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .where('slug', '==', slugLower)
+    .limit(2)
+    .get()
+    .catch(() => ({ empty: true, docs: [] }));
+  if (slugSnap && !slugSnap.empty && slugSnap.docs?.length > 0) {
+    const d = slugSnap.docs[0];
+    return { issueId: d.id, issueRaw: (d.data ? d.data() : d) as Record<string, unknown> };
+  }
+  const resnap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .where('readerEditionSlug', '==', slugLower)
+    .limit(2)
+    .get()
+    .catch(() => ({ empty: true, docs: [] }));
+  if (resnap && !resnap.empty && resnap.docs?.length > 0) {
+    const d = resnap.docs[0];
+    return { issueId: d.id, issueRaw: (d.data ? d.data() : d) as Record<string, unknown> };
+  }
+
+  // 2. Derive slug from issue and match — handles old issues without slug field
+  const allSnap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .orderBy('publishDate', 'desc')
+    .limit(50)
+    .get()
+    .catch(() => ({ empty: true, docs: [] }));
+  const docs = allSnap?.docs ?? [];
+  for (const d of docs) {
+    const raw = (d.data ? d.data() : d) as Record<string, unknown>;
+    const derived = deriveIssueSlug({
+      id: d.id,
+      title: String(raw.title || ''),
+      ghostSyncTag: String(raw.ghostSyncTag || ''),
+      readerEditionSlug: String(raw.readerEditionSlug || ''),
+      slug: String(raw.slug || ''),
+    }).toLowerCase();
+    if (derived === slugLower) {
+      return { issueId: d.id, issueRaw: raw };
+    }
+  }
+  return null;
 }
 
 export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
   const firestore = getFirestore();
   if (!firestore) return [];
+
+  const builderSnap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .orderBy('publishDate', 'desc')
+    .limit(limit)
+    .get()
+    .catch(() => ({ empty: true, docs: [] }));
+  const builderDocs = builderSnap?.docs ?? [];
+  const fromBuilder: ReaderEdition[] = [];
+  for (const doc of builderDocs) {
+    try {
+      const raw = (doc.data ? doc.data() : doc) as Record<string, unknown>;
+      const ed = await getReaderEditionFromBuilderIssue(firestore, doc.id, raw);
+      if (ed) fromBuilder.push(ed);
+    } catch (err) {
+      console.warn(`[listReaderEditions] builder issue ${doc.id} failed to map:`, err);
+    }
+  }
+  if (fromBuilder.length > 0) return fromBuilder;
+
   const snapshot = await firestore
     .collection(COLLECTION)
     .orderBy('publishDate', 'desc')
     .limit(limit)
     .get();
   const docs = snapshot?.docs ?? [];
-  return Promise.all(docs.map(async (doc: any) =>
-    hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition),
-  ));
+  return Promise.all(
+    docs.map(async (doc: any) =>
+      hydrateEditionWithLegacyPages(
+        serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+      ),
+    ),
+  );
 }
 
 export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
+
+  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
+  if (builderMatch) {
+    try {
+      const ed = await getReaderEditionFromBuilderIssue(
+        firestore,
+        builderMatch.issueId,
+        builderMatch.issueRaw,
+      );
+      if (ed) return ed;
+    } catch (err) {
+      console.warn('[getReaderEditionBySlug] builder primary failed, falling back to legacy:', err);
+    }
+  }
+
   const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
@@ -743,12 +901,18 @@ export async function getReaderEditionBySlug(slug: string): Promise<ReaderEditio
   const docs = snapshot?.docs ?? [];
   if (docs.length === 0) return null;
   const doc = docs[0];
-  return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
+  return hydrateEditionWithLegacyPages(
+    serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+  );
 }
 
 export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
+
+  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
+  if (builderMatch) return builderMatch.issueId;
+
   const snapshot = await firestore
     .collection(COLLECTION)
     .where('slug', '==', slug)
@@ -761,6 +925,19 @@ export async function getReaderEditionIdBySlug(slug: string): Promise<string | n
 export async function getReaderEditionByIssueId(issueId: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
+
+  const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
+  const issueExists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
+  if (issueExists) {
+    try {
+      const issueRaw = (issueDoc.data ? issueDoc.data() : issueDoc) as Record<string, unknown>;
+      const ed = await getReaderEditionFromBuilderIssue(firestore, issueId, issueRaw);
+      if (ed) return ed;
+    } catch (err) {
+      console.warn('[getReaderEditionByIssueId] builder-primary failed, legacy fallback:', err);
+    }
+  }
+
   const explicitSnapshot = await firestore
     .collection(COLLECTION)
     .where('issueId', '==', issueId)
@@ -770,11 +947,13 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
   const explicitDocs = explicitSnapshot?.docs ?? [];
   if (explicitDocs.length > 0) {
     const doc = explicitDocs[0];
-    return hydrateEditionWithLegacyPages(serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
+    return hydrateEditionWithLegacyPages(
+      serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+    );
   }
-  const issueDoc = await firestore.collection('magazine_issues').doc(issueId).get();
-  const issueRaw = issueDoc?.exists && issueDoc.data ? issueDoc.data() : null;
-  const linkedId = issueRaw ? String((issueRaw as any).readerEditionId || '').trim() : '';
+  const issueRaw =
+    issueExists && issueDoc.data ? (issueDoc.data() as Record<string, unknown>) : null;
+  const linkedId = issueRaw ? String(issueRaw.readerEditionId || '').trim() : '';
   if (!linkedId) return null;
   return getReaderEditionById(linkedId);
 }
@@ -782,16 +961,42 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
+
+  const builderDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(id).get();
+  const builderExists =
+    typeof builderDoc?.exists === 'boolean' ? builderDoc.exists : Boolean(builderDoc);
+  if (builderExists) {
+    try {
+      const raw = (builderDoc.data ? builderDoc.data() : builderDoc) as Record<string, unknown>;
+      const pages = await loadBuilderPages(firestore, id);
+      if (pages.length > 0) {
+        const issue = {
+          ...(serializeData(raw) as any),
+          id,
+        } as MagazineIssue & { id: string };
+        return mapBuilderIssueToReaderEdition(issue, pages);
+      }
+    } catch (err) {
+      console.warn('[getReaderEditionById] builder-primary failed, legacy fallback:', err);
+    }
+  }
+
   const doc = await firestore.collection(COLLECTION).doc(id).get();
   const exists = typeof doc?.exists === 'boolean' ? doc.exists : Boolean(doc);
   if (!exists) return null;
-  return hydrateEditionWithLegacyPages(serializeData({ id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition);
+  return hydrateEditionWithLegacyPages(
+    serializeData({ id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+  );
 }
 
 export async function upsertReaderEdition(edition: ReaderEdition): Promise<void> {
   const firestore = getFirestore();
   if (!firestore) throw new Error('Firebase not configured for server writes');
-  await firestore.collection(COLLECTION).doc(edition.id).set(edition, { merge: true });
+  const stamped: ReaderEdition & { schemaVersion: number } = {
+    ...edition,
+    schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+  };
+  await firestore.collection(COLLECTION).doc(edition.id).set(stamped, { merge: true });
 }
 
 export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {

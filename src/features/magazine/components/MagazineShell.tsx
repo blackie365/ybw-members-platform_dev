@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -75,6 +76,7 @@ function findRenderedIndexByPrintPageNumber(
 }
 
 export default function MagazineShell({ edition, editionSlug }: MagazineShellProps) {
+  const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(0);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -115,6 +117,18 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
     });
   }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
+
+  useEffect(() => {
+    const raw = String(searchParams?.get('page') || searchParams?.get('p') || '').trim();
+    if (!raw) return;
+    const pageNum = Number(raw);
+    if (!Number.isFinite(pageNum)) return;
+    const clamped = Math.max(1, Math.min(pageNum, pages.length || 1));
+    const targetIdx = clamped - 1;
+    if (targetIdx >= 0 && targetIdx < pages.length) {
+      setCurrentPage(targetIdx);
+    }
+  }, [pages, searchParams]);
 
   const renderedPages = useMemo(() => {
     return pages.map((page) => {

@@ -85,64 +85,50 @@ export default async function MagazinePage() {
   let errorOccurred = false;
 
   try {
-    // 1. Fetch the latest featured posts for the carousel
-    featuredPosts = await getPosts({
-      limit: 5,
-      filter: "featured:true",
-      order: "published_at DESC"
-    });
+    const getFeaturedHomepageEventSlug = async (): Promise<string | null> => {
+      try {
+        if (!adminDb) return null;
+        const doc = await adminDb.collection('settings').doc('featured-homepage-event').get();
+        if (!doc.exists) return null;
+        const d = doc.data() as { slug?: unknown } | undefined;
+        return typeof d?.slug === 'string' && d.slug.trim() ? d.slug.trim() : null;
+      } catch (e) {
+        console.error("Home page failed to read featured-homepage-event:", e);
+        return null;
+      }
+    };
 
-    // 2. Fetch the latest posts chronologically for the grid
-    recentPosts = await getPosts({ 
-      limit: 15, 
-      order: "published_at DESC" 
-    });
-
-    // 2b. Fetch latest events + admin-chosen home popup featured event slug
-    const [eventsFetched, featuredHomepageEventFetched] = await Promise.all([
-      getPosts({
-        limit: 3,
-        filter: "tag:events",
-        order: "published_at DESC"
-      }),
-      (async () => {
-        try {
-          if (!adminDb) return null;
-          const doc = await adminDb.collection('settings').doc('featured-homepage-event').get();
-          if (!doc.exists) return null;
-          const d = doc.data() as { slug?: unknown } | undefined;
-          return typeof d?.slug === 'string' && d.slug.trim() ? d.slug.trim() : null;
-        } catch (e) {
-          console.error("Home page failed to read featured-homepage-event:", e);
-          return null;
-        }
-      })(),
+    const [
+      featuredPostsRes,
+      recentPostsRes,
+      eventsRes,
+      editorsBlogRes,
+      fashionRes,
+      healthRes,
+      tagsRes,
+      featuredHomepageEventRes,
+      featuredMembersRes,
+    ] = await Promise.all([
+      getPosts({ limit: 5, filter: "featured:true", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 15, order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 3, filter: "tag:events", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 3, filter: "tag:editorial,tag:editors-blog,tag:editors", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 3, filter: "tag:fashion-lifestyle", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 3, filter: "tag:health-wellbeing", order: "published_at DESC" }).catch(() => []),
+      getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' }).catch(() => []),
+      getFeaturedHomepageEventSlug(),
+      getFeaturedMembers(),
     ]);
-    latestEvents = eventsFetched;
-    featuredHomepageEventSlug = featuredHomepageEventFetched;
 
-    // 2c. Fetch editor-led and category specific posts
-    editorsBlogPosts = await getPosts({
-      limit: 3,
-      filter: "tag:editorial,tag:editors-blog,tag:editors",
-      order: "published_at DESC"
-    });
-
-    fashionPosts = await getPosts({
-      limit: 3,
-      filter: "tag:fashion-lifestyle",
-      order: "published_at DESC"
-    });
-
-    healthPosts = await getPosts({
-      limit: 3,
-      filter: "tag:health-wellbeing",
-      order: "published_at DESC"
-    });
-
-    tags = await getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' });
-    const featuredMembers = await getFeaturedMembers();
-    featuredMember = featuredMembers.length > 0 ? featuredMembers[0] : null;
+    featuredPosts = featuredPostsRes;
+    recentPosts = recentPostsRes;
+    latestEvents = eventsRes;
+    editorsBlogPosts = editorsBlogRes;
+    fashionPosts = fashionRes;
+    healthPosts = healthRes;
+    tags = tagsRes;
+    featuredHomepageEventSlug = featuredHomepageEventRes;
+    featuredMember = featuredMembersRes.length > 0 ? featuredMembersRes[0] : null;
   } catch (error) {
     console.error("Critical error fetching data for MagazinePage:", error);
     errorOccurred = true;

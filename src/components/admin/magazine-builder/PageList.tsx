@@ -7,7 +7,8 @@ import {
   ChevronRight,
   Ellipsis,
   GripVertical,
-  ArrowDownToLine
+  ArrowDownToLine,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import { PAGE_TYPES, MagazinePage } from './types';
 interface PageListProps {
   pages: MagazinePage[];
   selectedPageId: string | null;
+  readerSlug?: string;
   onSelectPage: (id: string) => void;
   onDeletePage: (id: string) => void;
   onDeleteAllPages?: () => Promise<void>;
@@ -43,6 +45,7 @@ interface PageListProps {
 export function PageList({ 
   pages, 
   selectedPageId, 
+  readerSlug,
   onSelectPage, 
   onDeletePage, 
   onDeleteAllPages,
@@ -70,6 +73,8 @@ export function PageList({
         'Untitled'
       : 'Untitled';
 
+  const slugForUrl = String(readerSlug || '').trim().toLowerCase();
+
   return (
     <>
     <Card className="min-h-[600px] border-accent/20 w-full overflow-hidden">
@@ -81,21 +86,40 @@ export function PageList({
               {sortedPages.length} {sortedPages.length === 1 ? 'page' : 'pages'} total. Drag to reorder or jump directly to a page number.
             </CardDescription>
           </div>
-          {sortedPages.length > 0 && !!onDeleteAllPages && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-7 text-[10px] px-2.5 gap-1.5 shrink-0"
-              disabled={isSaving}
-              onClick={() => {
-                setDeleteAllOpen(true);
-                setDeleteAllConfirm('');
-              }}
-            >
-              <Trash2 className="h-3 w-3" />
-              Delete All
-            </Button>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {slugForUrl && sortedPages.length > 0 && (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] px-2.5 gap-1.5 border-accent/30 text-accent hover:bg-accent/10"
+              >
+                <a
+                  href={`/magazine/read/${encodeURIComponent(slugForUrl)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Preview Reader
+                </a>
+              </Button>
+            )}
+            {sortedPages.length > 0 && !!onDeleteAllPages && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-7 text-[10px] px-2.5 gap-1.5 shrink-0"
+                disabled={isSaving}
+                onClick={() => {
+                  setDeleteAllOpen(true);
+                  setDeleteAllConfirm('');
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete All
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="px-2">
@@ -185,6 +209,18 @@ export function PageList({
                 </div>
                 
                 <div className="flex items-center gap-1 border-l pl-1.5">
+                  {slugForUrl && (
+                    <a
+                      href={`/magazine/read/${encodeURIComponent(slugForUrl)}?page=${index + 1}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`View page ${index + 1} in reader`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-accent transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
                   <div className="flex flex-col">
                     <Button 
                       variant="ghost" 

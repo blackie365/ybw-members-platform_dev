@@ -85,4 +85,5 @@ export interface ReaderEdition {
   pages: ReaderPage[];
   createdAt: string;
   issueId?: string;
+  schemaVersion?: number;
 }
