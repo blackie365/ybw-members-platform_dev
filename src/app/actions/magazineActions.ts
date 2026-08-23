@@ -9,10 +9,8 @@ import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages, CURRENT_READER_SCHEMA_VERSION } from '@/features/magazine/server/simple-reader';
+import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 import { fixMagazineImageUrl, hydrateReaderEditionContents, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
-import {
-  deriveIssueSlug,
-} from '@/features/magazine/domain/builder-to-reader';
 import {
   ReaderEditionSchema,
   ReaderPageSchema,
@@ -1659,16 +1657,50 @@ export async function publishIdmlEditionAction(params: {
 }) {
   try {
     await checkAdmin();
-
-    const slug = slugify(params.title) || `edition-${Date.now()}`;
     const now = new Date().toISOString();
+
+    // Prefer the MagazineIssue metadata (title/slug/readerEditionSlug/ghostSyncTag)
+    // over the IDML-derived "title" (which can be a per-article headline pulled
+    // from the cover page's title frame). Poisoning the ReaderEdition.slug +
+    // issue.slug fields with article titles produced garbage public URLs like
+    // /magazine/read/west-yorkshire-law-firm-achieves-...
+    let issueMeta: Partial<{ title: string; slug: string; readerEditionSlug: string; ghostSyncTag: string; id: string }> | null = null;
+    if (params.issueId && adminDb) {
+      try {
+        const d = await adminDb.collection('magazine_issues').doc(params.issueId).get();
+        if (d.exists) {
+          const raw = d.data() as Record<string, unknown> | undefined;
+          if (raw) {
+            issueMeta = {
+              id: d.id,
+              title: String(raw.title || ''),
+              slug: String(raw.slug || ''),
+              readerEditionSlug: String(raw.readerEditionSlug || ''),
+              ghostSyncTag: String(raw.ghostSyncTag || ''),
+            };
+          }
+        }
+      } catch (issueLoadErr) {
+        console.warn('[publishIdmlEditionAction] failed to load magazine issue metadata:', issueLoadErr);
+      }
+    }
+    const finalTitle = String(
+      issueMeta?.title || params.title || now,
+    ).trim();
+    const slug = deriveIssueSlug({
+      id: issueMeta?.id || params.issueId,
+      title: finalTitle,
+      ghostSyncTag: issueMeta?.ghostSyncTag,
+      readerEditionSlug: issueMeta?.readerEditionSlug,
+      slug: issueMeta?.slug,
+    }).toLowerCase() || slugify(finalTitle) || `edition-${Date.now()}`;
 
     const existingId = await getReaderEditionIdBySlug(slug);
 
     const rawEdition: ReaderEdition & { schemaVersion?: number } = {
       id: existingId ?? `idml-${slug}-${Date.now().toString(36)}`,
       slug,
-      title: params.title,
+      title: finalTitle,
       description: params.description,
       coverImage: params.coverImage,
       publishDate: params.publishDate || now,

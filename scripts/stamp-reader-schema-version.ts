@@ -10,7 +10,37 @@
  *   npx tsx scripts/stamp-reader-schema-version.ts --apply
  */
 import 'dotenv/config';
+import { resolve } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
 import { CURRENT_READER_SCHEMA_VERSION } from '../src/lib/magazine-utils';
+
+(function maybeLoadEnvFile() {
+  const candidates = [
+    resolve(process.cwd(), '.env.local'),
+    resolve(process.cwd(), '.env'),
+    resolve(process.cwd(), '.dbg/prod-500.env'),
+  ];
+  for (const p of candidates) {
+    if (!existsSync(p)) continue;
+    try {
+      const buf = readFileSync(p, 'utf8');
+      for (const rawLine of buf.split('\n')) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#') || !line.includes('=')) continue;
+        const eqIdx = line.indexOf('=');
+        const key = line.slice(0, eqIdx).trim();
+        let val = line.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (key === 'FIREBASE_PRIVATE_KEY' || key === 'FIREBASE_CLIENT_EMAIL' || key === 'FIREBASE_PROJECT_ID' || key === 'NEXT_PUBLIC_FIREBASE_PROJECT_ID') {
+          process.env[key] = val;
+        }
+      }
+    } catch {}
+    break;
+  }
+})();
 
 const DRY_RUN = process.argv.includes('--apply') === false;
 

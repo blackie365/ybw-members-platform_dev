@@ -47,15 +47,31 @@ console.log(`\n🔍 Backfill running in ${DRY ? '✨ DRY-RUN ✨' : '✅ APPLY'}
 
 function maybeLoadEnvFile() {
   const candidates = [
-    resolve(process.cwd(), '.dbg/prod-500.env'),
     resolve(process.cwd(), '.env.local'),
     resolve(process.cwd(), '.env'),
+    resolve(process.cwd(), '.dbg/prod-500.env'),
   ];
   for (const p of candidates) {
     if (existsSync(p)) {
-      // Already loaded via dotenv/config above but re-read + surface for log
+      // Explicitly re-read and apply (earlier import 'dotenv/config' may have
+      // loaded an earlier candidate that lacked FIREBASE_PRIVATE_KEY, and the
+      // loader does not override already-set process.env entries).
       try {
         const buf = readFileSync(p, 'utf8');
+        for (const rawLine of buf.split('\n')) {
+          const line = rawLine.trim();
+          if (!line || line.startsWith('#') || !line.includes('=')) continue;
+          const eqIdx = line.indexOf('=');
+          let key = line.slice(0, eqIdx).trim();
+          let val = line.slice(eqIdx + 1).trim();
+          if (!key || /^(NEXT_PUBLIC_)?(STRIPE|CLERK|GHOST|MAILGUN|RESEND|UPSTASH|KV|KV_REST_API|OPENAI|OTEL|NODE)\b/.test(key)) continue;
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (key === 'FIREBASE_PRIVATE_KEY' || key === 'FIREBASE_CLIENT_EMAIL' || key === 'FIREBASE_PROJECT_ID' || key === 'NEXT_PUBLIC_FIREBASE_PROJECT_ID') {
+            process.env[key] = val;
+          }
+        }
         const hasKey = /^FIREBASE_PRIVATE_KEY\s*=/m.test(buf);
         console.log(`   • env file found: ${p} (has FIREBASE_PRIVATE_KEY=${hasKey})`);
       } catch {}
@@ -364,13 +380,109 @@ async function main() {
     const title = String(issue.title || '').trim() || `issue-${issue.id}`;
     console.log(`\n📖 ${title} (id=${issue.id})`);
     try {
-      const derivedSlug = deriveIssueSlug({
+      const pagesRef = db.collection('magazine_issues').doc(issue.id).collection('pages');
+      const pagesSnap = await pagesRef.orderBy('id', 'asc').limit(1).get();
+      const subcount = pagesSnap.size;
+      let legacyReader: Awaited<ReturnType<typeof findReaderEditionForIssue>> = null;
+      if (subcount === 0) {
+        legacyReader = await findReaderEditionForIssue(db, {
+          id: issue.id,
+          title,
+          readerEditionId: issue.readerEditionId,
+          readerEditionSlug: issue.readerEditionSlug,
+          slug: issue.slug,
+        });
+      } else {
+        if (issue.readerEditionId) {
+          try {
+            const tmp = await db.collection('magazine_reader_editions').doc(issue.readerEditionId).get();
+            if (tmp.exists) {
+              legacyReader = { id: tmp.id, pages: [] };
+            }
+          } catch {}
+        }
+        if (!legacyReader?.id) {
+          try {
+            const tmp = await db
+              .collection('magazine_reader_editions')
+              .where('issueId', '==', issue.id)
+              .orderBy('publishDate', 'desc')
+              .limit(1)
+              .get();
+            if (!tmp.empty) {
+              legacyReader = { id: tmp.docs[0].id, pages: [] };
+            }
+          } catch {}
+        }
+      }
+
+      let derivedSlug = deriveIssueSlug({
         id: issue.id,
         title: issue.title,
         ghostSyncTag: issue.ghostSyncTag,
         readerEditionSlug: issue.readerEditionSlug,
         slug: issue.slug,
       }).toLowerCase();
+
+      // If the issue has been linked to a legacy ReaderEdition whose slug was
+      // itself poisoned by an IDML bug (where the cover-page story headline
+      // became the edition slug/title), prefer a real edition slug derived
+      // from the issue metadata.
+      const looksLikeArticleTitle = (s: string) =>
+        /(achieves|appoints|announces|awarded|launches|partners|reveals|celebrates|expands|secures|acquires|invests|welcomes|hosts|new\s+[a-z]+\s+(deal|fund|role|initiative)|strategy|results|quarter|profit|growth|record|survey|report)\b/i.test(s) ||
+        /^(?:the|a|an|west|east|north|south|new|leading|top|major|global|local|leading|award-winning|multi-award)\b/i.test(s);
+      const looksLikeBadArticleSlug = (s: string) =>
+        looksLikeArticleTitle(s) && !/(?:january|february|march|april|may|june|july|august|september|october|november|december|winter|spring|summer|autumn|fall|edition|issue|businesswoman|ybw|20\d{2}|yorkshire)/i.test(s);
+
+      if (legacyReader?.id) {
+        try {
+          const legacyDoc = await db.collection('magazine_reader_editions').doc(legacyReader.id).get();
+          if (legacyDoc.exists) {
+            const legacy = (legacyDoc.data() as Record<string, unknown>) || {};
+            const legacyTitle = String(legacy.title || '').trim();
+            const legacySlug = String(legacy.slug || '').trim().toLowerCase();
+            const currentSlugField = String(issue.slug || '').trim().toLowerCase();
+            const currentRESlug = String(issue.readerEditionSlug || '').trim().toLowerCase();
+            const reWriteLegacySlug = looksLikeBadArticleSlug(legacySlug);
+            const reWriteLegacyTitle = legacyTitle && looksLikeArticleTitle(legacyTitle);
+            const reWriteIssueSlug = currentSlugField && looksLikeBadArticleSlug(currentSlugField);
+            const reWriteIssueRESlug = currentRESlug && looksLikeBadArticleSlug(currentRESlug);
+
+            if (looksLikeBadArticleSlug(derivedSlug) && String(issue.title || '').toLowerCase().includes('law')) {
+              // Hardened override for the 2026 summer issue. The title here is
+              // a genuine edition-level title but the slugify cascade can pick
+              // up a poisoned readerEditionSlug from a legacy doc that was
+              // written with the cover-page story headline as its slug.
+              // Derive a clean edition slug from the issue title directly.
+              const issueTitle = String(issue.title || '').trim();
+              const cleanFromTitle = slugify(issueTitle).toLowerCase();
+              if (cleanFromTitle && !looksLikeBadArticleSlug(cleanFromTitle)) {
+                derivedSlug = cleanFromTitle;
+              }
+            }
+
+            if (reWriteLegacySlug || reWriteLegacyTitle || reWriteIssueSlug || reWriteIssueRESlug) {
+              const issueTitleClean = String(issue.title || '').trim();
+              const issueSlugClean = deriveIssueSlug({
+                id: issue.id,
+                title: issueTitleClean,
+                ghostSyncTag: issue.ghostSyncTag,
+                readerEditionSlug: issue.readerEditionSlug,
+                slug: '',
+              }).toLowerCase();
+              if (!looksLikeBadArticleSlug(issueSlugClean)) {
+                if (looksLikeBadArticleSlug(derivedSlug)) {
+                  console.log(`   • issue slug was article-poisoned "${derivedSlug}" → "${issueSlugClean}"`);
+                  derivedSlug = issueSlugClean;
+                }
+                if (reWriteLegacySlug || reWriteLegacyTitle) {
+                  console.log(`   • legacy ReaderEdition ${legacyReader.id} slug="${legacySlug}" (article-poisoned) → will rewrite slug+title to edition-level "${derivedSlug}" / "${issueTitleClean || legacyTitle}"`);
+                }
+              }
+            }
+          }
+        } catch {}
+      }
 
       const currentSlug = String(issue.slug || '').trim().toLowerCase();
       const needsSlug = currentSlug !== derivedSlug;
@@ -387,56 +499,45 @@ async function main() {
         stats.issuesSchemaVersionAdded++;
       }
 
-      const pagesRef = db.collection('magazine_issues').doc(issue.id).collection('pages');
-      const pagesSnap = await pagesRef.orderBy('id', 'asc').limit(1).get();
-      const subcount = pagesSnap.size;
       let pagesHandled = false;
 
-      if (subcount === 0) {
+      if (subcount === 0 && legacyReader && legacyReader.pages.length > 0) {
         stats.builderPagesEmptyIssues++;
-        const legacyReader = await findReaderEditionForIssue(db, {
-          id: issue.id,
-          title: title,
-          readerEditionId: issue.readerEditionId,
-          readerEditionSlug: issue.readerEditionSlug,
-          slug: issue.slug,
-        });
-        if (legacyReader && legacyReader.pages.length > 0) {
-          stats.readerEditionsUsed++;
-          stats.builderPagesBackfilledFromReader += legacyReader.pages.length;
-          console.log(
-            `   • builder pages empty — backfilling ${legacyReader.pages.length} pages from ReaderEdition id=${legacyReader.id}`,
-          );
-          if (!DRY) {
-            const batch = db.batch();
-            const issueDocRef = db.collection('magazine_issues').doc(issue.id);
-            for (let i = 0; i < legacyReader.pages.length; i += 1) {
-              const builderDoc = mapReaderPageToBuilder(legacyReader.pages[i], i);
-              const builderId = slugify(
-                `page-${String(builderDoc.id).padStart(3, '0')}-${builderDoc.type}-${legacyReader.id}-${i}`,
-              );
-              const builderData: any = { ...builderDoc };
-              delete builderData.docId;
-              batch.set(pagesRef.doc(builderId), builderData, { merge: true });
-            }
-            batch.set(
-              issueDocRef,
-              {
-                slug: derivedSlug,
-                schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-                updatedAt: new Date().toISOString(),
-                ...(issue.readerEditionId
-                  ? {}
-                  : { readerEditionId: legacyReader.id }),
-              },
-              { merge: true },
+        stats.readerEditionsUsed++;
+        stats.builderPagesBackfilledFromReader += legacyReader.pages.length;
+        console.log(
+          `   • builder pages empty — backfilling ${legacyReader.pages.length} pages from ReaderEdition id=${legacyReader.id}`,
+        );
+        if (!DRY) {
+          const batch = db.batch();
+          const issueDocRef = db.collection('magazine_issues').doc(issue.id);
+          for (let i = 0; i < legacyReader.pages.length; i += 1) {
+            const builderDoc = mapReaderPageToBuilder(legacyReader.pages[i], i);
+            const builderId = slugify(
+              `page-${String(builderDoc.id).padStart(3, '0')}-${builderDoc.type}-${legacyReader.id}-${i}`,
             );
-            await batch.commit();
+            const builderData: any = { ...builderDoc };
+            delete builderData.docId;
+            batch.set(pagesRef.doc(builderId), builderData, { merge: true });
           }
-          pagesHandled = true;
-        } else {
-          console.log('   • no builder pages and no legacy ReaderEdition found — will create pages from data/import only.');
+          batch.set(
+            issueDocRef,
+            {
+              slug: derivedSlug,
+              schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+              updatedAt: new Date().toISOString(),
+              ...(issue.readerEditionId
+                ? {}
+                : { readerEditionId: legacyReader.id }),
+            },
+            { merge: true },
+          );
+          await batch.commit();
         }
+        pagesHandled = true;
+      } else if (subcount === 0) {
+        stats.builderPagesEmptyIssues++;
+        console.log('   • no builder pages and no legacy ReaderEdition found — will create pages from data/import only.');
       } else {
         stats.builderPagesAlreadyPopulated += subcount;
         console.log(`   • builder pages already populated (≥${subcount} docs, skip backfill)`);
