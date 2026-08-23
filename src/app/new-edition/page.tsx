@@ -10,6 +10,7 @@ import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
+import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
 export const revalidate = 0; // Disable cache for debugging
 
@@ -119,11 +120,25 @@ export default async function NewEditionPage() {
   ));
   const featuredPost = ghostPosts[0];
 
-  const featuredEditionUrl = liveIssue
-    ? `/magazine/issue/${liveIssue.id}`
-    : latestReaderEdition
-      ? `/magazine/read/${latestReaderEdition.slug}`
-      : '/new-edition';
+  const featuredEditionUrl = (() => {
+    if (liveIssue) {
+      const slug = deriveIssueSlug({
+        id: String(liveIssue.id || ''),
+        title: String(liveIssue.title || ''),
+        ghostSyncTag: String((liveIssue as any).ghostSyncTag || ''),
+        readerEditionSlug: String((liveIssue as any).readerEditionSlug || ''),
+        slug: String((liveIssue as any).slug || ''),
+      }).trim().toLowerCase();
+      if (slug && slug !== `issue-${String(liveIssue.id || '').toLowerCase()}`) {
+        return `/magazine/read/${slug}`;
+      }
+      return `/magazine/issue/${liveIssue.id}`;
+    }
+    if (latestReaderEdition && latestReaderEdition.slug) {
+      return `/magazine/read/${latestReaderEdition.slug}`;
+    }
+    return '/new-edition';
+  })();
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!liveIssue) {
