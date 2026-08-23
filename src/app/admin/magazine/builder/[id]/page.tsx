@@ -746,6 +746,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               ghostSyncTag: castIssue.ghostSyncTag || '',
               flipbookUrl: castIssue.flipbookUrl || '',
               featureInFlipbook: castIssue.featureInFlipbook || false,
+              slug: castIssue.slug || castIssue.readerEditionSlug || '',
+              readerEditionSlug: castIssue.readerEditionSlug || '',
               storyLibrary: Array.isArray(castIssue.storyLibrary) ? castIssue.storyLibrary : []
             });
           }
@@ -2469,6 +2471,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               <PageList 
                 pages={mergedDisplayedPages}
                 selectedPageId={selectedPageId}
+                readerSlug={(issue as any).slug || issue.readerEditionSlug || ''}
                 onSelectPage={setSelectedPageId}
                 onDeletePage={handleDeletePage}
                 onDeleteAllPages={handleDeleteAllPages}

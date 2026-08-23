@@ -439,6 +439,18 @@ export function buildReaderContentsItemsFromPages<
 }
 
 /**
+ * Bump this version whenever you change ANY of the hydration rules below —
+ *   - buildReaderContentsItemsFromPages algorithm
+ *   - print-page-number extraction rules in hydrateReaderEditionContents
+ *   - legacy-page merge order in hydrateEditionWithLegacyPages
+ *   - template aliasing (e.g. feature-full) or content alias normalisation
+ *
+ * Any edition already at this version will short-circuit the entire hydration
+ * pipeline so readers don't pay the Firestore-read + map cost on every visit.
+ */
+export const CURRENT_READER_SCHEMA_VERSION = 1;
+
+/**
  * Idempotent ReaderEdition normaliser:
  *   1. Rebuilds Contents items and writes them to the template=='contents'
  *      page's content.items.
@@ -455,8 +467,6 @@ export function hydrateReaderEditionContents<T extends { pages: any[] }>(edition
   }
   const rebuiltItems = buildReaderContentsItemsFromPages(editionIn.pages);
 
-  // Extract print page numbers (same algorithm as buildReaderContentsItems)
-  // so page lookups work. Safe to write even for old data.
   function pageNumFrom(p: any, idx: number): number {
     if (typeof p.pageNumber === 'number' && Number.isFinite(p.pageNumber)) return p.pageNumber;
     const idStr = String(p.id || '');
@@ -492,4 +502,24 @@ export function hydrateReaderEditionContents<T extends { pages: any[] }>(edition
 
   if (!changed) return editionIn as T;
   return { ...(editionIn as any), pages: newPages } as T;
+}
+
+/**
+ * Returns true when the doc already carries the CURRENT schema version tag,
+ * meaning all of:
+ *   - Contents items rebuild (length + dedupe)
+ *   - position/pageNumber crisping
+ *   - legacy-pages merge (hydrateEditionWithLegacyPages)
+ *   - normalizeMagazinePageContent field alias normalisation
+ *   - fixMagazineImageUrl rewriting
+ * have already been applied server-side and do NOT need to be re-run for
+ * reader traffic.
+ *
+ * Returns false for documents that never had a schemaVersion (pre-backfill)
+ * or carry an older version so we know to re-hydrate them once.
+ */
+export function isReaderSchemaCurrent(doc: unknown): boolean {
+  if (!doc || typeof doc !== 'object') return false;
+  const version = (doc as any).schemaVersion;
+  return typeof version === 'number' && version >= CURRENT_READER_SCHEMA_VERSION;
 }

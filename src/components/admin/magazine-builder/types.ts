@@ -76,4 +76,7 @@ export interface MagazineIssue {
   flipbookUrl?: string;
   featureInFlipbook?: boolean;
   storyLibrary?: StoryLibraryItem[];
+  readerEditionId?: string;
+  readerEditionSlug?: string;
+  slug?: string;
 }

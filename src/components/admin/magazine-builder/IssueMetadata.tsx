@@ -212,6 +212,44 @@ export function IssueMetadata({ issue, isNew, isSaving, onUpdate, onSave, pages 
                 </div>
               </div>
               <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="slug" className="flex items-center gap-2">
+                    <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                    Reader URL Slug
+                  </Label>
+                  {!isNew && (issue as any).slug && (
+                    <a
+                      href={`/magazine/read/${String((issue as any).slug || '').trim().toLowerCase()}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-bold uppercase text-accent hover:underline flex items-center gap-1"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      Open Reader
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-stretch gap-2">
+                  <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted/50 px-3 text-xs text-muted-foreground font-mono whitespace-nowrap">
+                    /magazine/read/
+                  </span>
+                  <Input
+                    id="slug"
+                    className="font-mono text-xs rounded-l-none"
+                    value={(issue as any).slug || ''}
+                    onChange={(e) => {
+                      const raw = e.target.value.trim().toLowerCase();
+                      const cleaned = raw.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                      onUpdate({ slug: cleaned } as any);
+                    }}
+                    placeholder="june-2026"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Kebab-case only. Empty = auto-derived from Ghost sync tag / title. Changing this breaks existing reader links.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="desc">Short Description</Label>
                 <Textarea 
                   id="desc" 
