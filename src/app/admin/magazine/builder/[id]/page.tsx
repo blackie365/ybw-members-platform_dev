@@ -324,11 +324,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           if ((legacy as any).readOnly !== undefined && !(legacy as any).readOnly) {
             (combined as any).readOnly = false;
           }
+          (combined as any)._shadowDocId = shadow.docId;
+          (combined as any)._legacyDocId = legacy.docId;
+          combined.docId = typeof legacy.docId === 'string' && legacy.docId ? legacy.docId : shadow.docId;
           merged.push(combined);
         }
       } else if (legacy) {
+        (legacy as any)._shadowDocId = '';
+        (legacy as any)._legacyDocId = legacy.docId;
         merged.push(legacy);
       } else if (shadow) {
+        (shadow as any)._shadowDocId = shadow.docId;
+        (shadow as any)._legacyDocId = '';
         merged.push(shadow);
       }
     }
@@ -1858,22 +1865,36 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     await persistPageOrder(nextPages);
   };
 
+  const resolveDeleteTargets = (pageDocId: string) => {
+    const merged = mergedDisplayedPages.find(p => p.docId === pageDocId) as any;
+    if (merged) {
+      const legacyDocId = typeof merged?._legacyDocId === 'string' && merged._legacyDocId ? merged._legacyDocId : '';
+      const shadowDocId = typeof merged?._shadowDocId === 'string' && merged._shadowDocId ? merged._shadowDocId : '';
+      const finalLegacy = legacyDocId || (typeof pageDocId === 'string' && !pageDocId.startsWith('reader:') ? pageDocId : '');
+      const finalShadow = shadowDocId || (typeof pageDocId === 'string' && pageDocId.startsWith('reader:') ? pageDocId : '');
+      return { legacyDocId: finalLegacy, shadowDocId: finalShadow };
+    }
+    const legacyDocId = typeof pageDocId === 'string' && !pageDocId.startsWith('reader:') ? pageDocId : '';
+    const shadowDocId = typeof pageDocId === 'string' && pageDocId.startsWith('reader:') ? pageDocId : '';
+    return { legacyDocId, shadowDocId };
+  };
+
   const handleDeleteAllPages = async () => {
-    const editableLegacy = pages.filter(p => !p.readOnly);
-    const total = editableLegacy.length;
+    const all = mergedDisplayedPages.filter(p => !p.readOnly);
+    const total = all.length;
     if (total === 0) return;
 
     setSaving(true);
     try {
       const generatedSpreadIds = new Set(
-        editableLegacy
+        all
           .filter((p) => p && Boolean(p.generatedFromStoryLibrary) && typeof p.docId === 'string')
           .map((p) => p.docId)
       );
       if (generatedSpreadIds.size > 0 && Array.isArray(issue.storyLibrary)) {
         try {
           const allDeletedPageKeys = new Set<string>();
-          for (const page of pages) {
+          for (const page of all) {
             if (!page || !page.docId || !generatedSpreadIds.has(page.docId)) continue;
             try {
               const keys = getPageIdentityKeys(page);
@@ -1927,24 +1948,27 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
       }
 
-      let deleted = 0;
-      let failed = 0;
-      const deletedDocIds = new Set<string>();
-      for (const page of editableLegacy) {
-        if (!page || typeof page.docId !== 'string') {
-          failed++;
-          continue;
-        }
-        try {
-          const res = await deleteMagazinePageAction(id, page.docId);
-          if (!res.success) {
-            failed++;
-          } else {
-            deleted++;
-            deletedDocIds.add(page.docId);
+      const deletedLegacyDocIds = new Set<string>();
+      const deletedShadowDocIds = new Set<string>();
+      let firestoreDeleted = 0;
+      let firestoreFailed = 0;
+
+      for (const page of all) {
+        if (!page || typeof page.docId !== 'string') continue;
+        const { legacyDocId, shadowDocId } = resolveDeleteTargets(page.docId);
+        if (shadowDocId) deletedShadowDocIds.add(shadowDocId);
+        if (legacyDocId) {
+          try {
+            const res = await deleteMagazinePageAction(id, legacyDocId);
+            if (!res.success) {
+              firestoreFailed++;
+            } else {
+              firestoreDeleted++;
+              deletedLegacyDocIds.add(legacyDocId);
+            }
+          } catch {
+            firestoreFailed++;
           }
-        } catch {
-          failed++;
         }
       }
 
@@ -1952,18 +1976,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       try {
         await syncContentsPage([]);
       } catch {}
-      // Deleting spreads is final: pages state updates directly to empty, no
-      // loadData() call, and there's no "0 pages → auto-fill" useEffect or
-      // loadData tail that can recreate them. Spreads only come back when the
-      // admin explicitly clicks Smart Batch Fill or re-imports IDML.
       didSpreadSyncOnTabRef.current = true;
-      const remainingPages = editableLegacy.filter((page) => !page.docId || !deletedDocIds.has(page.docId))
-        .sort((a, b) => (a.id || 0) - (b.id || 0));
-      setPages(remainingPages);
 
-      if (failed > 0) {
+      const remainingLegacyPages = Array.isArray(pages)
+        ? pages.filter((p) => !p.docId || !deletedLegacyDocIds.has(p.docId))
+        : [];
+      setPages(remainingLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+
+      const remainingShadowPages = Array.isArray(readerEditionPages)
+        ? readerEditionPages.filter((p) => !p.docId || !deletedShadowDocIds.has(p.docId))
+        : [];
+      setReaderEditionPages(remainingShadowPages);
+
+      if (firestoreFailed > 0) {
         toast.warning(
-          `Deleted ${deleted} of ${total} spread${total === 1 ? '' : 's'}. ${failed} failed.`
+          `Deleted ${all.length} of ${total} spread${total === 1 ? '' : 's'}. ${firestoreFailed} Firestore delete(s) failed (shadow rows OK).`
         );
       } else {
         toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}` +
@@ -1983,12 +2010,20 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const handleDeletePage = async (pageDocId: string) => {
     if (typeof pageDocId !== 'string' || !pageDocId) return;
-    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
+
+    const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId) as any;
+    const { legacyDocId, shadowDocId } = resolveDeleteTargets(pageDocId);
+
+    const shadowPage = readerEditionPages.find(p => p.docId === (shadowDocId || pageDocId));
     if (shadowPage?.readOnly) {
       toast.warning('Published IDML pages are read-only. Delete the ReaderEdition in Firebase or re-publish.');
       return;
     }
-    const pageToDelete = pages.find((page) => page.docId === pageDocId);
+
+    const pageToDelete =
+      (legacyDocId ? pages.find((page) => page.docId === legacyDocId) : undefined)
+      || pages.find((page) => page.docId === pageDocId)
+      || mergedPage;
     const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
     const confirmMessage = isGeneratedSpread
       ? 'Are you sure you want to delete this spread? This will also stop it being regenerated from the Story Library.'
@@ -2060,23 +2095,52 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
       }
 
-      const res = await deleteMagazinePageAction(id, pageDocId);
-      if (!res.success) {
-        throw new Error(res.error || 'Failed to delete spread');
+      let firestoreOk = true;
+      let firestoreErrMsg: string | undefined;
+      if (legacyDocId) {
+        const res = await deleteMagazinePageAction(id, legacyDocId);
+        if (!res.success) {
+          firestoreOk = false;
+          firestoreErrMsg = res.error;
+        }
       }
 
-      const nextPages = pages.filter((page) => page.docId !== pageDocId);
+      const nextLegacyPages = legacyDocId
+        ? pages.filter((page) => page.docId !== legacyDocId)
+        : pages;
+      const nextShadowPages = shadowDocId
+        ? readerEditionPages.filter((page) => page.docId !== shadowDocId)
+        : readerEditionPages;
+
       try {
-        await syncContentsPage(nextPages);
+        const combinedForContents = [
+          ...nextLegacyPages,
+          ...nextShadowPages.filter(
+            (sp) => !nextLegacyPages.some((lp) => (
+              (extractPrintPageNumberFromBuilderPage(lp) ?? 0) > 0
+              && (extractPrintPageNumberFromBuilderPage(sp) ?? 0) === (extractPrintPageNumberFromBuilderPage(lp) ?? 0)
+            )),
+          ),
+        ];
+        await syncContentsPage(combinedForContents);
       } catch {}
-      // Deleting a spread is final. There is no "0 pages → auto-create"
-      // useEffect or loadData tail that can bring spreads back.
+
       didSpreadSyncOnTabRef.current = true;
-      toast.success('Spread removed — click Smart Batch Fill or re-import IDML to regenerate.');
-      if (selectedPageId === pageDocId) setSelectedPageId(null);
-      // Don't call loadData(true) here — its default sync would recreate the
-      // deleted page (if story for it still exists in library). Update state directly.
-      setPages(nextPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+      if (selectedPageId === pageDocId
+        || (legacyDocId && selectedPageId === legacyDocId)
+        || (shadowDocId && selectedPageId === shadowDocId)) {
+        setSelectedPageId(null);
+      }
+      setPages(nextLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+      setReaderEditionPages(nextShadowPages);
+
+      if (!firestoreOk) {
+        toast.warning(
+          `Spread removed from builder list${firestoreErrMsg ? ` (Firestore: ${firestoreErrMsg})` : ''}.`,
+        );
+      } else {
+        toast.success('Spread removed — click Smart Batch Fill or re-import IDML to regenerate.');
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');
     } finally {
