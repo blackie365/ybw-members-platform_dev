@@ -1943,21 +1943,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeleteAllPages = async () => {
-    const all = mergedDisplayedPages.filter(p => !p.readOnly);
-    const total = all.length;
+    const allMerged = Array.isArray(mergedDisplayedPages) ? [...mergedDisplayedPages] : [];
+    const total = allMerged.length;
     if (total === 0) return;
 
     setSaving(true);
     try {
       const generatedSpreadIds = new Set(
-        all
+        allMerged
           .filter((p) => p && Boolean(p.generatedFromStoryLibrary) && typeof p.docId === 'string')
           .map((p) => p.docId)
       );
       if (generatedSpreadIds.size > 0 && Array.isArray(issue.storyLibrary)) {
         try {
           const allDeletedPageKeys = new Set<string>();
-          for (const page of all) {
+          for (const page of allMerged) {
             if (!page || !page.docId || !generatedSpreadIds.has(page.docId)) continue;
             try {
               const keys = getPageIdentityKeys(page);
@@ -2016,7 +2016,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let firestoreDeleted = 0;
       let firestoreFailed = 0;
 
-      for (const page of all) {
+      for (const page of allMerged) {
         if (!page || typeof page.docId !== 'string') continue;
         const { legacyDocId, shadowDocId } = resolveDeleteTargets(page.docId);
         if (shadowDocId) deletedShadowDocIds.add(shadowDocId);
@@ -2036,28 +2036,53 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
 
       setSelectedPageId(null);
-      try {
-        await syncContentsPage([]);
-      } catch {}
       didSpreadSyncOnTabRef.current = true;
 
       const remainingLegacyPages = Array.isArray(pages)
         ? pages.filter((p) => !p.docId || !deletedLegacyDocIds.has(p.docId))
         : [];
-      setPages(remainingLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
-
       const remainingShadowPages = Array.isArray(readerEditionPages)
         ? readerEditionPages.filter((p) => !p.docId || !deletedShadowDocIds.has(p.docId))
         : [];
+
+      try {
+        const combinedForContents = [
+          ...remainingLegacyPages,
+          ...remainingShadowPages.filter(
+            (sp) => !remainingLegacyPages.some((lp) => {
+              const lpPrint = extractPrintPageNumberFromBuilderPage(lp) ?? 0;
+              const spPrint = extractPrintPageNumberFromBuilderPage(sp) ?? 0;
+              return lpPrint > 0 && lpPrint === spPrint;
+            }),
+          ),
+        ];
+        await syncContentsPage(combinedForContents);
+      } catch {}
+
+      setPages(remainingLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
       setReaderEditionPages(remainingShadowPages);
 
+      const remainingCount =
+        remainingLegacyPages.length +
+        remainingShadowPages.filter(
+          (sp) => !remainingLegacyPages.some((lp) => {
+            const lpPrint = extractPrintPageNumberFromBuilderPage(lp) ?? 0;
+            const spPrint = extractPrintPageNumberFromBuilderPage(sp) ?? 0;
+            return lpPrint > 0 && lpPrint === spPrint;
+          }),
+        ).length;
+
+      const removed = total - remainingCount;
       if (firestoreFailed > 0) {
         toast.warning(
-          `Deleted ${all.length} of ${total} spread${total === 1 ? '' : 's'}. ${firestoreFailed} Firestore delete(s) failed (shadow rows OK).`
+          `Removed ${removed} of ${total} spread${total === 1 ? '' : 's'}. ${firestoreFailed} Firestore delete(s) failed (shadow rows OK).`
         );
+      } else if (removed === 0) {
+        toast.warning('Nothing to remove — list is already empty after cleanup.');
       } else {
-        toast.success(`Deleted all ${total} spread${total === 1 ? '' : 's'}` +
-          ` — click "Smart Batch Fill" or re-import IDML if you want spreads back.`,
+        toast.success(
+          `Deleted ${removed} spread${removed === 1 ? '' : 's'}` +
+            ` — click "Smart Batch Fill" or re-import IDML if you want spreads back.`,
         );
       }
     } catch (error) {
