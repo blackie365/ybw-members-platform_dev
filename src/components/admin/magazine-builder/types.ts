@@ -35,6 +35,8 @@ export interface MagazinePage {
   generatedFromStoryLibrary?: boolean;
   readOnly?: boolean;
   sourceReaderEditionId?: string;
+  _legacyDocId?: string | null;
+  _shadowDocId?: string | null;
   content: any;
   createdAt: string;
   updatedAt?: string;
