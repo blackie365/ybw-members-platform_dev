@@ -671,71 +671,64 @@ function mergeReaderPageWithLegacy(basePage: ReaderPage, legacyPage: ReaderPage 
   const base = sanitizeReaderPage(basePage);
   if (!legacyPage) return base;
 
-  // Structural templates (cover/contents/editor-note/back-cover) are PINNED to
-  // their original base template. Even if a legacy page had a corrupted template
-  // field (e.g. editor-note stored with type=contents due to a prior build bug),
+  // Structural templates (cover/contents/editor-note/back-cover) keep their
+  // original base template PINNED. If a legacy page somehow had a corrupted
+  // template field (editor-note stored with type=contents due to prior bug),
   // we keep the base structural template so the correct renderer always runs.
+  //
+  // CONTENT PRIORITY: Legacy (Spread Builder) edits ALWAYS win over IDML-
+  // published ReaderEdition content. The user explicitly typed/edited those
+  // fields in the builder UI; the base ReaderEdition content is only used
+  // as a fallback if the builder never wrote anything for that slot.
   const isStructural = STRUCTURAL_TEMPLATES.has(base.template);
-  const preferLegacy = isStructural;
   const pinnedTemplate: ReaderPage['template'] = isStructural
     ? STRUCTURAL_TEMPLATE_PINNED[base.template as keyof typeof STRUCTURAL_TEMPLATE_PINNED] ?? base.template
     : base.template;
   const baseImages = sanitizeUrlList(base.content.imageUrls);
   const legacyImages = sanitizeUrlList(legacyPage.content.imageUrls);
-  const imageUrl = preferLegacy
-    ? legacyPage.content.imageUrl || base.content.imageUrl || ''
-    : base.content.imageUrl || legacyPage.content.imageUrl || '';
-  const backgroundImage = preferLegacy
-    ? legacyPage.content.backgroundImage || base.content.backgroundImage || ''
-    : base.content.backgroundImage || legacyPage.content.backgroundImage || '';
-  const imageUrls = [...baseImages, ...legacyImages].filter(
+  const imageUrl =
+    legacyPage.content.imageUrl || base.content.imageUrl || '';
+  const backgroundImage =
+    legacyPage.content.backgroundImage || base.content.backgroundImage || '';
+  const imageUrls = [...legacyImages, ...baseImages].filter(
     (url, index, all) => url !== imageUrl && url !== backgroundImage && all.indexOf(url) === index,
   );
 
-  // Contents items (the grid of cards with categories + page numbers) ONLY
-  // belong on the `contents` template. Never let them bleed into other
-  // templates — that produces the "rik-rak of contents pages" symptom on the
-  // Editorial or Cover pages.
-  const baseHasItems = Array.isArray(base.content.items) && base.content.items.length > 0;
-  const mergedItems = baseHasItems
-    ? base.content.items
-    : (pinnedTemplate === 'contents' ? (legacyPage.content.items ?? []) : []);
+  // Contents items grid ONLY belongs on contents template. Never bleed items
+  // into other templates (produces the "rik-rak of contents pages" symptom).
+  const legacyHasItems = Array.isArray(legacyPage.content.items) && legacyPage.content.items.length > 0;
+  const mergedItems = pinnedTemplate === 'contents'
+    ? (legacyHasItems ? legacyPage.content.items : base.content.items ?? [])
+    : [];
 
   return sanitizeReaderPage({
     ...base,
     template: isStructural
       ? pinnedTemplate
-      : (preferLegacy ? legacyPage.template || base.template : base.template),
+      : (legacyPage.template || base.template),
     content: {
       ...base.content,
-      title: preferLegacy
-        ? legacyPage.content.title || base.content.title
-        : base.content.title || legacyPage.content.title,
-      body: preferLegacy
-        ? legacyPage.content.body || base.content.body
-        : base.content.body || legacyPage.content.body,
-      standfirst: preferLegacy
-        ? legacyPage.content.standfirst || base.content.standfirst
-        : base.content.standfirst || legacyPage.content.standfirst,
-      author: base.content.author || legacyPage.content.author,
-      name: base.content.name || legacyPage.content.name,
-      kicker: preferLegacy
-        ? legacyPage.content.kicker || base.content.kicker
-        : base.content.kicker || legacyPage.content.kicker,
+      ...legacyPage.content,
+      title: legacyPage.content.title || base.content.title,
+      body: legacyPage.content.body || base.content.body,
+      standfirst: legacyPage.content.standfirst || base.content.standfirst,
+      author: legacyPage.content.author || base.content.author,
+      name: legacyPage.content.name || base.content.name,
+      kicker: legacyPage.content.kicker || base.content.kicker,
       imageUrl: imageUrl || undefined,
       backgroundImage: backgroundImage || undefined,
       imageUrls,
-      videoUrl: base.content.videoUrl || legacyPage.content.videoUrl,
-      quote: base.content.quote || legacyPage.content.quote,
-      pullQuotes: [...(base.content.pullQuotes || []), ...(legacyPage.content.pullQuotes || [])].filter(
+      videoUrl: legacyPage.content.videoUrl || base.content.videoUrl,
+      quote: legacyPage.content.quote || base.content.quote,
+      pullQuotes: [...(legacyPage.content.pullQuotes || []), ...(base.content.pullQuotes || [])].filter(
         (quote, index, all) => quote && all.indexOf(quote) === index,
       ),
       items: mergedItems,
-      ctaLabel: base.content.ctaLabel || legacyPage.content.ctaLabel,
-      ctaHref: base.content.ctaHref || legacyPage.content.ctaHref,
-      label: base.content.label || legacyPage.content.label,
-      mediaLayout: base.content.mediaLayout || legacyPage.content.mediaLayout,
-      nextIssue: base.content.nextIssue || legacyPage.content.nextIssue,
+      ctaLabel: legacyPage.content.ctaLabel || base.content.ctaLabel,
+      ctaHref: legacyPage.content.ctaHref || base.content.ctaHref,
+      label: legacyPage.content.label || base.content.label,
+      mediaLayout: legacyPage.content.mediaLayout || base.content.mediaLayout,
+      nextIssue: legacyPage.content.nextIssue || base.content.nextIssue,
     },
   });
 }
