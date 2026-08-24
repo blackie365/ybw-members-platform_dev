@@ -13,6 +13,7 @@ import {
   PageContents,
   PageCover,
   PageEditorial,
+  PageFeatureFull,
   PageFeatureLeft,
   PageFeatureRight,
   PageFullPageAd,
@@ -37,16 +38,51 @@ type LegacyPageRendererProps = {
 const PAGE_RENDERERS: Record<string, ComponentType<LegacyPageRendererProps>> = {
   cover: PageCover,
   editorial: PageEditorial,
+  'editor-note': PageEditorial,
   contents: PageContents,
+  'feature-full': PageFeatureFull,
   'feature-left': PageFeatureLeft,
   'feature-right': PageFeatureRight,
   column: PageFeatureRight,
   lifestyle: PageFeatureLeft,
   spotlight: PageSpotlight,
   partner: PagePartner,
+  ad: PageFullPageAd,
   'full-page-ad': PageFullPageAd,
   'back-cover': PageBackCover,
 };
+
+function defaultRenderer(data: Record<string, unknown>, imageVersion: string) {
+  const hasAnyImage = Boolean(
+    data.featureImage || data.heroImage || data.mainImage || data.primaryImage ||
+    data.image || data.coverImage || data.bannerImage,
+  );
+  const hasAnyText = typeof data.text === 'string' && data.text.trim().length > 24;
+  const hasTitle = typeof data.title === 'string' && data.title.trim().length >= 2;
+  if (hasAnyImage || hasAnyText || hasTitle) return PageFeatureFull({ data, imageVersion });
+  return (
+    <div className="min-h-full flex items-center justify-center p-8 text-center">
+      <div className="space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#a3413a]">
+          Page
+        </p>
+        <h3 className="font-serif text-2xl font-bold text-[#1c1410]">
+          {String((data as any).title || (data as any).name || (data as any).headline || 'Untitled page')}
+        </h3>
+        {(data as any).pageNumber ? (
+          <p className="text-sm text-muted-foreground">
+            #{String((data as any).pageNumber)}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          This page was imported from your InDesign file but didn&apos;t match a named
+          template. It uses the default feature layout so it still renders
+          presentably &mdash; edit it in the Spread Builder if you want a different look.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function normalizeImageFields(content: Record<string, unknown>): Record<string, unknown> {
   const pickImage = (): string => {
@@ -389,12 +425,26 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
     };
 
     const sortedPages = [...pages].sort((left, right) => {
-      const lid = typeof left.id === 'number' ? left.id : 9999;
-      const rid = typeof right.id === 'number' ? right.id : 9999;
-      if (lid !== rid) return lid - rid;
       const lRole = roleOf(left.type);
       const rRole = roleOf(right.type);
-      return lRole - rRole;
+      if (lRole !== rRole) return lRole - rRole;
+      const lid =
+        typeof (left as any).position === 'number'
+          ? (left as any).position
+          : typeof (left as any).pageNumber === 'number'
+          ? (left as any).pageNumber
+          : typeof left.id === 'number'
+          ? left.id
+          : 9999;
+      const rid =
+        typeof (right as any).position === 'number'
+          ? (right as any).position
+          : typeof (right as any).pageNumber === 'number'
+          ? (right as any).pageNumber
+          : typeof right.id === 'number'
+          ? right.id
+          : 9999;
+      return lid - rid;
     });
 
     const fallbackEditorial = buildFallbackEditorialPage(sortedPages, issue);
@@ -427,7 +477,10 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
         // still force renderer = editorial here so we never show the grid.
         effectiveType = 'editorial';
       }
-      const Renderer = PAGE_RENDERERS[effectiveType] ?? PAGE_RENDERERS[type] ?? PageFeatureLeft;
+      const Renderer: ComponentType<LegacyPageRendererProps> =
+        PAGE_RENDERERS[effectiveType] ??
+        PAGE_RENDERERS[type] ??
+        ((props) => defaultRenderer(props.data, props.imageVersion));
       return {
         page,
         pageIndex,

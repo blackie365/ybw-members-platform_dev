@@ -3035,6 +3035,276 @@ export const PagePartner = ({ data, imageVersion }: any) => {
 };
 
 // ─────────────────────────────────────────────
+// FEATURE FULL (1-page full-width article layout)
+// Default renderer for idml-template-mapper 'feature-full' pages produced
+// by 1-page-per-spread TEST.idml imports.
+// ─────────────────────────────────────────────
+export const PageFeatureFull = ({ data, imageVersion }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useScrollReveal(ref);
+
+  if (data?.isContinuation)
+    return <PageContinuation data={data} imageVersion={imageVersion} />;
+
+  const typography = getFeatureTypography(data.weight || "heavy");
+  const stats = Array.isArray(data.stats) ? data.stats : [];
+  const kicker = String((data.kicker || data.category) ?? "").trim();
+  const mediaLayout = String(data.mediaLayout || "").trim();
+  const isFullBackground = mediaLayout === "background";
+  const featureImage = String(data.featureImage || data.image || "").trim();
+  const backgroundMedia = featureImage;
+  const additionalMedia = getAdditionalMedia(
+    data,
+    String(data.title || data.name || kicker || "Feature").trim(),
+  );
+  const inlineMedia = additionalMedia.slice(0, 4);
+  const remainingMedia = additionalMedia.slice(inlineMedia.length);
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: !isFullBackground,
+  });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
+  const pullQuotes = getDistinctFeaturePullQuotes(
+    data.pullQuotes || data.quotes,
+    { leadHtml, featureQuote },
+  );
+
+  if (isFullBackground) {
+    return (
+      <div
+        ref={ref}
+        className="relative min-h-full overflow-hidden bg-[#0c0a09]"
+      >
+        {backgroundMedia ? (
+          <img
+            src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
+            alt={data.title || data.name || kicker || "Feature"}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+        {data.videoUrl ? (
+          <video
+            src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+            poster={
+              backgroundMedia
+                ? fixMagazineImageUrl(backgroundMedia, imageVersion)
+                : undefined
+            }
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/68 via-black/36 to-black/72" />
+        <div className="relative z-10 py-16 lg:py-24">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-md shadow-[0_24px_90px_rgba(0,0,0,0.55)] p-7 sm:p-11 space-y-6">
+              {kicker && (
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#a3413a]/70 to-transparent" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white whitespace-normal break-words leading-tight">
+                    {kicker}
+                  </span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#a3413a]/70 to-transparent" />
+                </div>
+              )}
+              {data.name && (
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/70 text-center">
+                  {data.name}
+                </p>
+              )}
+              {data.title && (
+                <h2
+                  className="font-serif font-bold leading-tight text-white text-center"
+                  style={{ fontSize: typography.titleSize }}
+                >
+                  {renderTitleArt(data.title, "font-serif italic text-white")}
+                </h2>
+              )}
+              {featureImage && (
+                <FeatureForegroundImage
+                  src={featureImage}
+                  alt={data.title || data.name || kicker || "Feature"}
+                  imageVersion={imageVersion}
+                />
+              )}
+              {leadHtml && (
+                <SafeText
+                  html={leadHtml}
+                  className={`${FEATURE_LEAD_CLASS_NAME} text-center [&_p]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
+                />
+              )}
+              {featureQuote && (
+                <FeatureCallout
+                  text={featureQuote}
+                  variant="dark"
+                  className="[&_p]:!text-white"
+                />
+              )}
+              {bodyBlocks.length > 0 && (
+                <InterleavedTextWithMedia
+                  blocks={bodyBlocks}
+                  inlineMedia={inlineMedia}
+                  pullQuotes={pullQuotes}
+                  imageVersion={imageVersion}
+                  variant="dark"
+                  textClassName={`${typography.bodyDarkClassName} !text-white [&_p]:!text-white [&_li]:!text-white [&_strong]:!text-white [&_em]:!text-white [&_a]:!text-white`}
+                />
+              )}
+              {remainingMedia.length > 0 && (
+                <div className="scroll-reveal scroll-reveal-delay-3">
+                  <AdditionalMediaGallery
+                    items={remainingMedia}
+                    imageVersion={imageVersion}
+                    variant="dark"
+                  />
+                </div>
+              )}
+              {stats.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {stats.slice(0, 3).map((stat: any, i: number) => (
+                    <div
+                      key={`${stat?.label ?? "stat"}-${i}`}
+                      className="rounded-2xl p-4 border border-white/10 bg-white/10 backdrop-blur-sm text-center"
+                    >
+                      <p className="font-serif font-bold text-2xl text-white">
+                        {stat?.value}
+                      </p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white mt-1">
+                        {stat?.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="relative min-h-full overflow-hidden"
+      style={{ background: "#f7f1e8" }}
+    >
+      {featureImage && (
+        <div className="relative w-full h-[46vh] sm:h-[52vh] overflow-hidden">
+          <img
+            src={fixMagazineImageUrl(featureImage, imageVersion)}
+            alt={data.title || data.name || kicker || "Feature"}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {data.videoUrl ? (
+            <video
+              src={fixMagazineImageUrl(data.videoUrl, imageVersion)}
+              poster={fixMagazineImageUrl(featureImage, imageVersion)}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/10 to-[#f7f1e8]" />
+        </div>
+      )}
+      <div className="relative z-10">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 lg:px-12 pt-10 pb-16 lg:pt-14 lg:pb-20">
+          <div className="scroll-reveal flex flex-col items-center gap-3 text-center mb-5">
+            {kicker && (
+              <span
+                className="text-[10px] font-bold uppercase tracking-[0.22em]"
+                style={{ color: "#a3413a" }}
+              >
+                {kicker}
+              </span>
+            )}
+            {data.name && (
+              <p
+                className="text-xs font-semibold uppercase tracking-widest"
+                style={{ color: "#7a5c4e" }}
+              >
+                {data.name}
+              </p>
+            )}
+          </div>
+          {data.title && (
+            <h2
+              className="scroll-reveal scroll-reveal-delay-1 font-serif font-bold leading-[1.05] text-center mb-6 text-[#1c1410]"
+              style={{ fontSize: typography.titleSize }}
+            >
+              {renderTitleArt(data.title, "font-serif italic text-[#a3413a]")}
+            </h2>
+          )}
+          {leadHtml && (
+            <div className="scroll-reveal scroll-reveal-delay-2 mb-6 text-center max-w-3xl mx-auto">
+              <SafeText html={leadHtml} className={FEATURE_LEAD_CLASS_NAME} />
+            </div>
+          )}
+          {featureQuote && (
+            <div className="scroll-reveal scroll-reveal-delay-2 mb-8 max-w-3xl mx-auto">
+              <FeatureCallout text={featureQuote} variant="light" />
+            </div>
+          )}
+          {bodyBlocks.length > 0 && (
+            <div className="scroll-reveal scroll-reveal-delay-3 mb-6">
+              <InterleavedTextWithMedia
+                blocks={bodyBlocks}
+                inlineMedia={inlineMedia}
+                pullQuotes={pullQuotes}
+                imageVersion={imageVersion}
+                variant="light"
+                textClassName={typography.bodyLightClassName}
+              />
+            </div>
+          )}
+          {remainingMedia.length > 0 && (
+            <div className="scroll-reveal scroll-reveal-delay-3 mb-8">
+              <AdditionalMediaGallery
+                items={remainingMedia}
+                imageVersion={imageVersion}
+                variant="light"
+              />
+            </div>
+          )}
+          {stats.length > 0 && (
+            <div className="scroll-reveal scroll-reveal-delay-4 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto">
+              {stats.slice(0, 3).map((stat: any, i: number) => (
+                <div
+                  key={`${stat?.label ?? "stat"}-${i}`}
+                  className="rounded-2xl p-4 text-center border shadow-sm"
+                  style={{
+                    background: "rgba(255,255,255,0.7)",
+                    borderColor: "rgba(163,65,58,0.2)",
+                  }}
+                >
+                  <p
+                    className="font-serif font-bold text-2xl"
+                    style={{ color: "#a3413a" }}
+                  >
+                    {stat?.value}
+                  </p>
+                  <p
+                    className="text-[10px] font-semibold uppercase tracking-[0.2em] mt-1"
+                    style={{ color: "#7a5c4e" }}
+                  >
+                    {stat?.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // BACK COVER
 // ─────────────────────────────────────────────
 export const PageBackCover = ({ data, imageVersion }: any) => {
