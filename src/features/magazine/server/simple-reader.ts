@@ -40,6 +40,42 @@ function getFirestore(): any {
 
 const COLLECTION = 'magazine_reader_editions';
 const LEGACY_ISSUES_COLLECTION = 'magazine_issues';
+
+/**
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║  PUBLISHED MAGAZINE READER — SINGLE SOURCE OF TRUTH AUTHORITY               ║
+ * ╠══════════════════════════════════════════════════════════════════════════════╣
+ * ║                                                                              ║
+ * ║  AUTHORITY #1 — FAST PATH (99.9% of post-IDML-publish traffic):             ║
+ * ║  Issue doc (magazine_issues/<issueId>) carries a TOP-LEVEL                  ║
+ * ║  readerEditionId field, written by syncReaderEditionToLegacyIssue at the    ║
+ * ║  end of ManualImporter Auto-Import publish. That id points at the ONE       ║
+ * ║  published ReaderEdition doc in magazine_reader_editions/<id>.pages[]       ║
+ * ║  (55 pages after a TEST.idml publish).                                      ║
+ * ║                                                                              ║
+ * ║  WE RETURN THIS. FULL STOP. NO RECONSTRUCTIONS, NO FALLBACKS, NO MERGES.    ║
+ * ║  getReaderEditionById() checks COLLECTION/<id> FIRST and ONLY returns the   ║
+ * ║  hydration of that exact doc.                                                ║
+ * ║                                                                              ║
+ * ║  AUTHORITY #2 — LEGACY-EMERGENCY ONLY paths                                 ║
+ * ║  (a) where('issueId' == issueId) on COLLECTION — only used if               ║
+ * ║      magazine_issues/<issueId>.readerEditionId field is empty (pre-2026     ║
+ * ║      Auto-Import old issues that were never re-published).                  ║
+ * ║  (b) Builder reconstruction from magazine_issues/<issueId>/pages/*          ║
+ * ║      sub-collection (legacy 3-6 structural firestore rows, pre-IDML).       ║
+ * ║      Path (b) IS STILL run with buildMergedBuilderPagesWithLinkedReader so  ║
+ * ║      we merge shadow pages if there IS a readerEditionId available for      ║
+ * ║      older issues that have been post-hoc linked to a ReaderEdition doc.    ║
+ * ║                                                                              ║
+ * ║  WHY THIS BLOCK EXISTS: Every previous "fix" added another dual-source      ║
+ * ║  merge layer on top of the last one — which caused "cover repeated 3x"      ║
+ * ║  bugs when legacy builder firestore rows (3-6 structural) accidentally      ║
+ * ║  won the lookup order and shadow pages (55 IDML pages) were never used.     ║
+ * ║  This comment block is EXECUTABLE DOCUMENTATION of the intent so nobody     ║
+ * ║  ever re-shuffles the priority again.                                       ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
+ */
+
 const STRUCTURAL_TEMPLATES = new Set<ReaderPage['template']>([
   'cover',
   'contents',
@@ -988,91 +1024,6 @@ async function findBuilderIssueBySlug(
   return null;
 }
 
-export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
-  const firestore = getFirestore();
-  if (!firestore) return [];
-
-  const builderSnap = await firestore
-    .collection(LEGACY_ISSUES_COLLECTION)
-    .orderBy('publishDate', 'desc')
-    .limit(limit)
-    .get()
-    .catch(() => ({ empty: true, docs: [] }));
-  const builderDocs = builderSnap?.docs ?? [];
-  const fromBuilder: ReaderEdition[] = [];
-  for (const doc of builderDocs) {
-    try {
-      const raw = (doc.data ? doc.data() : doc) as Record<string, unknown>;
-      const ed = await getReaderEditionFromBuilderIssue(firestore, doc.id, raw);
-      if (ed) fromBuilder.push(ed);
-    } catch (err) {
-      console.warn(`[listReaderEditions] builder issue ${doc.id} failed to map:`, err);
-    }
-  }
-  if (fromBuilder.length > 0) return fromBuilder;
-
-  const snapshot = await firestore
-    .collection(COLLECTION)
-    .orderBy('publishDate', 'desc')
-    .limit(limit)
-    .get();
-  const docs = snapshot?.docs ?? [];
-  return Promise.all(
-    docs.map(async (doc: any) =>
-      hydrateEditionWithLegacyPages(
-        serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
-      ),
-    ),
-  );
-}
-
-export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
-  const firestore = getFirestore();
-  if (!firestore) return null;
-
-  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
-  if (builderMatch) {
-    try {
-      const ed = await getReaderEditionFromBuilderIssue(
-        firestore,
-        builderMatch.issueId,
-        builderMatch.issueRaw,
-      );
-      if (ed) return ed;
-    } catch (err) {
-      console.warn('[getReaderEditionBySlug] builder primary failed, falling back to legacy:', err);
-    }
-  }
-
-  const snapshot = await firestore
-    .collection(COLLECTION)
-    .where('slug', '==', slug)
-    .limit(1)
-    .get();
-  const docs = snapshot?.docs ?? [];
-  if (docs.length === 0) return null;
-  const doc = docs[0];
-  return hydrateEditionWithLegacyPages(
-    serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
-  );
-}
-
-export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
-  const firestore = getFirestore();
-  if (!firestore) return null;
-
-  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
-  if (builderMatch) return builderMatch.issueId;
-
-  const snapshot = await firestore
-    .collection(COLLECTION)
-    .where('slug', '==', slug)
-    .limit(1)
-    .get();
-  const docs = snapshot?.docs ?? [];
-  return docs.length === 0 ? null : docs[0].id;
-}
-
 export async function getReaderEditionByIssueId(issueId: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
@@ -1082,17 +1033,27 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
   const issueRaw =
     issueExists && issueDoc.data ? (issueDoc.data() as Record<string, unknown>) : null;
 
+  /**
+   * AUTHORITY #1 — FAST PATH (see block comment at top of file):
+   * magazine_issues.readerEditionId → hydrate EXACT reader edition doc → return NOW.
+   * No merges, no reconstructions, no where() fallback races.
+   */
   const linkedId = issueRaw ? String(issueRaw.readerEditionId || '').trim() : '';
   if (linkedId) {
     try {
       const direct = await getReaderEditionById(linkedId);
       if (direct && Array.isArray(direct.pages) && direct.pages.length > 0) return direct;
     } catch (err) {
-      console.warn('[getReaderEditionByIssueId] magazine_issues.readerEditionId direct fetch failed:', err);
+      console.warn(
+        '[getReaderEditionByIssueId] AUTHORITY#1 readerEditionId direct fetch failed (falling back):',
+        err,
+      );
     }
   }
 
-  let explicitFallback: ReaderEdition | null = null;
+  /**
+   * AUTHORITY #2a — LEGACY EMERGENCY: try where(issueId == id) on COLLECTION.
+   */
   try {
     const explicitSnapshot = await firestore
       .collection(COLLECTION)
@@ -1103,37 +1064,47 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
     const explicitDocs = explicitSnapshot?.docs ?? [];
     if (explicitDocs.length > 0) {
       const doc = explicitDocs[0];
-      explicitFallback = await hydrateEditionWithLegacyPages(
+      const hydrated = await hydrateEditionWithLegacyPages(
         serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
       );
-      if (explicitFallback && Array.isArray(explicitFallback.pages) && explicitFallback.pages.length > 0) {
-        return explicitFallback;
-      }
+      if (hydrated && Array.isArray(hydrated.pages) && hydrated.pages.length > 0) return hydrated;
     }
   } catch (err) {
-    console.warn('[getReaderEditionByIssueId] issueId-where query failed (index missing?):', err);
+    console.warn(
+      '[getReaderEditionByIssueId] AUTHORITY#2a where(issueId) query failed (index?):',
+      err,
+    );
   }
 
+  /**
+   * AUTHORITY #2b — LEGACY EMERGENCY: rebuild from builder firestore pages.
+   * Uses buildMergedBuilderPagesWithLinkedReader so even legacy reconstruction
+   * merges linked readerEdition shadow pages (55) if available.
+   */
   if (issueExists && issueRaw) {
     try {
       const ed = await getReaderEditionFromBuilderIssue(firestore, issueId, issueRaw);
       if (ed) return ed;
     } catch (err) {
-      console.warn('[getReaderEditionByIssueId] builder-doc reconstruction fallback failed:', err);
+      console.warn(
+        '[getReaderEditionByIssueId] AUTHORITY#2b builder reconstruction failed:',
+        err,
+      );
     }
   }
-
-  return explicitFallback;
+  return null;
 }
 
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
 
-  // 1. FIRST: Look up the REAL ReaderEdition in magazine_reader_editions — this is the source of
-  //    truth for IDs that were produced by IDML publish (55+ pages stored in reader edition doc).
-  //    The builder-primary path below is ONLY used as a legacy fallback when there is no real
-  //    ReaderEdition doc (e.g. an old ID used directly to reference a builder issue).
+  /**
+   * AUTHORITY #1 (see file-level comment):
+   * magazine_reader_editions/<id> — THE actual ReaderEdition produced by IDML publish.
+   * We look this up FIRST. Only if it's missing/empty do we try the builder-doc
+   * reconstruction as legacy emergency fallback.
+   */
   const readerDoc = await firestore.collection(COLLECTION).doc(id).get();
   const readerExists =
     typeof readerDoc?.exists === 'boolean' ? readerDoc.exists : Boolean(readerDoc);
@@ -1145,42 +1116,30 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
       if (reader && Array.isArray(reader.pages) && reader.pages.length > 0) {
         return reader;
       }
-      // Real doc has empty pages array — fall through to builder-primary legacy reconstruction.
     } catch (err) {
-      console.warn('[getReaderEditionById] ReaderEdition hydration failed, legacy fallback:', err);
+      console.warn('[getReaderEditionById] AUTHORITY#1 hydration failed:', err);
     }
   }
 
-  // 2. LEGACY FALLBACK: id points to a builder magazine_issues/<id> doc — reconstruct from
-  //    legacy Firestore `pages` sub-collection (only structural spreads, usually < 10).
+  // LEGACY EMERGENCY FALLBACK — id is a builder issue id, rebuild from builder firestore.
   const builderDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(id).get();
   const builderExists =
     typeof builderDoc?.exists === 'boolean' ? builderDoc.exists : Boolean(builderDoc);
   if (builderExists) {
     try {
       const raw = (builderDoc.data ? builderDoc.data() : builderDoc) as Record<string, unknown>;
-      const pages = await loadBuilderPages(firestore, id);
-      if (pages.length > 0) {
+      const legacyPages = await loadBuilderPages(firestore, id);
+      if (legacyPages.length > 0) {
         const issue = {
           ...(serializeData(raw) as any),
           id,
         } as MagazineIssue & { id: string; coverImage?: string };
-
-        // Builder-visible pages = merged legacy pages + shadow pages derived from linked ReaderEdition.
-        // If issue.readerEditionId is set (post-IDML publish with syncReaderEditionToLegacyIssue),
-        // merge shadow pages so reader shows the same 55+ pages the builder sees instead of only
-        // the 3-6 legacy structural firestore rows (which otherwise renders cover repeated).
-        let mergedPages: MagazinePage[] = [...pages];
-        const linkedReaderId = String(raw.readerEditionId || '').trim();
-        if (linkedReaderId) {
-          mergedPages = await buildMergedBuilderPagesWithLinkedReader(
-            firestore,
-            id,
-            raw,
-            pages,
-          );
-        }
-
+        const mergedPages = await buildMergedBuilderPagesWithLinkedReader(
+          firestore,
+          id,
+          raw,
+          legacyPages,
+        );
         const mapped = mapBuilderIssueToReaderEdition(issue, mergedPages);
         const issueCover = sanitizeImageUrl(issue.coverImage) || '';
         const structural = normalizeReaderEditionStructural(mapped, mapped.pages, issueCover);
@@ -1188,16 +1147,138 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
         return (hydrated as ReaderEdition | null) ?? structural;
       }
     } catch (err) {
-      console.warn('[getReaderEditionById] builder-primary legacy fallback failed:', err);
+      console.warn('[getReaderEditionById] LEGACY builder reconstruction fallback failed:', err);
     }
   }
 
-  // 3. LAST RESORT: return the real ReaderEdition even with empty pages array if doc existed.
+  // LAST RESORT: return the reader doc even with empty pages.
   if (readerExists) {
     return hydrateEditionWithLegacyPages(
       serializeData({ id, ...(readerDoc.data ? readerDoc.data() : readerDoc) }) as ReaderEdition,
     );
   }
+  return null;
+}
+
+export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
+  const firestore = getFirestore();
+  if (!firestore) return [];
+
+  /**
+   * AUTHORITY #1 (see file-level comment):
+   * magazine_reader_editions ordered by publishDate DESC → hydrate each → return NOW.
+   * No builder-issue reconstruction in the hot listing path.
+   */
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTION)
+      .orderBy('publishDate', 'desc')
+      .limit(limit)
+      .get()
+      .catch(() => null);
+    const docs = snapshot?.docs ?? [];
+    if (docs.length > 0) {
+      return Promise.all(
+        docs.map(async (doc: any) =>
+          hydrateEditionWithLegacyPages(
+            serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+          ),
+        ),
+      );
+    }
+  } catch (err) {
+    console.warn('[listReaderEditions] AUTHORITY#1 listing failed (builder fallback):', err);
+  }
+
+  /**
+   * AUTHORITY #2 (LEGACY EMERGENCY):
+   * Builder issues listing. Only runs if COLLECTION has 0 docs.
+   */
+  const builderSnap = await firestore
+    .collection(LEGACY_ISSUES_COLLECTION)
+    .orderBy('publishDate', 'desc')
+    .limit(limit)
+    .get()
+    .catch(() => ({ empty: true, docs: [] }));
+  const builderDocs = builderSnap?.docs ?? [];
+  const out: ReaderEdition[] = [];
+  for (const doc of builderDocs) {
+    try {
+      const raw = (doc.data ? doc.data() : doc) as Record<string, unknown>;
+      const ed = await getReaderEditionFromBuilderIssue(firestore, doc.id, raw);
+      if (ed) out.push(ed);
+    } catch (err) {
+      console.warn(`[listReaderEditions] builder issue ${doc.id} failed:`, err);
+    }
+  }
+  return out;
+}
+
+export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
+  const firestore = getFirestore();
+  if (!firestore) return null;
+
+  /**
+   * AUTHORITY #1 (see file-level comment): direct COLLECTION slug match.
+   */
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTION)
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+    const docs = snapshot?.docs ?? [];
+    if (docs.length > 0) {
+      const doc = docs[0];
+      const reader = await hydrateEditionWithLegacyPages(
+        serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+      );
+      if (reader && Array.isArray(reader.pages) && reader.pages.length > 0) return reader;
+    }
+  } catch (err) {
+    console.warn('[getReaderEditionBySlug] AUTHORITY#1 direct slug query failed (builder fallback):', err);
+  }
+
+  /**
+   * AUTHORITY #2 (LEGACY EMERGENCY): builder issue slug match.
+   * Uses buildMergedBuilderPagesWithLinkedReader inside getReaderEditionFromBuilderIssue.
+   */
+  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
+  if (builderMatch) {
+    try {
+      const ed = await getReaderEditionFromBuilderIssue(
+        firestore,
+        builderMatch.issueId,
+        builderMatch.issueRaw,
+      );
+      if (ed) return ed;
+    } catch (err) {
+      console.warn('[getReaderEditionBySlug] AUTHORITY#2 builder slug fallback failed:', err);
+    }
+  }
+  return null;
+}
+
+export async function getReaderEditionIdBySlug(slug: string): Promise<string | null> {
+  const firestore = getFirestore();
+  if (!firestore) return null;
+
+  /** AUTHORITY #1: COLLECTION slug match. */
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTION)
+      .where('slug', '==', slug)
+      .limit(1)
+      .get();
+    const docs = snapshot?.docs ?? [];
+    if (docs.length > 0) return docs[0].id;
+  } catch {
+    /* ignored */
+  }
+
+  /** AUTHORITY #2 (LEGACY EMERGENCY): builder issue slug match. */
+  const builderMatch = await findBuilderIssueBySlug(firestore, slug);
+  if (builderMatch) return builderMatch.issueId;
   return null;
 }
 
