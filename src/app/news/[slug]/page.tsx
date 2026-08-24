@@ -13,7 +13,8 @@ import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
 import { adminDb } from '@/lib/firebase-admin';
 
-export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;

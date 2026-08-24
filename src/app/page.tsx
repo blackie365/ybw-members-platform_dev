@@ -70,7 +70,7 @@ async function getFeaturedMembers() {
   }
 }
 
-export const revalidate = 0;
+export const revalidate = 1800;
 
 export default async function MagazinePage() {
   let featuredPosts: any[] = [];

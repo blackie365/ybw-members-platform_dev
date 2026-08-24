@@ -22,6 +22,9 @@ const inter = Inter({
   variable: '--font-sans'
 });
 
+export const revalidate = 1800;
+export const fetchCache = 'default-cache';
+
 function normalizeAbsoluteUrl(raw: string) {
   const value = String(raw || '').trim();
   if (!value) return '';

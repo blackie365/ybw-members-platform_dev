@@ -2,8 +2,7 @@ import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
 import { adminDb } from '@/lib/firebase-admin';
 import type { Metadata } from 'next';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: 'Members Directory',

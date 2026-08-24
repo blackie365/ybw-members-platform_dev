@@ -72,7 +72,7 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
 
         const response = await fetch(url.toString(), {
           headers: { 'Accept-Version': 'v5.0' },
-          next: { revalidate: 60, tags: ['ghost-posts'] },
+          next: { revalidate: 900, tags: ['ghost-posts'] },
         });
 
         if (!response.ok) {
@@ -111,7 +111,7 @@ export async function getPage(pageSlug: string) {
 
         const response = await fetch(url.toString(), {
           headers: { 'Accept-Version': 'v5.0' },
-          next: { revalidate: 60, tags: ['ghost-pages', `ghost-page-${pageSlug}`] },
+          next: { revalidate: 3600, tags: ['ghost-pages', `ghost-page-${pageSlug}`] },
         });
 
         if (!response.ok) {
@@ -150,7 +150,7 @@ export async function getSinglePost(postSlug: string) {
 
         const response = await fetch(url.toString(), {
           headers: { 'Accept-Version': 'v5.0' },
-          next: { revalidate: 60, tags: ['ghost-posts', `ghost-post-${postSlug}`] },
+          next: { revalidate: 900, tags: ['ghost-posts', `ghost-post-${postSlug}`] },
         });
 
         if (!response.ok) {
@@ -196,7 +196,7 @@ export async function getTags(options?: { limit?: number | string; include?: str
 
         const response = await fetch(url.toString(), {
           headers: { 'Accept-Version': 'v5.0' },
-          next: { revalidate: 60, tags: ['ghost-tags'] },
+          next: { revalidate: 3600, tags: ['ghost-tags'] },
         });
 
         if (!response.ok) {

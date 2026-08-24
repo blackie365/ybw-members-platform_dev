@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import type { Metadata } from 'next';
 
-export const revalidate = 0;
+export const revalidate = 900;
 
 export const metadata: Metadata = {
   title: 'News',
