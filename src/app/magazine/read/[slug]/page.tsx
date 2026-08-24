@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import MagazineShell from '@/features/magazine/components/MagazineShell';
+import MagazineReaderSkeleton from '@/components/magazine/MagazineReaderSkeleton';
 import { getReaderEditionBySlug } from '@/features/magazine/server/simple-reader';
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
@@ -48,5 +50,9 @@ export default async function MagazineReadPage({ params }: { params: Promise<{ s
     redirect('/new-edition');
   }
 
-  return <MagazineShell edition={edition} editionSlug={slug} />;
+  return (
+    <Suspense fallback={<MagazineReaderSkeleton />}>
+      <MagazineShell edition={edition} editionSlug={slug} />
+    </Suspense>
+  );
 }
