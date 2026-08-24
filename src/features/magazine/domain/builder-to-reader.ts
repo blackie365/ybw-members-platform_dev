@@ -23,6 +23,25 @@ import {
  * dedicated renderer for gets collapsed into the closest match so
  * MagazineShell always has a renderer key it recognises.
  */
+export function extractPrintPageNumberFromBuilderPage(
+  page: MagazinePage | any | null | undefined,
+): number | null {
+  if (!page) return null;
+  if (typeof page.pageNumber === 'number' && Number.isFinite(page.pageNumber) && page.pageNumber > 0) {
+    return page.pageNumber;
+  }
+  const contentPos = Number(page?.content?.position || page?.content?.pageNumber || 0);
+  if (Number.isFinite(contentPos) && contentPos > 0) return contentPos;
+  const idStr = String(page?.sourceRef || page?.id || '');
+  let m = idStr.match(/^page[-_](\d+)[-_]/);
+  if (m) return Number(m[1]);
+  const numericId = typeof page.id === 'number' ? page.id : Number(page.id || 0);
+  if (Number.isFinite(numericId) && numericId > 0 && numericId < 10_000) return numericId;
+  const pos = typeof page.position === 'number' ? page.position : Number(page.position || 0);
+  if (Number.isFinite(pos) && pos > 0) return pos;
+  return null;
+}
+
 export const BUILDER_TYPE_TO_READER_TEMPLATE: Record<string, ReaderPageTemplate> = {
   cover: 'cover',
   editorial: 'editor-note',

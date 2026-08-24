@@ -37,6 +37,7 @@ import { storage } from '@/lib/firebase';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import { extractPrintPageNumberFromBuilderPage } from '@/features/magazine/domain/builder-to-reader';
 import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
 import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
 import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
@@ -95,23 +96,6 @@ function getContentsTitleForPage(page: MagazinePage): string {
       page.content?.brand ||
       '',
   ).trim();
-}
-
-function extractPrintPageNumberFromBuilderPage(page: MagazinePage | any | null | undefined): number | null {
-  if (!page) return null;
-  if (typeof page.pageNumber === 'number' && Number.isFinite(page.pageNumber) && page.pageNumber > 0) {
-    return page.pageNumber;
-  }
-  const contentPos = Number(page?.content?.position || page?.content?.pageNumber || 0);
-  if (Number.isFinite(contentPos) && contentPos > 0) return contentPos;
-  const idStr = String(page?.sourceRef || page?.id || '');
-  let m = idStr.match(/^page[-_](\d+)[-_]/);
-  if (m) return Number(m[1]);
-  const numericId = typeof page.id === 'number' ? page.id : Number(page.id || 0);
-  if (Number.isFinite(numericId) && numericId > 0 && numericId < 10_000) return numericId;
-  const pos = typeof page.position === 'number' ? page.position : Number(page.position || 0);
-  if (Number.isFinite(pos) && pos > 0) return pos;
-  return null;
 }
 
 function buildContentsItemsFromPages(pages: MagazinePage[]) {
