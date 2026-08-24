@@ -340,81 +340,99 @@ function joinBodyText(...parts: Array<unknown>): string {
   ).join('\n\n');
 }
 
+function mergeStoryPage(target: ReaderPage, source: ReaderPage): ReaderPage {
+  const previousImageUrls = sanitizeUrlList(target.content.imageUrls);
+  const mergedImageUrl = target.content.imageUrl || source.content.imageUrl || '';
+  const mergedBackgroundImage = target.content.backgroundImage || source.content.backgroundImage || '';
+  const mergedImageUrls = [
+    ...previousImageUrls,
+    ...(target.content.imageUrl ? [target.content.imageUrl] : []),
+    ...(source.content.imageUrl ? [source.content.imageUrl] : []),
+    ...sanitizeUrlList(source.content.imageUrls),
+  ].filter(
+    (url, index, all) =>
+      url &&
+      url !== mergedImageUrl &&
+      url !== mergedBackgroundImage &&
+      all.indexOf(url) === index,
+  );
+  const mergedPullQuotes = [
+    ...(target.content.pullQuotes || []),
+    ...(source.content.pullQuotes || []),
+  ].filter((quote, index, all) => quote && all.indexOf(quote) === index);
+  return sanitizeReaderPage({
+    ...target,
+    content: {
+      ...target.content,
+      body: joinBodyText(target.content.body, source.content.body),
+      standfirst: target.content.standfirst || source.content.standfirst,
+      imageUrl: mergedImageUrl || undefined,
+      backgroundImage: mergedBackgroundImage || undefined,
+      imageUrls: mergedImageUrls,
+      videoUrl: target.content.videoUrl || source.content.videoUrl,
+      quote: target.content.quote || source.content.quote,
+      pullQuotes: mergedPullQuotes,
+      items:
+        Array.isArray(target.content.items) && target.content.items.length > 0
+          ? target.content.items
+          : source.content.items,
+      mediaLayout:
+        target.content.mediaLayout === 'background'
+          ? target.content.mediaLayout
+          : target.content.mediaLayout || source.content.mediaLayout,
+      isContinuation: false,
+      continuationLabel: undefined,
+    },
+  });
+}
+
 function collapseSplitStoryPages(pages: ReaderPage[]): ReaderPage[] {
+  // Pass 1: sanitize and build story-key lookup. Non-story pages are not merged.
+  const sanitized = pages.map(sanitizeReaderPage);
+  const storyKeyOf = (page: ReaderPage): string => {
+    if (!isStoryPage(page)) return '';
+    return normalizeText(page.content?.continuationLabel || page.content?.title);
+  };
+
+  // Pass 2: first occurrence merges all subsequent same-key pages (non-adjacent A/B/C/D halves).
+  // This handles the builder pattern where a feature has a left-page 36 then right-page 46/47/48
+  // later in document order due to print-spread layout constraints.
+  const firstOccurrence = new Map<string, number>();
   const collapsed: ReaderPage[] = [];
-
-  for (const rawPage of pages) {
-    const page = sanitizeReaderPage(rawPage);
-    const previousPage = collapsed[collapsed.length - 1];
-    const pageTitle = normalizeText(page.content?.continuationLabel || page.content?.title);
-    const previousTitle = normalizeText(
-      previousPage?.content?.continuationLabel || previousPage?.content?.title,
-    );
-    const shouldMergeWithPrevious =
-      Boolean(pageTitle) &&
-      pageTitle === previousTitle &&
-      isStoryPage(page) &&
-      isStoryPage(previousPage) &&
-      (Boolean(page.content?.isContinuation) || Boolean(previousPage?.content?.isContinuation));
-
-    if (!shouldMergeWithPrevious || !previousPage) {
-      collapsed.push({
-        ...page,
-        content: {
-          ...page.content,
-          isContinuation: false,
-          continuationLabel: undefined,
-        },
-      });
-      continue;
-    }
-
-    const previousImageUrls = sanitizeUrlList(previousPage.content.imageUrls);
-    const mergedImageUrl = previousPage.content.imageUrl || page.content.imageUrl || '';
-    const mergedBackgroundImage =
-      previousPage.content.backgroundImage || page.content.backgroundImage || '';
-    const mergedImageUrls = [
-      ...previousImageUrls,
-      ...(previousPage.content.imageUrl ? [previousPage.content.imageUrl] : []),
-      ...(page.content.imageUrl ? [page.content.imageUrl] : []),
-      ...sanitizeUrlList(page.content.imageUrls),
-    ].filter(
-      (url, index, all) =>
-        url &&
-        url !== mergedImageUrl &&
-        url !== mergedBackgroundImage &&
-        all.indexOf(url) === index,
-    );
-
-    collapsed[collapsed.length - 1] = sanitizeReaderPage({
-      ...previousPage,
+  for (const rawPage of sanitized) {
+    const page: ReaderPage = {
+      ...rawPage,
       content: {
-        ...previousPage.content,
-        body: joinBodyText(previousPage.content.body, page.content.body),
-        standfirst: previousPage.content.standfirst || page.content.standfirst,
-        imageUrl: mergedImageUrl || undefined,
-        backgroundImage: mergedBackgroundImage || undefined,
-        imageUrls: mergedImageUrls,
-        videoUrl: previousPage.content.videoUrl || page.content.videoUrl,
-        quote: previousPage.content.quote || page.content.quote,
-        pullQuotes: [
-          ...(previousPage.content.pullQuotes || []),
-          ...(page.content.pullQuotes || []),
-        ].filter((quote, index, all) => quote && all.indexOf(quote) === index),
-        items:
-          Array.isArray(previousPage.content.items) && previousPage.content.items.length > 0
-            ? previousPage.content.items
-            : page.content.items,
-        mediaLayout:
-          previousPage.content.mediaLayout === 'background'
-            ? previousPage.content.mediaLayout
-            : previousPage.content.mediaLayout || page.content.mediaLayout,
+        ...rawPage.content,
         isContinuation: false,
         continuationLabel: undefined,
       },
-    });
+    };
+    const key = storyKeyOf(page);
+    if (!key) {
+      // Structural page or ad or no title: keep as-is, not merged
+      collapsed.push(page);
+      continue;
+    }
+    if (!firstOccurrence.has(key)) {
+      // First occurrence of this story: keep it
+      firstOccurrence.set(key, collapsed.length);
+      collapsed.push(page);
+      continue;
+    }
+    // Duplicate title story page: merge into first occurrence
+    const firstIdx = firstOccurrence.get(key)!;
+    const prev = collapsed[firstIdx];
+    const prevKey = storyKeyOf(prev);
+    const eitherMarked = Boolean(prev.content?.isContinuation) || Boolean(page.content?.isContinuation);
+    const bothHaveBody = Boolean(prev.content?.body) && Boolean(page.content?.body);
+    if (prevKey === key && (eitherMarked || bothHaveBody)) {
+      collapsed[firstIdx] = mergeStoryPage(prev, page);
+    } else {
+      // Unexpected mismatch: keep second page separate
+      collapsed.push(page);
+    }
   }
-
   return collapsed.map((page) => ({
     ...page,
     content: {
