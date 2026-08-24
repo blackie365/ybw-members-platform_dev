@@ -7,7 +7,7 @@ import { getReaderEditionBySlug } from '@/features/magazine/server/simple-reader
 import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
-export const revalidate = 900;
+export const revalidate = 60;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
