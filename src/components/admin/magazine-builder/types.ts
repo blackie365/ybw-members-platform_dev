@@ -27,6 +27,8 @@ export const PAGE_TYPES = [
 export interface MagazinePage {
   docId: string;
   id: number;
+  pageNumber?: number;
+  position?: number;
   type: string;
   storyId?: string;
   sourceRef?: string;

@@ -242,8 +242,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       return {
         docId: `reader:${editionId}:page:${i}:${pos}`,
         id: startId + pos,
+        pageNumber: pos,
+        position: pos,
         type,
-        readOnly: true,
+        readOnly: false,
         generatedFromStoryLibrary: true,
         sourceReaderEditionId: editionId,
         sourceRef: String(rp.id || ''),
@@ -255,7 +257,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           body,
           text: body,
           position: pos,
-          pageNumber: Number.isFinite(printNum) && printNum! > 0 ? printNum : undefined,
+          pageNumber: pos,
           template: rp.template,
         },
         createdAt: rp.createdAt || now,
@@ -275,11 +277,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       });
     }
 
-    // Key each page by its PRINT page number (the same scheme the digital
-    // magazine uses). If the admin has run "Sync Reader → Builder", legacy
-    // pages exist for exactly those print positions — prefer the EDITABLE
-    // legacy page over its read-only shadow so the builder's PageEditor
-    // doesn't fall through to read-only mode when there's editable data.
     const legacyByPrint = new Map<number, MagazinePage>();
     for (const lp of legacyPages) {
       const pn = extractPrintPageNumberFromBuilderPage(lp);
@@ -294,23 +291,61 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       ...legacyByPrint.keys(),
       ...shadowByPrint.keys(),
     ]);
+
+    const maxShadowPrint = shadowByPrint.size > 0 ? Math.max(...shadowByPrint.keys()) : 0;
+    const shadowReaderEditionsPresent = rePages.length > 0;
     const merged: MagazinePage[] = [];
+
     for (const printNum of allPrintNumbers) {
       const legacy = legacyByPrint.get(printNum);
       const shadow = shadowByPrint.get(printNum);
-      // Preserve any extra user-added legacy pages outside Reader range too:
-      if (legacy) merged.push(legacy);
-      else if (shadow) merged.push(shadow);
+      if (legacy && shadow) {
+        const legacyIsFresh =
+          typeof legacy?.sourceReaderEditionId === 'string' &&
+          legacy.sourceReaderEditionId === rePages[0]?.sourceReaderEditionId;
+        const legacyIsSmallerImportClobberingLarger =
+          shadowReaderEditionsPresent &&
+          maxShadowPrint > printNum &&
+          legacy &&
+          !legacy?.sourceReaderEditionId &&
+          !legacy?.generatedFromStoryLibrary;
+        if (legacyIsSmallerImportClobberingLarger) {
+          merged.push(shadow);
+        } else if (legacyIsFresh) {
+          merged.push(legacy);
+        } else if (
+          legacy?.generatedFromStoryLibrary === true &&
+          (legacy as any).readOnly === false
+        ) {
+          merged.push(legacy);
+        } else {
+          const combined = { ...shadow, ...legacy };
+          if ((legacy as any).readOnly !== undefined && !(legacy as any).readOnly) {
+            (combined as any).readOnly = false;
+          }
+          merged.push(combined);
+        }
+      } else if (legacy) {
+        merged.push(legacy);
+      } else if (shadow) {
+        merged.push(shadow);
+      }
     }
-    // Append user-added legacy spreads whose print position is NOT set / is
-    // outside the ReaderEdition range (manually-added standalone pages).
+
     const seenDocIds = new Set(merged.map((p) => p.docId));
     for (const lp of legacyPages) {
-      if (!seenDocIds.has(lp.docId)) merged.push(lp);
+      if (!seenDocIds.has(lp.docId)) {
+        merged.push(lp);
+        seenDocIds.add(lp.docId);
+      }
     }
     for (const sp of rePages) {
-      if (!seenDocIds.has(sp.docId)) merged.push(sp);
+      if (!seenDocIds.has(sp.docId)) {
+        merged.push(sp);
+        seenDocIds.add(sp.docId);
+      }
     }
+
     return merged.sort((a, b) => {
       const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
       const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);

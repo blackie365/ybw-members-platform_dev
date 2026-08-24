@@ -333,7 +333,12 @@ function isArticleTitleEntry(
 ): boolean {
   if (!entry?.frame?.isTitle) return false;
   if (shouldIgnoreDecorativeStory(entry.story)) return false;
-  return detectTitleFrame(entry.story, frameIndex);
+  const isTitleish = detectTitleFrame(entry.story, frameIndex);
+  if (!isTitleish) return false;
+  const raw = String(entry.story?.title || entry.story?.text || "").replace(/\s+/g, " ").trim();
+  if (raw.length <= 2) return false;
+  if (/^[\W_]+$/.test(raw)) return false;
+  return true;
 }
 
 function tokenizeArticleText(value: string): string[] {
@@ -853,9 +858,13 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
       currentArticle = {
         title: (() => {
           const s = titleStory?.title?.trim() || "";
-          if (s.length >= 2) return s;
-          const t = String(titleStory?.text || "").replace(/\s+/g, " ").trim();
-          if (!t) return "";
+          if (s.length >= 3) return s;
+          let t = String(titleStory?.text || "").replace(/\s+/g, " ").trim();
+          t = t
+            .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+            .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+            .trim();
+          if (!t || t.length <= 2) return "";
           const words = t.split(/\s+/).slice(0, 14);
           return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
         })(),
@@ -1010,7 +1019,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
 
   const coverSourcePage = sortedPages[0];
   const coverSourceArticle =
-    articles.find((article) => article.title.trim()) || null;
+    articles.find((article) => (article.title || "").trim().length >= 3) || null;
   const coverBody = coverSourcePage
     ? getPageBodyText(coverSourcePage, true)
     : "";
@@ -1019,6 +1028,23 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     : [];
   const coverLogos = coverSourcePage ? getLogoImages(coverSourcePage) : [];
   const coverLogo = coverLogos[0] || "";
+  const fallbackCoverTitle = (() => {
+    const firstStory = coverSourcePage?.stories[0];
+    const candidates = [
+      coverSourceArticle?.title,
+      firstStory?.title,
+      String(firstStory?.text || "").replace(/\s+/g, " ").trim(),
+    ];
+    for (const raw of candidates) {
+      const clean = String(raw || "")
+        .replace(/\s+/g, " ")
+        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+        .trim();
+      if (clean.length >= 3) return clean;
+    }
+    return "";
+  })();
 
   if (coverSourcePage) {
     result.push({
@@ -1026,8 +1052,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       position: 0,
       template: "cover",
       content: {
-        title:
-          coverSourceArticle?.title || coverSourcePage.stories[0]?.title || "",
+        title: fallbackCoverTitle,
         body: coverBody,
         standfirst: getStandfirst(coverSourceArticle?.body || coverBody),
         imageUrl: coverImages[0] || "",
@@ -1284,7 +1309,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     const pageImages = getPageImages(sourcePage);
     const pageLogos = getLogoImages(sourcePage);
     const detectPageTitle = (fallbackWordMax = 14): string => {
-      if (article?.title?.trim()) return article.title.trim();
+      const articleTitle = String(article?.title || "").trim();
+      if (articleTitle.length >= 3) return articleTitle;
       const explicitTitleFrame = sourcePage.frames.find(
         (f) =>
           /^\s*title\s*frame\s*$/i.test(
@@ -1298,17 +1324,18 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         getOrderedPageStories(sourcePage).find((s) => {
           const txt = s.text?.trim() || "";
           const wc = countWords(txt);
-          return wc >= 2 && wc <= 20;
+          return wc >= 3 && wc <= 20;
         }) ||
-        sourcePage.stories.find((s) =>
-          Boolean((s.title || s.text || "").trim()),
-        );
+        sourcePage.stories.find((s) => {
+          const candidate = String(s.title || s.text || "").replace(/\s+/g, " ").trim();
+          return candidate.length >= 3;
+        });
       const explicitRaw = explicitTitleFrame
         ? titleStory?.title?.trim() || titleStory?.text?.trim()
         : undefined;
       const raw =
         explicitRaw ||
-        (article?.title ? String(article.title).trim() : "") ||
+        (articleTitle.length >= 3 ? articleTitle : "") ||
         titleStory?.title?.trim() ||
         titleStory?.text?.trim() ||
         (sourcePage.stories[0]?.title?.trim() ??
@@ -1317,7 +1344,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       let clean = String(raw).replace(/\s+/g, " ").trim();
       clean = clean.replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "").trim();
       clean = clean.replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "").trim();
-      if (!clean) return "";
+      if (!clean || clean.length <= 2) return "";
       const words = clean.split(/\s+/).slice(0, fallbackWordMax);
       let joined = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
       joined = joined
