@@ -802,12 +802,22 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
     );
     const existingKeys = new Set(mergedPages.map((page) => buildLegacyLookupKey(page)));
     const maxPosition = mergedPages.reduce((max, page) => Math.max(max, Number(page.position) || 0), 0);
-    const appendedLegacyPages = legacyPages
-      .filter((page) => !existingKeys.has(buildLegacyLookupKey(page)))
-      .map((page, index) => ({
-        ...page,
-        position: maxPosition + index + 1,
-      }));
+    const IDML_PAGINATION_THRESHOLD = 15;
+    const isIdmlPublished = rawPages.length >= IDML_PAGINATION_THRESHOLD;
+    const appendedLegacyPages = isIdmlPublished
+      ? []
+      : legacyPages
+          .filter((page) => !existingKeys.has(buildLegacyLookupKey(page)))
+          .filter((page) => {
+            const title = String(page.content?.title || '').trim();
+            const body = String(page.content?.body || page.content?.text || '').trim();
+            const hasImage = Boolean(page.content?.imageUrl || page.content?.backgroundImage || (page.content?.imageUrls || []).length > 0);
+            return title.length >= 2 || body.length >= 40 || hasImage;
+          })
+          .map((page, index) => ({
+            ...page,
+            position: maxPosition + index + 1,
+          }));
     pages = [...mergedPages, ...appendedLegacyPages];
   } else {
     pages = rawPages;
