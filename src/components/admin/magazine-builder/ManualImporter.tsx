@@ -189,6 +189,7 @@ export interface ManualImporterProps {
   storyLibrary?: StoryLibraryItem[];
   onSaveStoryLibrary?: (storyLibrary: StoryLibraryItem[]) => Promise<void>;
   onStoryLibraryImported?: (storyLibrary: StoryLibraryItem[]) => void;
+  onAfterPublish?: () => void;
 }
 
 type ParsedInDesignStory = {
@@ -272,6 +273,7 @@ export function ManualImporter({
   storyLibrary,
   onSaveStoryLibrary,
   onStoryLibraryImported,
+  onAfterPublish,
 }: ManualImporterProps) {
   const [rawText, setRawText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -968,6 +970,13 @@ export function ManualImporter({
       setServerIdmlPreflight(null);
       setShowServerIdmlPreview(false);
       setServerIdmlDraftId('');
+      if (typeof onAfterPublish === 'function') {
+        try {
+          onAfterPublish();
+        } catch (e) {
+          console.warn('[ManualImporter] onAfterPublish threw:', e);
+        }
+      }
     } catch (e: any) {
       toast.error(e?.message || 'Failed to publish edition');
     } finally {
