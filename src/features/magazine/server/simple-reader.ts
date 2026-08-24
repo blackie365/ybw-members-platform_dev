@@ -989,34 +989,51 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
 
   const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
   const issueExists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
-  if (issueExists) {
+  const issueRaw =
+    issueExists && issueDoc.data ? (issueDoc.data() as Record<string, unknown>) : null;
+
+  const linkedId = issueRaw ? String(issueRaw.readerEditionId || '').trim() : '';
+  if (linkedId) {
     try {
-      const issueRaw = (issueDoc.data ? issueDoc.data() : issueDoc) as Record<string, unknown>;
-      const ed = await getReaderEditionFromBuilderIssue(firestore, issueId, issueRaw);
-      if (ed) return ed;
+      const direct = await getReaderEditionById(linkedId);
+      if (direct && Array.isArray(direct.pages) && direct.pages.length > 0) return direct;
     } catch (err) {
-      console.warn('[getReaderEditionByIssueId] builder-primary failed, legacy fallback:', err);
+      console.warn('[getReaderEditionByIssueId] magazine_issues.readerEditionId direct fetch failed:', err);
     }
   }
 
-  const explicitSnapshot = await firestore
-    .collection(COLLECTION)
-    .where('issueId', '==', issueId)
-    .orderBy('publishDate', 'desc')
-    .limit(1)
-    .get();
-  const explicitDocs = explicitSnapshot?.docs ?? [];
-  if (explicitDocs.length > 0) {
-    const doc = explicitDocs[0];
-    return hydrateEditionWithLegacyPages(
-      serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
-    );
+  let explicitFallback: ReaderEdition | null = null;
+  try {
+    const explicitSnapshot = await firestore
+      .collection(COLLECTION)
+      .where('issueId', '==', issueId)
+      .orderBy('publishDate', 'desc')
+      .limit(1)
+      .get();
+    const explicitDocs = explicitSnapshot?.docs ?? [];
+    if (explicitDocs.length > 0) {
+      const doc = explicitDocs[0];
+      explicitFallback = await hydrateEditionWithLegacyPages(
+        serializeData({ id: doc.id, ...(doc.data ? doc.data() : doc) }) as ReaderEdition,
+      );
+      if (explicitFallback && Array.isArray(explicitFallback.pages) && explicitFallback.pages.length > 0) {
+        return explicitFallback;
+      }
+    }
+  } catch (err) {
+    console.warn('[getReaderEditionByIssueId] issueId-where query failed (index missing?):', err);
   }
-  const issueRaw =
-    issueExists && issueDoc.data ? (issueDoc.data() as Record<string, unknown>) : null;
-  const linkedId = issueRaw ? String(issueRaw.readerEditionId || '').trim() : '';
-  if (!linkedId) return null;
-  return getReaderEditionById(linkedId);
+
+  if (issueExists && issueRaw) {
+    try {
+      const ed = await getReaderEditionFromBuilderIssue(firestore, issueId, issueRaw);
+      if (ed) return ed;
+    } catch (err) {
+      console.warn('[getReaderEditionByIssueId] builder-doc reconstruction fallback failed:', err);
+    }
+  }
+
+  return explicitFallback;
 }
 
 export async function getReaderEditionById(id: string): Promise<ReaderEdition | null> {

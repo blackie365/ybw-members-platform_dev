@@ -315,7 +315,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           merged.push(legacy);
         } else if (
           legacy?.generatedFromStoryLibrary === true &&
-          (legacy as any).readOnly === false
+          (legacy as any).readOnly === false &&
+          rePages.length === 0
         ) {
           merged.push(legacy);
         } else {
@@ -2584,6 +2585,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                     storyLibrary={issue.storyLibrary || []}
                     onSaveStoryLibrary={handleSaveStoryLibrary}
                     onStoryLibraryImported={handleStoryLibraryImported}
+                    onAfterPublish={() => loadData(true)}
                   />
                 </div>
               </div>
