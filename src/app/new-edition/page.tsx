@@ -12,7 +12,7 @@ import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
-export const revalidate = 0; // Disable cache for debugging
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: 'Latest Edition',

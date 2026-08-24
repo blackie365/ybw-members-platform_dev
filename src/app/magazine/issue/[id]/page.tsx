@@ -13,6 +13,21 @@ import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
+export const revalidate = 900;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    const issues = await getMagazineIssuesServer();
+    return issues.filter((i) => i && String(i.id || '').trim()).map((issue) => ({
+      id: String(issue.id),
+    }));
+  } catch (e) {
+    console.warn('[magazine/issue generateStaticParams] failed:', e);
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const issue = await getMagazineIssueServer(id);
