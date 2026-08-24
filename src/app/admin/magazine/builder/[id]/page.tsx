@@ -229,7 +229,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         pageNumber: pos,
         position: pos,
         type,
-        readOnly: false,
+        readOnly: true,
         generatedFromStoryLibrary: true,
         sourceReaderEditionId: editionId,
         sourceRef: String(rp.id || ''),
@@ -552,8 +552,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
       if (newReaderRes?.success && newReaderRes.data) {
         setReaderEditionId(String(newReaderRes.data.id || ''));
-        const hydratedPages: any[] = Array.isArray((newReaderRes.data as any).pages) ? (newReaderRes.data as any).pages : [];
-        setReaderEditionPages(convertReaderPagesToShadow(hydratedPages, String(newReaderRes.data.id || '')));
+        setReaderEditionPages([]);
       }
       setActiveTab('builder');
     } catch (err: any) {
@@ -613,23 +612,39 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const persistPageOrder = useCallback(async (orderedPages: MagazinePage[]) => {
     const previousPages = pages;
-    const renumberedPages = orderedPages.map((page, index) => ({
-      ...page,
-      id: index + 1,
-    }));
+    const renumberedPages = orderedPages.map((page, index) => {
+      const nextSlot = index + 1;
+      const nextContent = {
+        ...(page.content || {}),
+        position: nextSlot,
+        pageNumber: nextSlot,
+      };
+      return {
+        ...page,
+        id: nextSlot,
+        pageNumber: nextSlot,
+        position: nextSlot,
+        content: nextContent,
+      };
+    });
     const nextPages = applyContentsPageItems(renumberedPages);
     const previousPageByDocId = new Map(previousPages.map((page) => [page.docId, page]));
     const changedPages = nextPages.filter((page) => {
       const previousPage = previousPageByDocId.get(page.docId);
       if (!previousPage) return false;
 
-      const idChanged = previousPage.id !== page.id;
+      const positionChanged =
+        previousPage.id !== page.id ||
+        previousPage.pageNumber !== page.pageNumber ||
+        previousPage.position !== page.position ||
+        (previousPage.content?.position ?? null) !== (page.content?.position ?? null) ||
+        (previousPage.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
       const contentChanged =
         page.type === 'contents' &&
         JSON.stringify(previousPage.content?.items || []) !==
           JSON.stringify(page.content?.items || []);
 
-      return idChanged || contentChanged;
+      return positionChanged || contentChanged;
     });
 
     setPages(nextPages);
@@ -638,13 +653,26 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const results = await Promise.all(
         changedPages.map((page) => {
           const previousPage = previousPageByDocId.get(page.docId);
-          const payload: { id?: number; content?: any } = {};
+          const payload: {
+            id?: number;
+            pageNumber?: number;
+            position?: number;
+            content?: any;
+          } = {};
 
-          if (previousPage?.id !== page.id) {
+          const positionFieldsChanged =
+            previousPage?.id !== page.id ||
+            previousPage?.pageNumber !== page.pageNumber ||
+            previousPage?.position !== page.position ||
+            (previousPage?.content?.position ?? null) !== (page.content?.position ?? null) ||
+            (previousPage?.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
+
+          if (positionFieldsChanged) {
             payload.id = page.id;
-          }
-
-          if (
+            payload.pageNumber = page.pageNumber;
+            payload.position = page.position;
+            payload.content = page.content;
+          } else if (
             page.type === 'contents' &&
             JSON.stringify(previousPage?.content?.items || []) !==
               JSON.stringify(page.content?.items || [])
@@ -1873,14 +1901,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
-    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
-    if (shadowPage?.readOnly) {
-      toast.warning('Published IDML pages are read-only. Reorder the InDesign document then re-publish.');
+    const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId);
+    const shadowBacking =
+      (mergedPage && (mergedPage as any)?._shadowDocId) ||
+      readerEditionPages.some(p => p.docId === pageDocId) ||
+      String(pageDocId || '').startsWith('reader:');
+    if (mergedPage?.readOnly || shadowBacking) {
+      toast.warning('IDML-published pages are read-only. Run "Sync ReaderEdition → Builder" to create editable copies, then reorder.');
       return;
     }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
-    if (currentIndex === -1) return;
+    if (currentIndex === -1) {
+      toast.warning('This spread comes from the published ReaderEdition and cannot be reordered. Sync to editable builder pages first.');
+      return;
+    }
     if (direction === 'up' && currentIndex === 0) return;
     if (direction === 'down' && currentIndex === sortedPages.length - 1) return;
 
@@ -1893,14 +1928,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePageToPosition = async (pageDocId: string, targetPosition: number) => {
-    const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
-    if (shadowPage?.readOnly) {
-      toast.warning('Published IDML pages are read-only. Reorder the InDesign document then re-publish.');
+    const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId);
+    const shadowBacking =
+      (mergedPage && (mergedPage as any)?._shadowDocId) ||
+      readerEditionPages.some(p => p.docId === pageDocId) ||
+      String(pageDocId || '').startsWith('reader:');
+    if (mergedPage?.readOnly || shadowBacking) {
+      toast.warning('IDML-published pages are read-only. Run "Sync ReaderEdition → Builder" to create editable copies, then reorder.');
       return;
     }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
-    if (currentIndex === -1) return;
+    if (currentIndex === -1) {
+      toast.warning('This spread comes from the published ReaderEdition and cannot be reordered. Sync to editable builder pages first.');
+      return;
+    }
 
     const boundedIndex = Math.max(0, Math.min(sortedPages.length - 1, targetPosition - 1));
     if (boundedIndex === currentIndex) return;

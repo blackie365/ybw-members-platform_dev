@@ -5,3 +5,8 @@ dist
 .trae
 .log
 .figma
+.next
+backups
+.dbg
+data/magazine
+scripts/dbg-*.ts
