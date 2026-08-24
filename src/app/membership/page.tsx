@@ -71,7 +71,7 @@ export default function MembershipPage() {
 }
 
 function MembershipPageClient() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('annually');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly');
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const { user, membershipTier, profile } = useAuth();
   const router = useRouter();
