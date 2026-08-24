@@ -44,3 +44,7 @@ package-lock.json
 
 # Dedupe script backups (contain member PII)
 scripts/backups/
+scripts/dbg-*.ts
+scripts/promote-*.mjs
+.trae-pr-body.md
+.pr-body.md
