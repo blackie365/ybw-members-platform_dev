@@ -1,5 +1,8 @@
 import JSZip from 'jszip';
 import { DOMParser } from '@xmldom/xmldom';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 
 export interface ParsedFrame {
   frameSelf: string;
@@ -159,6 +162,74 @@ function getFileMimeType(fileName: string): string {
     case 'indd': return 'application/x-indesign';
     default: return 'application/octet-stream';
   }
+}
+
+function tryReadLocalFs(p: string): Buffer | null {
+  try {
+    if (!p || typeof fs?.readFileSync !== 'function') return null;
+    if (!fs.existsSync(p)) return null;
+    const s = fs.statSync(p);
+    if (!s.isFile()) return null;
+    const data = fs.readFileSync(p);
+    return data && data.length > 0 ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCandidateLocalPaths(uri: string): string[] {
+  const clean = decodeURIComponent(String(uri || ''))
+    .replace(/\\/g, '/');
+  const stripped = clean.replace(/^file:\/+/i, '').replace(/^file:/i, '');
+  const candidates: string[] = [];
+  if (stripped) candidates.push(stripped);
+  const justName = stripped.split('/').pop() || '';
+  if (justName) {
+    try {
+      if (typeof process?.cwd) {
+        candidates.push(path.resolve(process.cwd(), justName));
+        candidates.push(path.resolve(process.cwd(), 'assets', justName));
+        candidates.push(path.resolve(process.cwd(), 'images', justName));
+      }
+    } catch {}
+    try {
+      if (typeof os?.homedir) {
+      candidates.push(path.resolve(os.homedir(), 'Documents', justName));
+      candidates.push(path.resolve(os.homedir(), 'Desktop', justName));
+      candidates.push(path.resolve(os.homedir(), 'Downloads', justName));
+      }
+    } catch {}
+  }
+  return candidates;
+}
+
+function hashStringToRgb(seed: string): [number, number, number] {
+  let h = 2166136261;
+  const s = String(seed || 'img').toLowerCase();
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const r = (h >>> 0) % 256;
+  const g = (Math.imul(h >>> 8, 97) >>> 0) % 256;
+  const b = (Math.imul(h >>> 16, 193) >>> 0) % 256;
+  return [r, g, b];
+}
+
+function buildPlaceholderImageDataUri(fileName: string): { data: Buffer; mimeType: string } {
+  const [r, g, b] = hashStringToRgb(fileName);
+  const fg = (r * 0.299 + g * 0.587 + b * 0.114) > 140 ? '#111111' : '#ffffff';
+  const bg = `rgb(${r},${g},${b})`;
+  const displayName = (fileName.split('/').pop() || 'missing-image').slice(0, 48);
+  const escapedName = String(displayName)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg}" stop-opacity="0.92"/><stop offset="100%" stop-color="${bg}" stop-opacity="0.72"/></linearGradient></defs><rect width="1200" height="1600" fill="url(#g)"/><rect x="60" y="60" width="1080" height="1480" fill="none" stroke="${fg}" stroke-opacity="0.35" stroke-width="6" rx="28"/><text x="600" y="820" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700" text-anchor="middle" fill="${fg}">${escapedName}</text><text x="600" y="900" font-family="Helvetica, Arial, sans-serif" font-size="28" text-anchor="middle" fill="${fg}" fill-opacity="0.7">Image asset (linked — embed in InDesign for best results)</text></svg>`;
+  const data = Buffer.from(svg, 'utf8');
+  return { data, mimeType: 'image/svg+xml' };
 }
 
 function supportsEmbeddedImageExtraction(fileName: string): boolean {
@@ -837,20 +908,28 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   }
 
   const imagesByFileName = new Map<string, ParsedIdmlImage>();
-  const imageFiles = Object.keys(zip.files).filter((p) =>
-    /^Graphics\/.+\.(png|jpe?g|gif|webp|svg|pdf)$/i.test(p),
+  const zipGraphicLikeExt = /\.(png|jpe?g|gif|webp|svg|pdf|tiff?|bmp|ico|avif|heic|heif|ai|eps|psd)$/i;
+  const imageFiles = Object.keys(zip.files).filter(
+    (p) =>
+      zipGraphicLikeExt.test(p) &&
+      !/^META-INF\//i.test(p) &&
+      !/^Resources\//i.test(p) &&
+      !/^XML\//i.test(p),
   );
 
-  for (const path of imageFiles) {
-    const file = zip.file(path);
+  for (const zipPath of imageFiles) {
+    const file = zip.file(zipPath);
     if (!file) continue;
     const data = await file.async('nodebuffer');
-    const fileName = path.split('/').pop() || path;
-    imagesByFileName.set(fileName, {
-      fileName,
-      data,
-      mimeType: getFileMimeType(fileName),
-    });
+    if (!looksLikeImageData(data, zipPath)) continue;
+    const fileName = zipPath.split('/').pop() || zipPath;
+    if (!imagesByFileName.has(fileName)) {
+      imagesByFileName.set(fileName, {
+        fileName,
+        data,
+        mimeType: getFileMimeType(fileName),
+      });
+    }
   }
 
   const spreadFiles = Object.keys(zip.files).filter((p) => /^Spreads\/.+\.xml$/i.test(p));
@@ -882,11 +961,13 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       const linkNode = imageNode.getElementsByTagName('Link')[0];
       if (!linkNode) continue;
 
-      const fileName = extractFileNameFromUri(
-        linkNode.getAttribute('LinkResourceURI') || '',
-        linkNode.getAttribute('LinkResourceFormat') || '',
-      );
+      const linkUri = linkNode.getAttribute('LinkResourceURI') || '';
+      const linkFormat = linkNode.getAttribute('LinkResourceFormat') || '';
+      const fileName = extractFileNameFromUri(linkUri, linkFormat);
       if (!supportsEmbeddedImageExtraction(fileName) || imagesByFileName.has(fileName)) continue;
+
+      let data: Buffer | null = null;
+      let mimeType: string = getFileMimeType(fileName);
 
       const propertiesNodes = imageNode.getElementsByTagName('Properties');
       let encodedContents = '';
@@ -898,15 +979,30 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         break;
       }
 
-      if (!encodedContents) continue;
+      if (encodedContents) {
+        const candidateBuf = Buffer.from(encodedContents, 'base64');
+        if (candidateBuf.length > 0 && looksLikeImageData(candidateBuf, fileName)) {
+          data = candidateBuf;
+        }
+      }
 
-      const data = Buffer.from(encodedContents, 'base64');
-      if (data.length === 0 || !looksLikeImageData(data, fileName)) continue;
+      if (!data) {
+        const locals = resolveCandidateLocalPaths(linkUri);
+        for (const localPath of locals) {
+          const candidateBuf = tryReadLocalFs(localPath);
+          if (candidateBuf && looksLikeImageData(candidateBuf, fileName)) {
+            data = candidateBuf;
+            break;
+          }
+        }
+      }
+
+      if (!data) continue;
 
       imagesByFileName.set(fileName, {
         fileName,
         data,
-        mimeType: getFileMimeType(fileName),
+        mimeType,
       });
     }
 
@@ -918,6 +1014,8 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       if (!parentNode) continue;
 
       let fileName = '';
+      let parentLinkUri = '';
+      let parentLinkFormat = '';
       const pdfLinks = (parentNode as any).getElementsByTagName('Link');
       for (let linkIdx = 0; linkIdx < pdfLinks.length; linkIdx++) {
         const linkNode = pdfLinks[linkIdx];
@@ -927,6 +1025,8 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         );
         if (!/\.pdf$/i.test(candidate)) continue;
         fileName = candidate;
+        parentLinkUri = linkNode.getAttribute('LinkResourceURI') || '';
+        parentLinkFormat = linkNode.getAttribute('LinkResourceFormat') || '';
         break;
       }
 
@@ -942,10 +1042,24 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
         break;
       }
 
-      if (!encodedContents) continue;
-
-      const pdfData = Buffer.from(encodedContents, 'base64');
-      if (pdfData.length === 0 || !looksLikeImageData(pdfData, fileName)) continue;
+      let pdfData: Buffer | null = null;
+      if (encodedContents) {
+        const candidateBuf = Buffer.from(encodedContents, 'base64');
+        if (candidateBuf.length > 0 && looksLikeImageData(candidateBuf, fileName)) {
+          pdfData = candidateBuf;
+        }
+      }
+      if (!pdfData) {
+        const locals = resolveCandidateLocalPaths(parentLinkUri || parentLinkFormat);
+        for (const localPath of locals) {
+          const candidateBuf = tryReadLocalFs(localPath);
+          if (candidateBuf && looksLikeImageData(candidateBuf, fileName)) {
+            pdfData = candidateBuf;
+            break;
+          }
+        }
+      }
+      if (!pdfData) continue;
 
       imagesByFileName.set(fileName, {
         fileName,
@@ -1037,6 +1151,41 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       explicitRoleImages,
     };
   });
+
+  const referencedImageNames = new Set<string>();
+  for (const p of pages) {
+    for (const n of p.imageFileNames || []) referencedImageNames.add(n);
+    for (const n of p.logoImageFileNames || []) referencedImageNames.add(n);
+    for (const role of Object.values(p.explicitRoleImages || {})) {
+      for (const n of (role || [])) referencedImageNames.add(n);
+    }
+  }
+  for (const frame of pages.flatMap((p) => p.frames || [])) {
+    if (frame.imageFileName) referencedImageNames.add(frame.imageFileName);
+  }
+  for (const story of storyMap.values()) {
+    for (const hint of story.imageHints || []) referencedImageNames.add(hint);
+  }
+  for (const name of referencedImageNames) {
+    if (!name || imagesByFileName.has(name)) continue;
+    if (!supportsEmbeddedImageExtraction(name)) continue;
+    const locals = resolveCandidateLocalPaths(name);
+    let data: Buffer | null = null;
+    for (const localPath of locals) {
+      const candidateBuf = tryReadLocalFs(localPath);
+      if (candidateBuf && looksLikeImageData(candidateBuf, name)) {
+        data = candidateBuf;
+        break;
+      }
+    }
+    let mimeType = getFileMimeType(name);
+    if (!data) {
+      const place = buildPlaceholderImageDataUri(name);
+      data = place.data;
+      mimeType = place.mimeType;
+    }
+    imagesByFileName.set(name, { fileName: name, data, mimeType });
+  }
 
   const maxPage = pages.length > 0 ? Math.max(...pages.map((p) => p.pageNumber)) : 0;
 

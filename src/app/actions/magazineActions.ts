@@ -37,6 +37,7 @@ function normalizeImageUrl(raw: any): string {
   }
   if (/^(undefined|null|none|n\/a)$/i.test(value)) return '';
   if (/^https?:\/\//i.test(value)) return value;
+  if (/^data:image\//i.test(value)) return value;
   const gsMatch = value.match(/^gs:\/\/([^/]+)\/(.+)$/i);
   if (gsMatch) {
     const bucket = gsMatch[1];

@@ -843,13 +843,76 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const first = loadedReaderPages[0];
           if (first?.docId) setSelectedPageId(first.docId);
         }
+
+        try {
+          const rePagesArr = Array.isArray(loadedReaderPages) ? loadedReaderPages : [];
+          const legacyArr = Array.isArray(loadedPages) ? loadedPages : [];
+          let pagesForContents: MagazinePage[] = [];
+          if (rePagesArr.length === 0) {
+            pagesForContents = [...legacyArr].sort((a, b) => {
+              const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
+              const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
+              return la - lb;
+            });
+          } else {
+            const legacyByPrint = new Map<number, MagazinePage>();
+            for (const lp of legacyArr) {
+              const pn = extractPrintPageNumberFromBuilderPage(lp);
+              if (pn && pn > 0) legacyByPrint.set(pn, lp);
+            }
+            const shadowByPrint = new Map<number, MagazinePage>();
+            for (const sp of rePagesArr) {
+              const pn = extractPrintPageNumberFromBuilderPage(sp);
+              if (pn && pn > 0) shadowByPrint.set(pn, sp);
+            }
+            const allPrintNumbers = new Set<number>([...legacyByPrint.keys(), ...shadowByPrint.keys()]);
+            const maxShadowPrint = shadowByPrint.size > 0 ? Math.max(...shadowByPrint.keys()) : 0;
+            const sourceRE = rePagesArr[0]?.sourceReaderEditionId;
+            for (const printNum of [...allPrintNumbers].sort((a, b) => a - b)) {
+              const legacy = legacyByPrint.get(printNum);
+              const shadow = shadowByPrint.get(printNum);
+              if (legacy && shadow) {
+                const legacyIsFresh = typeof legacy?.sourceReaderEditionId === 'string' && legacy.sourceReaderEditionId === sourceRE;
+                const legacyIsSmallerImportClobberingLarger =
+                  rePagesArr.length > 0 && maxShadowPrint > printNum && legacy && !legacy?.sourceReaderEditionId && !(legacy as any).generatedFromStoryLibrary;
+                if (legacyIsSmallerImportClobberingLarger) pagesForContents.push(shadow);
+                else if (legacyIsFresh) pagesForContents.push(legacy);
+                else if ((legacy as any).generatedFromStoryLibrary === true && !(legacy as any).readOnly && rePagesArr.length === 0) pagesForContents.push(legacy);
+                else {
+                  const combined = { ...shadow, ...legacy };
+                  if ((legacy as any).readOnly !== undefined && !(legacy as any).readOnly) (combined as any).readOnly = false;
+                  (combined as any)._shadowDocId = shadow.docId;
+                  (combined as any)._legacyDocId = legacy.docId;
+                  combined.docId = typeof legacy.docId === 'string' && legacy.docId ? legacy.docId : shadow.docId;
+                  pagesForContents.push(combined);
+                }
+              } else if (legacy) {
+                (legacy as any)._shadowDocId = ''; (legacy as any)._legacyDocId = legacy.docId; pagesForContents.push(legacy);
+              } else if (shadow) {
+                (shadow as any)._shadowDocId = shadow.docId; (shadow as any)._legacyDocId = ''; pagesForContents.push(shadow);
+              }
+            }
+            const seen = new Set(pagesForContents.map((p) => p.docId));
+            for (const lp of legacyArr) if (!seen.has(lp.docId)) { pagesForContents.push(lp); seen.add(lp.docId); }
+            for (const rp of rePagesArr) if (!seen.has(rp.docId)) { pagesForContents.push(rp); seen.add(rp.docId); }
+            pagesForContents.sort((a, b) => {
+              const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
+              const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
+              return la - lb;
+            });
+          }
+          await syncContentsPage(pagesForContents);
+        } catch (e) {
+          // Non-fatal: stale Contents grid will not break anything else.
+          console.warn('loadData: auto-sync Contents items (non-fatal):', e);
+        }
       } catch (error) {
         console.error('Failed to load data:', error);
         if (!silent) toast.error('Failed to load magazine data');
       } finally {
         if (!silent) setLoading(false);
       }
-  }, [id, isNew, convertReaderPagesToShadow, selectedPageId]);
+  }, [id, isNew, convertReaderPagesToShadow, selectedPageId, syncContentsPage, extractPrintPageNumberFromBuilderPage]);
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => { issueRef.current = issue; }, [issue]);
