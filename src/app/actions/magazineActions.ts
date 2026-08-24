@@ -1413,6 +1413,10 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
     throw new Error('No readable content found in the IDML file');
   }
 
+  const designmapDocName = typeof (parsed as any).documentName === 'string'
+    ? String((parsed as any).documentName).trim()
+    : '';
+
   const imageUrls = await uploadParsedIdmlImages(parsed, fileName);
 
   const rawMappedPages = mapIdmlToReaderPages(parsed.pages);
@@ -1426,11 +1430,9 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
       imageUrl: resolve(String(page.content.imageUrl || '')),
       imageUrls: (Array.isArray(page.content.imageUrls) ? page.content.imageUrls : []).map(resolve),
       backgroundImage: resolve(String(page.content.backgroundImage || '')),
-      // Logo image resolution (separate key; never mixed into hero/gallery)
       logoImage: resolve(String(page.content.logoImage || '')),
       logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map(resolve),
       partnerLogo: resolve(String(page.content.partnerLogo || page.content.logoImage || '')),
-      // Canonical aliases (mapper populates these too; resolve so they're all valid URLs)
       image: resolve(String(page.content.image || '')),
       featureImage: resolve(String(page.content.featureImage || '')),
       heroImage: resolve(String(page.content.heroImage || '')),
@@ -1439,7 +1441,6 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
       images: (Array.isArray(page.content.images) ? page.content.images : []).map(resolve),
       gallery: (Array.isArray(page.content.gallery) ? page.content.gallery : []).map(resolve),
       additionalImages: (Array.isArray(page.content.additionalImages) ? page.content.additionalImages : []).map(resolve),
-      // PDF ads keep special pdfUrl resolution for iframe/CTA src
       pdfUrl: page.content.pdfUrl
         ? normalizeImageUrl(imageUrls[String(page.content.pdfUrl)] || String(page.content.pdfUrl)) || undefined
         : undefined,
@@ -1460,13 +1461,80 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
 
   const metadata = buildEditionMetadata(pages, fileName);
 
+  const warnings: Array<{ code: string; level: 'warn' | 'info'; title: string; detail: string; fix?: string }> = [];
+  const parsedStories = (parsed.pages || []).reduce<number>(
+    (acc, p: any) => acc + Number(Array.isArray(p.stories) ? p.stories.length : 0),
+    0,
+  );
+  const emptyStories = (parsed.pages || []).reduce<number>((acc, p: any) => {
+    if (!Array.isArray(p.stories)) return acc;
+    return acc + p.stories.filter((s: any) => {
+      const t = typeof s?.text === 'string' ? s.text : '';
+      return t.trim().length === 0;
+    }).length;
+  }, 0);
+  const nonEmptyRatio = parsedStories === 0 ? 0 : 1 - emptyStories / parsedStories;
+  if (nonEmptyRatio < 0.7) {
+    warnings.push({
+      code: 'idml.low-story-density',
+      level: 'warn',
+      title: `${Math.round(nonEmptyRatio * 100)}% of story frames are empty`,
+      detail: `Found ${emptyStories} empty / ${parsedStories} total story frames. This usually means the IDML was exported from a multi-page spread InDesign file with unused frame placeholders. Reader pages may have short or blank content.`,
+      fix: 'In InDesign, delete empty text frames before re-exporting, or export in 1-page-per-spread mode.',
+    });
+  }
+  const totalFeatureLike = pages.filter((p: any) => {
+    const t = String(p?.template || '').toLowerCase();
+    return t.startsWith('feature') || t === 'column' || t === 'lifestyle' || t === 'spotlight' || t === 'partner';
+  }).length;
+  const withExplicitTitles = pages.filter((p: any) => {
+    const t = String(p?.content?.title || '').trim();
+    return t.length >= 3;
+  }).length;
+  const titleCoverage = totalFeatureLike === 0 ? 0 : withExplicitTitles / totalFeatureLike;
+  if (totalFeatureLike > 4 && titleCoverage < 0.25) {
+    warnings.push({
+      code: 'idml.low-title-coverage',
+      level: 'warn',
+      title: `Only ${Math.round(titleCoverage * 100)}% of feature pages have real titles`,
+      detail: `${withExplicitTitles} / ${totalFeatureLike} article pages have titles 3+ chars long. Right now most pages will show generic "Page N" headings.`,
+      fix: 'In InDesign, select each article headline frame → Object → Labels → set Label to "TitleFrame". Then re-export IDML.',
+    });
+  }
+  if (/\bUntitled\b/i.test(designmapDocName) || /^Untitled-\d+$/i.test(designmapDocName)) {
+    warnings.push({
+      code: 'idml.untitled-document',
+      level: 'warn',
+      title: 'InDesign document is still named "Untitled"',
+      detail: `designmap.xml Name="${designmapDocName || 'Untitled'}". Issue URLs / slugs are derived from the document name when issue metadata is empty.`,
+      fix: 'File → Save As → name the file exactly "ybw_{Month}_{Year}_DIGITAL.indd" then re-export IDML.',
+    });
+  }
+  if (parsed.pageCount !== pages.length) {
+    warnings.push({
+      code: 'idml.page-count-mismatch',
+      level: 'info',
+      title: `IDML reports ${parsed.pageCount} physical pages but mapper produced ${pages.length} reader pages`,
+      detail: 'This is normally fine (e.g. blank spread end pages get collapsed or grouped with adjacent content).',
+      fix: 'If you expected exactly as many reader pages as physical IDML pages, re-check InDesign for empty/blank frames on the dropped pages.',
+    });
+  }
+
   return {
     pages,
     metadata,
     pageCount: parsed.pageCount,
-    storyCount: parsed.pages.reduce((sum, p) => sum + p.stories.length, 0),
+    storyCount: parsedStories,
     imageCount: parsed.images.length,
     imageUrls,
+    warnings,
+    preflight: {
+      documentName: designmapDocName || fileName,
+      nonEmptyStoryRatio: Number(nonEmptyRatio.toFixed(2)),
+      titleCoverageRatio: Number(titleCoverage.toFixed(2)),
+      physicalPageCount: parsed.pageCount,
+      readerPageCount: pages.length,
+    },
   };
 }
 
@@ -2043,6 +2111,9 @@ async function syncReaderEditionToLegacyIssue(
     const legacyDoc: any = {
       id: pos,
       type,
+      pageNumber: pos,
+      position: pos,
+      readOnly: false,
       storyId,
       sourceReaderEditionId: editionId,
       sourceTemplate: rp.template || '',

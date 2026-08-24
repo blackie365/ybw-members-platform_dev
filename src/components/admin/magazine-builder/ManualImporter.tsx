@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, BookOpen } from 'lucide-react';
+import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, BookOpen, AlertTriangle, Info, Lightbulb, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -305,6 +305,16 @@ export function ManualImporter({
     sizeBytes: number;
   } | null>(null);
   const [isStoringIdml, setIsStoringIdml] = useState(false);
+  const [serverIdmlWarnings, setServerIdmlWarnings] = useState<
+    Array<{ code: string; level: 'warn' | 'info'; title: string; detail: string; fix?: string }>
+  >([]);
+  const [serverIdmlPreflight, setServerIdmlPreflight] = useState<{
+    documentName: string;
+    nonEmptyStoryRatio: number;
+    titleCoverageRatio: number;
+    physicalPageCount: number;
+    readerPageCount: number;
+  } | null>(null);
 
   const safeStoryLibrary = Array.isArray(storyLibrary) ? storyLibrary.filter(Boolean) : [];
   const includedStoryCount = safeStoryLibrary.filter(isIncludedInPremiumReader).length;
@@ -903,6 +913,8 @@ export function ManualImporter({
       };
       setServerIdmlStats(stats);
       setShowServerIdmlPreview(true);
+      setServerIdmlWarnings(Array.isArray(result.data!.warnings) ? result.data!.warnings : []);
+      setServerIdmlPreflight(result.data!.preflight ? result.data!.preflight : null);
 
       const draftId = serverIdmlDraftId || `draft-${Date.now().toString(36)}`;
       setServerIdmlDraftId(draftId);
@@ -952,6 +964,8 @@ export function ManualImporter({
       setServerIdmlPages([]);
       setServerIdmlMeta(null);
       setServerIdmlStats(null);
+      setServerIdmlWarnings([]);
+      setServerIdmlPreflight(null);
       setShowServerIdmlPreview(false);
       setServerIdmlDraftId('');
     } catch (e: any) {
@@ -984,6 +998,8 @@ export function ManualImporter({
     setServerIdmlPages([]);
     setServerIdmlMeta(null);
     setServerIdmlStats(null);
+    setServerIdmlWarnings([]);
+    setServerIdmlPreflight(null);
     setShowServerIdmlPreview(false);
     setServerIdmlDraftId('');
     setServerIdmlFileName('');
@@ -992,100 +1008,415 @@ export function ManualImporter({
 
   return (
     <Card className="border-accent/20">
-      <CardHeader className="bg-accent/5">
+      <CardHeader className="bg-gradient-to-br from-accent/15 via-accent/5 to-background border-b border-accent/20">
         <div className="flex items-center gap-2 text-accent">
-          <ClipboardPaste className="h-5 w-5" />
-          <CardTitle className="text-lg">Quick Paste / Manual Import</CardTitle>
+          <Sparkles className="h-5 w-5" />
+          <CardTitle className="text-lg">Publish Digital Edition from InDesign (.idml)</CardTitle>
         </div>
         <CardDescription>
-          Paste text and images directly into your selected template.
+          Drop your <code>.idml</code> export here. This is the only workflow that creates ReaderEdition pages,
+          populates the Spread Builder with editable rows, and links the issue to the public <code>/magazine/read/</code> URL.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6 space-y-6">
-        {!selectedPageId ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-lg bg-muted/20">
-            <p className="text-sm text-muted-foreground">Select a page on the left first to use manual import.</p>
+      <CardContent className="pt-6 space-y-8">
+        <div className="rounded-lg border-2 border-accent/30 bg-accent/5 p-4 space-y-4">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5" />
+              1 · Upload &amp; Parse (recommended for every new issue)
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Upload one <code className="bg-background px-1 rounded border border-border">.idml</code> file for the full issue.
+              Every page is mapped to a reader template and images are extracted automatically.
+              You can review pages and fix warnings BEFORE publishing.
+            </p>
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Title / Headline</Label>
-                <Input 
-                  placeholder="Enter title..." 
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
+
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">IDML File</Label>
+            <Input
+              type="file"
+              accept=".idml"
+              disabled={isServerIdmlParsing || isServerIdmlPublishing}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                handleServerIdmlImport(file);
+              }}
+            />
+          </div>
+
+          {isServerIdmlParsing && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Parsing IDML file on server...
+            </div>
+          )}
+
+          {lastIdmlStorageUpload ? (
+            <div className="space-y-3 rounded-md border border-accent/40 bg-background p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+                    File saved to Firebase Storage
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {lastIdmlStorageUpload.fileName} ·{' '}
+                    {(lastIdmlStorageUpload.sizeBytes / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[10px] shrink-0"
+                  onClick={() => {
+                    if (!lastIdmlStorageUpload) return;
+                    setStoredIdmlPath(lastIdmlStorageUpload.gsUrl);
+                    toast.success('Stored IDML path filled with Firebase Storage URL');
+                  }}
+                >
+                  Fill stored path
+                </Button>
               </div>
+
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Author / Person Name</Label>
-                <Input 
-                  placeholder="Enter name..." 
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                />
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    gs:// URL
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.gsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.gsUrl);
+                          toast.success('Copied gs:// URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    HTTPS download URL
+                  </Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input readOnly value={lastIdmlStorageUpload.httpsUrl} className="font-mono text-[10px] h-8 pr-20" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
+                      onClick={async () => {
+                        if (!lastIdmlStorageUpload) return;
+                        try {
+                          await navigator.clipboard.writeText(lastIdmlStorageUpload.httpsUrl);
+                          toast.success('Copied HTTPS URL');
+                        } catch {
+                          toast.error('Copy failed — copy manually');
+                        }
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
+          ) : null}
 
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Standfirst / Intro / Role</Label>
-              <Textarea 
-                placeholder="Short intro, role, or 1-line standfirst that renders above the main body..." 
-                rows={3}
-                value={standfirst}
-                onChange={(e) => setStandfirst(e.target.value)}
-              />
-            </div>
+          {canRenderServerIdmlControls && renderableServerIdmlMeta && (
+            <div className="space-y-5">
+              {serverIdmlPreflight && (
+                <div className="rounded-lg border border-border bg-background p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="h-3.5 w-3.5 text-[#a3413a]" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#a3413a]">
+                      Preflight report
+                    </p>
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">
+                      {String(serverIdmlPreflight.documentName)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-md border border-border bg-muted/20 p-2 text-center">
+                      <p className="text-lg font-bold">
+                        {Math.round(serverIdmlPreflight.nonEmptyStoryRatio * 100)}%
+                      </p>
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                        Non-empty story frames
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 p-2 text-center">
+                      <p className="text-lg font-bold">
+                        {Math.round(serverIdmlPreflight.titleCoverageRatio * 100)}%
+                      </p>
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                        Pages with title
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 p-2 text-center">
+                      <p className="text-lg font-bold">{serverIdmlPreflight.physicalPageCount}</p>
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                        Physical IDML pages
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 p-2 text-center">
+                      <p className="text-lg font-bold text-accent">
+                        {serverIdmlPreflight.readerPageCount}
+                      </p>
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                        Reader pages will create
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Image URL (Firebase/Ghost/Public)</Label>
+              {Array.isArray(serverIdmlWarnings) && serverIdmlWarnings.length > 0 && (
+                <div className="space-y-2">
+                  {serverIdmlWarnings.map((w, i) => {
+                    const isWarn = w.level === 'warn';
+                    return (
+                      <div
+                        key={`${w.code}-${i}`}
+                        className={`rounded-lg border p-3 space-y-1.5 ${
+                          isWarn
+                            ? 'border-amber-300/60 bg-amber-50/40'
+                            : 'border-sky-300/60 bg-sky-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {isWarn ? (
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold text-foreground leading-tight">
+                              {w.title}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+                              {w.detail}
+                            </p>
+                            {w.fix ? (
+                              <p className="text-[10px] text-foreground/80 leading-relaxed mt-1.5 flex items-start gap-1.5">
+                                <Lightbulb className="h-3 w-3 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong>Fix:</strong> {w.fix}
+                                </span>
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {effectiveServerIdmlStats ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.pageCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Pages</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.storyCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Stories</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-center">
+                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.imageCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Images</p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Edition Title</Label>
+                <Input
+                  value={renderableServerIdmlMeta.title}
+                  onChange={(e) => handleUpdateServerIdmlTitle(e.target.value)}
+                  placeholder="Enter edition title..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Page Preview</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowServerIdmlPreview(!showServerIdmlPreview)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    {showServerIdmlPreview ? 'Hide' : 'Show'} Pages
+                  </Button>
+                </div>
+                {showServerIdmlPreview && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[300px] overflow-auto">
+                    {serverIdmlPages.map((page, idx) => (
+                      <div
+                        key={page.id}
+                        className="rounded-md border border-border bg-background p-2 text-center"
+                      >
+                        <p className="text-[10px] font-bold text-muted-foreground">Page {idx + 1}</p>
+                        <p className="text-[9px] uppercase tracking-wider text-accent mt-1">{page.template}</p>
+                        <p className="text-[9px] text-muted-foreground mt-1 truncate">
+                          {String((page.content as any)?.title || 'Untitled').slice(0, 48)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
-                <Input 
-                  placeholder="https://..." 
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                />
-                <Button variant="outline" size="icon" className="shrink-0">
-                  <ImageIcon className="h-4 w-4" />
+                <Button
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
+                  onClick={handlePublishIdmlEdition}
+                  disabled={isServerIdmlPublishing || serverIdmlPages.length === 0}
+                >
+                  {isServerIdmlPublishing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <FileDown className="h-4 w-4 mr-2" />
+                  )}
+                  Publish ({serverIdmlPages.length} pages)
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="h-12 px-4"
+                  onClick={handleClearIdmlDraft}
+                  disabled={isServerIdmlPublishing}
+                >
+                  Delete
                 </Button>
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Body Content / Raw Text</Label>
-              <Textarea 
-                placeholder="Paste your article text here..." 
-                rows={10}
-                className="font-serif text-base leading-relaxed"
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-              />
-            </div>
-
-            <Button 
-              className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
-              onClick={handleManualImport}
-              disabled={isImporting || (!rawText && !imageUrl)}
-            >
-              {isImporting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-              )}
-              Integrate into {selectedPageType?.toUpperCase()} Spread
-            </Button>
-          </>
-        )}
-
-        <div id="story-library" className="rounded-lg border-2 border-accent/40 bg-accent/5 p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-accent flex items-center gap-2">
-              <BookOpen className="h-3.5 w-3.5" />
-              Import IDML → Story Library → Issue Spreads
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <ClipboardPaste className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-widest">
+                Advanced · Single-page manual fill
+              </p>
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[9px] uppercase tracking-widest text-muted-foreground">
+                Requires a page selected on the left
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Paste text and a single image into a specific spread you already have selected on the Spread Builder.
+              For the whole issue, use the upload flow above instead.
             </p>
+          </div>
+
+          {!selectedPageId ? (
+            <div className="p-8 text-center border-2 border-dashed rounded-lg bg-muted/20">
+              <p className="text-sm text-muted-foreground">Select a page on the left first to use manual import.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Title / Headline</Label>
+                  <Input
+                    placeholder="Enter title..."
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Author / Person Name</Label>
+                  <Input
+                    placeholder="Enter name..."
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Standfirst / Intro / Role</Label>
+                <Textarea
+                  placeholder="Short intro, role, or 1-line standfirst that renders above the main body..."
+                  rows={3}
+                  value={standfirst}
+                  onChange={(e) => setStandfirst(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Image URL (Firebase/Ghost/Public)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://..."
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                  />
+                  <Button variant="outline" size="icon" className="shrink-0">
+                    <ImageIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Body Content / Raw Text</Label>
+                <Textarea
+                  placeholder="Paste your article text here..."
+                  rows={10}
+                  className="font-serif text-base leading-relaxed"
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                />
+              </div>
+
+              <Button
+                className="w-full bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
+                onClick={handleManualImport}
+                disabled={isImporting || (!rawText && !imageUrl)}
+              >
+                {isImporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                Integrate into {selectedPageType?.toUpperCase()} Spread
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div id="story-library" className="rounded-lg border border-border bg-background p-4 space-y-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-widest">
+                Advanced · Extract Story Library (single-story import)
+              </p>
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-0.5 text-[9px] uppercase tracking-widest text-muted-foreground">
+                No ReaderEdition created
+              </span>
+            </div>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
-              <strong>Recommended path for Issue Spreads:</strong> upload your full <code className="bg-background px-1 rounded border border-border">.idml</code> below.
-              Stories are extracted into the Story Library, then spreads auto-create (Cover → Contents → Articles → Back cover) the next time you visit the <strong>Spread Builder</strong> tab.
+              Extracts individual stories from an <code className="bg-muted/40 px-1 rounded border border-border">.idml</code> into the Story Library only.
+              <strong> This does NOT create pages in the Spread Builder or publish a Reader Edition.</strong>
+              Use the upload flow at the top of this panel instead for a whole issue.
             </p>
           </div>
 
@@ -1103,8 +1434,7 @@ export function ManualImporter({
                 }}
               />
               <p className="text-[10px] text-muted-foreground">
-                Upload a full <code>.idml</code> to extract every article into the Story Library.
-                ICML/XML/TXT also accepted for single-story imports.
+                Extract article stories only. ICML/XML/TXT also accepted for single-story imports.
               </p>
             </div>
 
@@ -1358,212 +1688,21 @@ export function ManualImporter({
           )}
         </div>
 
-        <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-accent">Auto-Import IDML (Server-Side)</p>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-widest">
+                Advanced · Save selected story to library
+              </p>
+            </div>
             <p className="text-[10px] text-muted-foreground">
-              Upload an IDML file for full server-side parsing. Images are extracted and uploaded automatically.
-              Pages are mapped to reader templates and can be published as a complete edition.
+              Save the current imported story here, then switch to the Spread Builder tab to apply it to a chosen spread.
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">IDML File</Label>
-            <Input
-              type="file"
-              accept=".idml"
-              disabled={isServerIdmlParsing || isServerIdmlPublishing}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                handleServerIdmlImport(file);
-              }}
-            />
-          </div>
-
-          {isServerIdmlParsing && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Parsing IDML file on server...
-            </div>
-          )}
-
-          {lastIdmlStorageUpload ? (
-            <div className="space-y-3 rounded-md border border-accent/40 bg-background p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-0.5 min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-accent">
-                    File saved to Firebase Storage
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {lastIdmlStorageUpload.fileName} ·{' '}
-                    {(lastIdmlStorageUpload.sizeBytes / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-[10px] shrink-0"
-                  onClick={() => {
-                    if (!lastIdmlStorageUpload) return;
-                    setStoredIdmlPath(lastIdmlStorageUpload.gsUrl);
-                    toast.success('Stored IDML path filled with Firebase Storage URL');
-                  }}
-                >
-                  Fill stored path
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    gs:// URL (use in Stored IDML path)
-                  </Label>
-                  <div className="flex items-stretch gap-2">
-                    <Input readOnly value={lastIdmlStorageUpload.gsUrl} className="font-mono text-[10px] h-8 pr-20" />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
-                      onClick={async () => {
-                        if (!lastIdmlStorageUpload) return;
-                        try {
-                          await navigator.clipboard.writeText(lastIdmlStorageUpload.gsUrl);
-                          toast.success('Copied gs:// URL');
-                        } catch {
-                          toast.error('Copy failed — copy manually');
-                        }
-                      }}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    HTTPS download URL
-                  </Label>
-                  <div className="flex items-stretch gap-2">
-                    <Input readOnly value={lastIdmlStorageUpload.httpsUrl} className="font-mono text-[10px] h-8 pr-20" />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 text-[10px] shrink-0 -ml-[84px] self-center relative z-10 border-0 shadow-none bg-transparent hover:bg-transparent"
-                      onClick={async () => {
-                        if (!lastIdmlStorageUpload) return;
-                        try {
-                          await navigator.clipboard.writeText(lastIdmlStorageUpload.httpsUrl);
-                          toast.success('Copied HTTPS URL');
-                        } catch {
-                          toast.error('Copy failed — copy manually');
-                        }
-                      }}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {canRenderServerIdmlControls && renderableServerIdmlMeta && (
-            <div className="space-y-4">
-              {effectiveServerIdmlStats ? (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="rounded-md border border-border bg-background p-3 text-center">
-                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.pageCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Pages</p>
-                  </div>
-                  <div className="rounded-md border border-border bg-background p-3 text-center">
-                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.storyCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Stories</p>
-                  </div>
-                  <div className="rounded-md border border-border bg-background p-3 text-center">
-                    <p className="text-2xl font-bold">{effectiveServerIdmlStats.imageCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Images</p>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Edition Title</Label>
-                <Input
-                  value={renderableServerIdmlMeta.title}
-                  onChange={(e) => handleUpdateServerIdmlTitle(e.target.value)}
-                  placeholder="Enter edition title..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Page Preview</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowServerIdmlPreview(!showServerIdmlPreview)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    {showServerIdmlPreview ? 'Hide' : 'Show'} Pages
-                  </Button>
-                </div>
-                {showServerIdmlPreview && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[300px] overflow-auto">
-                    {serverIdmlPages.map((page, idx) => (
-                      <div
-                        key={page.id}
-                        className="rounded-md border border-border bg-background p-2 text-center"
-                      >
-                        <p className="text-[10px] font-bold text-muted-foreground">Page {idx + 1}</p>
-                        <p className="text-[9px] uppercase tracking-wider text-accent mt-1">{page.template}</p>
-                        <p className="text-[9px] text-muted-foreground mt-1 truncate">
-                          {page.content.title || 'Untitled'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1 bg-accent hover:bg-accent/90 text-white font-bold h-12 shadow-lg"
-                  onClick={handlePublishIdmlEdition}
-                  disabled={isServerIdmlPublishing || serverIdmlPages.length === 0}
-                >
-                  {isServerIdmlPublishing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <FileDown className="h-4 w-4 mr-2" />
-                  )}
-                  Publish ({serverIdmlPages.length} pages)
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="h-12 px-4"
-                  onClick={handleClearIdmlDraft}
-                  disabled={isServerIdmlPublishing}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Save To Story Library</p>
-              <p className="text-[10px] text-muted-foreground">
-                Save the current imported story here, then switch to the Spread Builder tab to apply it to a chosen spread.
-              </p>
-            </div>
+            <div className="min-w-0 flex-1" />
             <Button
               type="button"
               variant="outline"
