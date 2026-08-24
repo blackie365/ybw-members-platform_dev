@@ -83,6 +83,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
   const [imageVersion, setImageVersion] = useState("");
   const [renderersLoaded, setRenderersLoaded] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const ignoreNextSearchParamsTick = useRef(false);
 
   useEffect(() => {
     loadTemplateRenderers();
@@ -118,27 +119,9 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
   }, [edition]);
   const editionDate = formatEditionDate(edition.publishDate);
 
-  useEffect(() => {
-    const raw = String(searchParams?.get('page') || searchParams?.get('p') || '').trim();
-    if (!raw) return;
-    const pageNum = Number(raw);
-    if (!Number.isFinite(pageNum)) return;
-    const clamped = Math.max(1, Math.min(pageNum, pages.length || 1));
-    const targetIdx = clamped - 1;
-    if (targetIdx >= 0 && targetIdx < pages.length) {
-      setCurrentPage(targetIdx);
-    }
-  }, [pages, searchParams]);
-
   const renderedPages = useMemo(() => {
     return pages.map((page) => {
       const template = String(page.template || "").trim().toLowerCase();
-      // HARD RENDERER GUARD: If the persisted template field got polluted
-      // (e.g. Editor's Note page written with `template: "contents"` due to
-      // a legacy publish bug, as reported for `ybw_August_2026.idml
-      // pages-5-5`), detect via title + text keywords and fix before
-      // dispatch so the user never sees the rik-rak Contents grid on the
-      // editorial page.
       const title = String(page.content?.title || "").trim().toLowerCase();
       const body = String(page.content?.body || page.content?.text || "").trim().toLowerCase();
       const hasItems = Array.isArray(page.content?.items) && (page.content.items as unknown[]).length > 0;
@@ -172,6 +155,21 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       return { page, entry, viewModel, label, effectiveTemplate };
     });
   }, [pages, edition]);
+
+  useEffect(() => {
+    if (ignoreNextSearchParamsTick.current) {
+      ignoreNextSearchParamsTick.current = false;
+      return;
+    }
+    const raw = String(searchParams?.get('page') || searchParams?.get('p') || '').trim();
+    if (!raw) return;
+    const pageNum = Number(raw);
+    if (!Number.isFinite(pageNum)) return;
+    const idx = findRenderedIndexByPrintPageNumber(renderedPages, pageNum);
+    if (idx >= 0 && idx < renderedPages.length) {
+      setCurrentPage(idx);
+    }
+  }, [pages, searchParams, renderedPages]);
 
   const nextPage = useCallback(() => {
     setCurrentPage((prev) => {
@@ -314,6 +312,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
     try {
       const url = new URL(window.location.href);
       url.searchParams.set("page", pageParam);
+      ignoreNextSearchParamsTick.current = true;
       window.history.replaceState(null, "", url.toString());
     } catch {}
   }, [currentPage, renderedPages]);
