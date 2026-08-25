@@ -30,6 +30,26 @@ if (!admin?.apps?.length) {
       }
     }
 
+    const keyMasked = (() => {
+      if (!privateKey) return '(unset)';
+      const raw = privateKey.replace(/\n/g, '');
+      const match = raw.match(/-----BEGIN PRIVATE KEY-----(.*)-----END PRIVATE KEY-----/);
+      const core = match ? match[1] : raw;
+      if (core.length <= 12) return '***';
+      return core.slice(0, 6) + '…' + core.slice(-6);
+    })();
+    const emailMasked = (() => {
+      if (!clientEmail) return '(unset)';
+      if (clientEmail.length <= 8) return '***';
+      return clientEmail.slice(0, 3) + '…' + clientEmail.slice(-6);
+    })();
+
+    console.info(
+      `[Firebase Admin] init projectId=${JSON.stringify(projectId || '(unset)')} ` +
+      `clientEmail=${emailMasked} privateKey=${keyMasked} ` +
+      `NEXT_PUBLIC_FIREBASE_PROJECT_ID=${JSON.stringify(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '')}`
+    );
+
     if (privateKey && clientEmail) {
       try {
         const finalProjectId = projectId;
@@ -42,6 +62,7 @@ if (!admin?.apps?.length) {
           projectId: finalProjectId,
           storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${finalProjectId}.firebasestorage.app`
         });
+        console.info(`[Firebase Admin] initializeApp OK apps.length=${admin.apps.length}`);
       } catch (initError) {
         console.error('[Firebase Admin] Critical initialization error:', initError);
       }
@@ -101,3 +122,13 @@ export const adminDbInit = {
 };
 export const adminAuth = admin?.apps?.length > 0 ? admin?.auth() : null;
 export const adminStorage = admin?.apps?.length > 0 ? admin?.storage() : null;
+
+(function _firestoreDbSummaryLog() {
+  const storage = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '';
+  console.info(
+    `[Firebase Admin] firestore ready=${Boolean(firestore)} databaseId=${JSON.stringify(dbId)} ` +
+    `usedFallback=${firestoreUsedFallback} storageBucket=${JSON.stringify(storage)} ` +
+    `NEXT_PUBLIC_FIREBASE_DATABASE_ID=${JSON.stringify(process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID || '')}` +
+    (firestoreInitError ? ` error=${firestoreInitError}` : '')
+  );
+})();

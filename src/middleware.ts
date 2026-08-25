@@ -24,6 +24,12 @@ function isLoopbackIp(ip: string | undefined | null): boolean {
 }
 
 const base = clerkMiddleware((_auth, req) => {
+  if (req.nextUrl.pathname.startsWith("/admin")) {
+    const ip = getClientIp(req);
+    console.info(
+      `[middleware] /admin hit method=${req.method} path=${req.nextUrl.pathname} ip=${ip} ua=${req.headers.get("user-agent")?.slice(0, 80) || ""}`
+    );
+  }
   if (req.method === "GET" && !req.nextUrl.pathname.startsWith("/api/")) {
     const ip = getClientIp(req);
     if (isLoopbackIp(ip)) {
@@ -64,8 +70,14 @@ function detectPublicOrigin(req: NextRequest): string {
 function postProcess(
   req: NextRequest,
   out: NextResponse | Response | undefined | null
-): NextResponse | Response | undefined {
-  if (!out) return out as NextResponse | undefined;
+): NextResponse | Response {
+  // If clerkMiddleware returned undefined (normal pass-through), explicitly
+  // forward via NextResponse.next() so Next.js propagates the request context
+  // to server components.  Returning raw `undefined` can cause downstream
+  // `auth()` calls to report "Clerk can't detect usage of clerkMiddleware".
+  if (!out) {
+    return NextResponse.next({ request: { headers: req.headers } });
+  }
   const headers = (out as NextResponse).headers;
   const rewrite = headers?.get?.("x-middleware-rewrite") || "";
 
@@ -76,6 +88,20 @@ function postProcess(
   //   "Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware()"
   if (!rewrite || !/^https?:\/\/localhost[:/]/.test(rewrite)) {
     return out as NextResponse;
+  }
+
+  // LOOP BREAKER — Rewrite sentinel.
+  // When x-middleware-rewrite resolves to same origin, Next.js re-enters the
+  // middleware on a NEW internal request.  Clerk will emit the same localhost
+  // same-path rewrite on the re-entry.  Without a sentinel, we re-apply the
+  // same fix and cycle forever.  Sentinel = we tagged the internal request via
+  // x-middleware-request-* headers below.  If present, skip rewrite post-process
+  // entirely this second pass and let the request flow down to the RSC.
+  if (req.headers.get("x-middleware-sentinel") === "postprocess-sameroute") {
+    console.debug(
+      "[middleware] sameRoute second pass — skipping rewrite post-process to break loop"
+    );
+    return NextResponse.next({ request: { headers: req.headers } });
   }
 
   // HEAD requests from bots/curl/health checks — skip Clerk's internal rewrite
@@ -114,7 +140,61 @@ function postProcess(
     // external redirect to the same URL (that loops forever), and do NOT
     // return NextResponse.next() (which strips Clerk's markers and breaks
     // auth() in downstream RSC pages like /admin/layout.tsx).
-    return out as NextResponse;
+    //
+    // Problem: the rewrite header from Clerk always points at
+    // `(https|http)://localhost:3003/<path>`.  Next.js's internal rewrite
+    // engine parses this header with `new URL(header)`, requiring a full
+    // absolute URL.  If we leave `localhost` + `https://`:
+    //   -> EPROTO (our listener is plain HTTP, not TLS)
+    // If we rewrite host to `127.0.0.1` + plain `http://`:
+    //   -> Next.js issues a real sub-request to http://127.0.0.1:3003/<path>,
+    //      middleware runs AGAIN, Clerk issues the same rewrite again -> LOOP.
+    // If we strip the host to a path-only "/<path>" string:
+    //   -> `new URL("/<path>")` throws ERR_INVALID_URL inside Next.js core.
+    //
+    // Fix: rewrite the URL to OUR OWN PUBLIC CANONICAL ORIGIN
+    // (NEXT_PUBLIC_URL, same host the request is coming from).  Next.js
+    // recognises that the origin matches the currently serving app, skips
+    // the external fetch, and routes internally.  No EPROTO, no self-HTTP
+    // loop, no ERR_INVALID_URL, and Clerk's auth markers are preserved on
+    // the response so downstream auth() works.
+    //
+    // LOOP BREAKER: Tag the outgoing rewritten request with a custom
+    // "x-middleware-request-x-middleware-sentinel" override header.  Next.js
+    // copies every "x-middleware-request-<H>" into request header "<H>" on
+    // the internal re-entry request, so our second-pass check (above) fires
+    // and skips re-applying this fix.
+    try {
+      const fallbackOrigin =
+        PUBLIC_URL || detectPublicOrigin(req) || req.nextUrl.origin;
+      const parsedOriginal = new URL(rewrite);
+      const rewritten = new URL(
+        `${parsedOriginal.pathname}${parsedOriginal.search}${parsedOriginal.hash}`,
+        fallbackOrigin
+      );
+      (out as NextResponse).headers.set("x-middleware-rewrite", rewritten.toString());
+
+      const overrideHdrs =
+        (out as NextResponse).headers.get("x-middleware-override-headers") || "";
+      const newOverride = overrideHdrs
+        ? `${overrideHdrs},x-middleware-sentinel`
+        : `x-middleware-sentinel`;
+      (out as NextResponse).headers.set("x-middleware-override-headers", newOverride);
+      (out as NextResponse).headers.set(
+        "x-middleware-request-x-middleware-sentinel",
+        "postprocess-sameroute"
+      );
+
+      console.info(
+        `[middleware] sameRoute canonical rewrite ${rewrite} -> ${rewritten.toString()}`
+      );
+      return out as NextResponse;
+    } catch (err) {
+      console.warn(
+        `[middleware] sameRoute rewrite fix failed — falling back to Clerk raw response: ${(err as Error)?.message}`
+      );
+      return out as NextResponse;
+    }
   }
 
   // Real browser on an AUTH-GATED page: Clerk redirected path (e.g. /members
@@ -143,8 +223,7 @@ export default function middleware(
 ):
   | NextResponse
   | Response
-  | undefined
-  | Promise<NextResponse | Response | undefined> {
+  | Promise<NextResponse | Response> {
   const res = base(req, evt) as
     | NextResponse
     | Response

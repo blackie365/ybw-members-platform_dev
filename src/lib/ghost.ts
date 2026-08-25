@@ -7,6 +7,23 @@ export function normalizeBaseUrl(raw: string | undefined) {
 }
 
 const GHOST_CONTENT_API_KEY = process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY;
+const GHOST_CONTENT_KEY_MASKED = (() => {
+  const k = String(GHOST_CONTENT_API_KEY || '').trim();
+  if (!k) return '(unset)';
+  if (k.length <= 8) return '***' + k.slice(-2);
+  return k.slice(0, 4) + '…' + k.slice(-4);
+})();
+
+(function _ghostStartupLog() {
+  const candidates = getGhostBaseCandidates();
+  console.info(
+    `[Ghost] init baseCandidates=${JSON.stringify(candidates)} ` +
+    `contentKey=${GHOST_CONTENT_KEY_MASKED} ` +
+    `NEXT_PUBLIC_GHOST_API_URL=${JSON.stringify(process.env.NEXT_PUBLIC_GHOST_API_URL || '')} ` +
+    `GHOST_API_URL=${JSON.stringify(process.env.GHOST_API_URL || '')} ` +
+    `NEXT_PUBLIC_SITE_URL=${JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL || '')}`
+  );
+})();
 
 function requireGhostContentKey() {
   const trimmed = String(GHOST_CONTENT_API_KEY || '').trim();
@@ -83,6 +100,16 @@ export async function getPosts(options?: { limit?: number | string; filter?: str
         const data = await response.json();
         const posts = data.posts || [];
         if (data.meta && data.meta.pagination) posts.meta = data.meta.pagination;
+        if (posts.length > 0) {
+          const newest = posts[0]?.published_at || '';
+          const oldest = posts[posts.length - 1]?.published_at || '';
+          console.info(
+            `[Ghost] getPosts OK base=${base} count=${posts.length} newest=${newest} oldest=${oldest} ` +
+            `filter=${options?.filter || '(none)'} order=${options?.order || 'default'}`
+          );
+        } else {
+          console.warn(`[Ghost] getPosts EMPTY base=${base} — 0 posts returned from Ghost API`);
+        }
         return posts;
       } catch (err) {
         lastError = err;
