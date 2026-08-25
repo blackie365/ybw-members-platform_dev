@@ -37,7 +37,7 @@ import { storage } from '@/lib/firebase';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
-import { extractPrintPageNumberFromBuilderPage } from '@/features/magazine/domain/builder-to-reader';
+import { extractPrintPageNumberFromBuilderPage, mergeDisplayedPages } from '@/features/magazine/domain/builder-to-reader';
 import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
 import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
 import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
@@ -251,118 +251,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   }, []);
 
   const mergedDisplayedPages = useMemo<MagazinePage[]>(() => {
-    const rePages = Array.isArray(readerEditionPages) ? readerEditionPages : [];
-    const legacyPages = Array.isArray(pages) ? pages : [];
-    if (rePages.length === 0) {
-      return [...legacyPages].sort((a, b) => {
-        const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
-        const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
-        return la - lb;
-      });
-    }
-
-    const legacyByPrint = new Map<number, MagazinePage>();
-    for (const lp of legacyPages) {
-      const pn = extractPrintPageNumberFromBuilderPage(lp);
-      if (pn && pn > 0) legacyByPrint.set(pn, lp);
-    }
-    const shadowByPrint = new Map<number, MagazinePage>();
-    for (const sp of rePages) {
-      const pn = extractPrintPageNumberFromBuilderPage(sp);
-      if (pn && pn > 0) shadowByPrint.set(pn, sp);
-    }
-    const allPrintNumbers = new Set<number>([
-      ...legacyByPrint.keys(),
-      ...shadowByPrint.keys(),
-    ]);
-
-    const maxShadowPrint = shadowByPrint.size > 0 ? Math.max(...shadowByPrint.keys()) : 0;
-    const shadowReaderEditionsPresent = rePages.length > 0;
-    const IDML_PAGINATION_THRESHOLD = 15;
-    const isIdmlPublished = rePages.length >= IDML_PAGINATION_THRESHOLD;
-    const merged: MagazinePage[] = [];
-
-    for (const printNum of allPrintNumbers) {
-      const legacy = legacyByPrint.get(printNum);
-      const shadow = shadowByPrint.get(printNum);
-      if (legacy && shadow) {
-        const legacyIsFresh =
-          typeof legacy?.sourceReaderEditionId === 'string' &&
-          legacy.sourceReaderEditionId === rePages[0]?.sourceReaderEditionId;
-        const legacyIsSmallerImportClobberingLarger =
-          shadowReaderEditionsPresent &&
-          maxShadowPrint > printNum &&
-          legacy &&
-          !legacy?.sourceReaderEditionId &&
-          !legacy?.generatedFromStoryLibrary;
-        if (legacyIsSmallerImportClobberingLarger) {
-          merged.push(shadow);
-        } else if (legacyIsFresh) {
-          merged.push(legacy);
-        } else if (
-          legacy?.generatedFromStoryLibrary === true &&
-          (legacy as any).readOnly === false &&
-          rePages.length === 0
-        ) {
-          merged.push(legacy);
-        } else {
-          const combined = { ...shadow, ...legacy };
-          if ((legacy as any).readOnly !== undefined && !(legacy as any).readOnly) {
-            (combined as any).readOnly = false;
-          }
-          (combined as any)._shadowDocId = shadow.docId;
-          (combined as any)._legacyDocId = legacy.docId;
-          combined.docId = typeof legacy.docId === 'string' && legacy.docId ? legacy.docId : shadow.docId;
-          merged.push(combined);
-        }
-      } else if (legacy) {
-        (legacy as any)._shadowDocId = '';
-        (legacy as any)._legacyDocId = legacy.docId;
-        merged.push(legacy);
-      } else if (shadow) {
-        (shadow as any)._shadowDocId = shadow.docId;
-        (shadow as any)._legacyDocId = '';
-        merged.push(shadow);
-      }
-    }
-
-    const seenDocIds = new Set(merged.map((p) => p.docId));
-    const appendUnmatchedLegacyPages = isIdmlPublished
-      ? []
-      : legacyPages
-          .filter((lp) => !seenDocIds.has(lp.docId))
-          .filter((page) => {
-            const title = String((page as any).content?.title || '').trim();
-            const body = String((page as any).content?.body || (page as any).content?.text || '').trim();
-            const hasImage = Boolean(
-              (page as any).content?.imageUrl ||
-              (page as any).content?.backgroundImage ||
-              ((page as any).content?.imageUrls || []).length > 0,
-            );
-            return title.length >= 2 || body.length >= 40 || hasImage;
-          })
-          .map((lp) => {
-            (lp as any)._shadowDocId = '';
-            (lp as any)._legacyDocId = lp.docId;
-            return lp;
-          });
-    for (const lp of appendUnmatchedLegacyPages) {
-      merged.push(lp);
-      seenDocIds.add(lp.docId);
-    }
-    // Shadow pages (IDML-backed synthetic rows) whose print-number keys
-    // didn't match any legacy page AND didn't get enumerated into the
-    // merge loop above → came from ReaderEdition entries with no parseable
-    // pageNumber. These never render in reader (IDML ≥15 pages uses ReaderEdition
-    // pages array, not appended orphans) so don't surface them as ghost
-    // rows here either. They just clutter the list with read-only IDML badges.
-    // for (const sp of rePages) { if (!seenDocIds.has(sp.docId)) ... }
-
-    return merged.sort((a, b) => {
-      const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
-      const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
-      return la - lb;
-    });
+    return mergeDisplayedPages(readerEditionPages, pages, 'builder');
   }, [readerEditionPages, pages]);
 
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
@@ -632,18 +521,19 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   const persistPageOrder = useCallback(async (orderedPages: MagazinePage[]) => {
     const previousPages = pages;
+    const nextSlotPosition = (index: number): number => index + 1;
     const renumberedPages = orderedPages.map((page, index) => {
-      const nextSlot = index + 1;
+      const slot = nextSlotPosition(index);
+      const prevContent = page.content || {};
       const nextContent = {
-        ...(page.content || {}),
-        position: nextSlot,
-        pageNumber: nextSlot,
+        ...prevContent,
+        position: slot,
+        pageNumber: slot,
       };
       return {
         ...page,
-        id: nextSlot,
-        pageNumber: nextSlot,
-        position: nextSlot,
+        position: slot,
+        pageNumber: slot,
         content: nextContent,
       };
     });
@@ -652,18 +542,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const changedPages = nextPages.filter((page) => {
       const previousPage = previousPageByDocId.get(page.docId);
       if (!previousPage) return false;
-
       const positionChanged =
-        previousPage.id !== page.id ||
-        previousPage.pageNumber !== page.pageNumber ||
         previousPage.position !== page.position ||
+        previousPage.pageNumber !== page.pageNumber ||
         (previousPage.content?.position ?? null) !== (page.content?.position ?? null) ||
-        (previousPage.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
+        (previousPage.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null) ||
+        (previousPage.id !== page.id && Number.isFinite(Number(previousPage.id)) && Number.isFinite(Number(page.id)));
       const contentChanged =
         page.type === 'contents' &&
         JSON.stringify(previousPage.content?.items || []) !==
           JSON.stringify(page.content?.items || []);
-
       return positionChanged || contentChanged;
     });
 
@@ -674,21 +562,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         changedPages.map((page) => {
           const previousPage = previousPageByDocId.get(page.docId);
           const payload: {
-            id?: number;
             pageNumber?: number;
             position?: number;
             content?: any;
           } = {};
 
           const positionFieldsChanged =
-            previousPage?.id !== page.id ||
-            previousPage?.pageNumber !== page.pageNumber ||
             previousPage?.position !== page.position ||
+            previousPage?.pageNumber !== page.pageNumber ||
             (previousPage?.content?.position ?? null) !== (page.content?.position ?? null) ||
             (previousPage?.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
 
           if (positionFieldsChanged) {
-            payload.id = page.id;
             payload.pageNumber = page.pageNumber;
             payload.position = page.position;
             payload.content = page.content;
@@ -848,6 +733,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         // Load linked ReaderEdition (IDML publish path) — convert to shadow
         // read-only spreads so the "Issue Spreads" column shows all 61 pages
         // from the IDML publish, not just the 6 legacy hand-created pages.
+        //
+        // HOWEVER: if the legacy firestore pages already include fresh
+        // editable copies FROM THIS SAME ReaderEdition (a prior successful
+        // "Sync ReaderEdition → Builder" run, stamped with matching
+        // sourceReaderEditionId), then the editable legacy pages are the
+        // user's working copy. Hiding shadow rows means merge logic is
+        // skipped entirely — page list = simple editable sort, no badges,
+        // no readOnly rows, no two-layer model in effect. Survives page
+        // reload (derived from firestore data, not in-memory state).
         let loadedReaderPages: MagazinePage[] = [];
         let loadedReaderId: string | null = null;
         try {
@@ -857,8 +751,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             const reId = String(re.id || '');
             const rp = Array.isArray(re.pages) ? re.pages : [];
             if (reId && rp.length > 0) {
-              loadedReaderId = reId;
-              loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+              const legacySyncedWithSameEdition = (loadedPages || []).some((p: any) =>
+                typeof (p as any).sourceReaderEditionId === 'string' &&
+                (p as any).sourceReaderEditionId === reId,
+              );
+              if (!legacySyncedWithSameEdition) {
+                loadedReaderId = reId;
+                loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+              } else {
+                // Synced = legacy pages are authoritative; don't surface shadows.
+                loadedReaderId = reId;
+                loadedReaderPages = [];
+              }
             }
           }
         } catch (reErr) {
@@ -879,60 +783,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         try {
           const rePagesArr = Array.isArray(loadedReaderPages) ? loadedReaderPages : [];
           const legacyArr = Array.isArray(loadedPages) ? loadedPages : [];
-          let pagesForContents: MagazinePage[] = [];
-          if (rePagesArr.length === 0) {
-            pagesForContents = [...legacyArr].sort((a, b) => {
-              const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
-              const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
-              return la - lb;
-            });
-          } else {
-            const legacyByPrint = new Map<number, MagazinePage>();
-            for (const lp of legacyArr) {
-              const pn = extractPrintPageNumberFromBuilderPage(lp);
-              if (pn && pn > 0) legacyByPrint.set(pn, lp);
-            }
-            const shadowByPrint = new Map<number, MagazinePage>();
-            for (const sp of rePagesArr) {
-              const pn = extractPrintPageNumberFromBuilderPage(sp);
-              if (pn && pn > 0) shadowByPrint.set(pn, sp);
-            }
-            const allPrintNumbers = new Set<number>([...legacyByPrint.keys(), ...shadowByPrint.keys()]);
-            const maxShadowPrint = shadowByPrint.size > 0 ? Math.max(...shadowByPrint.keys()) : 0;
-            const sourceRE = rePagesArr[0]?.sourceReaderEditionId;
-            for (const printNum of [...allPrintNumbers].sort((a, b) => a - b)) {
-              const legacy = legacyByPrint.get(printNum);
-              const shadow = shadowByPrint.get(printNum);
-              if (legacy && shadow) {
-                const legacyIsFresh = typeof legacy?.sourceReaderEditionId === 'string' && legacy.sourceReaderEditionId === sourceRE;
-                const legacyIsSmallerImportClobberingLarger =
-                  rePagesArr.length > 0 && maxShadowPrint > printNum && legacy && !legacy?.sourceReaderEditionId && !(legacy as any).generatedFromStoryLibrary;
-                if (legacyIsSmallerImportClobberingLarger) pagesForContents.push(shadow);
-                else if (legacyIsFresh) pagesForContents.push(legacy);
-                else if ((legacy as any).generatedFromStoryLibrary === true && !(legacy as any).readOnly && rePagesArr.length === 0) pagesForContents.push(legacy);
-                else {
-                  const combined = { ...shadow, ...legacy };
-                  if ((legacy as any).readOnly !== undefined && !(legacy as any).readOnly) (combined as any).readOnly = false;
-                  (combined as any)._shadowDocId = shadow.docId;
-                  (combined as any)._legacyDocId = legacy.docId;
-                  combined.docId = typeof legacy.docId === 'string' && legacy.docId ? legacy.docId : shadow.docId;
-                  pagesForContents.push(combined);
-                }
-              } else if (legacy) {
-                (legacy as any)._shadowDocId = ''; (legacy as any)._legacyDocId = legacy.docId; pagesForContents.push(legacy);
-              } else if (shadow) {
-                (shadow as any)._shadowDocId = shadow.docId; (shadow as any)._legacyDocId = ''; pagesForContents.push(shadow);
-              }
-            }
-            const seen = new Set(pagesForContents.map((p) => p.docId));
-            for (const lp of legacyArr) if (!seen.has(lp.docId)) { pagesForContents.push(lp); seen.add(lp.docId); }
-            for (const rp of rePagesArr) if (!seen.has(rp.docId)) { pagesForContents.push(rp); seen.add(rp.docId); }
-            pagesForContents.sort((a, b) => {
-              const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
-              const lb = extractPrintPageNumberFromBuilderPage(b) ?? (b.id || 0);
-              return la - lb;
-            });
-          }
+          const pagesForContents: MagazinePage[] = mergeDisplayedPages(rePagesArr, legacyArr, 'builder');
           await syncContentsPage(pagesForContents);
         } catch (e) {
           // Non-fatal: stale Contents grid will not break anything else.

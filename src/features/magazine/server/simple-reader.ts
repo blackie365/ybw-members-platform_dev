@@ -16,6 +16,8 @@ import {
   deriveIssueSlug,
   extractPrintPageNumberFromBuilderPage,
   BUILDER_TYPE_TO_READER_TEMPLATE,
+  mergeDisplayedPages,
+  IDML_PAGINATION_THRESHOLD,
 } from '../domain/builder-to-reader';
 import type { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 
@@ -794,34 +796,30 @@ export async function hydrateEditionWithLegacyPages(edition: ReaderEdition): Pro
   }
 
   const rawPages: ReaderPage[] = Array.isArray(edition.pages) ? [...edition.pages] : [];
-  let pages: ReaderPage[];
 
-  if (legacyPages.length > 0) {
-    const mergedPages = rawPages.map((page) =>
-      mergeReaderPageWithLegacy(page, legacyByKey.get(buildLegacyLookupKey(page))),
-    );
-    const existingKeys = new Set(mergedPages.map((page) => buildLegacyLookupKey(page)));
-    const maxPosition = mergedPages.reduce((max, page) => Math.max(max, Number(page.position) || 0), 0);
-    const IDML_PAGINATION_THRESHOLD = 15;
-    const isIdmlPublished = rawPages.length >= IDML_PAGINATION_THRESHOLD;
-    const appendedLegacyPages = isIdmlPublished
-      ? []
-      : legacyPages
-          .filter((page) => !existingKeys.has(buildLegacyLookupKey(page)))
-          .filter((page) => {
-            const title = String(page.content?.title || '').trim();
-            const body = String(page.content?.body || page.content?.text || '').trim();
-            const hasImage = Boolean(page.content?.imageUrl || page.content?.backgroundImage || (page.content?.imageUrls || []).length > 0);
-            return title.length >= 2 || body.length >= 40 || hasImage;
-          })
-          .map((page, index) => ({
-            ...page,
-            position: maxPosition + index + 1,
-          }));
-    pages = [...mergedPages, ...appendedLegacyPages];
-  } else {
-    pages = rawPages;
-  }
+  // ONE CANONICAL MERGE: same function used by builder page + server reader.
+  // mergeDisplayedPages handles print-number key merge, IDML-size threshold
+  // guard for orphan appends, and row selection (legacy vs shadow vs combined).
+  // It returns MagazinePage[] (same shape subset as ReaderPage for our fields).
+  const mergedRows = (mergeDisplayedPages(
+    rawPages as unknown as MagazinePage[],
+    legacyPages as unknown as MagazinePage[],
+    'reader',
+  ) as unknown[]) as ReaderPage[];
+
+  // Reader-side content merge: legacy (builder) edits override base IDML
+  // content where defined. mergeReaderPageWithLegacy applies the correct
+  // field-level priority (legacyField || baseField) with structural template
+  // pinning, contents grid guard, image dedupe, etc. The canonical merge
+  // already gave us the correct row and sort order; this just overlays the
+  // builder's actual text/image edits onto the IDML base.
+  const byLookup: Map<string, ReaderPage> = new Map();
+  for (const lp of legacyPages) byLookup.set(buildLegacyLookupKey(lp), lp);
+  const pages: ReaderPage[] = mergedRows.map((row) => {
+    const match = byLookup.get(buildLegacyLookupKey(row));
+    const base = rawPages.find((rp) => buildLegacyLookupKey(rp) === buildLegacyLookupKey(row)) || row;
+    return match ? mergeReaderPageWithLegacy(base, match) : row;
+  });
 
   const rebuilt = normalizeReaderEditionStructural(edition, pages, issueCover);
 
