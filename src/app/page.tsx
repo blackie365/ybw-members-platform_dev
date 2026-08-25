@@ -72,6 +72,79 @@ async function getFeaturedMembers() {
 
 export const revalidate = 1800;
 
+const FEATURED_MAX_AGE_DAYS = 60;
+const RECENT_HERO_BONUS_FILL_N = 3;
+
+function parsePostDate(d: unknown): Date | null {
+  if (d instanceof Date) return d;
+  if (typeof d === "number" && Number.isFinite(d) && d > 0) return new Date(d);
+  if (typeof d === "string" && d.trim().length > 0) {
+    const t = new Date(d);
+    if (Number.isFinite(t.getTime())) return t;
+  }
+  return null;
+}
+
+function applyFeaturedStalenessFallback(
+  featured: any[],
+  recent: any[],
+  now: Date = new Date()
+): { heroPosts: any[]; gridRecent: any[]; diagnostics: Record<string, unknown> } {
+  const cutoffMs = now.getTime() - FEATURED_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  const freshFeatured: any[] = [];
+  const staleFeatured: any[] = [];
+  for (const p of featured || []) {
+    const dt = parsePostDate(p?.published_at ?? p?.publishedAt);
+    if (dt && dt.getTime() < cutoffMs) staleFeatured.push(p);
+    else freshFeatured.push(p);
+  }
+
+  const recentSorted = [...(recent || [])].sort((a: any, b: any) => {
+    const da = (parsePostDate(a?.published_at ?? a?.publishedAt)?.getTime() ?? 0) * -1;
+    const db = (parsePostDate(b?.published_at ?? b?.publishedAt)?.getTime() ?? 0) * -1;
+    return da - db;
+  });
+
+  const recentById = new Map<string, any>();
+  for (const p of recentSorted) if (p?.id) recentById.set(String(p.id), p);
+
+  const staleIds = new Set<string>();
+  for (const p of staleFeatured) if (p?.id) staleIds.add(String(p.id));
+
+  let heroPosts = [...freshFeatured];
+  const needed = 5 - heroPosts.length;
+  if (needed > 0) {
+    const fill: any[] = [];
+    for (const p of recentSorted) {
+      if (!p?.id) continue;
+      const id = String(p.id);
+      if (heroPosts.some((h: any) => h?.id && String(h.id) === id)) continue;
+      if (staleIds.has(id)) continue;
+      fill.push(p);
+      if (fill.length >= needed) break;
+    }
+    heroPosts = [...heroPosts, ...fill];
+  }
+
+  const heroIds = new Set<string>();
+  for (const p of heroPosts) if (p?.id) heroIds.add(String(p.id));
+
+  const gridRecent = recentSorted.filter((p: any) => p?.id && !heroIds.has(String(p.id)));
+
+  const diagnostics = {
+    featuredTotal: (featured || []).length,
+    freshFeatured: freshFeatured.length,
+    staleFeaturedDropped: staleFeatured.length,
+    filledFromRecent: Math.max(0, heroPosts.length - freshFeatured.length),
+    heroPosts: heroPosts.length,
+    gridRecent: gridRecent.length,
+    staleDates: staleFeatured.map((p: any) => (parsePostDate(p?.published_at ?? p?.publishedAt)?.toISOString() ?? "").slice(0, 10)),
+    heroDates: heroPosts.map((p: any) => (parsePostDate(p?.published_at ?? p?.publishedAt)?.toISOString() ?? "").slice(0, 10)),
+  };
+
+  return { heroPosts, gridRecent, diagnostics };
+}
+
 export default async function MagazinePage() {
   let featuredPosts: any[] = [];
   let recentPosts: any[] = [];
@@ -147,16 +220,30 @@ export default async function MagazinePage() {
   }
 
   // Filter out carousel posts from the main grid to avoid duplicates and limit to 6 stories
-  const featuredIds = (featuredPosts || []).map((p: any) => p.id);
-  const gridPosts = (recentPosts || [])
-    .filter((p: any) => !featuredIds.includes(p.id))
-    .slice(0, 6);
+  const {
+    heroPosts,
+    gridRecent,
+    diagnostics: heroDiag,
+  } = applyFeaturedStalenessFallback(featuredPosts, recentPosts);
+  const gridPosts = gridRecent.slice(0, 6);
+
+  const heroTop3 = [...heroPosts].sort((a: any, b: any) => {
+    const da = (parsePostDate(a?.published_at ?? a?.publishedAt)?.getTime() ?? 0) * -1;
+    const db = (parsePostDate(b?.published_at ?? b?.publishedAt)?.getTime() ?? 0) * -1;
+    return da - db;
+  }).slice(0, 3);
+
+  if (heroDiag.staleFeaturedDropped || heroDiag.filledFromRecent) {
+    console.info(
+      `[homepage] featured staleness fallback: dropStale=${heroDiag.staleFeaturedDropped} fillFromRecent=${heroDiag.filledFromRecent} fresh=${heroDiag.freshFeatured}/${heroDiag.featuredTotal} staleDates=${JSON.stringify(heroDiag.staleDates)} heroDates=${JSON.stringify(heroDiag.heroDates)}`
+    );
+  }
 
   return (
     <div className="bg-background">
       <NewsletterPopup />
       <div className="flex-1">
-        <HeroSection posts={featuredPosts} recentPosts={recentPosts?.slice(0, 3)} />
+        <HeroSection posts={heroPosts} recentPosts={heroTop3} />
         <ArticleGrid posts={gridPosts} />
         <LatestEvents events={latestEvents} featuredHomepageEventSlug={featuredHomepageEventSlug} />
         <CategorySection title="Editors Blog" posts={editorsBlogPosts} tagSlug="editorial" />

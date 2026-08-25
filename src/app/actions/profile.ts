@@ -8,6 +8,43 @@ import Stripe from 'stripe';
 import { isPaidSignal, ensureWelcomeEmailForMember } from '@/lib/member-notifications';
 import slugify from '@sindresorhus/slugify';
 
+function getAllowedAdminEmails(): string[] {
+  const raw =
+    process.env.ALLOWED_ADMIN_EMAILS ||
+    process.env.NEXT_PUBLIC_ALLOWED_ADMIN_EMAILS ||
+    '';
+  if (!raw) return [];
+  return raw
+    .split(/[,\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function applyAllowlistAdminOverride(
+  data: Record<string, unknown> | null | undefined,
+  email: string
+): Record<string, unknown> | null | undefined {
+  if (!data) return data;
+  const emailLower = (email || '').toLowerCase();
+  const allowed = getAllowedAdminEmails();
+  if (emailLower && allowed.includes(emailLower)) {
+    const roleVal = data.role;
+    const isAdminVal = data.isAdmin;
+    const alreadyAdmin =
+      (typeof roleVal === 'string' &&
+        (roleVal === 'admin' || roleVal === 'super_admin')) ||
+      isAdminVal === true;
+    if (!alreadyAdmin) {
+      return {
+        ...data,
+        isAdmin: true,
+        role: typeof roleVal === 'string' && roleVal !== 'member' ? roleVal : 'admin',
+      } as Record<string, unknown>;
+    }
+  }
+  return data;
+}
+
 export async function getProfile(uid: string) {
   try {
     if (!process.env.FIREBASE_PRIVATE_KEY) {
@@ -32,6 +69,8 @@ export async function getProfile(uid: string) {
       if (email) {
         const nowIso = new Date().toISOString();
         const emailLower = email.toLowerCase();
+        const allowed = getAllowedAdminEmails();
+        const allowlisted = emailLower && allowed.includes(emailLower);
 
         const firstName = clerkUser?.firstName || '';
         const lastName = clerkUser?.lastName || '';
@@ -89,8 +128,8 @@ export async function getProfile(uid: string) {
               profileImage: avatarUrl,
               status: 'active',
               membershipTier: 'free',
-              role: 'member',
-              isAdmin: false,
+              role: allowlisted ? 'admin' : 'member',
+              isAdmin: allowlisted ? true : false,
               isFeatured: false,
               createdAt: nowIso,
               updatedAt: nowIso,
@@ -104,10 +143,12 @@ export async function getProfile(uid: string) {
     }
     
     if (docSnap.exists) {
-      const data = docSnap.data() || {};
-      
+      const data = docSnap.data() as Record<string, unknown> | undefined || {};
+      const email = (data.email as string) || '';
+      const overridden = applyAllowlistAdminOverride(data, email);
+
       // Sanitize the data to remove any Timestamps before sending to the client
-      const sanitizedData = JSON.parse(JSON.stringify(data, (_key, value) => {
+      const sanitizedData = JSON.parse(JSON.stringify(overridden, (_key, value) => {
         if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
           return new Date(value._seconds * 1000).toISOString();
         }
