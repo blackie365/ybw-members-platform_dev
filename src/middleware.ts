@@ -1,32 +1,154 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
-// Burst protection for page navigations. Set generously high so real users
-// behind shared IPs are never affected; it only trips on bot-like floods.
 const PAGE_LIMIT = 120;
 const PAGE_WINDOW_MS = 60_000;
 
-export default clerkMiddleware((_auth, req) => {
-  // API routes carry their own per-route limits and are skipped here.
-  // Static assets never reach the middleware (see matcher below).
+const PUBLIC_URL = (
+  process.env.NEXT_PUBLIC_URL ||
+  process.env.SITE_URL ||
+  ""
+).replace(/\/$/, "");
+
+function isLoopbackIp(ip: string | undefined | null): boolean {
+  if (!ip) return false;
+  const normalized = ip.trim();
+  return (
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "0:0:0:0:0:0:0:1" ||
+    normalized.startsWith("127.")
+  );
+}
+
+const base = clerkMiddleware((_auth, req) => {
   if (req.method === "GET" && !req.nextUrl.pathname.startsWith("/api/")) {
     const ip = getClientIp(req);
+    if (isLoopbackIp(ip)) {
+      return;
+    }
     const result = checkRateLimit(`page:${ip}`, PAGE_LIMIT, PAGE_WINDOW_MS);
     if (!result.allowed) {
       return new NextResponse(
-        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        JSON.stringify({
+          error: "Too many requests. Please try again later.",
+        }),
         {
           status: 429,
           headers: {
             "Content-Type": "application/json",
-            "Retry-After": String(Math.ceil((result.resetAt - Date.now()) / 1000)),
+            "Retry-After": String(
+              Math.ceil((result.resetAt - Date.now()) / 1000)
+            ),
           },
         }
       );
     }
   }
 });
+
+function detectPublicOrigin(req: NextRequest): string {
+  if (PUBLIC_URL) return PUBLIC_URL;
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    "";
+  if (!host) return "";
+  const proto =
+    req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  return `${proto}://${host}`;
+}
+
+function postProcess(
+  req: NextRequest,
+  out: NextResponse | Response | undefined | null
+): NextResponse | Response | undefined {
+  if (!out) return out as NextResponse | undefined;
+  const headers = (out as NextResponse).headers;
+  const rewrite = headers?.get?.("x-middleware-rewrite") || "";
+  if (!rewrite || !/^https?:\/\/localhost[:/]/.test(rewrite)) {
+    return out as NextResponse;
+  }
+
+  // HEAD requests from bots/curl/health checks — skip Clerk's internal rewrite
+  // entirely (public pages render correctly, private pages become 200 with empty
+  // body or 307 from the route itself).  Avoids the EPROTO "wrong SSL version"
+  // bug when Clerk internally rewrites -> https://localhost on a plain-HTTP bind.
+  if (req.method === "HEAD") {
+    return NextResponse.next();
+  }
+
+  let newPath = "/";
+  let newSearch = "";
+  let newHash = "";
+  try {
+    const u = new URL(rewrite);
+    newPath = u.pathname;
+    newSearch = u.search;
+    newHash = u.hash;
+  } catch {
+    const rest = rewrite.replace(/^https?:\/\/localhost(:\d+)?/, "");
+    const [pathAndMaybeSearch, hash = ""] = rest.split("#");
+    const [pathname, search = ""] = pathAndMaybeSearch.split("?");
+    newPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    newSearch = search ? `?${search}` : "";
+    newHash = hash ? `#${hash}` : "";
+  }
+
+  const sameRoute =
+    newPath === req.nextUrl.pathname &&
+    newSearch === (req.nextUrl.search || "");
+
+  if (sameRoute) {
+    // Clerk middleware doing a same-path rewrite (auth cookie/state injection,
+    // not an actual sign-in redirect).  Keep it internal — do NOT emit a 307
+    // external redirect to the same URL (that loops forever).
+    return NextResponse.next();
+  }
+
+  // Real browser on an AUTH-GATED page: Clerk redirected path (e.g. /members
+  // -> /sign-in).  Convert the internal localhost rewrite into an EXTERNAL 307
+  // redirect to the *public* HTTPS origin + new path/search/hash.  Browser
+  // navigates directly to the real public URL — no localhost TLS needed.
+  const origin = detectPublicOrigin(req);
+  let dest: URL;
+  try {
+    dest = new URL(`${newPath}${newSearch}${newHash}`, origin || req.nextUrl);
+  } catch {
+    dest = new URL(
+      `${newPath}${newSearch}${newHash}`,
+      origin || req.nextUrl.toString()
+    );
+  }
+  const proto =
+    req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  if (dest.protocol !== `${proto}:`) dest.protocol = `${proto}:`;
+  return NextResponse.redirect(dest);
+}
+
+export default function middleware(
+  req: NextRequest,
+  evt: NextFetchEvent
+):
+  | NextResponse
+  | Response
+  | undefined
+  | Promise<NextResponse | Response | undefined> {
+  const res = base(req, evt) as
+    | NextResponse
+    | Response
+    | Promise<NextResponse | Response | undefined>
+    | undefined;
+  if (res && typeof (res as Promise<unknown>).then === "function") {
+    return (res as Promise<NextResponse | Response | undefined>).then((r) =>
+      postProcess(req, r)
+    );
+  }
+  return postProcess(req, res as NextResponse | Response | undefined);
+}
+
 
 export const config = {
   matcher: [
