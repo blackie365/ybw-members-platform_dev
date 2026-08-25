@@ -278,6 +278,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     const maxShadowPrint = shadowByPrint.size > 0 ? Math.max(...shadowByPrint.keys()) : 0;
     const shadowReaderEditionsPresent = rePages.length > 0;
+    const IDML_PAGINATION_THRESHOLD = 15;
+    const isIdmlPublished = rePages.length >= IDML_PAGINATION_THRESHOLD;
     const merged: MagazinePage[] = [];
 
     for (const printNum of allPrintNumbers) {
@@ -325,18 +327,36 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
 
     const seenDocIds = new Set(merged.map((p) => p.docId));
-    for (const lp of legacyPages) {
-      if (!seenDocIds.has(lp.docId)) {
-        merged.push(lp);
-        seenDocIds.add(lp.docId);
-      }
+    const appendUnmatchedLegacyPages = isIdmlPublished
+      ? []
+      : legacyPages
+          .filter((lp) => !seenDocIds.has(lp.docId))
+          .filter((page) => {
+            const title = String((page as any).content?.title || '').trim();
+            const body = String((page as any).content?.body || (page as any).content?.text || '').trim();
+            const hasImage = Boolean(
+              (page as any).content?.imageUrl ||
+              (page as any).content?.backgroundImage ||
+              ((page as any).content?.imageUrls || []).length > 0,
+            );
+            return title.length >= 2 || body.length >= 40 || hasImage;
+          })
+          .map((lp) => {
+            (lp as any)._shadowDocId = '';
+            (lp as any)._legacyDocId = lp.docId;
+            return lp;
+          });
+    for (const lp of appendUnmatchedLegacyPages) {
+      merged.push(lp);
+      seenDocIds.add(lp.docId);
     }
-    for (const sp of rePages) {
-      if (!seenDocIds.has(sp.docId)) {
-        merged.push(sp);
-        seenDocIds.add(sp.docId);
-      }
-    }
+    // Shadow pages (IDML-backed synthetic rows) whose print-number keys
+    // didn't match any legacy page AND didn't get enumerated into the
+    // merge loop above → came from ReaderEdition entries with no parseable
+    // pageNumber. These never render in reader (IDML ≥15 pages uses ReaderEdition
+    // pages array, not appended orphans) so don't surface them as ghost
+    // rows here either. They just clutter the list with read-only IDML badges.
+    // for (const sp of rePages) { if (!seenDocIds.has(sp.docId)) ... }
 
     return merged.sort((a, b) => {
       const la = extractPrintPageNumberFromBuilderPage(a) ?? (a.id || 0);
