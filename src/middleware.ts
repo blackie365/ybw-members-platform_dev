@@ -68,6 +68,12 @@ function postProcess(
   if (!out) return out as NextResponse | undefined;
   const headers = (out as NextResponse).headers;
   const rewrite = headers?.get?.("x-middleware-rewrite") || "";
+
+  // No localhost rewrite -> this is a normal Clerk-issued response (auth markers,
+  // set-cookie, etc.).  Return it VERBATIM so that downstream auth()/currentUser()
+  // calls in server components can see the Clerk middleware signature.  Returning
+  // NextResponse.next() here strips Clerk's response headers and causes:
+  //   "Error: Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware()"
   if (!rewrite || !/^https?:\/\/localhost[:/]/.test(rewrite)) {
     return out as NextResponse;
   }
@@ -103,9 +109,12 @@ function postProcess(
 
   if (sameRoute) {
     // Clerk middleware doing a same-path rewrite (auth cookie/state injection,
-    // not an actual sign-in redirect).  Keep it internal — do NOT emit a 307
-    // external redirect to the same URL (that loops forever).
-    return NextResponse.next();
+    // not an actual sign-in redirect).  Keep the response coming FROM CLERK
+    // (with auth markers intact on response headers) — do NOT emit a 307
+    // external redirect to the same URL (that loops forever), and do NOT
+    // return NextResponse.next() (which strips Clerk's markers and breaks
+    // auth() in downstream RSC pages like /admin/layout.tsx).
+    return out as NextResponse;
   }
 
   // Real browser on an AUTH-GATED page: Clerk redirected path (e.g. /members
