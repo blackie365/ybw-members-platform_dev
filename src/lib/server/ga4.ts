@@ -121,12 +121,66 @@ function base64UrlEncode(input: Buffer | string) {
   return value.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function normalizePrivateKey(raw: string): string {
+  let key = (raw ?? "").trim();
+  if (/\\n/.test(key)) {
+    key = key.replace(/\\n/g, "\n");
+  }
+  key = key
+    .replace(/\r+/g, "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!/-----BEGIN\s+[A-Z0-9 ]*PRIVATE\s+KEY-----/.test(key)) {
+    throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing BEGIN PRIVATE KEY header");
+  }
+  if (!/-----END\s+[A-Z0-9 ]*PRIVATE\s+KEY-----/.test(key)) {
+    throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing END PRIVATE KEY footer");
+  }
+  return key + "\n";
+}
+
 function signJwt(unsignedToken: string, privateKey: string) {
   const signer = createSign("RSA-SHA256");
   signer.update(unsignedToken);
   signer.end();
-  return base64UrlEncode(signer.sign(privateKey));
+
+  const isPkcs8 = /-----BEGIN\s+PRIVATE\s+KEY-----/.test(privateKey);
+  const isTraditional = /-----BEGIN\s+RSA\s+PRIVATE\s+KEY-----/.test(privateKey);
+
+  const keyCandidates: Array<unknown> = [];
+  if (isPkcs8) {
+    keyCandidates.push({
+      key: privateKey,
+      format: "pem" as const,
+      type: "pkcs8" as const,
+    });
+  }
+  if (isTraditional) {
+    keyCandidates.push({
+      key: privateKey,
+      format: "pem" as const,
+      type: "pkcs1" as const,
+    });
+  }
+  keyCandidates.push(privateKey);
+
+  let lastErr: unknown = null;
+  for (const candidate of keyCandidates) {
+    try {
+      const signature = signer.sign(candidate as never) as unknown as string | Buffer;
+      const sigBuffer = typeof signature === "string" ? Buffer.from(signature) : signature;
+      return base64UrlEncode(sigBuffer);
+    } catch (err) {
+      lastErr = err;
+      continue;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
+
+
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -230,7 +284,7 @@ async function getAccessToken() {
   }
 
   const clientEmail = getRequiredEnv("GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  const privateKey = getRequiredEnv("GOOGLE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = normalizePrivateKey(getRequiredEnv("GOOGLE_PRIVATE_KEY"));
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + 3600;
 
