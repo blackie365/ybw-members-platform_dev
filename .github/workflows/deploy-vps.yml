@@ -1,0 +1,91 @@
+name: Deploy to VPS (Self-host)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Deploy reason'
+        required: false
+        default: 'Manual dispatch'
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy (SSH → vps725503.ovh.net)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (info only)
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key + known_hosts
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Populate known_hosts (VPS public key)
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          (grep -qs 'vps725503.ovh.net\|51.68.197.197' ~/.ssh/known_hosts 2>/dev/null) || {
+            ssh-keyscan -t ed25519,rsa,ecdsa -H vps725503.ovh.net 51.68.197.197 >> ~/.ssh/known_hosts 2>/dev/null
+          }
+          chmod 644 ~/.ssh/known_hosts || true
+
+      - name: Pull, install, build and restart on VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          test -n "$VPS_USER" || { echo "Missing VPS_USER secret"; exit 1; }
+          test -n "$VPS_HOST" || { echo "Missing VPS_HOST secret"; exit 1; }
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=45 \
+            "${VPS_USER}@${VPS_HOST}" \
+            '
+              set -euo pipefail
+              APPDIR=/srv/ybw-frontend
+              LOG="$APPDIR/.deploy-$(date +%Y%m%d-%H%M%S).log"
+              echo "=== $(date -Is): start deploy ==>" 2>&1 | tee -a "$LOG"
+
+              cd "$APPDIR"
+
+              echo "[1/6] git fetch + checkout main" 2>&1 | tee -a "$LOG"
+              cd "$APPDIR"
+              git fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
+              OLDREV=$(git rev-parse --short HEAD)
+              git -c advice.detachedHead=false reset --hard origin/main 2>&1 | tee -a "$LOG"
+              NEWREV=$(git rev-parse --short HEAD)
+              echo "old=$OLDREV new=$NEWREV" 2>&1 | tee -a "$LOG"
+
+              echo "[2/6] chown checkout to www-data" 2>&1 | tee -a "$LOG"
+              chown -R www-data:www-data "$APPDIR" || true
+
+              echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, pruned)" 2>&1 | tee -a "$LOG"
+              rm -f pnpm-workspace.yaml 2>&1 | tee -a "$LOG"
+              sudo -u www-data -H pnpm install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG"
+
+              echo "[4/6] pnpm build (max-old-space 3072 MB)" 2>&1 | tee -a "$LOG"
+              rm -rf .next/static .next/server .next/standalone 2>/dev/null || true
+              sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" \
+                pnpm build 2>&1 | tail -n 250 | tee -a "$LOG"
+
+              echo "[5/6] chown build artifacts" 2>&1 | tee -a "$LOG"
+              chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
+
+              echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" 2>&1 | tee -a "$LOG"
+              /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
+              (systemctl list-unit-files | grep -qs ybw-frontend-tls) && /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
+
+              sleep 6
+
+              echo "status:" 2>&1 | tee -a "$LOG"
+              /bin/systemctl --no-pager is-active ybw-frontend.service 2>&1 | tee -a "$LOG"
+              /bin/systemctl --no-pager is-active ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
+
+              echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV)" 2>&1 | tee -a "$LOG"
+            '
