@@ -40,6 +40,7 @@ const UrlString = z
   .transform((val) => (val.length === 0 ? undefined : val))
   .pipe(z.string().optional());
 
+const EmptyableUrlString = UrlString.default('');
 const ReaderPageContentSchema = z
   .object({
     title: z.string().trim().min(1, 'title is required').max(400),
@@ -50,21 +51,21 @@ const ReaderPageContentSchema = z
     author: z.string().trim().optional(),
     name: z.string().trim().optional(),
     kicker: z.string().trim().optional(),
-    imageUrl: UrlString,
+    imageUrl: EmptyableUrlString,
     imageUrls: z.array(z.string().trim()).default([]),
-    pdfUrl: UrlString,
-    backgroundImage: UrlString,
-    videoUrl: UrlString,
+    pdfUrl: EmptyableUrlString,
+    backgroundImage: EmptyableUrlString,
+    videoUrl: EmptyableUrlString,
     quote: z.string().trim().optional(),
     pullQuotes: z.array(z.string().trim()).default([]),
     items: z
       .array(
         z.object({
           title: z.string().trim().min(1),
-          page: z.string().trim().min(1),
+          page: z.coerce.string().trim().min(1),
         }),
       )
-      .optional(),
+      .default([]),
     ctaLabel: z.string().trim().optional(),
     ctaHref: z.string().trim().optional(),
     label: z.string().trim().optional(),
@@ -74,20 +75,20 @@ const ReaderPageContentSchema = z
     continuationLabel: z.string().trim().optional(),
     nextIssue: z.string().trim().optional(),
     snapshotLabel: z.string().trim().optional(),
-    image: UrlString,
-    featureImage: UrlString,
-    heroImage: UrlString,
-    mainImage: UrlString,
-    coverImage: UrlString,
-    photo: UrlString,
-    headshot: UrlString,
-    portrait: UrlString,
+    image: EmptyableUrlString,
+    featureImage: EmptyableUrlString,
+    heroImage: EmptyableUrlString,
+    mainImage: EmptyableUrlString,
+    coverImage: EmptyableUrlString,
+    photo: EmptyableUrlString,
+    headshot: EmptyableUrlString,
+    portrait: EmptyableUrlString,
     images: z.array(z.string().trim()).default([]),
     gallery: z.array(z.string().trim()).default([]),
     additionalImages: z.array(z.string().trim()).default([]),
-    logoImage: UrlString,
+    logoImage: EmptyableUrlString,
     logoImages: z.array(z.string().trim()).default([]),
-    partnerLogo: UrlString,
+    partnerLogo: EmptyableUrlString,
   })
   .passthrough()
   .transform((content) => {
