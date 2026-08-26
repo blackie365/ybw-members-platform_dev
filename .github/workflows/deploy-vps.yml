@@ -16,79 +16,76 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy (SSH → vps725503.ovh.net)
-    runs-on: ubuntu-latest
+    name: Deploy (self-hosted runner on vps725503)
+    runs-on: [self-hosted, deploy]
+    timeout-minutes: 30
+
+    env:
+      CI: 'true'
+      APPDIR: /srv/ybw-frontend
 
     steps:
-      - name: Checkout (info only)
-        uses: actions/checkout@v4
-
-      - name: Configure SSH key + known_hosts
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
-
-      - name: Populate known_hosts (VPS public key)
+      - name: Sanity-check runner host and tooling
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          (grep -qs 'vps725503.ovh.net\|51.68.197.197' ~/.ssh/known_hosts 2>/dev/null) || {
-            ssh-keyscan -t ed25519,rsa,ecdsa -H vps725503.ovh.net 51.68.197.197 >> ~/.ssh/known_hosts 2>/dev/null
-          }
-          chmod 644 ~/.ssh/known_hosts || true
+          set -euo pipefail
+          echo "hostname: $(hostname)"
+          echo "whoami:   $(whoami)"
+          echo "groups:   $(groups)"
+          echo "APPDIR:   $APPDIR"
+          ls -ld "$APPDIR" || { echo "Missing $APPDIR on runner!"; exit 1; }
+          command -v git
+          command -v pnpm
+          command -v node && node --version
+          pnpm --version
+          sudo -n true && echo "sudo: nopasswd OK" || { echo "sudo requires password - fix /etc/sudoers.d/gha-runner-ybw-deploy"; exit 1; }
 
-      - name: Pull, install, build and restart on VPS
-        env:
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+      - name: git fetch origin/main + reset APPDIR to ${{ github.sha }}
         run: |
-          test -n "$VPS_USER" || { echo "Missing VPS_USER secret"; exit 1; }
-          test -n "$VPS_HOST" || { echo "Missing VPS_HOST secret"; exit 1; }
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=45 \
-            "${VPS_USER}@${VPS_HOST}" \
-            '
-              set -euo pipefail
-              export CI=true
-              APPDIR=/srv/ybw-frontend
-              LOG="$APPDIR/.deploy-$(date +%Y%m%d-%H%M%S).log"
-              echo "=== $(date -Is): start deploy ==>" 2>&1 | tee -a "$LOG"
+          set -euo pipefail
+          APPDIR=/srv/ybw-frontend
+          LOG="$APPDIR/.deploy-$(date +%Y%m%d-%H%M%S).log"
+          echo "=== $(date -Is): start deploy (reason: ${{ github.event.inputs.reason || 'push main' }}) ===" | tee -a "$LOG"
 
-              git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
+          git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
 
-              cd "$APPDIR"
+          cd "$APPDIR"
 
-              echo "[1/6] git fetch + checkout main" 2>&1 | tee -a "$LOG"
-              cd "$APPDIR"
-              git fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
-              OLDREV=$(git rev-parse --short HEAD)
-              git -c advice.detachedHead=false reset --hard origin/main 2>&1 | tee -a "$LOG"
-              NEWREV=$(git rev-parse --short HEAD)
-              echo "old=$OLDREV new=$NEWREV" 2>&1 | tee -a "$LOG"
+          echo "[1/6] git fetch + reset hard to origin/main (sha=${GITHUB_SHA})" | tee -a "$LOG"
+          OLDREV=$(git rev-parse --short HEAD)
+          git fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
+          git -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
+          NEWREV=$(git rev-parse --short HEAD)
+          echo "old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
+          [ "$(git rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA"; exit 2; }
 
-              echo "[2/6] chown checkout to www-data" 2>&1 | tee -a "$LOG"
-              chown -R www-data:www-data "$APPDIR" || true
+          echo "[2/6] chown checkout to www-data" | tee -a "$LOG"
+          sudo /bin/chown -R www-data:www-data "$APPDIR" || true
 
-              echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, non-interactive CI mode)" 2>&1 | tee -a "$LOG"
-              rm -f pnpm-workspace.yaml 2>&1 | tee -a "$LOG"
-              sudo -u www-data -H env CI=true pnpm install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
+          echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, non-interactive CI mode)" | tee -a "$LOG"
+          rm -f "$APPDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG"
+          sudo -u www-data -H env CI=true pnpm -C "$APPDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
-              echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" 2>&1 | tee -a "$LOG"
-              rm -rf .next/cache node_modules/.cache .next/static .next/server .next/standalone 2>/dev/null || true
-              sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
-                pnpm build 2>&1 | tee -a "$LOG" | tail -n 250
+          echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" | tee -a "$LOG"
+          rm -rf "$APPDIR/.next/cache" "$APPDIR/node_modules/.cache" \
+                 "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
+          sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
+            pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
 
-              echo "[5/6] chown build artifacts" 2>&1 | tee -a "$LOG"
-              chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
+          echo "[5/6] chown build artifacts" | tee -a "$LOG"
+          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
 
-              echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" 2>&1 | tee -a "$LOG"
-              /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
-              (systemctl list-unit-files | grep -qs ybw-frontend-tls) && /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
+          echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
+          sudo /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
+          (systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
+            && sudo /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG" \
+            || true
 
-              sleep 6
+          sleep 6
 
-              echo "status:" 2>&1 | tee -a "$LOG"
-              /bin/systemctl --no-pager is-active ybw-frontend.service 2>&1 | tee -a "$LOG"
-              /bin/systemctl --no-pager is-active ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
+          echo "status:" | tee -a "$LOG"
+          sudo /bin/systemctl --no-pager is-active ybw-frontend.service 2>&1 | tee -a "$LOG"
+          sudo /bin/systemctl --no-pager is-active ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
 
-              echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV)" 2>&1 | tee -a "$LOG"
-            '
+          MAINPID=$(sudo systemctl show -p MainPID --value ybw-frontend.service)
+          echo "MAIN_PID=$MAINPID" | tee -a "$LOG"
+          echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV, pid=$MAINPID)" | tee -a "$LOG"
