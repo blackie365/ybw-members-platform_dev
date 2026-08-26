@@ -1,5 +1,3 @@
-'use server';
-
 export { getMagazineIssuesAction, updateMagazineIssueAction, createMagazineIssueAction, deleteMagazineIssueAction, setLatestMagazineIssueAction, setFeaturedFlipbookIssueAction, getEditionsListingAction, getGhostPostsAction, type UnifiedEditionRow } from './magazine/edition-actions';
 export { getMagazinePagesAction, updateMagazinePageAction, addMagazinePageAction, deleteMagazinePageAction } from './magazine/page-actions';
 export { getMagazineStoryLibraryAction, saveMagazineStoryLibraryAction } from './magazine/story-library-actions';
