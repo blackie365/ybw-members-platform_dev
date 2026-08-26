@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { fixMagazineImageUrl } from "@/lib/magazine-utils";
+import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 
 // ─────────────────────────────────────────────
@@ -27,6 +27,13 @@ type AdditionalMediaItem = {
   layout?: "inline" | "wide" | "full" | "mosaic";
   ratio?: string;
 };
+
+function safeImageSrc(raw: unknown): string {
+  const src = String(raw || "").trim();
+  if (!src) return "";
+  if (isPlaceholderImageUrl(src)) return "";
+  return src;
+}
 
 function splitPlainTextIntoParagraphs(input: string): string[] {
   const normalized = String(input || "").replace(/\r\n/g, "\n").trim();
@@ -199,6 +206,7 @@ function normalizeAdditionalMedia(
     if (typeof entry === "string") {
       const src = entry.trim();
       if (!src) continue;
+      if (isPlaceholderImageUrl(src)) continue;
       items.push({ src, alt: fallbackAlt || "Image" });
       continue;
     }
@@ -208,6 +216,7 @@ function normalizeAdditionalMedia(
         (entry as any).src || (entry as any).url || (entry as any).image || "",
       ).trim();
       if (!src) continue;
+      if (isPlaceholderImageUrl(src)) continue;
       const alt = String(
         (entry as any).alt || (entry as any).title || fallbackAlt || "Image",
       ).trim();
@@ -241,7 +250,7 @@ function getAdditionalMedia(
   data: any,
   fallbackAlt: string,
 ): AdditionalMediaItem[] {
-  const main = String(data?.featureImage || data?.image || "").trim();
+  const main = safeImageSrc(data?.featureImage || data?.image || "");
   const sources: AdditionalMediaItem[] = [
     ...normalizeAdditionalMedia(data?.images, fallbackAlt),
     ...normalizeAdditionalMedia(data?.gallery, fallbackAlt),
@@ -1123,8 +1132,8 @@ export const PageCover = ({ data, imageVersion }: any) => {
   }, []);
 
   const dateIssue = [data.date, data.issue].filter(Boolean).join(" · ");
-  const backgroundImage = String(data.image || "").trim();
-  const featureImageExplicit = String(data.featureImage || "").trim();
+  const backgroundImage = safeImageSrc(data.image || "");
+  const featureImageExplicit = safeImageSrc(data.featureImage || "");
   const featureImage = featureImageExplicit || backgroundImage;
   const backgroundMedia = backgroundImage || featureImage;
   const shouldRenderFeatureImage = Boolean(featureImage);
@@ -1297,8 +1306,8 @@ export const PageCover = ({ data, imageVersion }: any) => {
 // FULL PAGE AD
 // ─────────────────────────────────────────────
 export const PageFullPageAd = ({ data, imageVersion }: any) => {
-  const image = String(data?.image || data?.featureImage || "").trim();
-  const backgroundImage = String(data?.backgroundImage || "").trim();
+  const image = safeImageSrc(data?.image || data?.featureImage || "");
+  const backgroundImage = safeImageSrc(data?.backgroundImage || "");
   const videoUrl = String(data?.videoUrl || "").trim();
   const rawPdf = String(data?.pdfUrl || "").trim();
   const pdfUrl = rawPdf ? fixMagazineImageUrl(rawPdf, imageVersion) : "";
@@ -1510,7 +1519,7 @@ export const PageEditorial = ({ data, imageVersion }: any) => {
     ...(introWithDropcap ? [introWithDropcap] : []),
     ...getHtmlBlocks(bodyHtml || ""),
   ];
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
 
   return (
     <div ref={ref} className="bg-[#faf7f2] py-16 lg:py-24 min-h-full">
@@ -1946,7 +1955,7 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? "").trim();
   const mediaLayout = String(data.mediaLayout || "").trim();
   const isFullBackground = mediaLayout === "background";
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const additionalMedia = getAdditionalMedia(
     data,
@@ -2264,7 +2273,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
   const snapshotLabel = String(data.snapshotLabel || "").trim();
   const mediaLayout = String(data.mediaLayout || "").trim();
   const isFullBackground = mediaLayout === "background";
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const additionalMedia = getAdditionalMedia(
     data,
@@ -2550,7 +2559,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
     data,
     String(data.name || sectionLabel || "Spotlight").trim(),
   );
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
 
   if (isFullBackground) {
@@ -2792,7 +2801,7 @@ export const PagePartner = ({ data, imageVersion }: any) => {
     data,
     String(data.brand || data.title || "Partner").trim(),
   );
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const logo = String(
     data?.logoImage || data?.partnerLogo || "",
@@ -3051,7 +3060,7 @@ export const PageFeatureFull = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? "").trim();
   const mediaLayout = String(data.mediaLayout || "").trim();
   const isFullBackground = mediaLayout === "background";
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const additionalMedia = getAdditionalMedia(
     data,
@@ -3320,7 +3329,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
     data,
     String(data.title || data.nextIssue || kicker || "Back Cover").trim(),
   );
-  const featureImage = String(data.featureImage || data.image || "").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const rawLink = String(data.linkUrl || "").trim();
   const ctaHref = rawLink
