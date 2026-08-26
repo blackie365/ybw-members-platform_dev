@@ -68,9 +68,9 @@ jobs:
               echo "[2/6] chown checkout to www-data" 2>&1 | tee -a "$LOG"
               chown -R www-data:www-data "$APPDIR" || true
 
-              echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, pruned, non-interactive)" 2>&1 | tee -a "$LOG"
+              echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, non-interactive CI mode)" 2>&1 | tee -a "$LOG"
               rm -f pnpm-workspace.yaml 2>&1 | tee -a "$LOG"
-              sudo -u www-data -H env CI=true pnpm install --shamefully-hoist --frozen-lockfile --prod=false --yes 2>&1 | tee -a "$LOG" | tail -n 250
+              sudo -u www-data -H env CI=true pnpm install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
               echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" 2>&1 | tee -a "$LOG"
               rm -rf .next/cache node_modules/.cache .next/static .next/server .next/standalone 2>/dev/null || true
