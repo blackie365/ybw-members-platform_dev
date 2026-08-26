@@ -27,6 +27,7 @@ import {
   importIdmlToStoryLibraryAction,
   getReaderEditionByIssueIdAction,
   runSyncLegacyFromReaderEditionAction,
+  syncBuilderToReaderEditionAction,
 } from '@/app/actions/magazineActions';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -38,6 +39,7 @@ import { storage } from '@/lib/firebase';
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { extractPrintPageNumberFromBuilderPage, mergeDisplayedPages } from '@/features/magazine/domain/builder-to-reader';
+import { emitMagazineMutation } from '@/features/magazine/domain/magazine-events';
 import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
 import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
 import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
@@ -292,6 +294,30 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const emitAndSync = useCallback(async (
+    mutationType: import('@/features/magazine/domain/magazine-events').MagazineMutationType,
+    pageDocId: string | null = null,
+    opts: { forceSync?: boolean } = {},
+  ): Promise<void> => {
+    const { forceSync = false } = opts;
+    try {
+      emitMagazineMutation({
+        issueId: id,
+        editionId: readerEditionId,
+        mutationType,
+        pageDocId,
+        slug: String((issue as any)?.slug || issue?.readerEditionSlug || ''),
+      });
+    } catch {}
+    if (forceSync) {
+      try {
+        await syncBuilderToReaderEditionAction(id);
+      } catch (err) {
+        console.warn('[builder emitAndSync forceSync failed (non-fatal):', err);
+      }
+    }
+  }, [id, readerEditionId, issue?.readerEditionSlug, (issue as any)?.slug]);
+
   const handleIdmlFileForSpreads = async (file: File) => {
     if (isNew) {
       toast.error('Please create the edition first');
@@ -403,6 +429,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       pendingIdmlSyncOnTabSwitchRef.current = false;
       setPages(nextPages);
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
+      await emitAndSync('reader-edition-synced');
       setActiveTab('builder');
     } catch (err: any) {
       // Keep pendingIdmlSyncOnTabSwitchRef = true on early error / partial write.
@@ -438,6 +465,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('No published ReaderEdition linked to this issue yet. Publish via the ManualImporter → Auto-Import IDML tab first.');
       return;
     }
+    await emitAndSync('reader-edition-synced', null, { forceSync: false });
 
     setIsSyncingReaderToBuilder(true);
     const toastId = 'reader-to-builder-sync';
@@ -470,7 +498,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     } finally {
       setIsSyncingReaderToBuilder(false);
     }
-  }, [id, isNew, readerEditionId, isSyncingReaderToBuilder, isIdmlImporting, isBatchSyncing, convertReaderPagesToShadow]);
+  }, [id, isNew, readerEditionId, isSyncingReaderToBuilder, isIdmlImporting, isBatchSyncing, convertReaderPagesToShadow, emitAndSync]);
 
   const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
@@ -520,6 +548,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   }, [applyContentsPageItems, id]);
 
   const persistPageOrder = useCallback(async (orderedPages: MagazinePage[]) => {
+    await emitAndSync('page-reordered', null, { forceSync: false });
     const previousPages = pages;
     const nextSlotPosition = (index: number): number => index + 1;
     const renumberedPages = orderedPages.map((page, index) => {
@@ -599,7 +628,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     } finally {
       setSaving(false);
     }
-  }, [applyContentsPageItems, id, pages]);
+  }, [applyContentsPageItems, id, pages, emitAndSync]);
 
   const handleBatchSync = async () => {
     if (!issue.ghostSyncTag) {
@@ -637,6 +666,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
 
       toast.success(`Successfully extracted ${count} articles into spreads!`);
+      await emitAndSync('page-reordered', null, { forceSync: true });
       await loadData(true);
       setActiveTab('builder');
     } catch (err) {
@@ -872,6 +902,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   // Issue Handlers
   const handleSaveIssue = async () => {
+    await emitAndSync('issue-saved', null, { forceSync: false });
     setSaving(true);
     try {
       if (isNew) {
@@ -899,6 +930,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleSaveStoryLibrary = async (storyLibrary: any[]) => {
+    await emitAndSync('story-library-saved', null, { forceSync: false });
     if (isNew) {
       toast.error('Please create the edition first');
       return;
@@ -961,6 +993,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleStoryLibraryImported = async (storyLibrary: any[]) => {
+    await emitAndSync('story-library-saved', null, { forceSync: false });
     setIssue((prev) => ({
       ...prev,
       storyLibrary: Array.isArray(storyLibrary) ? storyLibrary : prev.storyLibrary || [],
@@ -998,6 +1031,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleRemoveStoryLibraryItem = async (storyId: string) => {
+    await emitAndSync('story-library-saved', storyId, { forceSync: false });
     const next = (issue.storyLibrary || []).filter((story) => story.id !== storyId);
     try {
       await handleSaveStoryLibrary(next);
@@ -1007,6 +1041,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleToggleStoryLibraryInclusion = async (storyId: string) => {
+    await emitAndSync('story-library-saved', storyId, { forceSync: false });
     const next = (issue.storyLibrary || []).map((story) =>
       story.id === storyId
         ? { ...story, includedInPremiumReader: story.includedInPremiumReader === false }
@@ -1021,6 +1056,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeleteStoryLibraryAll = async () => {
+    await emitAndSync('story-library-saved', null, { forceSync: false });
     try {
       await handleSaveStoryLibrary([]);
       toast.success('Story library cleared');
@@ -1470,6 +1506,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Select a spread first');
       return;
     }
+    await emitAndSync('page-saved', selectedPageId, { forceSync: false });
 
     try {
       await handleImportContent(
@@ -1484,6 +1521,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   // Page Handlers
   const handleAddPage = async (type: string) => {
+    await emitAndSync('page-added', null, { forceSync: false });
     if (isNew) return;
     setSaving(true);
     try {
@@ -1512,6 +1550,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleImportContent = async (post: any, type: string, targetPageId?: string) => {
+    await emitAndSync(targetPageId ? 'page-saved' : 'page-added', targetPageId || null, { forceSync: false });
     setSaving(true);
     try {
       let content: any = {};
@@ -1701,6 +1740,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleSavePageContent = async (pageDocId: string, content: any) => {
+    await emitAndSync('page-saved', pageDocId, { forceSync: false });
     const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
     if (shadowPage?.readOnly) {
       toast.warning('Published IDML pages are read-only. Re-publish the IDML to edit.');
@@ -1744,6 +1784,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleChangePageType = async (pageDocId: string, type: string) => {
+    await emitAndSync('page-type-changed', pageDocId, { forceSync: false });
     const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
     if (shadowPage?.readOnly) {
       toast.warning('Published IDML pages are read-only. Re-publish the IDML to change layout.');
@@ -1772,6 +1813,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePage = async (pageDocId: string, direction: 'up' | 'down') => {
+    await emitAndSync('page-reordered', pageDocId, { forceSync: false });
     const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId);
     const shadowBacking =
       (mergedPage && (mergedPage as any)?._shadowDocId) ||
@@ -1799,6 +1841,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleMovePageToPosition = async (pageDocId: string, targetPosition: number) => {
+    await emitAndSync('page-reordered', pageDocId, { forceSync: false });
     const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId);
     const shadowBacking =
       (mergedPage && (mergedPage as any)?._shadowDocId) ||
@@ -1840,6 +1883,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeleteAllPages = async () => {
+    await emitAndSync('pages-all-deleted', null, { forceSync: true });
     /**
      * CLEAR PUBLISHED DELETION POLICY (see PageList.tsx dialog copy that mirrors this):
      *
@@ -2058,6 +2102,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeletePage = async (pageDocId: string) => {
+    await emitAndSync('page-deleted', pageDocId, { forceSync: false });
     if (typeof pageDocId !== 'string' || !pageDocId) return;
 
     const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId) as any;

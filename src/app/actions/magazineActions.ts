@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
-import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
+import type { StoryLibraryItem, MagazinePage, MagazineIssue } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
@@ -9,7 +9,7 @@ import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages, CURRENT_READER_SCHEMA_VERSION } from '@/features/magazine/server/simple-reader';
-import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
+import { deriveIssueSlug, mapBuilderIssueToReaderEdition } from '@/features/magazine/domain/builder-to-reader';
 import { fixMagazineImageUrl, hydrateReaderEditionContents, isPlaceholderImageUrl, filterNonPlaceholderUrls, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
 import {
   ReaderEditionSchema,
@@ -1021,6 +1021,11 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     safeRevalidatePath('/admin/magazine');
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
+    try {
+      await syncBuilderToReaderEditionAction(issueId);
+    } catch (syncErr) {
+      console.warn('[updateMagazineIssueAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    }
     return { success: true, slug };
   } catch (error: any) {
     console.error("Error in updateMagazineIssueAction:", error);
@@ -1079,6 +1084,11 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
     // cached pages, and the client's "0 pages → auto-create structural spreads" useEffect
     // kicks in and regenerates cover/contents/back-cover against the admin's explicit delete.
     try { safeRevalidatePath('/admin/magazine'); } catch { /* noop */ }
+    try {
+      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+    } catch (syncErr) {
+      console.warn('[saveMagazineStoryLibraryAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
     console.error('Error in saveMagazineStoryLibraryAction:', error);
@@ -1244,6 +1254,11 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     const payload: any = { ...validated.value };
     delete payload.docId;
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
+    try {
+      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+    } catch (syncErr) {
+      console.warn('[updateMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
@@ -1276,6 +1291,11 @@ export async function addMagazinePageAction(issueId: string, data: any) {
     const payload: any = { ...validated.value };
     delete payload.docId;
     const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
+    try {
+      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+    } catch (syncErr) {
+      console.warn('[addMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    }
     return { success: true, id: docRef.id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
@@ -1289,15 +1309,121 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    // NOTE: Intentionally no safeRevalidatePath() on page-level changes.
-    // Deletion-triggered revalidation was the #1 cause of "I deleted all
-    // pages but 3 reappear after a couple seconds": Next.js served a stale
-    // cached fullPageRSC payload of the builder page, and the useEffect on
-    // tab-switch saw 0 pages and triggered auto-sync to regenerate them.
+    try {
+      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+    } catch (syncErr) {
+      console.warn('[deleteMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    }
     return { success: true };
   } catch (error: any) {
     console.error("Error in deleteMagazinePageAction:", error);
     return { success: false, error: error.message };
+  }
+}
+
+function safeRevalidatePublicMagazineRoutesForIssue(params: { issueId: string; slug?: string | null }) {
+  const issueIdStr = String(params.issueId || '').trim();
+  const slug = params.slug ? String(params.slug).trim().toLowerCase() : '';
+  if (!issueIdStr) return;
+  safeRevalidatePath('/magazine');
+  safeRevalidatePath('/new-edition');
+  safeRevalidatePath(`/magazine/issue/${issueIdStr}`);
+  const issueIdSlug = `issue-${issueIdStr.toLowerCase()}`;
+  safeRevalidatePath(`/magazine/read/${issueIdSlug}`);
+  if (slug && slug !== issueIdSlug) {
+    safeRevalidatePath(`/magazine/read/${slug}`);
+  }
+}
+
+export async function syncBuilderToReaderEditionAction(
+  issueId: string,
+  opts?: { revalidatePublicRoutesOnly?: boolean },
+): Promise<{ success: boolean; synced: boolean; editionId?: string | null; error?: string }> {
+  try {
+    await checkAdmin();
+    if (!adminDb) return { success: false, synced: false, error: 'Database not initialized' };
+    if (!issueId) return { success: false, synced: false, error: 'issueId required' };
+
+    const [issueDoc, pagesSnapshot] = await Promise.all([
+      adminDb.collection('magazine_issues').doc(issueId).get(),
+      adminDb.collection('magazine_issues').doc(issueId).collection('pages').orderBy('id', 'asc').get(),
+    ]);
+
+    if (!issueDoc.exists) {
+      return { success: false, synced: false, error: `Issue not found: ${issueId}` };
+    }
+    const issueRaw = issueDoc.data() || {};
+    const issue: MagazineIssue = { ...(issueRaw as any), id: issueId } as MagazineIssue;
+    const builderPages: MagazinePage[] = Array.isArray(pagesSnapshot?.docs)
+      ? pagesSnapshot.docs
+          .map((doc) => ({ ...(doc.data() || {}), docId: doc.id }) as MagazinePage)
+          .filter(Boolean)
+      : [];
+
+    if (builderPages.length === 0) {
+      return { success: true, synced: false, editionId: null };
+    }
+
+    const readerEditionLike = mapBuilderIssueToReaderEdition(issue, builderPages);
+    const existingLinked = await getReaderEditionByIssueId(issueId);
+    const editionId = existingLinked?.id
+      ? String(existingLinked.id)
+      : String(readerEditionLike.id || issueId);
+
+    const finalEdition: ReaderEdition & { schemaVersion: number; updatedAt: string } = {
+      ...readerEditionLike,
+      id: editionId,
+      createdAt: existingLinked?.createdAt || readerEditionLike.createdAt || new Date().toISOString(),
+      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+      updatedAt: new Date().toISOString(),
+      coverImage: readerEditionLike.coverImage || existingLinked?.coverImage || String((issue as any).coverImage || ''),
+      title: readerEditionLike.title || existingLinked?.title || String(issue.title || ''),
+      slug: readerEditionLike.slug || existingLinked?.slug || deriveIssueSlug(issue),
+    };
+
+    const hydrated = hydrateReaderEditionContents(finalEdition);
+    const toWrite: ReaderEdition = (hydrated as ReaderEdition | null) ?? finalEdition;
+    const validated = safeParseMagazine(
+      ReaderEditionSchema,
+      toWrite,
+      `syncBuilderToReaderEditionAction issueId=${issueId}`,
+    );
+    if (!validated.ok) {
+      console.error('[syncBuilderToReaderEditionAction] ReaderEdition schema validation failed:\n', validated.error);
+      return { success: false, synced: false, error: validated.error, editionId };
+    }
+    await upsertReaderEdition(validated.value as ReaderEdition);
+
+    try {
+      await Promise.all([
+        adminDb.collection('magazine_issues').doc(issueId).set({
+          readerEditionId: editionId,
+          readerEditionSlug: toWrite.slug,
+          readerEditionPublished: true,
+          readerEditionTitle: toWrite.title,
+          readerEditionPublishDate: toWrite.publishDate,
+          readerEditionPageCount: Number(toWrite.pageCount || 0) || 0,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true }),
+        syncReaderEditionsForIssue(issueId).catch(() => null),
+      ]);
+    } catch (linkErr) {
+      console.warn('[syncBuilderToReaderEditionAction] issue link/assoc update failed (non-fatal):', linkErr);
+    }
+
+    safeRevalidatePublicMagazineRoutesForIssue({
+      issueId,
+      slug: toWrite.slug || String((issue as any).slug || ''),
+    });
+    if (!opts?.revalidatePublicRoutesOnly) {
+      safeRevalidatePath('/admin/magazine');
+      safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+    }
+
+    return { success: true, synced: true, editionId };
+  } catch (error: any) {
+    console.error('[syncBuilderToReaderEditionAction] error:', error);
+    return { success: false, synced: false, error: error.message };
   }
 }
 

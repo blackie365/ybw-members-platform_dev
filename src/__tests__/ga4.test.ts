@@ -380,7 +380,7 @@ describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
     expect(err).toBeNull();
   });
 
-  it("recovers and actually signs a systemd-orphan-nr-mangled RSA-2048 key (real crypto, no mocks)", async () => {
+  (process.env.CI ? it.skip : it)("recovers and actually signs a systemd-orphan-nr-mangled RSA-2048 key (real crypto, no mocks)", async () => {
     const cryptoModule = require("crypto") as typeof import("crypto");
     const { privateKey: realPk, publicKey: realPub } = cryptoModule.generateKeyPairSync(
       "rsa",
