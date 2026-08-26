@@ -377,6 +377,47 @@ export function normalizeStoryLibraryItem(itemIn: any): any {
   return out;
 }
 
+const STORY_LIBRARY_PRIM_IMAGE_KEYS = [
+  'imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage',
+  'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage',
+  'logo', 'pdfUrl',
+];
+const STORY_LIBRARY_ARR_IMAGE_KEYS = [
+  'imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames',
+  'logoImages', 'coverImages',
+];
+
+export function normalizeStoryLibraryImageFields<T extends any>(items: T[]): T[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const next: any = { ...item };
+    for (const k of STORY_LIBRARY_PRIM_IMAGE_KEYS) {
+      if (k in next) next[k] = normalizeImageUrl(next[k]);
+    }
+    for (const k of STORY_LIBRARY_ARR_IMAGE_KEYS) {
+      if (Array.isArray(next[k])) {
+        next[k] = next[k]
+          .map((entry: any) => normalizeImageUrl(entry))
+          .filter((entry: string) => entry.length > 0);
+      }
+    }
+    if (typeof next.content === 'object' && next.content !== null) {
+      const c: any = { ...next.content };
+      for (const k of STORY_LIBRARY_PRIM_IMAGE_KEYS) {
+        if (k in c) c[k] = normalizeImageUrl(c[k]);
+      }
+      for (const k of STORY_LIBRARY_ARR_IMAGE_KEYS) {
+        if (Array.isArray(c[k])) {
+          c[k] = c[k].map((entry: any) => normalizeImageUrl(entry)).filter((s: string) => s.length > 0);
+        }
+      }
+      next.content = c;
+    }
+    return next as T;
+  });
+}
+
 export interface ReaderContentsItem {
   page: number;
   category: string;

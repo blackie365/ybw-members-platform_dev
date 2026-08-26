@@ -1,6 +1,6 @@
 import { adminDb } from './firebase-admin';
 import { db as clientFirestoreDb } from './firebase';
-import { MagazineIssue, MagazinePage } from './magazine-service';
+import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { siteContent } from './site-content';
 import { fixMagazineImageUrl } from './magazine-utils';
 

@@ -1,10 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getMagazineIssueServer, getMagazineIssuesServer, getMagazinePagesServer } from '@/lib/magazine-service-server';
-import IssuuReader from '@/components/magazine/IssuuReader';
-import FirebaseMagazineReader from '@/components/magazine/FirebaseMagazineReader';
-import MagazineShell from '@/features/magazine/components/MagazineShell';
-import { fixIssuuEmbedUrl } from '@/lib/magazine-utils';
+import { getMagazineIssueServer, getMagazineIssuesServer } from '@/lib/magazine-service-server';
 import {
   getReaderEditionById,
   listReaderEditions,
@@ -55,7 +51,7 @@ function pickLinkedReaderEdition(
   return byMatch || null;
 }
 
-export default async function DigitalMagazinePage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function DigitalMagazinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [directIssue, allIssues, readerEditions] = await Promise.all([
     getMagazineIssueServer(id),
@@ -77,22 +73,9 @@ export default async function DigitalMagazinePage({ params, searchParams }: { pa
   }).trim().toLowerCase();
   const fallbackIdSlug = `issue-${String(issue.id || '').toLowerCase()}`;
   if (canonicalSlug && canonicalSlug !== fallbackIdSlug) {
-    const sp = await searchParams;
-    const query = new URLSearchParams();
-    if (sp) {
-      for (const [k, v] of Object.entries(sp)) {
-        if (Array.isArray(v)) v.forEach((val) => query.append(k, String(val || '')));
-        else if (v) query.set(k, String(v));
-      }
-    }
-    const queryStr = query.toString();
-    redirect(queryStr ? `/magazine/read/${canonicalSlug}?${queryStr}` : `/magazine/read/${canonicalSlug}`);
+    redirect(`/magazine/read/${canonicalSlug}`);
   }
 
-  // Prefer a linked ReaderEdition whenever one exists — its pages[] are already
-  // hydrated server-side with sanitized + repaired image URLs (1033 of 1033
-  // exact storage matches for the Aug/Sept 2026 edition). MagazineShell is the
-  // same renderer used by the working /magazine/read/[slug] route.
   let linkedFromReaderId: ReaderEdition | null = null;
   const explicitReaderId = String((issue as any).readerEditionId || '').trim();
   if (explicitReaderId) {
@@ -105,21 +88,8 @@ export default async function DigitalMagazinePage({ params, searchParams }: { pa
   const preferredReaderEdition =
     linkedFromReaderId ?? pickLinkedReaderEdition(issue, readerEditions);
   if (preferredReaderEdition && Array.isArray(preferredReaderEdition.pages) && preferredReaderEdition.pages.length > 0) {
-    return <MagazineShell edition={preferredReaderEdition} />;
+    redirect(`/magazine/read/${canonicalSlug || preferredReaderEdition.slug}`);
   }
 
-  const pages = await getMagazinePagesServer(id);
-  if (pages.length > 0) {
-    return <FirebaseMagazineReader issue={issue} pages={pages} />;
-  }
-
-  // Fall back to Issuu embed if the issue has a flipbook / PDF URL
-  const rawIssuuUrl = issue.flipbookUrl || issue.pdfUrl;
-  if (rawIssuuUrl) {
-    const embedUrl = fixIssuuEmbedUrl(rawIssuuUrl);
-    return <IssuuReader url={embedUrl} title={issue.title ?? 'Yorkshire BusinessWoman'} />;
-  }
-
-  // Nothing renderable — bounce to the editions landing page
   redirect('/new-edition');
 }
