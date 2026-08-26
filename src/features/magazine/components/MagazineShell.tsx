@@ -87,9 +87,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState("");
   const [renderersLoaded, setRenderersLoaded] = useState(false);
-  const [containerVersion, setContainerVersion] = useState<number>(() =>
-    getCurrentMagazineRenderVersion(),
-  );
+  const [containerVersion, setContainerVersion] = useState<number>(() => getCurrentMagazineRenderVersion());
   const stageRef = useRef<HTMLDivElement | null>(null);
   const ignoreNextSearchParamsTick = useRef(false);
   const pagesFingerprintRef = useRef<string>("");
@@ -101,35 +99,74 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
   }, []);
 
   useEffect(() => {
-    const pages = Array.isArray(edition?.pages) ? [...edition.pages] : [];
-    const nextFingerprint = [
-      `len:${pages.length}`,
-      ...pages.slice(0, 120).map(
-        (p) =>
-          `${String(p.id || "")}:${String(p.position || "0")}:${String(p.template || "")}:${String(typeof (p as any).updatedAt === "string" ? (p as any).updatedAt : "").slice(0, 10)}`,
-      ),
-    ].join("|");
-    if (nextFingerprint !== pagesFingerprintRef.current) {
-      pagesFingerprintRef.current = nextFingerprint;
+    void emitMagazineMutation;
+    const rawPages = Array.isArray(edition.pages) ? edition.pages : [];
+    const fingerprint = rawPages
+      .slice(0, 120)
+      .map((page) =>
+        [
+          String(page.id || ""),
+          String(typeof page.position === "number" ? page.position : ""),
+          String(page.template || ""),
+          String((page as any).updatedAt || ""),
+        ].join(":"),
+      )
+      .join("|");
+    if (pagesFingerprintRef.current && pagesFingerprintRef.current !== fingerprint) {
       setImageVersion(Date.now().toString());
     }
+    pagesFingerprintRef.current = fingerprint;
   }, [edition]);
 
   useEffect(() => {
-    const busId =
-      (edition && typeof (edition as any).issueId === "string" && (edition as any).issueId) ||
-      String(edition?.id || "");
-    if (!busId) return;
-    const unsub = subscribeMagazineMutations(busId, (payload) => {
-      setContainerVersion(payload.renderVersion || Date.now());
+    const busId = String((edition as any).issueId || edition.id || "").trim();
+    if (!busId) return () => undefined;
+    return subscribeMagazineMutations(busId, () => {
+      setContainerVersion(getCurrentMagazineRenderVersion());
       setImageVersion(Date.now().toString());
     });
-    return unsub;
-  }, [edition?.id, (edition as any).issueId]);
+  }, [edition.id, (edition as any).issueId]);
 
   const pages = useMemo(() => {
     void containerVersion;
     const raw = Array.isArray(edition.pages) ? [...edition.pages] : [];
+    // #region debug-point C:first-15-pages
+    try {
+      const DEBUG_SERVER_URL = 'http://127.0.0.1:9000/event';
+      const DEBUG_SESSION_ID = 'builder-regressions-3bugs';
+      const first15 = raw.slice(0, 15).map((page, i) => ({
+        index: i,
+        id: String((page as any).id || (page as any).docId || '').slice(0, 16),
+        position: typeof page.position === 'number' ? page.position : null,
+        pageNumber: Number((page as any).pageNumber || 0) || null,
+        template: String(page.template || ''),
+        titleLen: String(page.content?.title || '').length,
+        bodyLen: String(page.content?.body || page.content?.text || '').length,
+        hasImage: !!((page as any).imageUrl || (Array.isArray(page.content?.imageUrls) && page.content.imageUrls.length > 0) || page.content?.imageUrl),
+        itemsCount: Array.isArray(page.content?.items) ? (page.content.items as unknown[]).length : 0,
+      }));
+      fetch(DEBUG_SERVER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: DEBUG_SESSION_ID,
+          runId: 'pre-fix',
+          hypothesisId: 'C',
+          location: 'MagazineShell.tsx:pages-useMemo',
+          msg: '[DEBUG] MagazineShell first-15 pages dump (H3 - 8 blank ads pages check)',
+          data: {
+            editionId: String((edition as any).id || (edition as any)._id || '').slice(0, 16),
+            editionTitle: String(edition.title || ''),
+            editionSlug: String((edition as any).slug || ''),
+            totalPages: raw.length,
+            hasCoverInRaw: raw.some(p => p.template === 'cover'),
+            first15,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+    } catch {}
+    // #endregion
     const hasCoverPage = raw.some((page) => page.template === "cover");
 
     if (!hasCoverPage) {
@@ -148,11 +185,34 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       });
     }
 
-    return raw.sort((left, right) => {
+    const sorted = raw.sort((left, right) => {
       const lPos = typeof left.position === "number" ? left.position : 0;
       const rPos = typeof right.position === "number" ? right.position : 0;
       return lPos - rPos;
     });
+    // #region Bug #3: skip blank ad pages (no image + no title + no body) at start of reader
+    const filteredBlankAds = sorted.filter((page) => {
+      const tmpl = String(page.template || "").trim().toLowerCase();
+      if (tmpl !== "ad" && tmpl !== "full-page-ad") return true;
+      const title = String(page.content?.title || "").trim();
+      const body = String(page.content?.body || page.content?.text || "").trim();
+      const hasContent =
+        title.length > 0 ||
+        body.length > 0 ||
+        Array.isArray(page.content?.items) ? (page.content.items as unknown[]).length > 0 : false;
+      const imageUrl = String(
+        page.content?.imageUrl ||
+          page.content?.backgroundImage ||
+          page.content?.logoImage ||
+          (Array.isArray(page.content?.imageUrls) && page.content.imageUrls[0]) ||
+          (page as any).imageUrl ||
+          ""
+      ).trim();
+      const hasImage = imageUrl.length > 8;
+      return hasContent || hasImage;
+    });
+    // #endregion
+    return filteredBlankAds;
   }, [edition, containerVersion]);
   const editionDate = formatEditionDate(edition.publishDate);
 

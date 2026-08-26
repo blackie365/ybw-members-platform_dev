@@ -39,10 +39,13 @@ import { storage } from '@/lib/firebase';
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { extractPrintPageNumberFromBuilderPage, mergeDisplayedPages } from '@/features/magazine/domain/builder-to-reader';
-import { emitMagazineMutation } from '@/features/magazine/domain/magazine-events';
 import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
 import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
 import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
+import {
+  emitMagazineMutation,
+  type MagazineMutationType,
+} from '@/features/magazine/domain/magazine-events';
 
 // Lazy Load Heavy Admin Components
 // This prevents regular users from downloading builder code and speeds up initial admin load
@@ -295,28 +298,32 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   }, []);
 
   const emitAndSync = useCallback(async (
-    mutationType: import('@/features/magazine/domain/magazine-events').MagazineMutationType,
+    mutationType: MagazineMutationType,
     pageDocId: string | null = null,
     opts: { forceSync?: boolean } = {},
   ): Promise<void> => {
     const { forceSync = false } = opts;
+    const readerEditionId = String(issue?.readerEditionId || '').trim() || null;
+    const slug = String((issue as any)?.slug || issue?.readerEditionSlug || '').trim() || null;
     try {
       emitMagazineMutation({
         issueId: id,
         editionId: readerEditionId,
         mutationType,
         pageDocId,
-        slug: String((issue as any)?.slug || issue?.readerEditionSlug || ''),
+        slug,
       });
-    } catch {}
+    } catch {
+      /* emit failure is non-fatal */
+    }
     if (forceSync) {
       try {
         await syncBuilderToReaderEditionAction(id);
       } catch (err) {
-        console.warn('[builder emitAndSync forceSync failed (non-fatal):', err);
+        console.warn('[builder] emitAndSync forceSync non-fatal:', err);
       }
     }
-  }, [id, readerEditionId, issue?.readerEditionSlug, (issue as any)?.slug]);
+  }, [id, issue?.readerEditionId, issue?.readerEditionSlug, (issue as any)?.slug]);
 
   const handleIdmlFileForSpreads = async (file: File) => {
     if (isNew) {
@@ -429,7 +436,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       pendingIdmlSyncOnTabSwitchRef.current = false;
       setPages(nextPages);
       toast.success('Issue spreads ready — Cover, Contents, Articles, and Back cover created', { id: toastId });
-      await emitAndSync('reader-edition-synced');
+      await emitAndSync('reader-edition-synced', null, { forceSync: true });
       setActiveTab('builder');
     } catch (err: any) {
       // Keep pendingIdmlSyncOnTabSwitchRef = true on early error / partial write.
@@ -465,7 +472,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('No published ReaderEdition linked to this issue yet. Publish via the ManualImporter → Auto-Import IDML tab first.');
       return;
     }
-    await emitAndSync('reader-edition-synced', null, { forceSync: false });
 
     setIsSyncingReaderToBuilder(true);
     const toastId = 'reader-to-builder-sync';
@@ -491,6 +497,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         setReaderEditionId(String(newReaderRes.data.id || ''));
         setReaderEditionPages([]);
       }
+      toast.success('Spread Builder synced!', { id: toastId });
+      await emitAndSync('reader-edition-synced', null, { forceSync: true });
       setActiveTab('builder');
     } catch (err: any) {
       console.error('[handleSyncReaderEditionToBuilder]', err);
@@ -628,7 +636,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     } finally {
       setSaving(false);
     }
-  }, [applyContentsPageItems, id, pages, emitAndSync]);
+  }, [applyContentsPageItems, emitAndSync, id, pages]);
 
   const handleBatchSync = async () => {
     if (!issue.ghostSyncTag) {
@@ -666,8 +674,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
 
       toast.success(`Successfully extracted ${count} articles into spreads!`);
-      await emitAndSync('page-reordered', null, { forceSync: true });
       await loadData(true);
+      await emitAndSync('page-reordered', null, { forceSync: true });
       setActiveTab('builder');
     } catch (err) {
       toast.error('Batch extraction failed');
@@ -1031,7 +1039,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleRemoveStoryLibraryItem = async (storyId: string) => {
-    await emitAndSync('story-library-saved', storyId, { forceSync: false });
+    await emitAndSync('story-library-saved', null, { forceSync: false });
     const next = (issue.storyLibrary || []).filter((story) => story.id !== storyId);
     try {
       await handleSaveStoryLibrary(next);
@@ -1041,7 +1049,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleToggleStoryLibraryInclusion = async (storyId: string) => {
-    await emitAndSync('story-library-saved', storyId, { forceSync: false });
+    await emitAndSync('story-library-saved', null, { forceSync: false });
     const next = (issue.storyLibrary || []).map((story) =>
       story.id === storyId
         ? { ...story, includedInPremiumReader: story.includedInPremiumReader === false }
@@ -1501,12 +1509,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   }
 
   const handleApplyStoryToSelectedPage = async (story: any) => {
+    await emitAndSync('page-saved', null, { forceSync: false });
     const selectedPage = pages.find((page) => page.docId === selectedPageId);
     if (!selectedPageId || !selectedPage) {
       toast.error('Select a spread first');
       return;
     }
-    await emitAndSync('page-saved', selectedPageId, { forceSync: false });
 
     try {
       await handleImportContent(
@@ -1550,7 +1558,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleImportContent = async (post: any, type: string, targetPageId?: string) => {
-    await emitAndSync(targetPageId ? 'page-saved' : 'page-added', targetPageId || null, { forceSync: false });
+    await emitAndSync(post._isManual ? 'page-saved' : 'page-added', targetPageId || null, { forceSync: false });
     setSaving(true);
     try {
       let content: any = {};
@@ -1883,50 +1891,36 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeleteAllPages = async () => {
-    await emitAndSync('pages-all-deleted', null, { forceSync: true });
-    /**
-     * CLEAR PUBLISHED DELETION POLICY (see PageList.tsx dialog copy that mirrors this):
-     *
-     *   Layer A — IDML-published ReaderEdition shadow pages (readOnly,
-     *             reader:* prefixed docIds, derived from real ReaderEdition pages[]):
-     *             NOT deleted here. Re-import IDML or delete the ReaderEdition in
-     *             Firebase Console when you need to remove/refresh these.
-     *
-     *   Layer B — Manual builder-created legacy firestore pages (_legacyDocId,
-     *             not readOnly, created via + button / Story Library import):
-     *             Deleted. This is what users actually click "Delete Builder Pages"
-     *             to remove when they want to clear manual customizations and
-     *             go back to pure IDML-published magazine.
-     *
-     * Reason for policy: every previous attempt at a single "delete anything and
-     * everything" Delete All broke because:
-     *   (a) 55 IDML shadow rows (synthetic) were not deletable from firestore, but
-     *       users expected them to vanish — confusion about "doesn't work".
-     *   (b) Legacy firestore rows and shadow rows with same print number would
-     *       re-appear on next loadData because only one layer got deleted.
-     *   (c) Deleting shadow IDML rows here would require ALSO mutating the
-     *       ReaderEdition document itself (write to pages[] array server-side),
-     *       which is a different operation from deleting builder spreads.
-     *
-     * Split the problem into TWO SEPARATE, clearly-named things:
-     *   • Delete Builder Pages (this handler) → Layer B only.
-     *   • Delete ReaderEdition / Re-publish IDML → UI in PageList dialog hint.
-     */
     const allMerged = Array.isArray(mergedDisplayedPages) ? [...mergedDisplayedPages] : [];
-    const totalManualDeletable = allMerged.filter(
-      (p) => !p.readOnly && Boolean(p._legacyDocId),
-    ).length;
+    const totalPages = allMerged.filter((p) => p && typeof p.docId === 'string').length;
     const totalIdmlPublished = allMerged.filter(
-      (p) => p.readOnly || String(p.docId || '').startsWith('reader:'),
+      (p) => p?.readOnly || String(p?.docId || '').startsWith('reader:'),
     ).length;
-    if (totalManualDeletable === 0) {
-      if (totalIdmlPublished > 0) {
-        toast.warning(
-          `Only IDML-published spreads (${totalIdmlPublished}) in this issue. To remove: re-publish IDML or delete ReaderEdition doc.`,
-        );
-      } else {
-        toast.warning('Nothing to remove — no manually-created builder spreads in this issue.');
-      }
+    const totalManual = totalPages - totalIdmlPublished;
+
+    if (totalPages === 0) {
+      toast.warning('No spreads in this issue — nothing to delete.');
+      return;
+    }
+
+    await emitAndSync('pages-all-deleted', null, { forceSync: false });
+
+    const stage1 = confirm(
+      `About to permanently delete ALL ${totalPages} spread${totalPages === 1 ? '' : 's'} ` +
+        `(${totalIdmlPublished} published IDML spread${totalIdmlPublished === 1 ? '' : 's'}, ` +
+        `${totalManual} manual/custom spread${totalManual === 1 ? '' : 's'}) from the builder. ` +
+        `Continue to final confirmation?`
+    );
+    if (!stage1) return;
+
+    const stage2 = confirm(
+      `FINAL WARNING: This will destroy ${totalIdmlPublished > 0 ? `ALL ${totalIdmlPublished} published IDML spreads from the live reader edition` : 'all spreads'}. ` +
+        `The ReaderEdition pages list will be cleared server-side and public routes will be invalidated. ` +
+        `This cannot be undone manually — re-import the IDML file later if you need to restore. ` +
+        `Type exactly what you want to do: DELETE EVERYTHING AND CLEAR READER`
+    );
+    if (!stage2) {
+      toast.info('Delete All cancelled.');
       return;
     }
 
@@ -1934,14 +1928,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     try {
       const generatedSpreadIds = new Set(
         allMerged
-          .filter((p) => p && !p.readOnly && Boolean(p._legacyDocId) && Boolean(p.generatedFromStoryLibrary) && typeof p.docId === 'string')
-          .map((p) => p.docId)
+          .filter((p) => p && typeof p.docId === 'string' && Boolean(p.generatedFromStoryLibrary))
+          .map((p) => String(p.docId))
       );
       if (generatedSpreadIds.size > 0 && Array.isArray(issue.storyLibrary)) {
         try {
           const allDeletedPageKeys = new Set<string>();
           for (const page of allMerged) {
-            if (!page || !page.docId || page.readOnly || !page._legacyDocId || !generatedSpreadIds.has(page.docId)) continue;
+            if (!page || typeof page.docId !== 'string') continue;
+            if (!generatedSpreadIds.has(page.docId)) continue;
             try {
               const keys = getPageIdentityKeys(page);
               for (const k of keys || []) {
@@ -1978,19 +1973,17 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 nextStoryLibrary
               );
               if (!storyLibraryRes.success) {
-                throw new Error(
-                  storyLibraryRes.error ||
-                    'Failed to update Story Library inclusion for deleted builder spreads'
-                );
+                console.warn('[delete-all] Story Library dedupe non-fatal:', storyLibraryRes.error);
+              } else {
+                const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
+                  ? storyLibraryRes.data
+                  : nextStoryLibrary;
+                setIssue((prev) => ({ ...prev, storyLibrary: persistedStoryLibrary }));
               }
-              const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
-                ? storyLibraryRes.data
-                : nextStoryLibrary;
-              setIssue((prev) => ({ ...prev, storyLibrary: persistedStoryLibrary }));
             }
           }
         } catch (dedupeErr) {
-          console.warn('Delete builder pages: Story Library dedupe failed — still deleting pages', dedupeErr);
+          console.warn('[delete-all] Story Library dedupe failed — continuing with deletes', dedupeErr);
         }
       }
 
@@ -2001,19 +1994,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       for (const page of allMerged) {
         if (!page || typeof page.docId !== 'string') continue;
-        if (page.readOnly) continue;
 
         const { legacyDocId, shadowDocId } = resolveDeleteTargets(page.docId);
 
-        // Shadow (reader:*) rows: keep in state arrays UNLESS the merged row's page
-        // is shadow-only (no legacyDocId) AND not readOnly. This preserves IDML
-        // shadow rows, which is the point of the split policy.
         if (shadowDocId) {
-          const isShadowOnlyAndManual =
-            !legacyDocId &&
-            !page.readOnly &&
-            String(page.docId || '').startsWith('reader:') === false;
-          if (isShadowOnlyAndManual) deletedShadowDocIds.add(shadowDocId);
+          deletedShadowDocIds.add(shadowDocId);
         }
 
         if (legacyDocId) {
@@ -2024,21 +2009,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             } else {
               firestoreDeleted++;
               deletedLegacyDocIds.add(legacyDocId);
-              // When a legacy firestore row is deleted AND shadow row was a
-              // different docId for the SAME merged page (i.e. legacy row
-              // carried a linked shadow), do NOT delete the shadow (IDML stays).
-              // So: no deletedShadowDocIds.add here — keep shadow.
             }
           } catch {
             firestoreFailed++;
           }
+        } else if (shadowDocId) {
+          firestoreDeleted++;
         }
       }
 
       setSelectedPageId(null);
       didSpreadSyncOnTabRef.current = true;
 
-      // State arrays (pages = legacy firestore rows; readerEditionPages = shadow rows).
       const remainingLegacyPages = Array.isArray(pages)
         ? pages.filter((p) => !p.docId || !deletedLegacyDocIds.has(p.docId))
         : [];
@@ -2046,22 +2028,8 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         ? readerEditionPages.filter((p) => !p.docId || !deletedShadowDocIds.has(p.docId))
         : [];
 
-      // Recompute mergedDisplayedPages-style deduped residual for Contents sync.
-      const shadowPrintCovered = new Set<number>();
-      for (const lp of remainingLegacyPages) {
-        const printNum = extractPrintPageNumberFromBuilderPage(lp) ?? 0;
-        if (printNum > 0) shadowPrintCovered.add(printNum);
-      }
-      const combinedForContents = [
-        ...remainingLegacyPages,
-        ...remainingShadowPages.filter((sp) => {
-          const printNum = extractPrintPageNumberFromBuilderPage(sp) ?? 0;
-          if (printNum > 0 && shadowPrintCovered.has(printNum)) return false;
-          return true;
-        }),
-      ];
       try {
-        await syncContentsPage(combinedForContents);
+        await syncContentsPage([...remainingLegacyPages, ...remainingShadowPages]);
       } catch {
         /* Contents sync non-fatal */
       }
@@ -2069,32 +2037,33 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       setPages(remainingLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
       setReaderEditionPages(remainingShadowPages);
 
-      const legacyRemainingCount = remainingLegacyPages.length;
-      const shadowOnlyRemainingCount = remainingShadowPages.filter((sp) => {
-        const printNum = extractPrintPageNumberFromBuilderPage(sp) ?? 0;
-        return printNum > 0 ? !shadowPrintCovered.has(printNum) : true;
-      }).length;
-      const remainingTotal = legacyRemainingCount + shadowOnlyRemainingCount;
-      const removedBuilder = totalManualDeletable - legacyRemainingCount;
+      try {
+        await syncBuilderToReaderEditionAction(id);
+      } catch (syncErr) {
+        console.warn('[delete-all] ReaderEdition post-delete sync non-fatal:', syncErr);
+      }
+
+      const remainingTotal = remainingLegacyPages.length + remainingShadowPages.length;
+      const totalDeleted = totalPages - remainingTotal;
 
       if (firestoreFailed > 0) {
         toast.warning(
-          `Deleted ${firestoreDeleted} of ${totalManualDeletable} builder spread${totalManualDeletable === 1 ? '' : 's'}. ${firestoreFailed} Firestore delete(s) failed. ${totalIdmlPublished} IDML-published spread${totalIdmlPublished === 1 ? '' : 's'} left untouched.`,
+          `Deleted ${totalDeleted} spread${totalDeleted === 1 ? '' : 's'} from builder & reader. ` +
+            `${firestoreFailed} Firestore delete(s) had errors. ${remainingTotal} remaining.`
         );
-      } else if (removedBuilder === 0 && firestoreDeleted === 0) {
-        toast.warning('No builder spreads were deleted.');
+      } else if (totalDeleted === 0 && firestoreDeleted === 0) {
+        toast.warning('No spreads were deleted.');
       } else {
         toast.success(
-          `Deleted ${firestoreDeleted} builder spread${firestoreDeleted === 1 ? '' : 's'}. ` +
-            `${remainingTotal} spread${remainingTotal === 1 ? '' : 's'} remaining ` +
-            `(${totalIdmlPublished} IDML-published spread${totalIdmlPublished === 1 ? '' : 's'} untouched).`,
+          `Deleted ${totalDeleted} spread${totalDeleted === 1 ? '' : 's'} from builder & live reader. ` +
+            `${remainingTotal} spread${remainingTotal === 1 ? '' : 's'} remaining.`
         );
       }
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : 'Failed to delete builder spreads'
+          : 'Failed to delete spreads'
       );
     } finally {
       setSaving(false);
@@ -2102,26 +2071,28 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDeletePage = async (pageDocId: string) => {
-    await emitAndSync('page-deleted', pageDocId, { forceSync: false });
     if (typeof pageDocId !== 'string' || !pageDocId) return;
+
+    await emitAndSync('page-deleted', pageDocId, { forceSync: false });
 
     const mergedPage = mergedDisplayedPages.find(p => p.docId === pageDocId) as any;
     const { legacyDocId, shadowDocId } = resolveDeleteTargets(pageDocId);
 
     const shadowPage = readerEditionPages.find(p => p.docId === (shadowDocId || pageDocId));
-    if (shadowPage?.readOnly) {
-      toast.warning('Published IDML pages are read-only. Delete the ReaderEdition in Firebase or re-publish.');
-      return;
-    }
+    const isReadOnlyPublished = Boolean(shadowPage?.readOnly);
 
     const pageToDelete =
       (legacyDocId ? pages.find((page) => page.docId === legacyDocId) : undefined)
       || pages.find((page) => page.docId === pageDocId)
       || mergedPage;
     const isGeneratedSpread = Boolean(pageToDelete?.generatedFromStoryLibrary);
-    const confirmMessage = isGeneratedSpread
-      ? 'Are you sure you want to delete this spread? This will also stop it being regenerated from the Story Library.'
-      : 'Are you sure you want to delete this spread?';
+    const confirmMessage = isReadOnlyPublished
+      ? (isGeneratedSpread
+          ? 'This published IDML spread AND its Story Library link will be removed from the live reader edition (cannot undo manually — re-import IDML later to restore). Delete this spread?'
+          : 'This published IDML spread will be removed from the live reader edition (cannot undo manually — re-import IDML later to restore). Delete this spread?')
+      : (isGeneratedSpread
+          ? 'Are you sure you want to delete this spread? This will also stop it being regenerated from the Story Library.'
+          : 'Are you sure you want to delete this spread?');
 
     if (!confirm(confirmMessage)) return;
     setSaving(true);

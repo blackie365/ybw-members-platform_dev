@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
-import type { StoryLibraryItem, MagazinePage, MagazineIssue } from '@/components/admin/magazine-builder/types';
+import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { getPosts } from '@/lib/ghost';
@@ -10,7 +10,7 @@ import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPag
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages, CURRENT_READER_SCHEMA_VERSION } from '@/features/magazine/server/simple-reader';
 import { deriveIssueSlug, mapBuilderIssueToReaderEdition } from '@/features/magazine/domain/builder-to-reader';
-import { fixMagazineImageUrl, hydrateReaderEditionContents, isPlaceholderImageUrl, filterNonPlaceholderUrls, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, hydrateReaderEditionContents, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
 import {
   ReaderEditionSchema,
   ReaderPageSchema,
@@ -520,22 +520,20 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
   if (parsed.images.length === 0 || !adminStorage) return imageUrls;
 
   const bucket = adminStorage.bucket();
-  const uploadPromises = parsed.images
-    .filter((img) => !img.isPlaceholder)
-    .map(async (img) => {
-      const filePath = `magazine-import/${fileName}/${img.fileName}`;
-      const storageFile = bucket.file(filePath);
+  const uploadPromises = parsed.images.map(async (img) => {
+    const filePath = `magazine-import/${fileName}/${img.fileName}`;
+    const storageFile = bucket.file(filePath);
 
-      await storageFile.save(img.data, {
-        metadata: { contentType: img.mimeType },
-      });
-      await storageFile.makePublic();
-
-      return {
-        fileName: img.fileName,
-        url: buildPublicStorageUrl(bucket.name, filePath),
-      };
+    await storageFile.save(img.data, {
+      metadata: { contentType: img.mimeType },
     });
+    await storageFile.makePublic();
+
+    return {
+      fileName: img.fileName,
+      url: buildPublicStorageUrl(bucket.name, filePath),
+    };
+  });
 
   const results = await Promise.all(uploadPromises);
   for (const result of results) {
@@ -612,9 +610,9 @@ async function uploadStoryLibraryArticleImages(
             : [];
 
           const preferredFileName =
-            imageFileNames.find((value) => isPreferredStoryLibraryImageFileName(value) && imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder) ||
-            imageFileNames.find((value) => /\.(png|jpe?g|webp|gif|svg)$/i.test(value) && imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder) ||
-            imageFileNames.find((value) => imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder);
+            imageFileNames.find((value) => isPreferredStoryLibraryImageFileName(value) && imagesByFileName.has(value)) ||
+            imageFileNames.find((value) => /\.(png|jpe?g|webp|gif|svg)$/i.test(value) && imagesByFileName.has(value)) ||
+            imageFileNames.find((value) => imagesByFileName.has(value));
 
           return preferredFileName ? [preferredFileName] : [];
         }),
@@ -1023,8 +1021,8 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     safeRevalidatePath('/new-edition');
     try {
       await syncBuilderToReaderEditionAction(issueId);
-    } catch (syncErr) {
-      console.warn('[updateMagazineIssueAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    } catch (syncErr: any) {
+      console.warn('[updateMagazineIssueAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
     return { success: true, slug };
   } catch (error: any) {
@@ -1076,18 +1074,11 @@ export async function saveMagazineStoryLibraryAction(issueId: string, storyLibra
 
     const resolvedItems = await persistStoryLibraryForIssue(issueId, validatedItems);
 
-    // NOTE: Intentionally no safeRevalidatePath('/admin/magazine/builder/${issueId}') here.
-    // The builder page client already updates issue.storyLibrary state optimistically after
-    // saveMagazineStoryLibraryAction resolves, and has its own page-level state for pages.
-    // Triggering a Next.js revalidate here races with the next getMagazinePagesAction() read
-    // and causes "deleted pages come back after 2 seconds" — the RSC payload re-serves stale
-    // cached pages, and the client's "0 pages → auto-create structural spreads" useEffect
-    // kicks in and regenerates cover/contents/back-cover against the admin's explicit delete.
     try { safeRevalidatePath('/admin/magazine'); } catch { /* noop */ }
     try {
       await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr) {
-      console.warn('[saveMagazineStoryLibraryAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    } catch (syncErr: any) {
+      console.warn('[saveMagazineStoryLibraryAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
     return { success: true, data: resolvedItems };
   } catch (error: any) {
@@ -1256,8 +1247,8 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
     try {
       await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr) {
-      console.warn('[updateMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    } catch (syncErr: any) {
+      console.warn('[updateMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
     return { success: true };
   } catch (error: any) {
@@ -1293,8 +1284,8 @@ export async function addMagazinePageAction(issueId: string, data: any) {
     const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
     try {
       await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr) {
-      console.warn('[addMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    } catch (syncErr: any) {
+      console.warn('[addMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
     return { success: true, id: docRef.id };
   } catch (error: any) {
@@ -1311,8 +1302,8 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
     try {
       await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr) {
-      console.warn('[deleteMagazinePageAction] sync to ReaderEdition failed (non-fatal):', syncErr instanceof Error ? syncErr.message : String(syncErr));
+    } catch (syncErr: any) {
+      console.warn('[deleteMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
     return { success: true };
   } catch (error: any) {
@@ -1321,109 +1312,152 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string) 
   }
 }
 
-function safeRevalidatePublicMagazineRoutesForIssue(params: { issueId: string; slug?: string | null }) {
-  const issueIdStr = String(params.issueId || '').trim();
-  const slug = params.slug ? String(params.slug).trim().toLowerCase() : '';
-  if (!issueIdStr) return;
+function safeRevalidatePublicMagazineRoutesForIssue(params: { issueId: string; slug?: string | null }): void {
+  const { issueId, slug } = params;
+  if (!issueId) return;
   safeRevalidatePath('/magazine');
   safeRevalidatePath('/new-edition');
-  safeRevalidatePath(`/magazine/issue/${issueIdStr}`);
-  const issueIdSlug = `issue-${issueIdStr.toLowerCase()}`;
-  safeRevalidatePath(`/magazine/read/${issueIdSlug}`);
-  if (slug && slug !== issueIdSlug) {
-    safeRevalidatePath(`/magazine/read/${slug}`);
+  safeRevalidatePath(`/magazine/issue/${issueId}`);
+  const issueSlug = String(slug || '').trim();
+  if (issueSlug) {
+    safeRevalidatePath(`/magazine/read/issue-${issueId}-${issueSlug}`);
+    safeRevalidatePath(`/magazine/read/${issueSlug}`);
+  } else {
+    safeRevalidatePath(`/magazine/read/issue-${issueId}`);
   }
 }
 
 export async function syncBuilderToReaderEditionAction(
   issueId: string,
-  opts?: { revalidatePublicRoutesOnly?: boolean },
-): Promise<{ success: boolean; synced: boolean; editionId?: string | null; error?: string }> {
+  opts: { revalidatePublicRoutesOnly?: boolean } = {},
+): Promise<{ success: boolean; error?: string; readerEditionId?: string; pageCount?: number; schemaIssues?: unknown[] }> {
   try {
     await checkAdmin();
-    if (!adminDb) return { success: false, synced: false, error: 'Database not initialized' };
-    if (!issueId) return { success: false, synced: false, error: 'issueId required' };
+    if (!adminDb) throw new Error('Database not initialized');
+    if (!issueId) return { success: false, error: 'issueId required' };
 
-    const [issueDoc, pagesSnapshot] = await Promise.all([
-      adminDb.collection('magazine_issues').doc(issueId).get(),
-      adminDb.collection('magazine_issues').doc(issueId).collection('pages').orderBy('id', 'asc').get(),
-    ]);
-
-    if (!issueDoc.exists) {
-      return { success: false, synced: false, error: `Issue not found: ${issueId}` };
+    const issueRef = adminDb.collection('magazine_issues').doc(issueId);
+    const issueSnap = await issueRef.get();
+    if (!issueSnap.exists) {
+      return { success: false, error: `magazine_issues/${issueId} not found` };
     }
-    const issueRaw = issueDoc.data() || {};
-    const issue: MagazineIssue = { ...(issueRaw as any), id: issueId } as MagazineIssue;
-    const builderPages: MagazinePage[] = Array.isArray(pagesSnapshot?.docs)
-      ? pagesSnapshot.docs
-          .map((doc) => ({ ...(doc.data() || {}), docId: doc.id }) as MagazinePage)
-          .filter(Boolean)
-      : [];
+    const issueDoc = { id: issueSnap.id, ...(issueSnap.data() as any) };
 
-    if (builderPages.length === 0) {
-      return { success: true, synced: false, editionId: null };
-    }
+    const pagesSnap = await issueRef.collection('pages').get();
+    const pages: MagazinePage[] = pagesSnap.docs.map((d) => ({ docId: d.id, ...(d.data() as any) }) as MagazinePage);
 
-    const readerEditionLike = mapBuilderIssueToReaderEdition(issue, builderPages);
-    const existingLinked = await getReaderEditionByIssueId(issueId);
-    const editionId = existingLinked?.id
-      ? String(existingLinked.id)
-      : String(readerEditionLike.id || issueId);
-
-    const finalEdition: ReaderEdition & { schemaVersion: number; updatedAt: string } = {
-      ...readerEditionLike,
-      id: editionId,
-      createdAt: existingLinked?.createdAt || readerEditionLike.createdAt || new Date().toISOString(),
-      schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-      updatedAt: new Date().toISOString(),
-      coverImage: readerEditionLike.coverImage || existingLinked?.coverImage || String((issue as any).coverImage || ''),
-      title: readerEditionLike.title || existingLinked?.title || String(issue.title || ''),
-      slug: readerEditionLike.slug || existingLinked?.slug || deriveIssueSlug(issue),
-    };
-
-    const hydrated = hydrateReaderEditionContents(finalEdition);
-    const toWrite: ReaderEdition = (hydrated as ReaderEdition | null) ?? finalEdition;
-    const validated = safeParseMagazine(
-      ReaderEditionSchema,
-      toWrite,
-      `syncBuilderToReaderEditionAction issueId=${issueId}`,
+    const projected: any = mapBuilderIssueToReaderEdition(
+      issueDoc as any,
+      pages,
     );
-    if (!validated.ok) {
-      console.error('[syncBuilderToReaderEditionAction] ReaderEdition schema validation failed:\n', validated.error);
-      return { success: false, synced: false, error: validated.error, editionId };
+
+    let existingReaderEditionId: string | undefined = String(issueDoc.readerEditionId || '').trim() || undefined;
+    if (existingReaderEditionId) {
+      try {
+        const existingSnap = await getReaderEditionById(existingReaderEditionId);
+        if (existingSnap) {
+          projected.id = existingSnap.id;
+          projected.readerEditionId = existingSnap.id;
+          projected.createdAt = (existingSnap as any).createdAt ?? projected.createdAt ?? new Date().toISOString();
+        } else {
+          existingReaderEditionId = undefined;
+        }
+      } catch {
+        existingReaderEditionId = undefined;
+      }
     }
-    await upsertReaderEdition(validated.value as ReaderEdition);
+    projected.updatedAt = new Date().toISOString();
+
+    const parseResult = ReaderEditionSchema.safeParse(projected);
+    // #region debug-point B:sync-schema-errors
+    try {
+      const DEBUG_SERVER_URL = 'http://127.0.0.1:9000/event';
+      const DEBUG_SESSION_ID = 'builder-regressions-3bugs';
+      fetch(DEBUG_SERVER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: DEBUG_SESSION_ID,
+          runId: 'pre-fix',
+          hypothesisId: 'B',
+          location: 'magazineActions.ts:syncBuilderToReaderEditionAction:pre-schema',
+          msg: '[DEBUG] syncBuilderToReaderEditionAction (H2 — schema swallowed errors check)',
+          data: {
+            issueId,
+            pagesCount: pages.length,
+            projectedPageCount: Array.isArray((projected as any).pages) ? (projected as any).pages.length : 0,
+            schemaSuccess: parseResult.success,
+            schemaErrorPaths: parseResult.success ? [] : (parseResult as any).error?.issues?.map((i: any) => ({ path: i?.path?.join?.('.') || String(i?.path), message: i?.message })).slice(0, 20) || [],
+            schemaFirstErrorMessage: parseResult.success ? null : (parseResult as any).error?.errors?.[0]?.message || (parseResult as any).error?.message || null,
+            linkedReaderEditionId: existingReaderEditionId || null,
+          },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+    } catch {}
+    // #endregion
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: 'ReaderEditionSchema validation failed',
+        schemaIssues: (parseResult as any).error?.issues || [],
+      };
+    }
+    const validated = parseResult.data;
+
+    await upsertReaderEdition(validated as ReaderEdition);
+    const readerEditionId =
+      existingReaderEditionId ||
+      String((validated as any).id || String(projected.id || '')) ||
+      String(issueDoc.readerEditionId || '');
+    const publicSlug = String((validated as any).slug || issueDoc.readerEditionSlug || issueDoc.slug || '').trim();
+
+    const issuePatch: Record<string, unknown> = {
+      readerEditionId,
+      slug: publicSlug || issueDoc.slug,
+      readerEditionSlug: publicSlug || issueDoc.readerEditionSlug,
+      published: (validated as any).published ?? issueDoc.published ?? true,
+      title: validated.title || issueDoc.title,
+      publishDate: validated.publishDate || issueDoc.publishDate,
+      pageCount: Array.isArray(validated.pages) ? validated.pages.length : 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await issueRef.set(issuePatch, { merge: true });
 
     try {
-      await Promise.all([
-        adminDb.collection('magazine_issues').doc(issueId).set({
-          readerEditionId: editionId,
-          readerEditionSlug: toWrite.slug,
-          readerEditionPublished: true,
-          readerEditionTitle: toWrite.title,
-          readerEditionPublishDate: toWrite.publishDate,
-          readerEditionPageCount: Number(toWrite.pageCount || 0) || 0,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true }),
-        syncReaderEditionsForIssue(issueId).catch(() => null),
-      ]);
-    } catch (linkErr) {
-      console.warn('[syncBuilderToReaderEditionAction] issue link/assoc update failed (non-fatal):', linkErr);
+      await syncReaderEditionsForIssue(issueId);
+    } catch (err: any) {
+      console.warn('[syncBuilderToReaderEditionAction] syncReaderEditionsForIssue non-fatal:', err?.message || err);
     }
 
-    safeRevalidatePublicMagazineRoutesForIssue({
-      issueId,
-      slug: toWrite.slug || String((issue as any).slug || ''),
-    });
-    if (!opts?.revalidatePublicRoutesOnly) {
+    safeRevalidatePublicMagazineRoutesForIssue({ issueId, slug: publicSlug });
+    if (!opts.revalidatePublicRoutesOnly) {
       safeRevalidatePath('/admin/magazine');
       safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
     }
 
-    return { success: true, synced: true, editionId };
+    return { success: true, readerEditionId, pageCount: issuePatch.pageCount as number };
   } catch (error: any) {
-    console.error('[syncBuilderToReaderEditionAction] error:', error);
-    return { success: false, synced: false, error: error.message };
+    // #region debug-point B:sync-caught-errors
+    try {
+      const DEBUG_SERVER_URL = 'http://127.0.0.1:9000/event';
+      const DEBUG_SESSION_ID = 'builder-regressions-3bugs';
+      fetch(DEBUG_SERVER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: DEBUG_SESSION_ID,
+          runId: 'pre-fix',
+          hypothesisId: 'B',
+          location: 'magazineActions.ts:syncBuilderToReaderEditionAction:catch',
+          msg: '[DEBUG] syncBuilderToReaderEditionAction UNCAUGHT ERROR (H2 check)',
+          data: { issueId, message: error?.message || String(error), stack: String(error?.stack || '').slice(0, 600) },
+          ts: Date.now(),
+        }),
+      }).catch(() => {});
+    } catch {}
+    // #endregion
+    return { success: false, error: error?.message || String(error) };
   }
 }
 
@@ -1550,35 +1584,26 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
 
   const rawMappedPages = mapIdmlToReaderPages(parsed.pages);
 
-  const resolve = (name: string): string => {
-    const raw = normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
-    if (isPlaceholderImageUrl(raw)) return '';
-    return raw;
-  };
-  const resolveArray = (arr: unknown[] | null | undefined): string[] => {
-    const mapped = (Array.isArray(arr) ? arr : [])
-      .map((item: any) => resolve(String(item || '')))
-      .filter(Boolean);
-    return filterNonPlaceholderUrls(mapped);
-  };
+  const resolve = (name: string): string =>
+    normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
   let pages: Array<ReaderPage & { content: Record<string, unknown> }> = rawMappedPages.map((page) => ({
     ...(page as ReaderPage),
     content: {
       ...(page.content as Record<string, unknown>),
       imageUrl: resolve(String(page.content.imageUrl || '')),
-      imageUrls: resolveArray(page.content.imageUrls),
+      imageUrls: (Array.isArray(page.content.imageUrls) ? page.content.imageUrls : []).map(resolve),
       backgroundImage: resolve(String(page.content.backgroundImage || '')),
       logoImage: resolve(String(page.content.logoImage || '')),
-      logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map((v: any) => resolve(String(v || ''))).filter(Boolean),
+      logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map(resolve),
       partnerLogo: resolve(String(page.content.partnerLogo || page.content.logoImage || '')),
       image: resolve(String(page.content.image || '')),
       featureImage: resolve(String(page.content.featureImage || '')),
       heroImage: resolve(String(page.content.heroImage || '')),
       mainImage: resolve(String(page.content.mainImage || '')),
       coverImage: resolve(String(page.content.coverImage || '')),
-      images: resolveArray(page.content.images),
-      gallery: resolveArray(page.content.gallery),
-      additionalImages: resolveArray(page.content.additionalImages),
+      images: (Array.isArray(page.content.images) ? page.content.images : []).map(resolve),
+      gallery: (Array.isArray(page.content.gallery) ? page.content.gallery : []).map(resolve),
+      additionalImages: (Array.isArray(page.content.additionalImages) ? page.content.additionalImages : []).map(resolve),
       pdfUrl: page.content.pdfUrl
         ? normalizeImageUrl(imageUrls[String(page.content.pdfUrl)] || String(page.content.pdfUrl)) || undefined
         : undefined,
