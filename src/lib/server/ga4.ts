@@ -122,59 +122,116 @@ function base64UrlEncode(input: Buffer | string) {
 }
 
 function normalizePrivateKey(raw: string): string {
+  const headerType = extractPrivateKeyHeaderType(raw);
+  const footerType = extractPrivateKeyFooterType(raw);
+  if (!headerType) throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing BEGIN PRIVATE KEY header");
+  if (!footerType) throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing END PRIVATE KEY footer");
+  if (headerType !== footerType) {
+    throw new Error(
+      `Malformed GOOGLE_PRIVATE_KEY: header type mismatch (BEGIN=${headerType}, END=${footerType})`,
+    );
+  }
+
   let key = (raw ?? "").trim();
-  if (/\\n/.test(key)) {
-    key = key.replace(/\\n/g, "\n");
+  if (key.startsWith('"') && key.endsWith('"') && key.length >= 2) key = key.slice(1, -1).trim();
+  if (key.startsWith("'") && key.endsWith("'") && key.length >= 2) key = key.slice(1, -1).trim();
+  if (/\\n/.test(key)) key = key.replace(/\\n/g, "\n");
+  if (/\\r/.test(key)) key = key.replace(/\\r/g, "\r");
+
+  const headerIdx = key.indexOf(`-----BEGIN ${headerType}-----`);
+  const footerIdx = key.indexOf(`-----END ${footerType}-----`);
+  if (footerIdx < headerIdx) {
+    throw new Error("Malformed GOOGLE_PRIVATE_KEY: footer appears before header");
   }
-  key = key
-    .replace(/\r+/g, "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .join("\n");
-  if (!/-----BEGIN\s+[A-Z0-9 ]*PRIVATE\s+KEY-----/.test(key)) {
-    throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing BEGIN PRIVATE KEY header");
+  const rawBody = key.slice(headerIdx + `-----BEGIN ${headerType}-----`.length, footerIdx);
+
+  const validBodies: string[] = [];
+  {
+    let b = rawBody;
+    if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
+    if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
+    b = b.replace(/[\s\r\n]+/g, "");
+    if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
   }
-  if (!/-----END\s+[A-Z0-9 ]*PRIVATE\s+KEY-----/.test(key)) {
-    throw new Error("Malformed GOOGLE_PRIVATE_KEY: missing END PRIVATE KEY footer");
+  {
+    let b = rawBody;
+    if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
+    if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
+    b = b.replace(/[\s\r\n]+/g, "");
+    b = b.replace(/^[nr]/, "").replace(/[nr]$/, "");
+    b = b.replace(/([A-Za-z0-9+/=])[nr](?=[A-Za-z0-9+/=])/g, "$1");
+    if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
   }
-  return key + "\n";
+  {
+    let b = rawBody;
+    if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
+    if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
+    b = b.replace(/[\s\r\n]+/g, "");
+    b = b.replace(/[nr]/g, "");
+    if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
+  }
+
+  if (validBodies.length === 0) {
+    throw new Error(
+      "Malformed GOOGLE_PRIVATE_KEY: body between BEGIN/END markers contains non-base64 characters",
+    );
+  }
+
+  const uniq = Array.from(new Set(validBodies));
+  const b64 = uniq[0];
+  const CHUNK = 64;
+  const lines: string[] = [];
+  for (let i = 0; i < b64.length; i += CHUNK) lines.push(b64.slice(i, i + CHUNK));
+  const strict = `-----BEGIN ${headerType}-----\n${lines.join("\n")}\n-----END ${footerType}-----\n`;
+  if (uniq.length === 1) return strict;
+
+  const pems: string[] = [strict];
+  for (let k = 1; k < uniq.length; k++) {
+    const lb: string[] = [];
+    const body = uniq[k];
+    for (let i = 0; i < body.length; i += CHUNK) lb.push(body.slice(i, i + CHUNK));
+    pems.push(`-----BEGIN ${headerType}-----\n${lb.join("\n")}\n-----END ${footerType}-----\n`);
+  }
+  (strict as unknown as { __altPems?: string[] }).__altPems = pems.slice(1);
+  return strict;
+}
+
+function extractPrivateKeyHeaderType(raw: string): string | undefined {
+  return raw?.match(/-----BEGIN\s+([A-Z0-9 ]*PRIVATE\s+KEY)-----/)?.[1]?.trim();
+}
+function extractPrivateKeyFooterType(raw: string): string | undefined {
+  return raw?.match(/-----END\s+([A-Z0-9 ]*PRIVATE\s+KEY)-----/)?.[1]?.trim();
 }
 
 function signJwt(unsignedToken: string, privateKey: string) {
-  const signer = createSign("RSA-SHA256");
-  signer.update(unsignedToken);
-  signer.end();
-
-  const isPkcs8 = /-----BEGIN\s+PRIVATE\s+KEY-----/.test(privateKey);
-  const isTraditional = /-----BEGIN\s+RSA\s+PRIVATE\s+KEY-----/.test(privateKey);
-
-  const keyCandidates: Array<unknown> = [];
-  if (isPkcs8) {
-    keyCandidates.push({
-      key: privateKey,
-      format: "pem" as const,
-      type: "pkcs8" as const,
-    });
-  }
-  if (isTraditional) {
-    keyCandidates.push({
-      key: privateKey,
-      format: "pem" as const,
-      type: "pkcs1" as const,
-    });
-  }
-  keyCandidates.push(privateKey);
+  const altPems =
+    ((privateKey as unknown as { __altPems?: string[] }).__altPems ?? []) as string[];
+  const pemCandidates: string[] = [privateKey, ...altPems];
 
   let lastErr: unknown = null;
-  for (const candidate of keyCandidates) {
-    try {
-      const signature = signer.sign(candidate as never) as unknown as string | Buffer;
-      const sigBuffer = typeof signature === "string" ? Buffer.from(signature) : signature;
-      return base64UrlEncode(sigBuffer);
-    } catch (err) {
-      lastErr = err;
-      continue;
+  for (const pem of pemCandidates) {
+    const isPkcs8 = /-----BEGIN\s+PRIVATE\s+KEY-----/.test(pem);
+    const isTraditional = /-----BEGIN\s+RSA\s+PRIVATE\s+KEY-----/.test(pem);
+    const keyCandidates: Array<unknown> = [];
+    if (isPkcs8) {
+      keyCandidates.push({ key: pem, format: "pem" as const, type: "pkcs8" as const });
+    }
+    if (isTraditional) {
+      keyCandidates.push({ key: pem, format: "pem" as const, type: "pkcs1" as const });
+    }
+    keyCandidates.push(pem);
+
+    for (const candidate of keyCandidates) {
+      try {
+        const signer = createSign("RSA-SHA256");
+        signer.update(unsignedToken);
+        const signature = signer.sign(candidate as never) as unknown as string | Buffer;
+        const sigBuffer = typeof signature === "string" ? Buffer.from(signature) : signature;
+        return base64UrlEncode(sigBuffer);
+      } catch (err) {
+        lastErr = err;
+        continue;
+      }
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
