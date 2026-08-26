@@ -251,3 +251,131 @@ describe("signJwt OpenSSL 3 fallback order", () => {
     );
   });
 });
+
+describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
+  const REAL_BODY_FRAGMENT =
+    "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCm2++0+YliSJ/" +
+    "wnaZ7ZupSROZ/uvLq261/BiHDnqNtfu1ssTeUX8w06Qk0KrSxwkhjHkI7JEXcT7d" +
+    "/WnF0o4isvgAU0DjqgqHI02Sc1gFV30HKaBYdU5N78aPq3XkStsKHGkFF4+Syksb" +
+    "TAKnwSJb2xbBvB8qvlF+NGSoFwNQYk93eVyfl1et89u99p8lka8YJ1mOUMjrOJau" +
+    "xOR/nCoEZqo1AJ/JdOWKX4aRpVyvMMa5KeFNsua9fr5RGD1FGTLFGyYKc2Wm+KHc" +
+    "9hgDFnwkm+xxrDzuCftUS6WhpLd05mrqLC7Qu5FSja0KSItjHP6bTJ9638TiTkr6" +
+    "gZ1lIbn/7dCeL05AgMBAAECggEAA/62qQV83OEMD0RmgyQ2XWaQGTYXxFYAJDdhK" +
+    "9kjoETXnyuJC9QVWA9b4vQozZHvJYxg0PiuQYP/fgMk5XWXMhs/EXJLxHMnNNodv" +
+    "oHhlscWjn1biWOdLHXQuZVVSkKDVGfBBOx1Zv8gcO0Ofmq8tXKqR96Vb5xx530Hx" +
+    "1XfQ7BQtVnarzWm+nesiM79ui2/LEgIlQSMrvW5wypx+bGP5zgtD1RCndKhU6UhT" +
+    "F/fKRC3Yt4njZIDEEuREJ62Jrn97nGIn2F6el+QGGQayHaclIbRw+STf6g6MubzJ" +
+    "SkcEm3+izdSnjHzBEb2T68FwG3CCk4dvxIuYGQkq6aMXKBuNtylJDwKBgQDVBpO+" +
+    "QjGEJuZtOJ7unpPAWb/VnhAw/NC8x7LCOlSDbflVZhyDUB0Efbz4V0KkuZzspsMc" +
+    "qxinjU/a23vUSn6/b4TH9nBPu1izLCrG+0zO7xOc5XTfLNNWERJJCNdwQ8RItS6A" +
+    "GB2e1lNo2vm10rncOE2McWBR6YoqKy6ZuGLZzXyswKBgQDIhSZLOweIa39AX6m53" +
+    "73j2JOU5IQP3625nhxW9/DiW3fZ6IljwOjS0dUpLnr3Q7Hei+yyLkKh/bnx0xl7e" +
+    "jIHu2FZxwV/o2A/dnkVqA/DAu+FFlNWqE+Xy5MKYbpENG7BsuZd6vMcrpWe5Rmze" +
+    "MdTJRfH0UvMJfWXjznQHJvWX2WYwKBgQCzBp0BhxWgDyUV40DGJD1VTe/6d+Hm+A" +
+    "81sMnMeg2sCSbnX4W6nSwJyzYVqxfp4ce8poVQwYWtwje7ITuW9aisbDwb+6BQ1x" +
+    "O765fnXA2dHuSHtAygrnR1H1GzqUeNJJZ/2CxlIF88Tri4ZVb4dEa9AJQJjQhgth" +
+    "HihTWwTvp+SRuwKBgFoEnlE1foaEXiRfwGjTMgeXAe3hzIeoyYz4Pq64PhaQM3zK" +
+    "zKrQlnTWKFiFekR4ymf67nvaKl/U6/3fVafIpyD36W9i+5PQI9xNmWAEg5brQXXA" +
+    "sQcNJjYh+M/HUaR+2V3xn0nN4T02H/rlHZkNQrELiOwvEJL/wJpG0gwnW7pgNy7A" +
+    "oGAe47zLjD1daOdS88FQy/ZnL35bdo3FQNbpCjm2fE5OXbPVyn4R9VvE5Cc5Aks8" +
+    "uXKcLCxOzRuDx4Gy/hBEUNB6nuBL/oXQxyHQC1VFxoRXPWC4gxBSI+5CDQ+POY6n" +
+    "/YyM4W4biH7GgVRiamNhyycYCn4eJkpbt6KPtez6yzQWxkOWY=";
+
+  const SYSTEMD_ORPHAN_N_KEY = (() => {
+    // Build a systemd-EnvironmentFile-mangled key: single line, no real
+    // newlines, stray single-letter 'n' inserted at BEGIN/END boundaries
+    // and between arbitrary 64-char chunks (this is exactly what the
+    // Ubuntu 22 systemd EnvironmentFile parser produces when a key has
+    // embedded literal two-char '\n' sequences — systemd strips the
+    // backslash and leaves orphan 'n's).
+    const CHUNK = 64;
+    const chunks: string[] = [];
+    for (let i = 0; i < REAL_BODY_FRAGMENT.length; i += CHUNK) {
+      chunks.push(REAL_BODY_FRAGMENT.slice(i, i + CHUNK));
+    }
+    // In systemd-orphan format the stray 'n's also get leading/trailing
+    // whitespace from naive dotenv unquoting — emulate both extremes.
+    const sep = " n";
+    return `-----BEGIN PRIVATE KEY----- n${chunks.join(sep)}n -----END PRIVATE KEY----- n`;
+  })();
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not throw TypeError(Cannot create property '__altPems' on string) for systemd-mangled PEM (regression)", async () => {
+    const OLD_ENV = { ...process.env };
+    process.env.GA4_PROPERTY_ID_CURRENT = "properties/219599906";
+    process.env.GA4_PROPERTY_ID_LEGACY = "properties/999999999";
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL =
+      "ga4@magnetic-tenure-365620.iam.gserviceaccount.com";
+    process.env.GOOGLE_PRIVATE_KEY = SYSTEMD_ORPHAN_N_KEY;
+
+    const cryptoModule = require("crypto") as typeof import("crypto");
+    let signCalls = 0;
+    const sigLabel = Buffer.from("systemd-mangled-recovered");
+    vi.spyOn(cryptoModule, "createSign").mockImplementation(
+      (() => ({
+        update: vi.fn().mockReturnThis(),
+        end: vi.fn().mockReturnThis(),
+        sign: vi.fn(() => {
+          signCalls++;
+          return sigLabel;
+        }),
+      })) as unknown as typeof cryptoModule.createSign,
+    );
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      if (/oauth2\.googleapis\.com\/token/.test(url)) {
+        const form = init?.body ? String(init.body) : "";
+        expect(form).toContain(
+          "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        );
+        expect(form).toContain("assertion=");
+        return new Response(
+          JSON.stringify({ access_token: "fake-token", expires_in: 3600 }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (/analyticsdata\.googleapis\.com.*runReport/.test(url)) {
+        return new Response(
+          JSON.stringify({
+            rows: [
+              {
+                metricValues: [
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "0.5" },
+                  { value: "1" },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not mocked: " + url, { status: 404 });
+    }) as typeof globalThis.fetch;
+
+    let err: unknown = null;
+    try {
+      const mod = await import("../lib/server/ga4");
+      await mod.getGa4WebStatsReport({ range: "30d" });
+    } catch (e) {
+      err = e;
+    } finally {
+      process.env = OLD_ENV;
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    }
+    const msg = err ? String((err as Error)?.message ?? err) : "";
+    expect(msg).not.toMatch(/Cannot create property '__altPems'/);
+    expect(msg).not.toMatch(/TypeError/);
+    expect(signCalls).toBeGreaterThanOrEqual(1);
+    expect(err).toBeNull();
+  });
+});
