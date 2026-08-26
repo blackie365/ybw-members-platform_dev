@@ -4,6 +4,7 @@ import type {
   ReaderPageContent,
 } from "@/features/magazine/domain/types";
 import type { ParsedIdmlPage, ParsedIdmlStory } from "./idml-parser";
+import { firstNonPlaceholderImage, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
 
 function countWords(text: string | null | undefined): number {
   const clean = String(text || "").trim();
@@ -499,21 +500,15 @@ function splitRasterAndPdfImages(pageImages: string[]): {
   const raster: string[] = [];
   const other: string[] = [];
   const isRasterOrPDF = /\.(png|jpe?g|gif|webp|svg|tiff?|bmp|ico|avif|heic|heif|pdf)$/i;
-  for (const raw of pageImages) {
+  const filtered = filterNonPlaceholderUrls((pageImages || []).map((v) => String(v || "").trim()).filter(Boolean));
+  for (const raw of filtered) {
     const v = String(raw || "").trim();
     if (!v) continue;
     const isPDF = /\.pdf$/i.test(v);
     if (isPDF) {
       pdfMatches.push(v);
-      // Include the PDF in raster pool too (as last element) so that pages
-      // with ONLY a placed PDF file (no PNG preview) still have a hero image.
-      // Chrome/Safari/Firefox can render PDFs via <img src> in some contexts
-      // and the object-contain CSS will keep proportions; if the browser
-      // can't render it, the PageFullPageAd template has a "📄 Open PDF"
-      // fallback button anyway.
       raster.push(v);
     } else if (isRasterOrPDF.test(v)) {
-      // Real raster (png/jpg/etc) goes FIRST so it wins the hero race.
       raster.unshift(v);
     } else {
       other.push(v);
@@ -951,13 +946,21 @@ function buildFeatureContent(
     ? getPageImages(page, article.images, { onlySlug: slug })
     : getPageImages(page, article.images);
 
-  const heroPool = uniqueStrings([...(rolesOnPage.hero || []), ...pageImages]);
-  const galleryPool = uniqueStrings([
-    ...(rolesOnPage.gallery || []),
-    ...pageImages.slice(1),
-    ...(rolesOnPage.pdf || []),
-  ]);
-  const hero = heroPool[0] || pageImages[0] || article.images[0] || "";
+  const heroPool = filterNonPlaceholderUrls(
+    uniqueStrings([...(rolesOnPage.hero || []), ...pageImages]),
+  );
+  const galleryPool = filterNonPlaceholderUrls(
+    uniqueStrings([
+      ...(rolesOnPage.gallery || []),
+      ...pageImages.slice(1),
+      ...(rolesOnPage.pdf || []),
+    ]),
+  );
+  const hero =
+    firstNonPlaceholderImage(heroPool) ||
+    firstNonPlaceholderImage(pageImages) ||
+    firstNonPlaceholderImage(article.images) ||
+    "";
 
   const logos = uniqueStrings([
     ...(rolesOnPage.logo || []),
@@ -1024,10 +1027,11 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     ? getPageBodyText(coverSourcePage, true)
     : "";
   const coverImages = coverSourcePage
-    ? getPageImages(coverSourcePage, coverSourceArticle?.images || [])
+    ? filterNonPlaceholderUrls(getPageImages(coverSourcePage, coverSourceArticle?.images || []))
     : [];
   const coverLogos = coverSourcePage ? getLogoImages(coverSourcePage) : [];
   const coverLogo = coverLogos[0] || "";
+  const coverHero = coverImages[0] || "";
   const fallbackCoverTitle = (() => {
     const firstStory = coverSourcePage?.stories[0];
     const candidates = [
@@ -1055,13 +1059,13 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         title: fallbackCoverTitle,
         body: coverBody,
         standfirst: getStandfirst(coverSourceArticle?.body || coverBody),
-        imageUrl: coverImages[0] || "",
+        imageUrl: coverHero,
         imageUrls: coverImages,
-        image: coverImages[0] || "",
-        featureImage: coverImages[0] || "",
-        heroImage: coverImages[0] || "",
-        coverImage: coverImages[0] || "",
-        mainImage: coverImages[0] || "",
+        image: coverHero,
+        featureImage: coverHero,
+        heroImage: coverHero,
+        coverImage: coverHero,
+        mainImage: coverHero,
         images: coverImages,
         gallery: coverImages,
         logoImage: coverLogo,
@@ -1153,18 +1157,21 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         (explicitBodyStory?.imageHints || []),
       ).map((v) => String(v || "").trim()).filter(Boolean),
     );
-    const explicitHeroImages = allPageImages.filter((url) => {
-      if (!url) return false;
-      const base = url.split("/").pop()?.split("?")[0] || "";
-      return imageHintSet.has(base);
-    });
+    const explicitHeroImages = filterNonPlaceholderUrls(
+      allPageImages.filter((url) => {
+        if (!url) return false;
+        const base = url.split("/").pop()?.split("?")[0] || "";
+        return imageHintSet.has(base);
+      }),
+    );
     const editorsImageFirst = imageFrame
       ? allPageImages.slice(0, 1).concat(allPageImages)
       : allPageImages;
-    const editorImages =
+    const editorImagesRaw =
       explicitHeroImages.length > 0
         ? explicitHeroImages.concat(allPageImages)
         : editorsImageFirst;
+    const editorImages = filterNonPlaceholderUrls(editorImagesRaw);
     const editorHero = editorImages[0] || "";
     const editorLogos = getLogoImages(editorNotePage);
     const editorLogo = editorLogos[0] || "";
@@ -1274,7 +1281,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     if (reservedPageNumbers.has(pageNum)) continue;
 
     if (detectAdPage(sourcePage)) {
-      const pageImages = getPageImages(sourcePage);
+      const pageImagesRaw = getPageImages(sourcePage);
+      const pageImages = filterNonPlaceholderUrls(pageImagesRaw);
       const adLogos = getLogoImages(sourcePage);
       const adLogo = adLogos[0] || "";
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
@@ -1306,7 +1314,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     }
 
     const article = articleByPage.get(pageNum);
-    const pageImages = getPageImages(sourcePage);
+    const pageImagesRaw = getPageImages(sourcePage);
+    const pageImages = filterNonPlaceholderUrls(pageImagesRaw);
     const pageLogos = getLogoImages(sourcePage);
     const detectPageTitle = (fallbackWordMax = 14): string => {
       const articleTitle = String(article?.title || "").trim();
@@ -1637,7 +1646,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
   }
 
   if (lastMeaningfulPage) {
-    const lastImages = getPageImages(lastMeaningfulPage);
+    const lastImages = filterNonPlaceholderUrls(getPageImages(lastMeaningfulPage));
     const lastLogos = getLogoImages(lastMeaningfulPage);
     const lastLogo = lastLogos[0] || "";
     const { rasterImages, pdfImage } = splitRasterAndPdfImages(lastImages);

@@ -5,6 +5,9 @@ import {
   CURRENT_READER_SCHEMA_VERSION,
   fixMagazineImageUrl,
   hydrateReaderEditionContents,
+  isPlaceholderImageUrl,
+  filterNonPlaceholderUrls,
+  firstNonPlaceholderImage,
   isReaderSchemaCurrent,
   normalizeImageUrl,
 } from '@/lib/magazine-utils';
@@ -148,6 +151,7 @@ function editionMatchesIssue(edition: ReaderEdition, issue: { title?: string; pu
 function sanitizeImageUrl(value: unknown): string {
   const normalized = normalizeImageUrl(value);
   if (!normalized) return '';
+  if (isPlaceholderImageUrl(normalized)) return '';
   return fixMagazineImageUrl(normalized);
 }
 
@@ -175,7 +179,7 @@ function sanitizeUrlList(values: unknown): string[] {
     seen.add(url);
     cleaned.push(url);
   }
-  return cleaned;
+  return filterNonPlaceholderUrls(cleaned);
 }
 
 function normalizeRichTextForCompare(value: unknown): string {
@@ -256,6 +260,7 @@ function dedupeTextParts(parts: Array<unknown>, exclusions: Array<unknown> = [])
 
   return deduped;
 }
+
 function sanitizeReaderPage(page: ReaderPage): ReaderPage {
   const c: Record<string, unknown> = (page?.content && typeof page.content === 'object')
     ? (page.content as Record<string, unknown>)
@@ -265,7 +270,7 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
     c.backgroundImage || (c as any).coverImage || ''
   );
 
-  const cascadeMain = [
+  const cascadeMain = filterNonPlaceholderUrls([
     c.imageUrl,
     c.featureImage,
     c.image,
@@ -281,7 +286,7 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
     c.logoImage,
     c.partnerLogo,
     c.logo,
-  ].map((v) => sanitizeImageUrl(v)).filter(Boolean);
+  ].map((v) => sanitizeImageUrl(v)).filter(Boolean));
 
   const urlListsConcat = [
     c.imageUrls,
@@ -306,10 +311,10 @@ function sanitizeReaderPage(page: ReaderPage): ReaderPage {
     mergedList.push(u);
   }
 
-  const imageUrl = cascadeMain[0] || mergedList[0] || '';
-  const imageUrls = mergedList.filter(
+  const imageUrl = firstNonPlaceholderImage(cascadeMain) || firstNonPlaceholderImage(mergedList) || '';
+  const imageUrls = filterNonPlaceholderUrls(mergedList.filter(
     (url) => url && url !== imageUrl && url !== backgroundImage,
-  );
+  ));
 
   const standfirst = String(c.standfirst || c.intro || c.headline || '').trim();
   const quote = String(c.quote || '').trim();

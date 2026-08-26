@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { ReaderPage } from "./types";
+import { isPlaceholderImageUrl, filterNonPlaceholderUrls, firstNonPlaceholderImage } from "@/lib/magazine-utils";
 
 export interface TemplateRenderProps {
   edition: {
@@ -53,14 +54,25 @@ function pickFirstImage(c: CRecord | undefined, fallback = ""): string {
     c.logoImage,
     c.partnerLogo,
     c.logo,
+  ].map((v) => (typeof v === "string" ? v.trim() : ""));
+  const firstCandidate = firstNonPlaceholderImage(candidates);
+  if (firstCandidate) return firstCandidate;
+
+  const arrayPools = [
+    c.imageUrls,
+    c.images,
+    c.gallery,
+    c.additionalImages,
   ];
-  for (const v of candidates) {
-    if (typeof v === "string" && v.trim()) return v.trim();
+  for (const pool of arrayPools) {
+    const firstInPool = Array.isArray(pool) ? firstNonPlaceholderImage(pool as unknown[], (item) => typeof item === "string" ? item.trim() : String((item as any)?.src || (item as any)?.url || (item as any)?.image || "")) : undefined;
+    if (firstInPool) {
+      const coerced = typeof firstInPool === "string"
+        ? firstInPool
+        : String((firstInPool as any)?.src || (firstInPool as any)?.url || (firstInPool as any)?.image || "").trim();
+      if (coerced && !isPlaceholderImageUrl(coerced)) return coerced;
+    }
   }
-  if (Array.isArray(c.imageUrls) && typeof c.imageUrls[0] === "string") return c.imageUrls[0];
-  if (Array.isArray(c.images) && typeof c.images[0] === "string") return c.images[0];
-  if (Array.isArray(c.gallery) && typeof (c.gallery as any[])[0] === "string") return (c.gallery as any[])[0];
-  if (Array.isArray(c.additionalImages) && typeof (c.additionalImages as any[])[0] === "string") return (c.additionalImages as any[])[0];
   return fallback;
 }
 
@@ -84,6 +96,7 @@ function pickGallery(c: CRecord | undefined): { src: string }[] {
       const r = raw as Record<string, unknown>;
       s = String((r.src as string) || (r.image as string) || (r.url as string) || "").trim();
     }
+    if (!s || isPlaceholderImageUrl(s)) return;
     if (s && !seen.has(s)) {
       seen.add(s);
       out.push({ src: s });
@@ -96,6 +109,7 @@ function pickGallery(c: CRecord | undefined): { src: string }[] {
       pushOne(listEntry);
     }
   }
+  void filterNonPlaceholderUrls;
   return out;
 }
 

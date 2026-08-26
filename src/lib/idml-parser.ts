@@ -36,6 +36,7 @@ export interface ParsedIdmlImage {
   fileName: string;
   data: Buffer;
   mimeType: string;
+  isPlaceholder?: boolean;
 }
 
 export interface ParsedRoleImages {
@@ -217,19 +218,18 @@ function hashStringToRgb(seed: string): [number, number, number] {
 }
 
 function buildPlaceholderImageDataUri(fileName: string): { data: Buffer; mimeType: string } {
-  const [r, g, b] = hashStringToRgb(fileName);
-  const fg = (r * 0.299 + g * 0.587 + b * 0.114) > 140 ? '#111111' : '#ffffff';
-  const bg = `rgb(${r},${g},${b})`;
-  const displayName = (fileName.split('/').pop() || 'missing-image').slice(0, 48);
-  const escapedName = String(displayName)
+  const safeName = String(fileName || 'missing-image')
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bg}" stop-opacity="0.92"/><stop offset="100%" stop-color="${bg}" stop-opacity="0.72"/></linearGradient></defs><rect width="1200" height="1600" fill="url(#g)"/><rect x="60" y="60" width="1080" height="1480" fill="none" stroke="${fg}" stroke-opacity="0.35" stroke-width="6" rx="28"/><text x="600" y="820" font-family="Helvetica, Arial, sans-serif" font-size="56" font-weight="700" text-anchor="middle" fill="${fg}">${escapedName}</text><text x="600" y="900" font-family="Helvetica, Arial, sans-serif" font-size="28" text-anchor="middle" fill="${fg}" fill-opacity="0.7">Image asset (linked — embed in InDesign for best results)</text></svg>`;
-  const data = Buffer.from(svg, 'utf8');
-  return { data, mimeType: 'image/svg+xml' };
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" width="1" height="1" aria-hidden="true" focusable="false" role="presentation" data-ybw-placeholder="1">` +
+    `<title>${safeName}</title>` +
+    `<desc>Placeholder for linked/embedded InDesign asset. Embed image in IDML package to replace.</desc>` +
+    `<rect width="1" height="1" fill="transparent"/>` +
+    `</svg>`;
+  return { data: Buffer.from(svg, 'utf8'), mimeType: 'image/svg+xml' };
 }
 
 function supportsEmbeddedImageExtraction(fileName: string): boolean {
@@ -1183,6 +1183,8 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       const place = buildPlaceholderImageDataUri(name);
       data = place.data;
       mimeType = place.mimeType;
+      imagesByFileName.set(name, { fileName: name, data, mimeType, isPlaceholder: true });
+      continue;
     }
     imagesByFileName.set(name, { fileName: name, data, mimeType });
   }

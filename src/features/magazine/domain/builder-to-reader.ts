@@ -13,6 +13,9 @@ import {
   CURRENT_READER_SCHEMA_VERSION,
   fixMagazineImageUrl,
   hydrateReaderEditionContents,
+  isPlaceholderImageUrl,
+  filterNonPlaceholderUrls,
+  firstNonPlaceholderImage,
   normalizeMagazinePageContent,
 } from '@/lib/magazine-utils';
 
@@ -84,10 +87,14 @@ function resolveImageForPage(content: Record<string, unknown>): string {
     Array.isArray(content.additionalImages) ? content.additionalImages[0] : undefined,
     content.backgroundImage,
   ];
-  for (const raw of candidates) {
-    const s = typeof raw === 'string' ? raw.trim() : '';
-    if (s.length > 0) return fixMagazineImageUrl(s);
-  }
+  const coerced = candidates.map((raw) => {
+    const s = typeof raw === 'string' ? raw.trim() : typeof raw && typeof raw === 'object'
+      ? String((raw as any)?.src || (raw as any)?.url || (raw as any)?.image || '').trim()
+      : '';
+    return s;
+  });
+  const first = firstNonPlaceholderImage(coerced);
+  if (first) return fixMagazineImageUrl(first);
   return '';
 }
 
@@ -100,11 +107,19 @@ function resolveAllImages(content: Record<string, unknown>): string[] {
     content.gallery,
     content.additionalImages,
   ];
+  const coerceOne = (entry: unknown): string => {
+    if (typeof entry === 'string') return fixMagazineImageUrl(entry);
+    if (entry && typeof entry === 'object') {
+      const raw = String((entry as any)?.src || (entry as any)?.url || (entry as any)?.image || '').trim();
+      return raw ? fixMagazineImageUrl(raw) : '';
+    }
+    return '';
+  };
   for (const arr of rawArrays) {
     if (!Array.isArray(arr)) continue;
     for (const entry of arr) {
-      const s = typeof entry === 'string' ? fixMagazineImageUrl(entry) : '';
-      if (!s || seen.has(s)) continue;
+      const s = coerceOne(entry);
+      if (!s || seen.has(s) || isPlaceholderImageUrl(s)) continue;
       seen.add(s);
       out.push(s);
     }
@@ -114,7 +129,7 @@ function resolveAllImages(content: Record<string, unknown>): string[] {
     seen.add(single);
     out.unshift(single);
   }
-  return out;
+  return filterNonPlaceholderUrls(out);
 }
 
 export function deriveIssueSlug(input: {

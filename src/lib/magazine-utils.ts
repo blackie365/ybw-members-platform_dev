@@ -110,6 +110,66 @@ function safeSegmentDecode(pathEncodedLike: string): string {
   }
 }
 
+export function isPlaceholderImageUrl(url: unknown): boolean {
+  if (url === undefined || url === null) return true;
+  const raw = typeof url === 'string' ? url.trim() : String(url || '').trim();
+  if (!raw) return true;
+
+  if (/data-ybw-placeholder(?:=|%3D|")?\s*"?\s*1/i.test(raw)) return true;
+  if (
+    /viewBox\s*=\s*"0\s*0\s*1\s*1"[^>]*aria-hidden\s*=\s*"true"/i.test(raw) ||
+    /viewBox\s*=\s*'0\s*0\s*1\s*1'[^>]*aria-hidden\s*=\s*'true'/i.test(raw)
+  ) {
+    return true;
+  }
+  if (/Image\s*asset\s*\(\s*linked/i.test(raw) || /embed\s*in\s*indesign/i.test(raw)) return true;
+  if (/viewBox\s*=\s*"0\s*0\s*1200\s*1600"/i.test(raw) || /viewBox\s*=\s*'0\s*0\s*1200\s*1600'/i.test(raw)) {
+    if (/<text\b/i.test(raw) && /font-size\s*[:=]\s*["']?\s*56/i.test(raw)) return true;
+  }
+  if (/^data:image\/svg\+xml/i.test(raw)) {
+    try {
+      const ascii = raw.length < 2000 ? raw : raw.slice(0, 2000);
+      if (/ybw-placeholder|linked\s*[—–-]\s*embed/i.test(ascii)) return true;
+      const sizeMatch = ascii.match(/viewBox\s*=\s*["']0\s+0\s+(\d+)\s+(\d+)["']/i);
+      if (sizeMatch) {
+        const w = Number(sizeMatch[1]);
+        const h = Number(sizeMatch[2]);
+        if (w === 1 && h === 1) return true;
+        if ((w === 1200 && h === 1600) || (w === 1600 && h === 1200)) {
+          if (/<text\b/i.test(ascii) && /font-size/i.test(ascii)) return true;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return false;
+}
+
+export function filterNonPlaceholderUrls<T extends unknown = string>(
+  urls: readonly T[],
+  coerce?: (item: T) => string,
+): T[] {
+  const get = coerce || ((item: any): string => String(item ?? ''));
+  return (urls || []).filter((item) => {
+    try {
+      return !isPlaceholderImageUrl(get(item));
+    } catch {
+      return true;
+    }
+  });
+}
+
+export function firstNonPlaceholderImage<T extends unknown = string>(
+  urls: readonly T[] | undefined | null,
+  coerce?: (item: T) => string,
+): T | undefined {
+  if (!urls || urls.length === 0) return undefined;
+  const cleaned = filterNonPlaceholderUrls(urls as readonly T[], coerce);
+  return cleaned[0];
+}
+
 /**
  * Utility to convert various image URL formats to browser-safe public URLs.
  * Specifically handles Firebase Storage 'gs://' links and legacy broken GCS

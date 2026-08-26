@@ -10,7 +10,7 @@ import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPag
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
 import { upsertReaderEdition, syncReaderEditionCoverFromIssue, syncReaderEditionsForIssue, getReaderEditionIdBySlug, listReaderEditions, deleteReaderEdition, getReaderEditionByIssueId, getReaderEditionById, hydrateEditionWithLegacyPages, CURRENT_READER_SCHEMA_VERSION } from '@/features/magazine/server/simple-reader';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
-import { fixMagazineImageUrl, hydrateReaderEditionContents, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
+import { fixMagazineImageUrl, hydrateReaderEditionContents, isPlaceholderImageUrl, filterNonPlaceholderUrls, normalizeMagazinePageContent, normalizeStoryLibraryItem } from '@/lib/magazine-utils';
 import {
   ReaderEditionSchema,
   ReaderPageSchema,
@@ -520,20 +520,22 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
   if (parsed.images.length === 0 || !adminStorage) return imageUrls;
 
   const bucket = adminStorage.bucket();
-  const uploadPromises = parsed.images.map(async (img) => {
-    const filePath = `magazine-import/${fileName}/${img.fileName}`;
-    const storageFile = bucket.file(filePath);
+  const uploadPromises = parsed.images
+    .filter((img) => !img.isPlaceholder)
+    .map(async (img) => {
+      const filePath = `magazine-import/${fileName}/${img.fileName}`;
+      const storageFile = bucket.file(filePath);
 
-    await storageFile.save(img.data, {
-      metadata: { contentType: img.mimeType },
+      await storageFile.save(img.data, {
+        metadata: { contentType: img.mimeType },
+      });
+      await storageFile.makePublic();
+
+      return {
+        fileName: img.fileName,
+        url: buildPublicStorageUrl(bucket.name, filePath),
+      };
     });
-    await storageFile.makePublic();
-
-    return {
-      fileName: img.fileName,
-      url: buildPublicStorageUrl(bucket.name, filePath),
-    };
-  });
 
   const results = await Promise.all(uploadPromises);
   for (const result of results) {
@@ -610,9 +612,9 @@ async function uploadStoryLibraryArticleImages(
             : [];
 
           const preferredFileName =
-            imageFileNames.find((value) => isPreferredStoryLibraryImageFileName(value) && imagesByFileName.has(value)) ||
-            imageFileNames.find((value) => /\.(png|jpe?g|webp|gif|svg)$/i.test(value) && imagesByFileName.has(value)) ||
-            imageFileNames.find((value) => imagesByFileName.has(value));
+            imageFileNames.find((value) => isPreferredStoryLibraryImageFileName(value) && imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder) ||
+            imageFileNames.find((value) => /\.(png|jpe?g|webp|gif|svg)$/i.test(value) && imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder) ||
+            imageFileNames.find((value) => imagesByFileName.has(value) && !imagesByFileName.get(value)?.isPlaceholder);
 
           return preferredFileName ? [preferredFileName] : [];
         }),
@@ -1422,26 +1424,35 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
 
   const rawMappedPages = mapIdmlToReaderPages(parsed.pages);
 
-  const resolve = (name: string): string =>
-    normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
+  const resolve = (name: string): string => {
+    const raw = normalizeImageUrl(name && imageUrls[name] ? imageUrls[name] : name);
+    if (isPlaceholderImageUrl(raw)) return '';
+    return raw;
+  };
+  const resolveArray = (arr: unknown[] | null | undefined): string[] => {
+    const mapped = (Array.isArray(arr) ? arr : [])
+      .map((item: any) => resolve(String(item || '')))
+      .filter(Boolean);
+    return filterNonPlaceholderUrls(mapped);
+  };
   let pages: Array<ReaderPage & { content: Record<string, unknown> }> = rawMappedPages.map((page) => ({
     ...(page as ReaderPage),
     content: {
       ...(page.content as Record<string, unknown>),
       imageUrl: resolve(String(page.content.imageUrl || '')),
-      imageUrls: (Array.isArray(page.content.imageUrls) ? page.content.imageUrls : []).map(resolve),
+      imageUrls: resolveArray(page.content.imageUrls),
       backgroundImage: resolve(String(page.content.backgroundImage || '')),
       logoImage: resolve(String(page.content.logoImage || '')),
-      logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map(resolve),
+      logoImages: (Array.isArray(page.content.logoImages) ? page.content.logoImages : []).map((v: any) => resolve(String(v || ''))).filter(Boolean),
       partnerLogo: resolve(String(page.content.partnerLogo || page.content.logoImage || '')),
       image: resolve(String(page.content.image || '')),
       featureImage: resolve(String(page.content.featureImage || '')),
       heroImage: resolve(String(page.content.heroImage || '')),
       mainImage: resolve(String(page.content.mainImage || '')),
       coverImage: resolve(String(page.content.coverImage || '')),
-      images: (Array.isArray(page.content.images) ? page.content.images : []).map(resolve),
-      gallery: (Array.isArray(page.content.gallery) ? page.content.gallery : []).map(resolve),
-      additionalImages: (Array.isArray(page.content.additionalImages) ? page.content.additionalImages : []).map(resolve),
+      images: resolveArray(page.content.images),
+      gallery: resolveArray(page.content.gallery),
+      additionalImages: resolveArray(page.content.additionalImages),
       pdfUrl: page.content.pdfUrl
         ? normalizeImageUrl(imageUrls[String(page.content.pdfUrl)] || String(page.content.pdfUrl)) || undefined
         : undefined,
