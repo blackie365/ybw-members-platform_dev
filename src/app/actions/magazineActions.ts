@@ -1329,7 +1329,10 @@ function safeRevalidatePublicMagazineRoutesForIssue(params: { issueId: string; s
 
 export async function syncBuilderToReaderEditionAction(
   issueId: string,
-  opts: { revalidatePublicRoutesOnly?: boolean } = {},
+  opts: {
+    revalidatePublicRoutesOnly?: boolean;
+    readerPagesOverride?: unknown[];
+  } = {},
 ): Promise<{ success: boolean; error?: string; readerEditionId?: string; pageCount?: number; schemaIssues?: unknown[] }> {
   try {
     await checkAdmin();
@@ -1343,12 +1346,76 @@ export async function syncBuilderToReaderEditionAction(
     }
     const issueDoc = { id: issueSnap.id, ...(issueSnap.data() as any) };
 
-    const pagesSnap = await issueRef.collection('pages').get();
-    const pages: MagazinePage[] = pagesSnap.docs.map((d) => ({ docId: d.id, ...(d.data() as any) }) as MagazinePage);
+    let sourcePages: MagazinePage[] = [];
+    let sourceKindForDebug = 'builder-pages-subcollection';
+
+    if (Array.isArray(opts.readerPagesOverride) && opts.readerPagesOverride.length > 0) {
+      sourceKindForDebug = 'readerPagesOverride';
+      sourcePages = (opts.readerPagesOverride as any[]).map((raw, idx) => {
+        const obj: any = typeof raw === 'object' && raw !== null ? { ...raw } : { docId: String(idx) };
+        if (!obj.docId) obj.docId = `override:${idx}`;
+        if (typeof obj.readOnly !== 'boolean') obj.readOnly = true;
+        if (typeof obj.sourceReaderEditionId !== 'string') {
+          obj.sourceReaderEditionId = String(issueDoc.readerEditionId || '');
+        }
+        return obj as MagazinePage;
+      });
+    } else {
+      const pagesSnap = await issueRef.collection('pages').get();
+      const builderPages: MagazinePage[] = pagesSnap.docs.map((d) => ({ docId: d.id, ...(d.data() as any) }) as MagazinePage);
+
+      if (builderPages.length === 0 && issueDoc.readerEditionId) {
+        try {
+          const existingForFallback = await getReaderEditionById(String(issueDoc.readerEditionId));
+          if (existingForFallback && Array.isArray((existingForFallback as any).pages) && (existingForFallback as any).pages.length > 0) {
+            sourceKindForDebug = `fallback:readerEdition:${String(issueDoc.readerEditionId)}`;
+            const fallbackPages: ReaderPage[] = (existingForFallback as any).pages as ReaderPage[];
+            const editionIdForFallback = String(existingForFallback.id || issueDoc.readerEditionId || '');
+            sourcePages = fallbackPages.map((rp, i) => {
+              const pos =
+                typeof (rp as any).position === 'number' ? (rp as any).position :
+                typeof (rp as any).pageNumber === 'number' ? (rp as any).pageNumber :
+                i + 1;
+              const now = new Date().toISOString();
+              return {
+                docId: `reader:${editionIdForFallback}:page:${i}:${pos}`,
+                id: 10000 + pos,
+                pageNumber: pos,
+                position: pos,
+                type: String((rp as any).type || (rp as any).template || 'feature-left').toLowerCase().replace(/^editorial$/i, 'editorial') === 'ad' ? 'full-page-ad' : String((rp as any).type || (rp as any).template || 'feature-left'),
+                readOnly: true,
+                generatedFromStoryLibrary: true,
+                sourceReaderEditionId: editionIdForFallback,
+                sourceRef: String((rp as any).id || ''),
+                storyId: String((rp as any).storyId || (rp as any).content?.storyId || ''),
+                content: (rp as any).content || {},
+                slug: (rp as any).slug,
+                title: (rp as any).title || (rp as any).content?.title || '',
+                createdAt: now,
+                updatedAt: now,
+              } as unknown as MagazinePage;
+            });
+          } else {
+            sourcePages = builderPages;
+          }
+        } catch {
+          sourcePages = builderPages;
+        }
+      } else {
+        sourcePages = builderPages;
+      }
+    }
+
+    if (Array.isArray(opts.readerPagesOverride) && opts.readerPagesOverride.length === 0) {
+      sourceKindForDebug = 'readerPagesOverride-empty';
+      sourcePages = [];
+    }
+
+    void sourceKindForDebug;
 
     const projected: any = mapBuilderIssueToReaderEdition(
       issueDoc as any,
-      pages,
+      sourcePages,
     );
 
     let existingReaderEditionId: string | undefined = String(issueDoc.readerEditionId || '').trim() || undefined;
@@ -1384,7 +1451,7 @@ export async function syncBuilderToReaderEditionAction(
           msg: '[DEBUG] syncBuilderToReaderEditionAction (H2 — schema swallowed errors check)',
           data: {
             issueId,
-            pagesCount: pages.length,
+            pagesCount: sourcePages.length,
             projectedPageCount: Array.isArray((projected as any).pages) ? (projected as any).pages.length : 0,
             schemaSuccess: parseResult.success,
             schemaErrorPaths: parseResult.success ? [] : (parseResult as any).error?.issues?.map((i: any) => ({ path: i?.path?.join?.('.') || String(i?.path), message: i?.message })).slice(0, 20) || [],
@@ -2561,3 +2628,4 @@ export async function getEditionsListingAction(): Promise<{ success: boolean; da
     return { success: false, error: error.message || 'Failed to load editions listing' };
   }
 }
+
