@@ -281,7 +281,14 @@ export function mapBuilderIssueToReaderEdition(
       ctaHref: String(normalized.ctaHref || '').trim() || undefined,
       label: String(normalized.label || '').trim() || undefined,
       mediaLayout: String(normalized.mediaLayout || '').trim() || undefined,
-      items: Array.isArray(normalized.items) ? (normalized.items as Array<{ title: string; page: string }>) : undefined,
+      items: Array.isArray(normalized.items)
+        ? (normalized.items as Array<Record<string, unknown>>)
+            .map((raw: Record<string, unknown>) => ({
+              title: String(raw.title || '').trim(),
+              page: String(raw.page ?? '').trim(),
+            }))
+            .filter((it) => it.title.length > 0 && it.page.length > 0)
+        : [],
     };
 
     const id = String(builderPage.sourceRef || builderPage.docId || `page-${position}`);
