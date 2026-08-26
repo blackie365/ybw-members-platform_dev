@@ -25,6 +25,10 @@ jobs:
       APPDIR: /srv/ybw-frontend
 
     steps:
+      - name: Sanitize runner environment
+        run: |
+          rm -rf "$HOME/setup-pnpm" 2>/dev/null || true
+
       - name: Sanity-check runner host and tooling
         run: |
           set -euo pipefail
