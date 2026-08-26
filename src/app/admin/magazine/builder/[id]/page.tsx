@@ -2028,8 +2028,34 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         ? readerEditionPages.filter((p) => !p.docId || !deletedShadowDocIds.has(p.docId))
         : [];
 
+      const mergedAfterDelete = (() => {
+        const deduped: MagazinePage[] = [];
+        const seenPositions = new Set<number>();
+        const seenLegacyDocIds = new Set<string>();
+        [...remainingLegacyPages, ...remainingShadowPages].forEach((page) => {
+          if (!page || typeof page !== 'object') return;
+          const docId = String((page as any).docId || '');
+          if (!docId) return;
+          if (docId.startsWith('reader:') === false) {
+            if (seenLegacyDocIds.has(docId)) return;
+            seenLegacyDocIds.add(docId);
+          }
+          const pos = typeof (page as any).position === 'number' ? (page as any).position : (typeof (page as any).pageNumber === 'number' ? (page as any).pageNumber : 0);
+          if (docId.startsWith('reader:') && Number.isFinite(pos) && pos > 0) {
+            if (seenPositions.has(pos)) return;
+            seenPositions.add(pos);
+          }
+          deduped.push(page);
+        });
+        return deduped.sort((a: any, b: any) => {
+          const pa = typeof a?.position === 'number' ? a.position : (typeof a?.pageNumber === 'number' ? a.pageNumber : 99999);
+          const pb = typeof b?.position === 'number' ? b.position : (typeof b?.pageNumber === 'number' ? b.pageNumber : 99999);
+          return pa - pb;
+        });
+      })();
+
       try {
-        await syncContentsPage([...remainingLegacyPages, ...remainingShadowPages]);
+        await syncContentsPage(mergedAfterDelete);
       } catch {
         /* Contents sync non-fatal */
       }
@@ -2038,7 +2064,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       setReaderEditionPages(remainingShadowPages);
 
       try {
-        await syncBuilderToReaderEditionAction(id);
+        await syncBuilderToReaderEditionAction(id, { readerPagesOverride: mergedAfterDelete });
       } catch (syncErr) {
         console.warn('[delete-all] ReaderEdition post-delete sync non-fatal:', syncErr);
       }
@@ -2177,18 +2203,25 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         ? readerEditionPages.filter((page) => page.docId !== shadowDocId)
         : readerEditionPages;
 
+      const combinedForContents = [
+        ...nextLegacyPages,
+        ...nextShadowPages.filter(
+          (sp) => !nextLegacyPages.some((lp) => (
+            (extractPrintPageNumberFromBuilderPage(lp) ?? 0) > 0
+            && (extractPrintPageNumberFromBuilderPage(sp) ?? 0) === (extractPrintPageNumberFromBuilderPage(lp) ?? 0)
+          )),
+        ),
+      ];
+
       try {
-        const combinedForContents = [
-          ...nextLegacyPages,
-          ...nextShadowPages.filter(
-            (sp) => !nextLegacyPages.some((lp) => (
-              (extractPrintPageNumberFromBuilderPage(lp) ?? 0) > 0
-              && (extractPrintPageNumberFromBuilderPage(sp) ?? 0) === (extractPrintPageNumberFromBuilderPage(lp) ?? 0)
-            )),
-          ),
-        ];
         await syncContentsPage(combinedForContents);
       } catch {}
+
+      try {
+        await syncBuilderToReaderEditionAction(id, { readerPagesOverride: combinedForContents });
+      } catch (syncErr) {
+        console.warn('[delete-page] ReaderEdition post-delete sync non-fatal:', syncErr);
+      }
 
       didSpreadSyncOnTabRef.current = true;
       if (selectedPageId === pageDocId
