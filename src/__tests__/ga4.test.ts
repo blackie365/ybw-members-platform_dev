@@ -282,25 +282,23 @@ describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
     "/YyM4W4biH7GgVRiamNhyycYCn4eJkpbt6KPtez6yzQWxkOWY=";
 
   const SYSTEMD_ORPHAN_N_KEY = (() => {
-    // Build a systemd-EnvironmentFile-mangled key: single line, no real
-    // newlines, stray single-letter 'n' inserted at BEGIN/END boundaries
-    // and between arbitrary 64-char chunks (this is exactly what the
-    // Ubuntu 22 systemd EnvironmentFile parser produces when a key has
-    // embedded literal two-char '\n' sequences — systemd strips the
-    // backslash and leaves orphan 'n's).
     const CHUNK = 64;
     const chunks: string[] = [];
     for (let i = 0; i < REAL_BODY_FRAGMENT.length; i += CHUNK) {
       chunks.push(REAL_BODY_FRAGMENT.slice(i, i + CHUNK));
     }
-    // In systemd-orphan format the stray 'n's also get leading/trailing
-    // whitespace from naive dotenv unquoting — emulate both extremes.
     const sep = " n";
     return `-----BEGIN PRIVATE KEY----- n${chunks.join(sep)}n -----END PRIVATE KEY----- n`;
   })();
 
+  const freshGa4Module = async () => {
+    return await import("../lib/server/ga4");
+  };
+
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.resetModules();
   });
 
   it("does not throw TypeError(Cannot create property '__altPems' on string) for systemd-mangled PEM (regression)", async () => {
@@ -314,16 +312,18 @@ describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
     const cryptoModule = require("crypto") as typeof import("crypto");
     let signCalls = 0;
     const sigLabel = Buffer.from("systemd-mangled-recovered");
-    vi.spyOn(cryptoModule, "createSign").mockImplementation(
-      (() => ({
-        update: vi.fn().mockReturnThis(),
-        end: vi.fn().mockReturnThis(),
-        sign: vi.fn(() => {
-          signCalls++;
-          return sigLabel;
-        }),
-      })) as unknown as typeof cryptoModule.createSign,
-    );
+    const spySign = vi
+      .spyOn(cryptoModule, "createSign")
+      .mockImplementation(
+        (() => ({
+          update: vi.fn().mockReturnThis(),
+          end: vi.fn().mockReturnThis(),
+          sign: vi.fn(() => {
+            signCalls++;
+            return sigLabel;
+          }),
+        })) as unknown as typeof cryptoModule.createSign,
+      );
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -363,11 +363,12 @@ describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
 
     let err: unknown = null;
     try {
-      const mod = await import("../lib/server/ga4");
+      const mod = await freshGa4Module();
       await mod.getGa4WebStatsReport({ range: "30d" });
     } catch (e) {
       err = e;
     } finally {
+      spySign.mockRestore();
       process.env = OLD_ENV;
       globalThis.fetch = originalFetch;
       vi.restoreAllMocks();
@@ -377,5 +378,130 @@ describe("getGa4WebStatsReport with systemd-mangled GOOGLE_PRIVATE_KEY", () => {
     expect(msg).not.toMatch(/TypeError/);
     expect(signCalls).toBeGreaterThanOrEqual(1);
     expect(err).toBeNull();
+  });
+
+  it("recovers and actually signs a systemd-orphan-nr-mangled RSA-2048 key (real crypto, no mocks)", async () => {
+    const cryptoModule = require("crypto") as typeof import("crypto");
+    const { privateKey: realPk, publicKey: realPub } = cryptoModule.generateKeyPairSync(
+      "rsa",
+      {
+        modulusLength: 2048,
+        publicExponent: 0x10001,
+      },
+    );
+    const strictPkcs8Pem = realPk.export({ type: "pkcs8", format: "pem" }) as string;
+
+    const BEG = "-----BEGIN PRIVATE KEY-----\n";
+    const END = "\n-----END PRIVATE KEY-----\n";
+    const bStart = strictPkcs8Pem.indexOf(BEG);
+    const bEnd = strictPkcs8Pem.indexOf(END);
+    const strictBody = strictPkcs8Pem.slice(bStart + BEG.length, bEnd);
+    const chunks = strictBody.split(/\n/).filter((l: string) => l.length > 0);
+    expect(chunks.length).toBeGreaterThanOrEqual(20);
+    expect(chunks.slice(0, -1).every((c: string) => c.length === 64)).toBe(true);
+
+    const separators = chunks.slice(1).map(() => "n");
+    const mangledBody =
+      chunks[0] + chunks.slice(1).map((c: string, i: number) => separators[i] + c).join("");
+    expect(/^[A-Za-z0-9+/=n]+$/.test(mangledBody)).toBe(true);
+
+    const systemdEnvValue =
+      "-----BEGIN PRIVATE KEY-----n" + mangledBody + "n-----END PRIVATE KEY-----n";
+    expect(/\n/.test(systemdEnvValue)).toBe(false);
+    expect(systemdEnvValue).toMatch(/-----BEGIN PRIVATE KEY-----n/);
+    expect(systemdEnvValue).toMatch(/n-----END PRIVATE KEY-----n$/);
+
+    const mod = await freshGa4Module();
+
+    // call signJwt directly (private function not exported) — so instead use the exported
+    // getAccessToken indirectly via a known JWT: sign a small claim using normalizePrivateKey
+    // as the key param to crypto.createSign by re-using the exported helper via SSR.
+    // Since normalizePrivateKey is not exported either, exercise the real GA4 pipeline
+    // end-to-end by forcing a fresh access token fetch. We invalidate any cached singleton
+    // access tokens by overriding the time. The actual call to Google is replaced with
+    // globalThis.fetch mock that records the assertion, which we then verify.
+    const OLD_ENV = { ...process.env };
+    process.env.GA4_PROPERTY_ID_CURRENT = "properties/219599906";
+    process.env.GA4_PROPERTY_ID_LEGACY = "properties/999999999";
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL =
+      "ga4-realcrypto@magnetic-tenure-365620.iam.gserviceaccount.com";
+    process.env.GOOGLE_PRIVATE_KEY = systemdEnvValue;
+
+    const originalFetch = globalThis.fetch;
+    let submittedAssertion: string | null = null;
+    let tokenFetches = 0;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      if (/oauth2\.googleapis\.com\/token/.test(url)) {
+        tokenFetches++;
+        const form = init?.body ? String(init.body) : "";
+        const m = form.match(/assertion=([^&]+)/);
+        submittedAssertion = m ? decodeURIComponent(m[1]) : null;
+        // Return an EXPIRED token so any future call always re-fetches, for determinism.
+        return new Response(
+          JSON.stringify({ access_token: "tok-" + tokenFetches, expires_in: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (/analyticsdata\.googleapis\.com.*runReport/.test(url)) {
+        return new Response(
+          JSON.stringify({
+            rows: [
+              {
+                metricValues: [
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "1" },
+                  { value: "0.5" },
+                  { value: "1" },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("not mocked: " + url, { status: 404 });
+    }) as typeof globalThis.fetch;
+
+    let err: unknown = null;
+    try {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.now() + 7200 * 1000);
+      await mod.getGa4WebStatsReport({ range: "30d" });
+    } catch (e) {
+      err = e;
+    } finally {
+      vi.useRealTimers();
+      process.env = OLD_ENV;
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    }
+    const msg = err ? String((err as Error)?.message ?? err) : "";
+    expect(msg).not.toMatch(/DECODER/);
+    expect(msg).not.toMatch(/1E08010C/);
+    expect(msg).not.toMatch(/Cannot create property/);
+    expect(msg).not.toMatch(/TypeError/);
+    expect(err).toBeNull();
+
+    expect(tokenFetches).toBeGreaterThanOrEqual(1);
+    expect(submittedAssertion).not.toBeNull();
+    const parts = (submittedAssertion as unknown as string).split(".");
+    expect(parts.length).toBe(3);
+    const signedPayload = `${parts[0]}.${parts[1]}`;
+    const sigBase64Url = parts[2];
+    const pad = (s: string) => s + "=".repeat((4 - (s.length % 4)) % 4);
+    const signature = Buffer.from(
+      pad(sigBase64Url).replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    );
+    const ok = cryptoModule.verify(
+      "RSA-SHA256",
+      Buffer.from(signedPayload),
+      realPub,
+      signature,
+    );
+    expect(ok).toBe(true);
   });
 });
