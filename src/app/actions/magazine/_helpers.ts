@@ -1,5 +1,3 @@
-'use server';
-
 import { adminDb } from '@/lib/firebase-admin';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { revalidatePath } from 'next/cache';
