@@ -20,6 +20,11 @@ import {
   getTemplateViewModel,
   loadTemplateRenderers,
 } from "@/features/magazine/domain/template-registry";
+import {
+  emitMagazineMutation,
+  subscribeMagazineMutations,
+  getCurrentMagazineRenderVersion,
+} from "@/features/magazine/domain/magazine-events";
 
 interface MagazineShellProps {
   edition: ReaderEdition;
@@ -82,8 +87,12 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState("");
   const [renderersLoaded, setRenderersLoaded] = useState(false);
+  const [containerVersion, setContainerVersion] = useState<number>(() =>
+    getCurrentMagazineRenderVersion(),
+  );
   const stageRef = useRef<HTMLDivElement | null>(null);
   const ignoreNextSearchParamsTick = useRef(false);
+  const pagesFingerprintRef = useRef<string>("");
 
   useEffect(() => {
     loadTemplateRenderers();
@@ -91,7 +100,35 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
     setImageVersion(Date.now().toString());
   }, []);
 
+  useEffect(() => {
+    const pages = Array.isArray(edition?.pages) ? [...edition.pages] : [];
+    const nextFingerprint = [
+      `len:${pages.length}`,
+      ...pages.slice(0, 120).map(
+        (p) =>
+          `${String(p.id || "")}:${String(p.position || "0")}:${String(p.template || "")}:${String(typeof (p as any).updatedAt === "string" ? (p as any).updatedAt : "").slice(0, 10)}`,
+      ),
+    ].join("|");
+    if (nextFingerprint !== pagesFingerprintRef.current) {
+      pagesFingerprintRef.current = nextFingerprint;
+      setImageVersion(Date.now().toString());
+    }
+  }, [edition]);
+
+  useEffect(() => {
+    const busId =
+      (edition && typeof (edition as any).issueId === "string" && (edition as any).issueId) ||
+      String(edition?.id || "");
+    if (!busId) return;
+    const unsub = subscribeMagazineMutations(busId, (payload) => {
+      setContainerVersion(payload.renderVersion || Date.now());
+      setImageVersion(Date.now().toString());
+    });
+    return unsub;
+  }, [edition?.id, (edition as any).issueId]);
+
   const pages = useMemo(() => {
+    void containerVersion;
     const raw = Array.isArray(edition.pages) ? [...edition.pages] : [];
     const hasCoverPage = raw.some((page) => page.template === "cover");
 
@@ -116,10 +153,11 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       const rPos = typeof right.position === "number" ? right.position : 0;
       return lPos - rPos;
     });
-  }, [edition]);
+  }, [edition, containerVersion]);
   const editionDate = formatEditionDate(edition.publishDate);
 
   const renderedPages = useMemo(() => {
+    void containerVersion;
     return pages.map((page) => {
       const template = String(page.template || "").trim().toLowerCase();
       const title = String(page.content?.title || "").trim().toLowerCase();
@@ -154,7 +192,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
         String(viewModel.title || "") || humanizeTemplate(effectiveTemplate);
       return { page, entry, viewModel, label, effectiveTemplate };
     });
-  }, [pages, edition]);
+  }, [pages, edition, containerVersion]);
 
   useEffect(() => {
     if (ignoreNextSearchParamsTick.current) {

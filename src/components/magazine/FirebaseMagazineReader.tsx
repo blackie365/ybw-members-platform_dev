@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, ExternalLink, Maximize2, Minimize2, X } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -20,6 +20,10 @@ import {
   PagePartner,
   PageSpotlight,
 } from '@/features/magazine/templates/shared';
+import {
+  subscribeMagazineMutations,
+  getCurrentMagazineRenderVersion,
+} from '@/features/magazine/domain/magazine-events';
 
 interface FirebaseMagazineReaderProps {
   issue: MagazineIssue;
@@ -333,10 +337,39 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState('');
+  const [containerVersion, setContainerVersion] = useState<number>(() =>
+    getCurrentMagazineRenderVersion(),
+  );
+  const pagesFingerprintRef = useRef<string>('');
 
   useEffect(() => {
     setImageVersion(Date.now().toString());
   }, []);
+
+  useEffect(() => {
+    const arr = Array.isArray(pages) ? pages : [];
+    const nextFingerprint = [
+      `len:${arr.length}`,
+      ...arr.slice(0, 160).map(
+        (p) =>
+          `${String((p as any).docId || p.id || '')}:${String((p as any).position || (p as any).pageNumber || p.id || '0')}:${String(p.type || '')}:${String(typeof (p as any).updatedAt === 'string' ? (p as any).updatedAt : '').slice(0, 10)}`,
+      ),
+    ].join('|');
+    if (nextFingerprint !== pagesFingerprintRef.current) {
+      pagesFingerprintRef.current = nextFingerprint;
+      setImageVersion(Date.now().toString());
+    }
+  }, [pages]);
+
+  useEffect(() => {
+    const busId = String(issue?.id || '');
+    if (!busId) return;
+    const unsub = subscribeMagazineMutations(busId, (payload) => {
+      setContainerVersion(payload.renderVersion || Date.now());
+      setImageVersion(Date.now().toString());
+    });
+    return unsub;
+  }, [issue?.id]);
 
   // #region debug-point live-magazine-layout
   useEffect(() => {
@@ -388,6 +421,7 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   // #endregion
 
   const renderedPages = useMemo(() => {
+    void containerVersion;
     // Determine structural page roles so we can order them in the canonical
     // reader order (Cover → Contents → Editor's Note → Articles → Back
     // Cover) regardless of how legacy Firestore numeric page.id values were
@@ -490,7 +524,7 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
         label: getPageTitle(page, issue),
       };
     });
-  }, [issue, pages]);
+  }, [issue, pages, containerVersion]);
 
   const current = renderedPages[currentPage];
 
