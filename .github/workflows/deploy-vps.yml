@@ -25,10 +25,6 @@ jobs:
       APPDIR: /srv/ybw-frontend
 
     steps:
-      - name: Sanitize runner environment
-        run: |
-          rm -rf "$HOME/setup-pnpm" 2>/dev/null || true
-
       - name: Sanity-check runner host and tooling
         run: |
           set -euo pipefail
@@ -40,7 +36,7 @@ jobs:
           command -v git
           command -v pnpm
           command -v node && node --version
-          pnpm --version
+          cd /tmp && pnpm --version
           sudo -n true && echo "sudo: nopasswd OK" || { echo "sudo requires password - fix /etc/sudoers.d/gha-runner-ybw-deploy"; exit 1; }
 
       - name: git fetch origin/main + reset APPDIR to ${{ github.sha }}
