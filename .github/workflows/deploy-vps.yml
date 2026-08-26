@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           APPDIR=/srv/ybw-frontend
-          LOG="$APPDIR/.deploy-$(date +%Y%m%d-%H%M%S).log"
+          LOG="/tmp/ybw-frontend-deploy-$(date +%Y%m%d-%H%M%S).log"
           echo "=== $(date -Is): start deploy (reason: ${{ github.event.inputs.reason || 'push main' }}) ===" | tee -a "$LOG"
 
           sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
