@@ -146,28 +146,62 @@ function normalizePrivateKey(raw: string): string {
   const rawBody = key.slice(headerIdx + `-----BEGIN ${headerType}-----`.length, footerIdx);
 
   const validBodies: string[] = [];
-  {
+  const cleanBase = (() => {
     let b = rawBody;
     if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
     if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
-    b = b.replace(/[\s\r\n]+/g, "");
+    return b.replace(/[\s\r\n]+/g, "");
+  })();
+  {
+    // The systemd EnvironmentFile= parser for Ubuntu 22 strips ONLY the backslash
+    // from dotenv-stored single-line values with embedded \n / \r\n.
+    // So a PEM originally formatted as:  <64 b64 chars>\n<64 b64 chars>\n …
+    // reaches process.env as:            <64 b64 chars>n<64 b64 chars>n …
+    // or with CRLF remnants:             <64 b64 chars>rn<64 b64 chars>rn …
+    // Walk in chunks of SIZE (try sizes 60..68 centred on 64 = canonical 76-char
+    // line minus 12 for BEGIN/END wrappers); after each chunk, skip 1..2 orphan
+    // [nr] chars. Then try the walked body as a candidate.
+    const walkChunk = (s: string, size: number): string => {
+      if (size <= 0 || size > 256) return s;
+      let i = 0;
+      let out = "";
+      while (i < s.length) {
+        const end = Math.min(i + size, s.length);
+        out += s.slice(i, end);
+        i = end;
+        if (i < s.length && /[nr]/.test(s[i])) {
+          i++;
+          if (i < s.length && /[nr]/.test(s[i])) i++;
+        }
+      }
+      return out;
+    };
+    // Edge variant: strip edge-adjacent orphans before walking. Keep any trailing base64
+    // padding '=' characters; remove only orphan 'n'/'r' that trail past them.
+    const trimmed = cleanBase
+      .replace(/^[nr]+/, "")
+      .replace(/(=*)[nr]+$/, "$1");
+    for (let sz = 60; sz <= 68; sz++) {
+      const b = walkChunk(trimmed, sz);
+      if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
+    }
+    for (let sz = 60; sz <= 68; sz++) {
+      const b = walkChunk(cleanBase, sz);
+      if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
+    }
+  }
+  {
+    const b = cleanBase;
     if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
   }
   {
-    let b = rawBody;
-    if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
-    if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
-    b = b.replace(/[\s\r\n]+/g, "");
+    let b = cleanBase;
     b = b.replace(/^[nr]/, "").replace(/[nr]$/, "");
     b = b.replace(/([A-Za-z0-9+/=])[nr](?=[A-Za-z0-9+/=])/g, "$1");
     if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
   }
   {
-    let b = rawBody;
-    if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
-    if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
-    b = b.replace(/[\s\r\n]+/g, "");
-    b = b.replace(/[nr]/g, "");
+    const b = cleanBase.replace(/[nr]/g, "");
     if (/^[A-Za-z0-9+/=]+$/.test(b) && b.length >= 128) validBodies.push(b);
   }
 
@@ -230,7 +264,31 @@ function signJwt(unsignedToken: string, privateKey: string) {
       : null;
 
   const expandBodyCandidates = (b64: string): string[] => {
+    const walkChunk = (s: string, size: number): string => {
+      if (size <= 0 || size > 256) return s;
+      let i = 0;
+      let out = "";
+      while (i < s.length) {
+        const end = Math.min(i + size, s.length);
+        out += s.slice(i, end);
+        i = end;
+        if (i < s.length && /[nr]/.test(s[i])) {
+          i++;
+          if (i < s.length && /[nr]/.test(s[i])) i++;
+        }
+      }
+      return out;
+    };
     const out: string[] = [];
+    const trimmed = b64.replace(/^[nr]+/, "").replace(/(=*)[nr]+$/, "$1");
+    for (let sz = 60; sz <= 68; sz++) {
+      const x = walkChunk(trimmed, sz);
+      if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
+    }
+    for (let sz = 60; sz <= 68; sz++) {
+      const x = walkChunk(b64, sz);
+      if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
+    }
     {
       const x = b64;
       if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
