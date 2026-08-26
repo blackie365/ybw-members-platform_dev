@@ -59,6 +59,10 @@ export function PageList({
     [pages],
   );
   const deleteAllCandidatePages = useMemo(
+    () => sortedPages,
+    [sortedPages],
+  );
+  const builderLegacyPages = useMemo(
     () => sortedPages.filter((p) => !p.readOnly && Boolean(p._legacyDocId)),
     [sortedPages],
   );
@@ -124,7 +128,7 @@ export function PageList({
                 }}
               >
                 <Trash2 className="h-3 w-3" />
-                Delete Builder Pages
+                Delete All Spreads
               </Button>
             )}
           </div>
@@ -308,11 +312,10 @@ export function PageList({
                     className="h-6 w-6 text-muted-foreground hover:text-destructive transition-colors" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (page.readOnly) return;
                       onDeletePage(page.docId);
                     }}
-                    disabled={isSaving || page.readOnly}
-                    title={page.readOnly ? 'Published via IDML — delete the ReaderEdition to remove' : 'Delete spread'}
+                    disabled={isSaving}
+                    title={page.readOnly ? 'Delete this IDML-published spread from live reader (re-import IDML later to restore)' : 'Delete spread'}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -391,16 +394,27 @@ export function PageList({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-destructive">
-              Delete builder-manual spreads
+              Delete all {deleteAllCandidatePages.length} spread{deleteAllCandidatePages.length === 1 ? '' : 's'}
             </DialogTitle>
             <DialogDescription>
-              This deletes <strong>{deleteAllCandidatePages.length} manually-created builder spread{deleteAllCandidatePages.length === 1 ? '' : 's'}</strong> (Layer B — real Firestore pages).
+              This removes <strong>ALL {deleteAllCandidatePages.length} spread{deleteAllCandidatePages.length === 1 ? '' : 's'}</strong> from the builder and the live digital reader edition.
               <br />
               <br />
-              <strong>{idmlPublishedPages.length} IDML-published spread{idmlPublishedPages.length === 1 ? '' : 's'}</strong> (Layer A — stored in the ReaderEdition doc) will <strong className="underline">NOT</strong> be deleted here.
+              Breakdown:
+              <ul className="list-disc ml-5 mt-2 space-y-1">
+                {builderLegacyPages.length > 0 && (
+                  <li>
+                    <strong>{builderLegacyPages.length} builder-created spread{builderLegacyPages.length === 1 ? '' : 's'}</strong> — deleted from <code>magazine_issues/pages</code> firestore subcollection (Layer B).
+                  </li>
+                )}
+                {idmlPublishedPages.length > 0 && (
+                  <li>
+                    <strong>{idmlPublishedPages.length} IDML-published spread{idmlPublishedPages.length === 1 ? '' : 's'}</strong> — removed from ReaderEdition document pages array in firestore (Layer A).
+                  </li>
+                )}
+              </ul>
               <br />
-              <br />
-              To remove IDML spreads: edit your InDesign file → re-export IDML → re-publish via Auto-Import, or open Firebase Console → <code className="text-[10px]">magazine_reader_editions/{idmlPublishedPages.length > 0 ? '[issueId]' : ''}</code> and delete the ReaderEdition doc directly.
+              To restore IDML spreads later: re-export InDesign as IDML → Auto-Import → publish.
               <br />
               <br />
               This action cannot be undone. The Story Library and issue metadata remain untouched.
@@ -408,18 +422,18 @@ export function PageList({
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              Type <strong className="text-destructive">DELETE BUILDER PAGES</strong> to confirm:
+              Type <strong className="text-destructive">DELETE ALL SPREADS</strong> to confirm:
             </p>
             <Input
               value={deleteAllConfirm}
               onChange={(e) => setDeleteAllConfirm(e.target.value)}
-              placeholder='Type "DELETE BUILDER PAGES"'
+              placeholder='Type "DELETE ALL SPREADS"'
               autoFocus
             />
             {deleteAllConfirm.trim().length > 0 &&
-              deleteAllConfirm.trim() !== 'DELETE BUILDER PAGES' && (
+              deleteAllConfirm.trim() !== 'DELETE ALL SPREADS' && (
                 <p className="text-[11px] text-destructive">
-                  Type exactly <strong>DELETE BUILDER PAGES</strong> (case-sensitive) to enable deletion.
+                  Type exactly <strong>DELETE ALL SPREADS</strong> (case-sensitive) to enable deletion.
                 </p>
               )}
           </div>
@@ -438,17 +452,16 @@ export function PageList({
               disabled={
                 isSaving ||
                 deleteAllCandidatePages.length === 0 ||
-                deleteAllConfirm.trim() !== 'DELETE BUILDER PAGES'
+                deleteAllConfirm.trim() !== 'DELETE ALL SPREADS'
               }
               onClick={async () => {
-                if (deleteAllConfirm.trim() !== 'DELETE BUILDER PAGES') return;
+                if (deleteAllConfirm.trim() !== 'DELETE ALL SPREADS') return;
                 setDeleteAllOpen(false);
                 setDeleteAllConfirm('');
                 await onDeleteAllPages?.();
               }}
             >
-              Delete {deleteAllCandidatePages.length} builder page
-              {deleteAllCandidatePages.length === 1 ? '' : 's'}
+              Delete all {deleteAllCandidatePages.length} spread{deleteAllCandidatePages.length === 1 ? '' : 's'}
             </Button>
           </DialogFooter>
         </DialogContent>
