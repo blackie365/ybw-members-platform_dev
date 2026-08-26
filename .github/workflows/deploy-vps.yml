@@ -46,27 +46,25 @@ jobs:
           LOG="$APPDIR/.deploy-$(date +%Y%m%d-%H%M%S).log"
           echo "=== $(date -Is): start deploy (reason: ${{ github.event.inputs.reason || 'push main' }}) ===" | tee -a "$LOG"
 
-          git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
-
-          cd "$APPDIR"
+          sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
 
           echo "[1/6] git fetch + reset hard to origin/main (sha=${GITHUB_SHA})" | tee -a "$LOG"
-          OLDREV=$(git rev-parse --short HEAD)
-          git fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
-          git -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
-          NEWREV=$(git rev-parse --short HEAD)
+          OLDREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
+          sudo git -C "$APPDIR" fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
+          sudo git -C "$APPDIR" -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
+          NEWREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
           echo "old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
-          [ "$(git rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA"; exit 2; }
+          [ "$(sudo git -C "$APPDIR" rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA"; exit 2; }
 
           echo "[2/6] chown checkout to www-data" | tee -a "$LOG"
           sudo /bin/chown -R www-data:www-data "$APPDIR" || true
 
           echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, non-interactive CI mode)" | tee -a "$LOG"
-          rm -f "$APPDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG"
+          sudo rm -f "$APPDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG" || true
           sudo -u www-data -H env CI=true pnpm -C "$APPDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
           echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" | tee -a "$LOG"
-          rm -rf "$APPDIR/.next/cache" "$APPDIR/node_modules/.cache" \
+          sudo rm -rf "$APPDIR/.next/cache" "$APPDIR/node_modules/.cache" \
                  "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
           sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
             pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
@@ -76,7 +74,7 @@ jobs:
 
           echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
           sudo /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
-          (systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
+          (sudo systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
             && sudo /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG" \
             || true
 
