@@ -180,20 +180,26 @@ function normalizePrivateKey(raw: string): string {
   const uniq = Array.from(new Set(validBodies));
   const b64 = uniq[0];
   const CHUNK = 64;
-  const lines: string[] = [];
-  for (let i = 0; i < b64.length; i += CHUNK) lines.push(b64.slice(i, i + CHUNK));
-  const strict = `-----BEGIN ${headerType}-----\n${lines.join("\n")}\n-----END ${footerType}-----\n`;
+  const buildPemFromBody = (body: string): string => {
+    const lines: string[] = [];
+    for (let i = 0; i < body.length; i += CHUNK) lines.push(body.slice(i, i + CHUNK));
+    return `-----BEGIN ${headerType}-----\n${lines.join("\n")}\n-----END ${footerType}-----\n`;
+  };
+  const strict = buildPemFromBody(b64);
   if (uniq.length === 1) return strict;
 
   const pems: string[] = [strict];
-  for (let k = 1; k < uniq.length; k++) {
-    const lb: string[] = [];
-    const body = uniq[k];
-    for (let i = 0; i < body.length; i += CHUNK) lb.push(body.slice(i, i + CHUNK));
-    pems.push(`-----BEGIN ${headerType}-----\n${lb.join("\n")}\n-----END ${footerType}-----\n`);
+  for (let k = 1; k < uniq.length; k++) pems.push(buildPemFromBody(uniq[k]));
+  const altPems = pems.slice(1);
+  try {
+    const boxed: { __altPems?: string[] } & string = Object(strict) as unknown as {
+      __altPems?: string[];
+    } & string;
+    boxed.__altPems = altPems;
+    return boxed as unknown as string;
+  } catch {
+    return strict;
   }
-  (strict as unknown as { __altPems?: string[] }).__altPems = pems.slice(1);
-  return strict;
 }
 
 function extractPrivateKeyHeaderType(raw: string): string | undefined {
@@ -204,9 +210,70 @@ function extractPrivateKeyFooterType(raw: string): string | undefined {
 }
 
 function signJwt(unsignedToken: string, privateKey: string) {
-  const altPems =
+  const head = extractPrivateKeyHeaderType(privateKey) ?? "";
+  const foot = extractPrivateKeyFooterType(privateKey) ?? "";
+  const hasMarkers =
+    !!head && !!foot && head === foot && privateKey.includes(foot);
+  const primaryBody =
+    hasMarkers
+      ? (() => {
+          const hIdx = privateKey.indexOf(`-----BEGIN ${head}-----`);
+          const fIdx = privateKey.indexOf(`-----END ${foot}-----`);
+          const raw = privateKey.slice(hIdx + `-----BEGIN ${head}-----`.length, fIdx);
+          let b = raw;
+          if (/\\n/.test(b)) b = b.replace(/\\n/g, "");
+          if (/\\r/.test(b)) b = b.replace(/\\r/g, "");
+          b = b.replace(/[\s\r\n]+/g, "");
+          if (/^[A-Za-z0-9+/=]+$/.test(b)) return b;
+          return null;
+        })()
+      : null;
+
+  const expandBodyCandidates = (b64: string): string[] => {
+    const out: string[] = [];
+    {
+      const x = b64;
+      if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
+    }
+    {
+      let x = b64.replace(/^[nr]/, "").replace(/[nr]$/, "");
+      x = x.replace(/([A-Za-z0-9+/=])[nr](?=[A-Za-z0-9+/=])/g, "$1");
+      if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
+    }
+    {
+      const x = b64.replace(/[nr]/g, "");
+      if (/^[A-Za-z0-9+/=]+$/.test(x) && x.length >= 128) out.push(x);
+    }
+    return out;
+  };
+
+  const rebuildPemFromBody = (b64: string): string | null => {
+    if (!hasMarkers || !b64) return null;
+    if (!/^[A-Za-z0-9+/=]+$/.test(b64) || b64.length < 128) return null;
+    const CHUNK = 64;
+    const lines: string[] = [];
+    for (let i = 0; i < b64.length; i += CHUNK) lines.push(b64.slice(i, i + CHUNK));
+    return `-----BEGIN ${head}-----\n${lines.join("\n")}\n-----END ${foot}-----\n`;
+  };
+
+  const attachedAlt =
     ((privateKey as unknown as { __altPems?: string[] }).__altPems ?? []) as string[];
-  const pemCandidates: string[] = [privateKey, ...altPems];
+
+  const pemCandidates: string[] = [];
+  const seen = new Set<string>();
+  const addPem = (p: string | null | undefined) => {
+    if (!p || seen.has(p)) return;
+    seen.add(p);
+    pemCandidates.push(p);
+  };
+
+  addPem(privateKey);
+  for (const a of attachedAlt) addPem(a);
+  if (primaryBody) {
+    for (const b of expandBodyCandidates(primaryBody)) {
+      addPem(rebuildPemFromBody(b));
+    }
+  }
 
   let lastErr: unknown = null;
   for (const pem of pemCandidates) {
