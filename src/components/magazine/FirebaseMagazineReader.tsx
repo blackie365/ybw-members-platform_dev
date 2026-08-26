@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, ExternalLink, Maximize2, Minimize2, X } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -337,9 +337,7 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageVersion, setImageVersion] = useState('');
-  const [containerVersion, setContainerVersion] = useState<number>(() =>
-    getCurrentMagazineRenderVersion(),
-  );
+  const [containerVersion, setContainerVersion] = useState<number>(() => getCurrentMagazineRenderVersion());
   const pagesFingerprintRef = useRef<string>('');
 
   useEffect(() => {
@@ -347,29 +345,31 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
   }, []);
 
   useEffect(() => {
-    const arr = Array.isArray(pages) ? pages : [];
-    const nextFingerprint = [
-      `len:${arr.length}`,
-      ...arr.slice(0, 160).map(
-        (p) =>
-          `${String((p as any).docId || p.id || '')}:${String((p as any).position || (p as any).pageNumber || p.id || '0')}:${String(p.type || '')}:${String(typeof (p as any).updatedAt === 'string' ? (p as any).updatedAt : '').slice(0, 10)}`,
-      ),
-    ].join('|');
-    if (nextFingerprint !== pagesFingerprintRef.current) {
-      pagesFingerprintRef.current = nextFingerprint;
+    const fingerprint = pages
+      .slice(0, 120)
+      .map((page) =>
+        [
+          String((page as any).id || (page as any).docId || ''),
+          String(typeof (page as any).position === 'number' ? (page as any).position : (page as any).sortOrder ?? ''),
+          String((page as any).type || (page as any).template || ''),
+          String((page as any).updatedAt || ''),
+        ].join(':'),
+      )
+      .join('|');
+    if (pagesFingerprintRef.current && pagesFingerprintRef.current !== fingerprint) {
       setImageVersion(Date.now().toString());
     }
+    pagesFingerprintRef.current = fingerprint;
   }, [pages]);
 
   useEffect(() => {
-    const busId = String(issue?.id || '');
-    if (!busId) return;
-    const unsub = subscribeMagazineMutations(busId, (payload) => {
-      setContainerVersion(payload.renderVersion || Date.now());
+    const busId = String(issue.id || (issue as any).readerEditionId || '').trim();
+    if (!busId) return () => undefined;
+    return subscribeMagazineMutations(busId, () => {
+      setContainerVersion(getCurrentMagazineRenderVersion());
       setImageVersion(Date.now().toString());
     });
-    return unsub;
-  }, [issue?.id]);
+  }, [issue.id, (issue as any).readerEditionId]);
 
   // #region debug-point live-magazine-layout
   useEffect(() => {
@@ -489,7 +489,28 @@ export default function FirebaseMagazineReader({ issue, pages }: FirebaseMagazin
       const insertAt = coverIndex !== -1 ? coverIndex + 1 : 1;
       orderedPages.splice(insertAt, 0, fallbackEditorial);
     }
-    return orderedPages.map((page, pageIndex) => {
+    // #region Bug #3: skip blank ad pages (no image + no title + no body) in legacy reader too
+    const filteredBlankAds = orderedPages.filter((page) => {
+      const tmpl = String((page as any).type || (page as any).template || '').trim().toLowerCase();
+      if (tmpl !== 'ad' && tmpl !== 'full-page-ad') return true;
+      const c = contentOf(page);
+      const title = String(c.title || '').trim();
+      const body = String(c.text || c.body || '').trim();
+      const hasContent =
+        title.length > 0 ||
+        body.length > 0 ||
+        (Array.isArray(c.items) ? (c.items as unknown[]).length > 0 : false);
+      const imageUrl = String(
+        c.imageUrl || c.backgroundImage || c.logoImage ||
+          (Array.isArray(c.imageUrls) && (c.imageUrls as string[])[0]) ||
+          c.heroImage || c.featureImage || c.mainImage || c.primaryImage || c.image || c.bannerImage ||
+          ''
+      ).trim();
+      const hasImage = imageUrl.length > 8;
+      return hasContent || hasImage;
+    });
+    // #endregion
+    return filteredBlankAds.map((page, pageIndex) => {
       const type = String(page.type || '').trim().toLowerCase();
       // HARD SAFETY GUARD: If `type === 'editorial'` but the underlying
       // page is mis-typed (e.g. write-side bug let Contents items[] leak
