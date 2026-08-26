@@ -9,7 +9,9 @@ on:
 jobs:
   test:
     name: Vitest
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - deploy
 
     steps:
       - name: Checkout
