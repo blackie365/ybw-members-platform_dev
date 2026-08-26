@@ -38,7 +38,7 @@ export interface MagazinePage {
   _legacyDocId?: string | null;
   _shadowDocId?: string | null;
   content: any;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 

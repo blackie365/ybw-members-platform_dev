@@ -204,6 +204,48 @@ export function isEditorsPage(page: ParsedIdmlPage): boolean {
   );
 }
 
+function stripAceTags(raw: string): string {
+  return String(raw || "")
+    .replace(/\s+/g, " ")
+    .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
+    .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
+    .trim();
+}
+
+function truncateArticleTitle(raw: string, maxWords = 14): string {
+  const clean = stripAceTags(raw);
+  if (!clean || clean.length <= 2) return "";
+  const words = clean.split(/\s+/).slice(0, maxWords);
+  return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+}
+
+function buildAdContent(
+  rasterImages: string[],
+  pdfImage: string,
+  pageLogos: string[],
+  body = "",
+): ReaderPageContent {
+  const hero = rasterImages[0] || pageLogos[0] || "";
+  return {
+    title: "Advertisement",
+    label: "Advertisement",
+    body,
+    imageUrl: hero,
+    imageUrls: rasterImages,
+    image: hero,
+    featureImage: hero,
+    heroImage: hero,
+    mainImage: hero,
+    backgroundImage: hero,
+    images: rasterImages,
+    gallery: rasterImages,
+    logoImage: pageLogos[0] || "",
+    logoImages: pageLogos,
+    partnerLogo: pageLogos[0] || "",
+    pdfUrl: pdfImage || undefined,
+  };
+}
+
 function uniqueStrings(values: Array<string | undefined | null>): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -479,16 +521,6 @@ function getPageImages(
 
 function getLogoImages(page: ParsedIdmlPage): string[] {
   return uniqueStrings(page?.logoImageFileNames || []);
-}
-
-function isRasterImageFileName(value: string): boolean {
-  // Extended list: covers the formats InDesign / design agencies typically
-  // place on ad pages. Only truly binary/vector "not renderable in a browser
-  // <img>" formats (ai, indd, key, pub, doc, pages, docx, rtf, zip) are
-  // filtered out. SVG renders fine in <img>.
-  return /\.(png|jpe?g|gif|webp|svg|tiff?|bmp|ico|avif|heic|heif|pdf)$/i.test(
-    String(value || "").trim(),
-  );
 }
 
 function splitRasterAndPdfImages(pageImages: string[]): {
@@ -854,14 +886,7 @@ export function detectArticles(pages: ParsedIdmlPage[]): Article[] {
         title: (() => {
           const s = titleStory?.title?.trim() || "";
           if (s.length >= 3) return s;
-          let t = String(titleStory?.text || "").replace(/\s+/g, " ").trim();
-          t = t
-            .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-            .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-            .trim();
-          if (!t || t.length <= 2) return "";
-          const words = t.split(/\s+/).slice(0, 14);
-          return words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
+          return truncateArticleTitle(titleStory?.text || "", 14);
         })(),
         author: "",
         bodyParts: (() => {
@@ -1040,11 +1065,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       String(firstStory?.text || "").replace(/\s+/g, " ").trim(),
     ];
     for (const raw of candidates) {
-      const clean = String(raw || "")
-        .replace(/\s+/g, " ")
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
+      const clean = stripAceTags(raw || "");
       if (clean.length >= 3) return clean;
     }
     return "";
@@ -1258,18 +1279,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         sourcePage.stories[0]?.title?.trim() ||
         sourcePage.stories[0]?.text?.trim() ||
         "";
-      let clean = String(raw).replace(/\s+/g, " ").trim();
-      clean = clean
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
-      if (!clean) continue;
-      const words = clean.split(/\s+/).slice(0, 16);
-      let fallbackTitle = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
-      fallbackTitle = fallbackTitle
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
+      const fallbackTitle = truncateArticleTitle(raw, 16);
       if (!fallbackTitle) continue;
       art.title = fallbackTitle;
       articleTitleFallbacks.set(sourcePage.pageNumber, fallbackTitle);
@@ -1284,31 +1294,12 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       const pageImagesRaw = getPageImages(sourcePage);
       const pageImages = filterNonPlaceholderUrls(pageImagesRaw);
       const adLogos = getLogoImages(sourcePage);
-      const adLogo = adLogos[0] || "";
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-      const adHero = rasterImages[0] || adLogo; // Fallback: if ONLY logo on page, use it as ad
       result.push({
         id: createPageId(`page-${pageNum}`, "ad"),
         position: 0,
         template: "ad",
-        content: {
-          title: "Advertisement",
-          label: "Advertisement",
-          body: "",
-          imageUrl: adHero,
-          imageUrls: rasterImages,
-          image: adHero,
-          featureImage: adHero,
-          heroImage: adHero,
-          mainImage: adHero,
-          backgroundImage: adHero,
-          images: rasterImages,
-          gallery: rasterImages,
-          logoImage: adLogo,
-          logoImages: adLogos,
-          partnerLogo: adLogo,
-          pdfUrl: pdfImage || undefined,
-        },
+        content: buildAdContent(rasterImages, pdfImage, adLogos),
       });
       continue;
     }
@@ -1350,17 +1341,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         (sourcePage.stories[0]?.title?.trim() ??
           sourcePage.stories[0]?.text?.trim() ??
           "");
-      let clean = String(raw).replace(/\s+/g, " ").trim();
-      clean = clean.replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "").trim();
-      clean = clean.replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "").trim();
-      if (!clean || clean.length <= 2) return "";
-      const words = clean.split(/\s+/).slice(0, fallbackWordMax);
-      let joined = words.join(" ").replace(/[.!?,;:]+$/g, "").trim();
-      joined = joined
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
-      return joined;
+      return truncateArticleTitle(raw, fallbackWordMax);
     };
     const pageTitle = detectPageTitle(14);
     const pageBodyRaw = article?.pageBodies?.[pageNum] || getPageBodyText(sourcePage);
@@ -1411,31 +1392,12 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       (sourcePage.stories.length === 0 ||
         !sourcePage.stories.some((s) => String(s.text || s.title || "").trim().length > 40));
     if (isImageOnlyNoStory && !article) {
-      const pageLogo = pageLogos[0] || "";
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-      const adHero = rasterImages[0] || pageLogo;
       result.push({
         id: createPageId(`page-${pageNum}`, "ad"),
         position: 0,
         template: "ad",
-        content: {
-          title: "Advertisement",
-          label: "Advertisement",
-          body: pageBody || "",
-          imageUrl: adHero,
-          imageUrls: rasterImages,
-          image: adHero,
-          featureImage: adHero,
-          heroImage: adHero,
-          mainImage: adHero,
-          backgroundImage: adHero,
-          images: rasterImages,
-          gallery: rasterImages,
-          logoImage: pageLogo,
-          logoImages: pageLogos,
-          partnerLogo: pageLogo,
-          pdfUrl: pdfImage || undefined,
-        },
+        content: buildAdContent(rasterImages, pdfImage, pageLogos, pageBody || ""),
       });
       continue;
     }
@@ -1446,31 +1408,12 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
     // the page's OWN stories/images. ---
     if (!article) {
       if (lookslikeAd) {
-        const pageLogo = pageLogos[0] || "";
         const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-        const adHero = rasterImages[0] || pageLogo;
         result.push({
           id: createPageId(`page-${pageNum}`, "ad"),
           position: 0,
           template: "ad",
-          content: {
-            title: "Advertisement",
-            label: "Advertisement",
-            body: pageBody || "",
-            imageUrl: adHero,
-            imageUrls: rasterImages,
-            image: adHero,
-            featureImage: adHero,
-            heroImage: adHero,
-            mainImage: adHero,
-            backgroundImage: adHero,
-            images: rasterImages,
-            gallery: rasterImages,
-            logoImage: pageLogo,
-            logoImages: pageLogos,
-            partnerLogo: pageLogo,
-            pdfUrl: pdfImage || undefined,
-          },
+          content: buildAdContent(rasterImages, pdfImage, pageLogos, pageBody || ""),
         });
         continue;
       }
@@ -1478,16 +1421,7 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       const standalonePosition = sourcePage.frames[0]?.position || "right";
       const standaloneTemplate = getFeatureTemplate(standalonePosition, false);
       const standFirst = getStandfirst(pageBody);
-      const standaloneTitleRaw = (() => {
-        const t = pageTitle || `Page ${pageNum}`;
-        return String(t)
-          .replace(/\s+/g, " ")
-          .trim();
-      })();
-      const standaloneTitleClean = standaloneTitleRaw
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
+      const standaloneTitleClean = stripAceTags(pageTitle || `Page ${pageNum}`);
       const standaloneTitleFellBack =
         !standaloneTitleClean ||
         /^Page\s+\d+$/i.test(standaloneTitleClean) ||
@@ -1498,31 +1432,12 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         pageImages.length > 0 &&
         !hasAnyArticleFrames
       ) {
-        const pageLogo = pageLogos[0] || "";
         const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-        const adHero = rasterImages[0] || pageLogo;
         result.push({
           id: createPageId(`page-${pageNum}`, "ad-fallback"),
           position: 0,
           template: "ad",
-          content: {
-            title: "Advertisement",
-            label: "Advertisement",
-            body: pageBody || "",
-            imageUrl: adHero,
-            imageUrls: rasterImages,
-            image: adHero,
-            featureImage: adHero,
-            heroImage: adHero,
-            mainImage: adHero,
-            backgroundImage: adHero,
-            images: rasterImages,
-            gallery: rasterImages,
-            logoImage: pageLogo,
-            logoImages: pageLogos,
-            partnerLogo: pageLogo,
-            pdfUrl: pdfImage || undefined,
-          },
+          content: buildAdContent(rasterImages, pdfImage, pageLogos, pageBody || ""),
         });
         continue;
       }
@@ -1568,20 +1483,8 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
       pageNum !== article.startPage,
     );
     const isContinuation = pageNum !== article.startPage;
-    const articleTitleClean = (() => {
-      const t = String(article.title || "").trim();
-      return t
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
-    })();
-    const pageLocalClean = (() => {
-      const t = detectPageTitle(16);
-      return t
-        .replace(/^<\?[A-Za-z_:][\w:.-]*\s*.*?\?>/g, "")
-        .replace(/<\?[A-Za-z_:][\w:.-]*\s*.*?\?>$/g, "")
-        .trim();
-    })();
+    const articleTitleClean = stripAceTags(article.title || "");
+    const pageLocalClean = stripAceTags(detectPageTitle(16));
     const finalTitle = (isContinuation
       ? articleTitleClean || pageLocalClean || String(pageNum)
       : articleTitleClean || pageLocalClean || String(pageNum)
@@ -1600,31 +1503,12 @@ export function mapIdmlToReaderPages(pages: ParsedIdmlPage[]): ReaderPage[] {
         (pageBody || "").trim().length < 55) &&
       pageImages.length > 0
     ) {
-      const pageLogo = pageLogos[0] || "";
       const { rasterImages, pdfImage } = splitRasterAndPdfImages(pageImages);
-      const adHero = rasterImages[0] || pageLogo;
       result.push({
         id: createPageId(`page-${pageNum}`, "ad"),
         position: 0,
         template: "ad",
-        content: {
-          title: "Advertisement",
-          label: "Advertisement",
-          body: pageBody || "",
-          imageUrl: adHero,
-          imageUrls: rasterImages,
-          image: adHero,
-          featureImage: adHero,
-          heroImage: adHero,
-          mainImage: adHero,
-          backgroundImage: adHero,
-          images: rasterImages,
-          gallery: rasterImages,
-          logoImage: pageLogo,
-          logoImages: pageLogos,
-          partnerLogo: pageLogo,
-          pdfUrl: pdfImage || undefined,
-        },
+        content: buildAdContent(rasterImages, pdfImage, pageLogos, pageBody || ""),
       });
       continue;
     }

@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
+import { normalizeImageUrl, normalizeStoryLibraryImageFields } from '@/lib/magazine-utils';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
@@ -946,13 +947,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     setSaving(true);
     try {
-      const normalized = normalizeStoryLibrary(storyLibrary || []);
+      const normalized = normalizeStoryLibraryImageFields(storyLibrary || []);
       const res = await saveMagazineStoryLibraryAction(id, normalized);
       if (res.success) {
         const saved = Array.isArray(res.data) ? res.data : normalized;
         setIssue((prev) => ({
           ...prev,
-          storyLibrary: normalizeStoryLibrary(saved),
+          storyLibrary: normalizeStoryLibraryImageFields(saved),
         }));
         // If the save resulted in new Story Library content, treat it as an
         // import-style event and auto-generate spreads to match. This ensures
@@ -1072,64 +1073,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to clear story library');
     }
   };
-
-  function normalizeImageUrl(raw: any): string {
-    if (typeof raw !== 'string') return '';
-    let value = raw.trim();
-    if (!value) return '';
-    while (/^[`'"<>\s]+|[`'"<>\s]+$/g.test(value)) {
-      value = value.replace(/^[`'"<>\s]+/, '').replace(/[`'"<>\s]+$/, '');
-    }
-    if (/^(undefined|null|none|n\/a)$/i.test(value)) return '';
-    if (/^https?:\/\//i.test(value)) return value;
-    const gsMatch = value.match(/^gs:\/\/([^/]+)\/(.+)$/i);
-    if (gsMatch) {
-      const bucket = gsMatch[1];
-      const path = gsMatch[2];
-      try {
-        const encodedPath = encodeURIComponent(path);
-        return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
-      } catch {
-        return '';
-      }
-    }
-    return value && /^https?:/i.test(value) ? value : '';
-  }
-
-  function normalizeStoryLibrary<T extends any>(items: T[]): T[] {
-    if (!Array.isArray(items)) return [];
-    const prim = ['imageUrl', 'image', 'featureImage', 'heroImage', 'mainImage', 'coverImage', 'photo', 'headshot', 'portrait', 'partnerLogo', 'logoImage', 'backgroundImage', 'logo', 'pdfUrl'];
-    const arrs = ['imageUrls', 'images', 'gallery', 'additionalImages', 'imageFileNames', 'logoImages', 'coverImages'];
-    return items.map((item) => {
-      if (!item || typeof item !== 'object') return item;
-      const next: any = { ...item };
-      for (const k of prim) {
-        if (k in next) {
-          next[k] = normalizeImageUrl(next[k]);
-        }
-      }
-      for (const k of arrs) {
-        if (Array.isArray(next[k])) {
-          next[k] = next[k]
-            .map((entry: any) => normalizeImageUrl(entry))
-            .filter((entry: string) => entry.length > 0);
-        }
-      }
-      if (typeof next.content === 'object' && next.content !== null) {
-        const c: any = { ...next.content };
-        for (const k of prim) {
-          if (k in c) c[k] = normalizeImageUrl(c[k]);
-        }
-        for (const k of arrs) {
-          if (Array.isArray(c[k])) {
-            c[k] = c[k].map((entry: any) => normalizeImageUrl(entry)).filter((s: string) => s.length > 0);
-          }
-        }
-        next.content = c;
-      }
-      return next as T;
-    });
-  }
 
   function pickStoryImage(story: any): string {
     if (!story) return '';
