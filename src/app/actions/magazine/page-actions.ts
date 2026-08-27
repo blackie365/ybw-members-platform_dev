@@ -154,3 +154,153 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string, 
     return { success: false, error: error.message };
   }
 }
+
+interface BulkUpdatePageEntry {
+  pageId: string;
+  data: Record<string, unknown>;
+  skipExistingFetch?: boolean;
+  existingDoc?: unknown;
+}
+
+export async function bulkUpdateMagazinePagesAction(
+  issueId: string,
+  entries: BulkUpdatePageEntry[],
+  opts: { skipSync?: boolean } = {},
+) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { success: true, updated: 0 };
+    }
+
+    const collectionRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
+    const batch = adminDb.batch();
+    let staged = 0;
+    let fetchedDocs = 0;
+    const t0 = Date.now();
+
+    const existingById = new Map<string, any>();
+    const needFetch: string[] = [];
+
+    for (const entry of entries) {
+      if (!entry?.pageId) continue;
+      if (entry.skipExistingFetch && entry.existingDoc && typeof entry.existingDoc === 'object') {
+        existingById.set(entry.pageId, { ...(entry.existingDoc as any) });
+      } else {
+        needFetch.push(entry.pageId);
+      }
+    }
+
+    if (needFetch.length > 0) {
+      const existingSnaps = await Promise.all(
+        needFetch.map((pid) => collectionRef.doc(pid).get()),
+      );
+      existingSnaps.forEach((snap, i) => {
+        existingById.set(needFetch[i], snap.exists ? snap.data() || {} : {});
+      });
+      fetchedDocs += existingSnaps.length;
+    }
+
+    for (const entry of entries) {
+      if (!entry?.pageId) continue;
+      const existingData: any = existingById.has(entry.pageId)
+        ? { ...existingById.get(entry.pageId) }
+        : {};
+
+      const raw: any = {
+        id: 0,
+        type: 'feature-full',
+        ...existingData,
+        docId: entry.pageId,
+        ...(entry.data || {}),
+        updatedAt: new Date().toISOString(),
+      };
+      if (raw.content && typeof raw.content === 'object') {
+        raw.content = normalizeMagazinePageContent(raw.content);
+      }
+      const validated = safeParseMagazine(
+        MagazinePageSchema,
+        raw,
+        `MagazinePage pageId=${entry.pageId} (bulkUpdateMagazinePagesAction)`,
+      );
+      if (!validated.ok) {
+        console.error('[bulkUpdateMagazinePagesAction] row validation failed:\n', validated.error);
+        return { success: false, error: validated.error, validationIssues: validated.issues, updated: staged };
+      }
+      const payload: any = { ...validated.value };
+      delete payload.docId;
+      batch.set(collectionRef.doc(entry.pageId), payload, { merge: true });
+      staged++;
+    }
+
+    await batch.commit();
+    const elapsed = Date.now() - t0;
+    console.log(
+      `[SAVEDIAG] ${new Date().toISOString()} bulkUpdateMagazinePagesAction commit OK: ${staged} pages, ${fetchedDocs} fetched, ${Date.now() - t0}ms`,
+    );
+
+    if (!opts.skipSync) {
+      try {
+        const t1 = Date.now();
+        await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+        console.log(
+          `[SAVEDIAG] ${new Date().toISOString()} bulkUpdate post-sync syncBuilderToReaderEditionAction ${Date.now() - t1}ms (total incl commit ${Date.now() - t0}ms)`,
+        );
+      } catch (syncErr: any) {
+        console.warn('[bulkUpdateMagazinePagesAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+      }
+    }
+
+    return { success: true, updated: staged, elapsedMs: elapsed };
+  } catch (error: any) {
+    console.error('Error in bulkUpdateMagazinePagesAction:', error);
+    return { success: false, error: error.message, updated: 0 };
+  }
+}
+
+export async function bulkDeleteMagazinePagesAction(
+  issueId: string,
+  pageIds: string[],
+  opts: { skipSync?: boolean } = {},
+) {
+  try {
+    await checkAdmin();
+    if (!adminDb) throw new Error('Database not initialized');
+    const ids = Array.isArray(pageIds) ? pageIds.filter((p) => typeof p === 'string' && p) : [];
+    if (ids.length === 0) {
+      return { success: true, deleted: 0 };
+    }
+
+    const collectionRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
+    const batch = adminDb.batch();
+    const t0 = Date.now();
+
+    for (const pid of ids) {
+      batch.delete(collectionRef.doc(pid));
+    }
+    await batch.commit();
+
+    const elapsed = Date.now() - t0;
+    console.log(
+      `[SAVEDIAG] ${new Date().toISOString()} bulkDeleteMagazinePagesAction commit OK: ${ids.length} pages in ${elapsed}ms`,
+    );
+
+    if (!opts.skipSync) {
+      try {
+        const t1 = Date.now();
+        await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+        console.log(
+          `[SAVEDIAG] ${new Date().toISOString()} bulkDelete post-sync syncBuilderToReaderEditionAction ${Date.now() - t1}ms (total incl commit ${Date.now() - t0}ms)`,
+        );
+      } catch (syncErr: any) {
+        console.warn('[bulkDeleteMagazinePagesAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+      }
+    }
+
+    return { success: true, deleted: ids.length, elapsedMs: elapsed };
+  } catch (error: any) {
+    console.error('Error in bulkDeleteMagazinePagesAction:', error);
+    return { success: false, error: error.message, deleted: 0 };
+  }
+}
