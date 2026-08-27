@@ -87,6 +87,15 @@ const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
   partner: 'PARTNER',
 };
 
+function sortByPrintOrder<T extends any>(pages: T[]): T[] {
+  return [...pages].sort((a, b) => {
+    const la = extractPrintPageNumberFromBuilderPage(a) ?? (Number((a as any).id || 0) || 0);
+    const lb = extractPrintPageNumberFromBuilderPage(b) ?? (Number((b as any).id || 0) || 0);
+    if (la !== lb) return la - lb;
+    return (Number((a as any).id || 0) || 0) - (Number((b as any).id || 0) || 0);
+  });
+}
+
 function normalizeBuilderIdentity(value: unknown): string {
   return String(value || '')
     .toLowerCase()
@@ -429,7 +438,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const pagesRes = await getMagazinePagesAction(id);
       const currentPages: MagazinePage[] =
         pagesRes?.success && Array.isArray(pagesRes.data)
-          ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+          ? sortByPrintOrder(pagesRes.data as MagazinePage[])
           : [];
       const nextPages = await runSingleFlightSync(savedLibrary, currentPages, {
         suppressToast: true,
@@ -766,7 +775,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         // Load Pages
         const pagesRes = await getMagazinePagesAction(id);
         if (pagesRes?.success && pagesRes.data) {
-          loadedPages = [...(pagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
+          loadedPages = sortByPrintOrder(pagesRes.data as any[]);
         }
 
         // Load linked ReaderEdition (IDML publish path) — convert to shadow
@@ -904,7 +913,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const pagesRes = await getMagazinePagesAction(id);
           const currentPages: MagazinePage[] =
             pagesRes?.success && Array.isArray(pagesRes.data)
-              ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+              ? sortByPrintOrder(pagesRes.data as MagazinePage[])
               : [];
           if (cancelled) return;
           // Don't clobber existing manual pages. If admin already has spreads
@@ -993,7 +1002,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const pagesRes = await getMagazinePagesAction(id);
           const currentPages: MagazinePage[] =
             pagesRes?.success && Array.isArray(pagesRes.data)
-              ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+              ? sortByPrintOrder(pagesRes.data as MagazinePage[])
               : [];
           // Only auto-generate when pages list is actually empty + story
           // library was just populated for the first time. If the admin
@@ -1044,7 +1053,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         const pagesRes = await getMagazinePagesAction(id);
         const currentPages: MagazinePage[] =
           pagesRes?.success && Array.isArray(pagesRes.data)
-            ? [...(pagesRes.data as MagazinePage[])].sort((a, b) => (a.id || 0) - (b.id || 0))
+            ? sortByPrintOrder(pagesRes.data as MagazinePage[])
             : [];
         if (currentPages.length === 0 && Array.isArray(storyLibrary) && storyLibrary.length > 0) {
           const nextPages = await runSingleFlightSync(storyLibrary, currentPages, {
@@ -1798,7 +1807,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
-    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const sortedPages = sortByPrintOrder(pages);
     const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
     if (currentIndex === -1) {
       toast.warning('This spread has not finished syncing yet — please reload the page and try again in a moment.');
@@ -1826,7 +1835,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
-    const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const sortedPages = sortByPrintOrder(pages);
     const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
     if (currentIndex === -1) {
       toast.warning('This spread has not finished syncing yet — please reload the page and try again in a moment.');
@@ -2027,7 +2036,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         /* Contents sync non-fatal */
       }
 
-      setPages(remainingLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+      setPages(sortByPrintOrder(remainingLegacyPages));
       setReaderEditionPages(remainingShadowPages);
 
       try {
@@ -2196,7 +2205,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         || (shadowDocId && selectedPageId === shadowDocId)) {
         setSelectedPageId(null);
       }
-      setPages(nextLegacyPages.sort((a, b) => (a.id || 0) - (b.id || 0)));
+      setPages(sortByPrintOrder(nextLegacyPages));
       setReaderEditionPages(nextShadowPages);
 
       if (!firestoreOk) {
