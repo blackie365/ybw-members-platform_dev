@@ -161,10 +161,15 @@ export function deriveIssueSlug(input: {
  * reader" work. The reader route now calls this on the builder document
  * instead of reading the legacy magazine_reader_editions collection.
  *
- * Page order is the canonical array index of `pages[]` (sorted by
- * MagazinePage.id ascending, which matches getMagazinePagesAction's
- * `.orderBy('id', 'asc')`). Print page numbers are extracted from id strings
- * using the same page-7-title → 7 algorithm as buildReaderContentsItemsFromPages.
+ * Page order is now the canonical print-position authority:
+ * `extractPrintPageNumberFromBuilderPage` (page.position > page.pageNumber >
+ * content.position/pageNumber > id regex > numeric id fallback), with id
+ * tiebreak + docId stable tiebreak. This MATCHES the builder list sorting,
+ * the builder move Up/Down index math, mergeDisplayedPages, buildContentsItems
+ * and the reader pipeline — so admin drag-reorder writes into page.position
+ * are preserved end-to-end into the ReaderEdition position=idx+1 mapping.
+ * (Previously used raw numeric `.id` ascending tied to `orderBy('id', 'asc')`
+ * which silently clobbered admin drag-reorder when id ≠ position.)
  */
 export function mapBuilderIssueToReaderEdition(
   issue: MagazineIssue & {
@@ -175,21 +180,18 @@ export function mapBuilderIssueToReaderEdition(
   builderPages: MagazinePage[],
 ): ReaderEdition & { schemaVersion: number } {
   const sorted = [...builderPages].sort((a, b) => {
-    const la = typeof a.id === 'number' ? a.id : Number(a.id || 0);
-    const lb = typeof b.id === 'number' ? b.id : Number(b.id || 0);
-    if (Number.isFinite(la) && Number.isFinite(lb) && la !== lb) return la - lb;
-    return 0;
+    const la = extractPrintPageNumberFromBuilderPage(a) ?? (Number(a.id || 0) || 0);
+    const lb = extractPrintPageNumberFromBuilderPage(b) ?? (Number(b.id || 0) || 0);
+    if (la !== lb) return la - lb;
+    const na = typeof a.id === 'number' ? a.id : Number(a.id || 0);
+    const nb = typeof b.id === 'number' ? b.id : Number(b.id || 0);
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    return String(a.docId || '').localeCompare(String(b.docId || ''));
   });
 
   const pagePrintNumberFrom = (page: MagazinePage, idx: number): number => {
-    if (typeof (page as any).pageNumber === 'number' && Number.isFinite((page as any).pageNumber)) {
-      return (page as any).pageNumber;
-    }
-    const idStr = String(page.sourceRef || page.id || '');
-    let m = idStr.match(/^page[-_](\d+)[-_]/);
-    if (m) return Number(m[1]);
-    m = idStr.match(/[-_](\d+)[-_]?[^-_]*$/);
-    if (m) return Number(m[1]);
+    const fromAuthority = extractPrintPageNumberFromBuilderPage(page);
+    if (typeof fromAuthority === 'number' && Number.isFinite(fromAuthority)) return fromAuthority;
     const numeric = typeof page.id === 'number' ? page.id : Number(page.id || 0);
     if (Number.isFinite(numeric) && numeric > 0 && numeric < 10_000) return numeric;
     return idx + 1;
