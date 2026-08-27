@@ -16,6 +16,8 @@ import {
   updateMagazinePageAction,
   addMagazinePageAction,
   deleteMagazinePageAction,
+  bulkUpdateMagazinePagesAction,
+  bulkDeleteMagazinePagesAction,
 } from './magazine/page-actions';
 import {
   getMagazineStoryLibraryAction,
@@ -59,6 +61,8 @@ export {
   updateMagazinePageAction,
   addMagazinePageAction,
   deleteMagazinePageAction,
+  bulkUpdateMagazinePagesAction,
+  bulkDeleteMagazinePagesAction,
   getMagazineStoryLibraryAction,
   saveMagazineStoryLibraryAction,
   syncBuilderToReaderEditionAction,

@@ -23,6 +23,8 @@ import {
   addMagazinePageAction,
   updateMagazinePageAction,
   deleteMagazinePageAction,
+  bulkUpdateMagazinePagesAction,
+  bulkDeleteMagazinePagesAction,
   getGhostPostsAction,
   importIdmlToStoryLibraryAction,
   getReaderEditionByIssueIdAction,
@@ -605,44 +607,49 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setPages(nextPages);
     setSaving(true);
     try {
-      const results = await Promise.all(
-        changedPages.map((page) => {
-          const previousPage = previousPageByDocId.get(page.docId);
-          const payload: {
-            pageNumber?: number;
-            position?: number;
-            content?: any;
-          } = {};
+      const entries: Array<{
+        pageId: string;
+        data: Record<string, unknown>;
+        skipExistingFetch: true;
+        existingDoc: MagazinePage | undefined;
+      }> = [];
 
-          const positionFieldsChanged =
-            previousPage?.position !== page.position ||
-            previousPage?.pageNumber !== page.pageNumber ||
-            (previousPage?.content?.position ?? null) !== (page.content?.position ?? null) ||
-            (previousPage?.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
+      for (const page of changedPages) {
+        const previousPage = previousPageByDocId.get(page.docId);
+        const payload: Record<string, unknown> = {};
 
-          if (positionFieldsChanged) {
-            payload.pageNumber = page.pageNumber;
-            payload.position = page.position;
-            payload.content = page.content;
-          } else if (
-            page.type === 'contents' &&
-            JSON.stringify(previousPage?.content?.items || []) !==
-              JSON.stringify(page.content?.items || [])
-          ) {
-            payload.content = page.content;
-          }
+        const positionFieldsChanged =
+          previousPage?.position !== page.position ||
+          previousPage?.pageNumber !== page.pageNumber ||
+          (previousPage?.content?.position ?? null) !== (page.content?.position ?? null) ||
+          (previousPage?.content?.pageNumber ?? null) !== (page.content?.pageNumber ?? null);
 
-          return updateMagazinePageAction(id, page.docId, payload, {
-            skipSync: true,
-            skipExistingFetch: true,
-            existingDoc: previousPage,
-          });
-        }),
-      );
+        if (positionFieldsChanged) {
+          payload.pageNumber = page.pageNumber;
+          payload.position = page.position;
+          payload.content = page.content;
+        } else if (
+          page.type === 'contents' &&
+          JSON.stringify(previousPage?.content?.items || []) !==
+            JSON.stringify(page.content?.items || [])
+        ) {
+          payload.content = page.content;
+        }
 
-      const failedUpdate = results.find((result) => !result?.success);
-      if (failedUpdate) {
-        throw new Error(failedUpdate.error || 'Failed to reorder pages');
+        if (Object.keys(payload).length === 0) continue;
+        entries.push({
+          pageId: page.docId,
+          data: payload,
+          skipExistingFetch: true,
+          existingDoc: previousPage,
+        });
+      }
+
+      if (entries.length > 0) {
+        const bulkRes = await bulkUpdateMagazinePagesAction(id, entries, { skipSync: true });
+        if (!bulkRes.success) {
+          throw new Error(bulkRes.error || 'Failed to reorder pages');
+        }
       }
     } catch (err) {
       setPages(previousPages);
@@ -1975,6 +1982,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let firestoreDeleted = 0;
       let firestoreFailed = 0;
 
+      const legacyDocIdsToDelete: string[] = [];
       for (const page of allMerged) {
         if (!page || typeof page.docId !== 'string') continue;
 
@@ -1985,19 +1993,21 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
 
         if (legacyDocId) {
-          try {
-            const res = await deleteMagazinePageAction(id, legacyDocId, { skipSync: true });
-            if (!res.success) {
-              firestoreFailed++;
-            } else {
-              firestoreDeleted++;
-              deletedLegacyDocIds.add(legacyDocId);
-            }
-          } catch {
-            firestoreFailed++;
+          if (!deletedLegacyDocIds.has(legacyDocId)) {
+            legacyDocIdsToDelete.push(legacyDocId);
           }
         } else if (shadowDocId) {
           firestoreDeleted++;
+        }
+      }
+
+      if (legacyDocIdsToDelete.length > 0) {
+        const bulkRes = await bulkDeleteMagazinePagesAction(id, legacyDocIdsToDelete, { skipSync: true });
+        if (bulkRes.success) {
+          firestoreDeleted += legacyDocIdsToDelete.length;
+          legacyDocIdsToDelete.forEach((did) => deletedLegacyDocIds.add(did));
+        } else {
+          firestoreFailed += legacyDocIdsToDelete.length;
         }
       }
 
