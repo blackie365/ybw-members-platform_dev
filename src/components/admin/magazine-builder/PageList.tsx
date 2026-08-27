@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { PAGE_TYPES, MagazinePage } from './types';
+import { extractPrintPageNumberFromBuilderPage } from '@/features/magazine/domain/builder-to-reader';
 
 interface PageListProps {
   pages: MagazinePage[];
@@ -55,7 +56,12 @@ export function PageList({
   isSaving 
 }: PageListProps) {
   const sortedPages = useMemo(
-    () => [...pages].sort((left, right) => (left.id || 0) - (right.id || 0)),
+    () => [...pages].sort((left, right) => {
+      const la = extractPrintPageNumberFromBuilderPage(left) ?? (Number(left.id || 0) || 0);
+      const lb = extractPrintPageNumberFromBuilderPage(right) ?? (Number(right.id || 0) || 0);
+      if (la !== lb) return la - lb;
+      return (left.id || 0) - (right.id || 0);
+    }),
     [pages],
   );
   const deleteAllCandidatePages = useMemo(
