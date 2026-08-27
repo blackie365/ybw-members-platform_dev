@@ -192,7 +192,7 @@ export function PageList({
                   }`}
                   disabled={isSaving || page.readOnly}
                   aria-label={`Drag to reorder ${page.content?.title || page.content?.name || 'page'}`}
-                  title={page.readOnly ? 'Published via IDML — reorder in the IDML file' : 'Drag to reorder'}
+                  title={page.readOnly ? 'Still finishing an automatic IDML sync — reload the page in a moment' : 'Drag to reorder'}
                 >
                   <GripVertical className="h-3.5 w-3.5" />
                 </button>
@@ -210,7 +210,7 @@ export function PageList({
                       </h4>
                       {page.readOnly && (
                         <span className="text-[8px] font-medium text-muted-foreground/80 uppercase tracking-wide shrink-0 bg-muted/50 px-1.5 py-[1px] rounded border border-muted">
-                          IDML
+                          SYNCING
                         </span>
                       )}
                     </div>
@@ -315,7 +315,7 @@ export function PageList({
                       onDeletePage(page.docId);
                     }}
                     disabled={isSaving}
-                    title={page.readOnly ? 'Delete this IDML-published spread from live reader (re-import IDML later to restore)' : 'Delete spread'}
+                    title={page.readOnly ? 'Still finishing an automatic IDML sync — reload the page in a moment before deleting' : 'Delete spread'}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
