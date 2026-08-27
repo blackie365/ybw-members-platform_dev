@@ -1040,6 +1040,33 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
     issueExists && issueDoc.data ? (issueDoc.data() as Record<string, unknown>) : null;
 
   /**
+   * AUTHORITY #0 — CANONICAL EDITABLE STORE (see "single fully-editable
+   * pipeline" simplification): magazine_issues/{id}/pages is now the single
+   * store admins actually edit — every save, IDML publish, and "Sync
+   * Published IDML → Builder" writes there. If it has content, build the
+   * ReaderEdition directly from it and return immediately, so a page saved
+   * in the builder is guaranteed to be what visitors see, without depending
+   * on the separate magazine_reader_editions mirror staying in sync.
+   * ADDITIVE, NOT DESTRUCTIVE: this does not remove AUTHORITY #1/#2 below
+   * — they remain as fallbacks for any edition that predates this store
+   * (see the file-level "single source of truth" comment for why blind
+   * priority re-shuffles have caused regressions here before; this is a
+   * new, additive fast-path in front of the existing chain, not a reorder
+   * of the existing merge logic).
+   */
+  if (issueExists && issueRaw) {
+    try {
+      const ed = await getReaderEditionFromBuilderIssue(firestore, issueId, issueRaw);
+      if (ed) return ed;
+    } catch (err) {
+      console.warn(
+        '[getReaderEditionByIssueId] AUTHORITY#0 direct builder-pages fetch failed (falling back):',
+        err,
+      );
+    }
+  }
+
+  /**
    * AUTHORITY #1 — FAST PATH (see block comment at top of file):
    * magazine_issues.readerEditionId → hydrate EXACT reader edition doc → return NOW.
    * No merges, no reconstructions, no where() fallback races.
@@ -1223,6 +1250,25 @@ export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
 export async function getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
   const firestore = getFirestore();
   if (!firestore) return null;
+
+  /**
+   * AUTHORITY #0 — CANONICAL EDITABLE STORE: see getReaderEditionByIssueId's
+   * AUTHORITY #0 comment. Additive fast-path in front of the existing
+   * AUTHORITY #1/#2 chain below — not a reorder of that chain's own logic.
+   */
+  const builderMatchFirst = await findBuilderIssueBySlug(firestore, slug);
+  if (builderMatchFirst) {
+    try {
+      const ed = await getReaderEditionFromBuilderIssue(
+        firestore,
+        builderMatchFirst.issueId,
+        builderMatchFirst.issueRaw,
+      );
+      if (ed) return ed;
+    } catch (err) {
+      console.warn('[getReaderEditionBySlug] AUTHORITY#0 direct builder-pages fetch failed (falling back):', err);
+    }
+  }
 
   /**
    * AUTHORITY #1 (see file-level comment): direct COLLECTION slug match.
