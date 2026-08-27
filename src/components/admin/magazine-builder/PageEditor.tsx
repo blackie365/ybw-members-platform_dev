@@ -1634,12 +1634,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               className="bg-accent text-white"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              {readOnly ? 'Read Only' : 'Save Page'}
+              {readOnly ? 'Syncing…' : 'Save Page'}
             </Button>
           </div>
           {readOnly ? (
             <p className="text-[10px] text-muted-foreground/80 sm:text-right">
-              Published via IDML — re-publish the InDesign export to edit this spread.
+              Still finishing an automatic IDML sync for this spread — reload the page in a moment to edit.
             </p>
           ) : hasJsonErrors ? (
             <p className="text-[10px] text-destructive sm:text-right">Fix JSON errors above before saving.</p>

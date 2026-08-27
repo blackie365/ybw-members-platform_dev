@@ -794,12 +794,36 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 typeof (p as any).sourceReaderEditionId === 'string' &&
                 (p as any).sourceReaderEditionId === reId,
               );
+              loadedReaderId = reId;
               if (!legacySyncedWithSameEdition) {
-                loadedReaderId = reId;
-                loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+                // AUTO-PROMOTE (totally editable, no manual step required):
+                // there is no more "read-only IDML shadow" state an admin has
+                // to know about. The moment the builder opens an issue with
+                // published-but-unsynced IDML content, silently run the same
+                // conversion previously exposed only as the manual
+                // "Sync Published IDML → Builder" button, turning every
+                // ReaderEdition page into a normal editable spread before the
+                // page list ever renders.
+                try {
+                  const syncRes = await runSyncLegacyFromReaderEditionAction(id);
+                  if (syncRes?.success) {
+                    const refreshedPagesRes = await getMagazinePagesAction(id);
+                    if (refreshedPagesRes?.success && Array.isArray(refreshedPagesRes.data)) {
+                      loadedPages = [...(refreshedPagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
+                    }
+                    loadedReaderPages = [];
+                  } else {
+                    // Auto-sync failed — fall back to showing the shadow pages
+                    // (read-only) rather than silently hiding content.
+                    console.warn('Auto-sync ReaderEdition → editable builder pages failed:', syncRes?.error);
+                    loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+                  }
+                } catch (autoSyncErr) {
+                  console.warn('Auto-sync ReaderEdition → editable builder pages threw (non-fatal):', autoSyncErr);
+                  loadedReaderPages = convertReaderPagesToShadow(rp, reId);
+                }
               } else {
-                // Synced = legacy pages are authoritative; don't surface shadows.
-                loadedReaderId = reId;
+                // Already synced = legacy pages are authoritative; don't surface shadows.
                 loadedReaderPages = [];
               }
             }
@@ -1694,7 +1718,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     await emitAndSync('page-saved', pageDocId, { forceSync: false });
     const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
     if (shadowPage?.readOnly) {
-      toast.warning('Published IDML pages are read-only. Re-publish the IDML to edit.');
+      toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
     // Optimistically update local state to reflect changes immediately
@@ -1738,7 +1762,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     await emitAndSync('page-type-changed', pageDocId, { forceSync: false });
     const shadowPage = readerEditionPages.find(p => p.docId === pageDocId);
     if (shadowPage?.readOnly) {
-      toast.warning('Published IDML pages are read-only. Re-publish the IDML to change layout.');
+      toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
     const nextPages = pages.map((p) => (p.docId === pageDocId ? { ...p, type } : p));
@@ -1771,13 +1795,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       readerEditionPages.some(p => p.docId === pageDocId) ||
       String(pageDocId || '').startsWith('reader:');
     if (mergedPage?.readOnly || shadowBacking) {
-      toast.warning('IDML-published pages are read-only. Run "Sync ReaderEdition → Builder" to create editable copies, then reorder.');
+      toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((p) => p.docId === pageDocId);
     if (currentIndex === -1) {
-      toast.warning('This spread comes from the published ReaderEdition and cannot be reordered. Sync to editable builder pages first.');
+      toast.warning('This spread has not finished syncing yet — please reload the page and try again in a moment.');
       return;
     }
     if (direction === 'up' && currentIndex === 0) return;
@@ -1799,13 +1823,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       readerEditionPages.some(p => p.docId === pageDocId) ||
       String(pageDocId || '').startsWith('reader:');
     if (mergedPage?.readOnly || shadowBacking) {
-      toast.warning('IDML-published pages are read-only. Run "Sync ReaderEdition → Builder" to create editable copies, then reorder.');
+      toast.warning('Still finishing an automatic IDML sync for this page — please reload the page and try again in a moment.');
       return;
     }
     const sortedPages = [...pages].sort((a, b) => (a.id || 0) - (b.id || 0));
     const currentIndex = sortedPages.findIndex((page) => page.docId === pageDocId);
     if (currentIndex === -1) {
-      toast.warning('This spread comes from the published ReaderEdition and cannot be reordered. Sync to editable builder pages first.');
+      toast.warning('This spread has not finished syncing yet — please reload the page and try again in a moment.');
       return;
     }
 
