@@ -53,12 +53,17 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     }
     const payload: any = { ...validated.value };
     delete payload.docId;
+    const t0 = Date.now();
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
+    console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction write OK pageId=${pageId} in ${Date.now() - t0}ms`);
     try {
+      const t1 = Date.now();
       await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+      console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction syncBuilderToReaderEditionAction done in ${Date.now() - t1}ms`);
     } catch (syncErr: any) {
       console.warn('[updateMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
     }
+    console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction TOTAL ${Date.now() - t0}ms`);
     return { success: true };
   } catch (error: any) {
     console.error("Error in updateMagazinePageAction:", error);
