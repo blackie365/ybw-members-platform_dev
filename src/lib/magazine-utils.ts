@@ -355,6 +355,44 @@ export function normalizeMagazinePageContent(contentIn: any): any {
     }
   }
 
+  // 4) Canonical image fields. Every importer (IDML, Ghost, manual, Story
+  //    Library) and every template still reads/writes a different subset of
+  //    ~15 aliased image fields (image/featureImage/heroImage/mainImage/
+  //    coverImage/photo/headshot/portrait + images[]/gallery[]/
+  //    additionalImages[]). Rather than rewriting every renderer at once
+  //    (risky without live verification), we derive TWO canonical fields
+  //    here at write time — heroImage (the one image) and gallery (the
+  //    ordered list of every known image) — so new/simplified code can
+  //    target just these two, while every existing alias keeps being
+  //    populated for renderers that still read the old names. Idempotent
+  //    and non-destructive: never removes an existing alias field.
+  const heroCandidates = [
+    out.heroImage, out.imageUrl, out.featureImage, out.image,
+    out.mainImage, out.coverImage, out.photo, out.headshot, out.portrait,
+  ].map((v) => (typeof v === 'string' ? v.trim() : ''));
+  const resolvedHero = firstNonPlaceholderImage(heroCandidates) || '';
+  if (resolvedHero) out.heroImage = resolvedHero;
+
+  const seenGallery = new Set<string>();
+  const galleryOut: string[] = [];
+  const galleryPools: unknown[] = [out.gallery, out.imageUrls, out.images, out.additionalImages];
+  for (const pool of galleryPools) {
+    if (!Array.isArray(pool)) continue;
+    for (const entry of pool) {
+      const s = typeof entry === 'string'
+        ? entry.trim()
+        : String((entry as any)?.src || (entry as any)?.url || (entry as any)?.image || '').trim();
+      if (!s || isPlaceholderImageUrl(s) || seenGallery.has(s)) continue;
+      seenGallery.add(s);
+      galleryOut.push(s);
+    }
+  }
+  if (resolvedHero && !seenGallery.has(resolvedHero)) {
+    galleryOut.unshift(resolvedHero);
+    seenGallery.add(resolvedHero);
+  }
+  if (galleryOut.length > 0) out.gallery = galleryOut;
+
   return out;
 }
 
