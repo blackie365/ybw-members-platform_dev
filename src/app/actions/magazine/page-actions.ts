@@ -42,7 +42,25 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const raw: any = { docId: pageId, id: data?.id ?? 0, type: data?.type ?? 'feature-full', ...data, updatedAt: new Date().toISOString() };
+    // IMPORTANT: partial saves (e.g. handleSavePageContent only ever passes
+    // `{ content }`) must NOT clobber fields they don't mention. Previously
+    // this defaulted `id`/`type` to 0/'feature-full' whenever the caller
+    // omitted them, and because MagazinePageSchema requires `id`, that 0
+    // ended up in every merge payload — silently corrupting the page's
+    // sort-order id (orderBy('id','asc') everywhere) on every plain content
+    // save. Fetch the existing doc first so unspecified fields fall back to
+    // their CURRENT stored values, not hardcoded defaults.
+    const existingSnap = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).get();
+    const existingData: any = existingSnap.exists ? existingSnap.data() : {};
+
+    const raw: any = {
+      id: 0,
+      type: 'feature-full',
+      ...existingData,
+      docId: pageId,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
     if (raw.content && typeof raw.content === 'object') {
       raw.content = normalizeMagazinePageContent(raw.content);
     }
