@@ -917,7 +917,9 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
       !/^XML\//i.test(p),
   );
 
+  const MAX_EXTRACTED_IMAGES = 200;
   for (const zipPath of imageFiles) {
+    if (imagesByFileName.size >= MAX_EXTRACTED_IMAGES) break;
     const file = zip.file(zipPath);
     if (!file) continue;
     const data = await file.async('nodebuffer');
@@ -957,6 +959,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
     const spreadImages = spreadDoc.getElementsByTagName('Image');
 
     for (let imageIdx = 0; imageIdx < spreadImages.length; imageIdx++) {
+      if (imagesByFileName.size >= MAX_EXTRACTED_IMAGES) break;
       const imageNode = spreadImages[imageIdx];
       const linkNode = imageNode.getElementsByTagName('Link')[0];
       if (!linkNode) continue;
@@ -1008,6 +1011,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
 
     const pdfNodes = spreadDoc.getElementsByTagName('PDF');
     for (let pdfIdx = 0; pdfIdx < pdfNodes.length; pdfIdx++) {
+      if (imagesByFileName.size >= MAX_EXTRACTED_IMAGES) break;
       const pdfNode = pdfNodes[pdfIdx];
 
       const parentNode = pdfNode.parentNode;
@@ -1168,6 +1172,7 @@ export async function parseIdml(fileBuffer: Buffer): Promise<ParsedIdml> {
   }
   for (const name of referencedImageNames) {
     if (!name || imagesByFileName.has(name)) continue;
+    if (imagesByFileName.size >= MAX_EXTRACTED_IMAGES) break;
     if (!supportsEmbeddedImageExtraction(name)) continue;
     const locals = resolveCandidateLocalPaths(name);
     let data: Buffer | null = null;

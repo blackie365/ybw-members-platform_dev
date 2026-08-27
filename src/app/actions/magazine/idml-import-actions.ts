@@ -169,24 +169,32 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
   if (parsed.images.length === 0 || !adminStorage) return imageUrls;
 
   const bucket = adminStorage.bucket();
-  const uploadPromises = parsed.images.map(async (img) => {
-    const filePath = `magazine-import/${fileName}/${img.fileName}`;
-    const storageFile = bucket.file(filePath);
+  const BATCH_SIZE = 10;
 
-    await storageFile.save(img.data, {
-      metadata: { contentType: img.mimeType },
-    });
-    await storageFile.makePublic();
+  for (let i = 0; i < parsed.images.length; i += BATCH_SIZE) {
+    const batch = parsed.images.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (img) => {
+        const filePath = `magazine-import/${fileName}/${img.fileName}`;
+        const storageFile = bucket.file(filePath);
 
-    return {
-      fileName: img.fileName,
-      url: buildPublicStorageUrl(bucket.name, filePath),
-    };
-  });
+        await storageFile.save(img.data, {
+          metadata: { contentType: img.mimeType },
+        });
+        await storageFile.makePublic();
 
-  const results = await Promise.all(uploadPromises);
-  for (const result of results) {
-    imageUrls[result.fileName] = result.url;
+        return {
+          fileName: img.fileName,
+          url: buildPublicStorageUrl(bucket.name, filePath),
+        };
+      }),
+    );
+    for (const result of results) {
+      imageUrls[result.fileName] = result.url;
+    }
+    for (const img of batch) {
+      (img as any).data = null;
+    }
   }
 
   return imageUrls;
@@ -694,7 +702,6 @@ async function processIdmlBuffer(buffer: Buffer, fileName: string) {
     pageCount: parsed.pageCount,
     storyCount: parsedStories,
     imageCount: parsed.images.length,
-    imageUrls,
     warnings,
     preflight: {
       documentName: designmapDocName || fileName,
