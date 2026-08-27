@@ -632,7 +632,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             payload.content = page.content;
           }
 
-          return updateMagazinePageAction(id, page.docId, payload);
+          return updateMagazinePageAction(id, page.docId, payload, {
+            skipSync: true,
+            skipExistingFetch: true,
+            existingDoc: previousPage,
+          });
         }),
       );
 
@@ -645,6 +649,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to reorder pages');
     } finally {
       setSaving(false);
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
+        console.warn('[persistPageOrder] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+      });
     }
   }, [applyContentsPageItems, emitAndSync, id, pages]);
 
@@ -1979,7 +1986,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
         if (legacyDocId) {
           try {
-            const res = await deleteMagazinePageAction(id, legacyDocId);
+            const res = await deleteMagazinePageAction(id, legacyDocId, { skipSync: true });
             if (!res.success) {
               firestoreFailed++;
             } else {
@@ -2165,7 +2172,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let firestoreOk = true;
       let firestoreErrMsg: string | undefined;
       if (legacyDocId) {
-        const res = await deleteMagazinePageAction(id, legacyDocId);
+        const res = await deleteMagazinePageAction(id, legacyDocId, { skipSync: true });
         if (!res.success) {
           firestoreOk = false;
           firestoreErrMsg = res.error;

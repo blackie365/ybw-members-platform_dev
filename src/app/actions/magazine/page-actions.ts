@@ -37,7 +37,7 @@ export async function getMagazinePagesAction(issueId: string) {
   }
 }
 
-export async function updateMagazinePageAction(issueId: string, pageId: string, data: any) {
+export async function updateMagazinePageAction(issueId: string, pageId: string, data: any, opts: { skipSync?: boolean; skipExistingFetch?: boolean; existingDoc?: unknown } = {}) {
   try {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
@@ -50,8 +50,13 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     // sort-order id (orderBy('id','asc') everywhere) on every plain content
     // save. Fetch the existing doc first so unspecified fields fall back to
     // their CURRENT stored values, not hardcoded defaults.
-    const existingSnap = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).get();
-    const existingData: any = existingSnap.exists ? existingSnap.data() : {};
+    let existingData: any = opts.existingDoc && typeof opts.existingDoc === 'object'
+      ? { ...(opts.existingDoc as any) }
+      : undefined;
+    if (!opts.skipExistingFetch || typeof existingData !== 'object') {
+      const existingSnap = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).get();
+      existingData = existingSnap.exists ? existingSnap.data() : {};
+    }
 
     const raw: any = {
       id: 0,
@@ -74,12 +79,14 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     const t0 = Date.now();
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
     console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction write OK pageId=${pageId} in ${Date.now() - t0}ms`);
-    try {
-      const t1 = Date.now();
-      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-      console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction syncBuilderToReaderEditionAction done in ${Date.now() - t1}ms`);
-    } catch (syncErr: any) {
-      console.warn('[updateMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+    if (!opts.skipSync) {
+      try {
+        const t1 = Date.now();
+        await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+        console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction syncBuilderToReaderEditionAction done in ${Date.now() - t1}ms`);
+      } catch (syncErr: any) {
+        console.warn('[updateMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+      }
     }
     console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction TOTAL ${Date.now() - t0}ms`);
     return { success: true };
@@ -89,7 +96,7 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
   }
 }
 
-export async function addMagazinePageAction(issueId: string, data: any) {
+export async function addMagazinePageAction(issueId: string, data: any, opts: { skipSync?: boolean } = {}) {
   try {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
@@ -114,10 +121,12 @@ export async function addMagazinePageAction(issueId: string, data: any) {
     const payload: any = { ...validated.value };
     delete payload.docId;
     const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
-    try {
-      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr: any) {
-      console.warn('[addMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+    if (!opts.skipSync) {
+      try {
+        await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+      } catch (syncErr: any) {
+        console.warn('[addMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+      }
     }
     return { success: true, id: docRef.id };
   } catch (error: any) {
@@ -126,16 +135,18 @@ export async function addMagazinePageAction(issueId: string, data: any) {
   }
 }
 
-export async function deleteMagazinePageAction(issueId: string, pageId: string) {
+export async function deleteMagazinePageAction(issueId: string, pageId: string, opts: { skipSync?: boolean } = {}) {
   try {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
-    try {
-      await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
-    } catch (syncErr: any) {
-      console.warn('[deleteMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+    if (!opts.skipSync) {
+      try {
+        await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
+      } catch (syncErr: any) {
+        console.warn('[deleteMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
+      }
     }
     return { success: true };
   } catch (error: any) {
