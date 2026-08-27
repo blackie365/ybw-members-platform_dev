@@ -2,6 +2,9 @@
 const nextConfig = {
   poweredByHeader: false,
   compress: true,
+  serverActions: {
+    bodySizeLimit: '10mb',
+  },
   experimental: {
     swcTraceProfiling: false,
   },
