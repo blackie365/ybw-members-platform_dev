@@ -8,6 +8,59 @@ import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 import { safeRevalidatePath } from './_helpers';
 import { syncBuilderToReaderEditionAction } from './reader-edition-actions';
 
+/**
+ * getPosts() in lib/ghost.ts deliberately swallows every fetch/network
+ * error and returns `[]` (it's also used on the public site, where a
+ * silent empty result is the right fallback). That's the wrong behavior
+ * for this ADMIN-only action though: an admin staring at an empty "Import
+ * from Ghost CMS" tab has no way to tell "there really are 0 posts" apart
+ * from "the connection/config is broken in this environment" (e.g. a
+ * missing/mismatched env var in a deployed environment vs. local .env).
+ * When getPosts() comes back empty, re-attempt a single direct request
+ * against each configured base URL here and surface the *actual* reason
+ * (HTTP status, or the fetch error) back to the admin UI toast.
+ */
+async function diagnoseGhostConnectionFailure(): Promise<string | null> {
+  const key = String(
+    process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY || '',
+  ).trim();
+  const rawBases = [
+    process.env.NEXT_PUBLIC_GHOST_API_URL,
+    process.env.GHOST_API_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+  ].filter((v): v is string => Boolean(v && v.trim()));
+  if (rawBases.length === 0) {
+    return 'No Ghost API URL configured in this environment (NEXT_PUBLIC_GHOST_API_URL / NEXT_PUBLIC_SITE_URL are both unset).';
+  }
+
+  const attempts: string[] = [];
+  for (const rawBase of rawBases) {
+    const base = rawBase.trim().replace(/\/$/, '');
+    try {
+      const url = new URL(`${base}/ghost/api/content/posts/`);
+      url.searchParams.set('key', key);
+      url.searchParams.set('limit', '1');
+      const res = await fetch(url.toString(), { headers: { 'Accept-Version': 'v5.0' } });
+      if (res.ok) {
+        // Reachable with a valid key — the 0 results really are 0 posts.
+        return null;
+      }
+      const body = await res.text().catch(() => '');
+      let detail = '';
+      try {
+        const parsed = JSON.parse(body);
+        detail = parsed?.errors?.[0]?.message || '';
+      } catch {
+        /* non-JSON body, ignore */
+      }
+      attempts.push(`${base} → HTTP ${res.status}${detail ? `: ${detail}` : ''}`);
+    } catch (err: any) {
+      attempts.push(`${base} → ${err?.message || 'request failed'}`);
+    }
+  }
+  return `Could not reach Ghost in this environment. ${attempts.join('; ')}`;
+}
+
 export async function getGhostPostsAction(options?: any) {
   try {
     await checkAdmin();
@@ -16,9 +69,15 @@ export async function getGhostPostsAction(options?: any) {
       process.env.NEXT_PUBLIC_GHOST_CONTENT_API_KEY || process.env.GHOST_CONTENT_API_KEY
     );
     if (!hasGhostKey) {
-      throw new Error('Ghost is not configured (missing Content API key).');
+      throw new Error('Ghost is not configured (missing Content API key) in this environment.');
     }
     const posts = await getPosts(options);
+    if (posts.length === 0) {
+      const failureReason = await diagnoseGhostConnectionFailure();
+      if (failureReason) {
+        return { success: false, error: failureReason };
+      }
+    }
     return { success: true, data: posts };
   } catch (error: any) {
     console.error("Error in getGhostPostsAction:", error);
