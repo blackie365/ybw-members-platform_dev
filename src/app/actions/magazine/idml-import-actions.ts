@@ -1,5 +1,3 @@
-'use server';
-
 import { adminDb, adminStorage } from '@/lib/firebase-admin';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
