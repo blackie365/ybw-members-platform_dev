@@ -147,7 +147,9 @@ export async function syncBuilderToReaderEditionAction(
     }
     const validated = parseResult.data;
 
+    const tDiag = Date.now();
     await upsertReaderEdition(validated as ReaderEdition);
+    console.log(`[SAVEDIAG] ${new Date().toISOString()} sync upsertReaderEdition ${validated.pages?.length ?? 0} pages in ${Date.now() - tDiag}ms`);
     const readerEditionId =
       existingReaderEditionId ||
       String((validated as any).id || String(projected.id || '')) ||
@@ -167,16 +169,21 @@ export async function syncBuilderToReaderEditionAction(
     await issueRef.set(issuePatch, { merge: true });
 
     try {
+      const tSync = Date.now();
       await syncReaderEditionsForIssue(issueId);
+      console.log(`[SAVEDIAG] ${new Date().toISOString()} sync syncReaderEditionsForIssue in ${Date.now() - tSync}ms`);
     } catch (err: any) {
       console.warn('[syncBuilderToReaderEditionAction] syncReaderEditionsForIssue non-fatal:', err?.message || err);
     }
 
+    const tReval = Date.now();
     safeRevalidatePublicMagazineRoutesForIssue({ issueId, slug: publicSlug });
     if (!opts.revalidatePublicRoutesOnly) {
       safeRevalidatePath('/admin/magazine');
       safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
     }
+    console.log(`[SAVEDIAG] ${new Date().toISOString()} sync revalidate in ${Date.now() - tReval}ms`);
+    console.log(`[SAVEDIAG] ${new Date().toISOString()} sync TOTAL done`);
 
     return { success: true, readerEditionId, pageCount: issuePatch.pageCount as number };
   } catch (error: any) {
