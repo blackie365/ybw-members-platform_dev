@@ -1,5 +1,3 @@
-'use server';
-
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { MagazinePageSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';

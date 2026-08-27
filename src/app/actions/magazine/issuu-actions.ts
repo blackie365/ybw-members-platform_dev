@@ -1,5 +1,3 @@
-'use server';
-
 import { checkAdmin } from '@/lib/server/auth-utils';
 
 export async function fetchIssuuMetadataAction(url: string) {
