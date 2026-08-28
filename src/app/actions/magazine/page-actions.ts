@@ -3,6 +3,13 @@ import { checkAdmin } from '@/lib/server/auth-utils';
 import { MagazinePageSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';
 import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
 import { syncBuilderToReaderEditionAction } from './reader-edition-actions';
+import { safeRevalidatePath } from './_helpers';
+
+function eagerRevalidateAdminBuilderPaths(issueId: string): void {
+  safeRevalidatePath('/admin/magazine');
+  safeRevalidatePath(`/admin/magazine/builder/${issueId}`);
+  safeRevalidatePath(`/admin/magazine/builder`);
+}
 
 export async function getMagazinePagesAction(issueId: string) {
   try {
@@ -79,6 +86,7 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
     const t0 = Date.now();
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
     console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction write OK pageId=${pageId} in ${Date.now() - t0}ms`);
+    eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
       try {
         const t1 = Date.now();
@@ -121,6 +129,7 @@ export async function addMagazinePageAction(issueId: string, data: any, opts: { 
     const payload: any = { ...validated.value };
     delete payload.docId;
     const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
+    eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
       try {
         await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
@@ -141,6 +150,7 @@ export async function deleteMagazinePageAction(issueId: string, pageId: string, 
     if (!adminDb) throw new Error("Database not initialized");
 
     await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
+    eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
       try {
         await syncBuilderToReaderEditionAction(issueId, { revalidatePublicRoutesOnly: true });
@@ -239,6 +249,7 @@ export async function bulkUpdateMagazinePagesAction(
     console.log(
       `[SAVEDIAG] ${new Date().toISOString()} bulkUpdateMagazinePagesAction commit OK: ${staged} pages, ${fetchedDocs} fetched, ${Date.now() - t0}ms`,
     );
+    eagerRevalidateAdminBuilderPaths(issueId);
 
     if (!opts.skipSync) {
       try {
@@ -285,6 +296,7 @@ export async function bulkDeleteMagazinePagesAction(
     console.log(
       `[SAVEDIAG] ${new Date().toISOString()} bulkDeleteMagazinePagesAction commit OK: ${ids.length} pages in ${elapsed}ms`,
     );
+    eagerRevalidateAdminBuilderPaths(issueId);
 
     if (!opts.skipSync) {
       try {
