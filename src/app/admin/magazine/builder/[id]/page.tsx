@@ -1556,14 +1556,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const res = await callAction(addMagazinePageAction,id, newPage, { skipSync: true });
       if (res.success) {
         const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
+        setPages(nextPages);
         await syncContentsPage(nextPages);
         toast.success('Spread added successfully');
-        await loadData(true);
         setSelectedPageId(res.id as string);
         setActiveTab('builder');
       }
     } catch (error) {
       toast.error('Failed to add page');
+      await loadData(true);
     } finally {
       setSaving(false);
       syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
@@ -1718,12 +1719,13 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           const nextPages = pages.map((page) =>
             page.docId === targetPageId ? { ...page, content } : page,
           );
+          setPages(nextPages);
           await syncContentsPage(nextPages);
           toast.success(`Updated spread with content from "${post.title}"`);
-          await loadData(true);
           setActiveTab('builder');
         } else {
           toast.error(res.error || 'Failed to import content');
+          await loadData(true);
         }
       } else {
         // Create new page
@@ -1738,6 +1740,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         const res = await callAction(addMagazinePageAction,id, newPage, { skipSync: true });
         if (res.success) {
           const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
+          setPages(nextPages);
           await syncContentsPage(nextPages);
           toast.success(`Smart Imported "${post.title}" as ${type}`);
           
@@ -1748,11 +1751,11 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             toast.info('Issue thumbnail updated from imported cover');
           }
 
-          await loadData(true);
           setSelectedPageId(res.id as string);
           setActiveTab('builder');
         } else {
           toast.error(res.error || 'Failed to import content');
+          await loadData(true);
         }
       }
     } catch (err) {
@@ -1794,8 +1797,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Spread content saved');
-        // Re-load data to ensure server sync, but local state is already updated
-        await loadData(false); 
       } else {
         toast.error(res.error || 'Failed to save content');
         await loadData(true);
@@ -1828,7 +1829,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Layout updated');
-        await loadData(false);
       } else {
         toast.error(res.error || 'Failed to update layout');
         await loadData(true);
