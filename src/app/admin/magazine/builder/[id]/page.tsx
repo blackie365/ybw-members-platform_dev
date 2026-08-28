@@ -38,6 +38,11 @@ import dynamic from 'next/dynamic';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { normalizeImageUrl, normalizeStoryLibraryImageFields } from '@/lib/magazine-utils';
+import {
+  DeployStalenessBanner,
+  useBuildStaleness,
+  isActionNotFoundError,
+} from '@/app/admin/magazine/builder/_components/DeployStalenessBanner';
 
 // Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
@@ -199,7 +204,23 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   const { id } = use(params);
   const isNew = id === 'new';
   const router = useRouter();
-  
+  const staleness = useBuildStaleness();
+  const checkStaleFromError = (err: unknown): void => {
+    const m = isActionNotFoundError(err);
+    if (m) staleness.markStaleFromError(m);
+  };
+  async function callAction<F extends (...a: any[]) => any>(
+    fn: F,
+    ...args: Parameters<F>
+  ): Promise<Awaited<ReturnType<F>>> {
+    try {
+      return await fn(...args);
+    } catch (e) {
+      checkStaleFromError(e);
+      throw e;
+    }
+  }
+
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('metadata');
@@ -330,8 +351,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
     if (forceSync) {
       try {
-        await syncBuilderToReaderEditionAction(id);
+        await callAction(syncBuilderToReaderEditionAction,id);
       } catch (err) {
+        checkStaleFromError(err);
         console.warn('[builder] emitAndSync forceSync non-fatal:', err);
       }
     }
@@ -422,7 +444,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         });
         const idmlBase64 = (dataUrl || '').replace(/^data:[^;]+;base64,/, '');
         if (!idmlBase64) throw new Error('Empty IDML file');
-        res = await importIdmlToStoryLibraryAction(String(id), idmlBase64, file.name);
+        res = await callAction(importIdmlToStoryLibraryAction,String(id), idmlBase64, file.name);
       }
 
       if (!res || !res.success) {
@@ -437,7 +459,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // Do NOT rely on loadData(true) — if initial page load's loadData() is still in-flight
       // (common when user clicks import immediately), we'd get stale story library.
       // Instead: fetch pages directly and sync against the just-written savedLibrary.
-      const pagesRes = await getMagazinePagesAction(id);
+      const pagesRes = await callAction(getMagazinePagesAction,id);
       const currentPages: MagazinePage[] =
         pagesRes?.success && Array.isArray(pagesRes.data)
           ? sortByPrintOrder(pagesRes.data as MagazinePage[])
@@ -489,7 +511,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const toastId = 'reader-to-builder-sync';
     try {
       toast.info('Syncing published ReaderEdition into Story Library + Spread Builder (editable pages)…', { id: toastId });
-      const res = await runSyncLegacyFromReaderEditionAction(String(id));
+      const res = await callAction(runSyncLegacyFromReaderEditionAction,String(id));
       if (!res?.success) throw new Error(res?.error || 'Sync failed');
       const sl = Number(res?.data?.storyLibraryCount || 0);
       const lp = Number(res?.data?.legacyPageCount || 0);
@@ -559,7 +581,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       return;
     }
 
-    await updateMagazinePageAction(id, contentsPage.docId, {
+    await callAction(updateMagazinePageAction,id, contentsPage.docId, {
       content: {
         ...(contentsPage.content || {}),
         items: nextItems,
@@ -646,7 +668,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
 
       if (entries.length > 0) {
-        const bulkRes = await bulkUpdateMagazinePagesAction(id, entries, { skipSync: true });
+        const bulkRes = await callAction(bulkUpdateMagazinePagesAction,id, entries, { skipSync: true });
         if (!bulkRes.success) {
           throw new Error(bulkRes.error || 'Failed to reorder pages');
         }
@@ -676,7 +698,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setIsBatchSyncing(true);
     try {
       // 1. Fetch articles by tag
-      const res = await getGhostPostsAction({ filter: `tag:${issue.ghostSyncTag}` });
+      const res = await callAction(getGhostPostsAction,{ filter: `tag:${issue.ghostSyncTag}` });
       
       if (!res.success || !res.data || res.data.length === 0) {
         toast.error(`No articles found with tag "${issue.ghostSyncTag}"`);
@@ -732,7 +754,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         let loadedPages: MagazinePage[] = [];
 
         // Load Issue
-        const issuesRes = await getMagazineIssuesAction();
+        const issuesRes = await callAction(getMagazineIssuesAction,);
         if (issuesRes?.success && issuesRes.data) {
           const currentIssue = issuesRes.data.find((i: any) => i.id === id);
           if (currentIssue) {
@@ -776,7 +798,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
 
         if (!isNew) {
-          const storyLibraryRes = await getMagazineStoryLibraryAction(id);
+          const storyLibraryRes = await callAction(getMagazineStoryLibraryAction,id);
           if (storyLibraryRes?.success && Array.isArray(storyLibraryRes.data)) {
             loadedStoryLibrary = storyLibraryRes.data;
             setIssue((prev) => ({
@@ -787,7 +809,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         }
 
         // Load Pages
-        const pagesRes = await getMagazinePagesAction(id);
+        const pagesRes = await callAction(getMagazinePagesAction,id);
         if (pagesRes?.success && pagesRes.data) {
           loadedPages = sortByPrintOrder(pagesRes.data as any[]);
         }
@@ -807,7 +829,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         let loadedReaderPages: MagazinePage[] = [];
         let loadedReaderId: string | null = null;
         try {
-          const reRes = await getReaderEditionByIssueIdAction(id);
+          const reRes = await callAction(getReaderEditionByIssueIdAction,id);
           if (reRes?.success && reRes?.data) {
             const re = reRes.data as any;
             const reId = String(re.id || '');
@@ -828,9 +850,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 // ReaderEdition page into a normal editable spread before the
                 // page list ever renders.
                 try {
-                  const syncRes = await runSyncLegacyFromReaderEditionAction(id);
+                  const syncRes = await callAction(runSyncLegacyFromReaderEditionAction,id);
                   if (syncRes?.success) {
-                    const refreshedPagesRes = await getMagazinePagesAction(id);
+                    const refreshedPagesRes = await callAction(getMagazinePagesAction,id);
                     if (refreshedPagesRes?.success && Array.isArray(refreshedPagesRes.data)) {
                       loadedPages = [...(refreshedPagesRes.data as any[])].sort((a, b) => (a.id || 0) - (b.id || 0));
                     }
@@ -924,7 +946,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let cancelled = false;
       (async () => {
         try {
-          const pagesRes = await getMagazinePagesAction(id);
+          const pagesRes = await callAction(getMagazinePagesAction,id);
           const currentPages: MagazinePage[] =
             pagesRes?.success && Array.isArray(pagesRes.data)
               ? sortByPrintOrder(pagesRes.data as MagazinePage[])
@@ -962,7 +984,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setSaving(true);
     try {
       if (isNew) {
-        const res = await createMagazineIssueAction(issue);
+        const res = await callAction(createMagazineIssueAction,issue);
         if (res.success) {
           toast.success('Edition created! Now build your spreads.');
           router.push(`/admin/magazine/builder/${res.id}`);
@@ -970,7 +992,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           toast.error(res.error || 'Failed to create edition');
         }
       } else {
-        const res = await updateMagazineIssueAction(id, issue);
+        const res = await callAction(updateMagazineIssueAction,id, issue);
         if (res.success) {
           toast.success('Metadata updated successfully');
           await loadData(true);
@@ -995,7 +1017,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setSaving(true);
     try {
       const normalized = normalizeStoryLibraryImageFields(storyLibrary || []);
-      const res = await saveMagazineStoryLibraryAction(id, normalized);
+      const res = await callAction(saveMagazineStoryLibraryAction,id, normalized);
       if (res.success) {
         const saved = Array.isArray(res.data) ? res.data : normalized;
         setIssue((prev) => ({
@@ -1013,7 +1035,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         const wasEmptyBefore = (issue.storyLibrary?.length || 0) === 0;
         if (hasContent && wasEmptyBefore) {
           pendingIdmlSyncOnTabSwitchRef.current = true;
-          const pagesRes = await getMagazinePagesAction(id);
+          const pagesRes = await callAction(getMagazinePagesAction,id);
           const currentPages: MagazinePage[] =
             pagesRes?.success && Array.isArray(pagesRes.data)
               ? sortByPrintOrder(pagesRes.data as MagazinePage[])
@@ -1064,7 +1086,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       // editing manually), only flag for tab switch and let admin choose.
       pendingIdmlSyncOnTabSwitchRef.current = true;
       try {
-        const pagesRes = await getMagazinePagesAction(id);
+        const pagesRes = await callAction(getMagazinePagesAction,id);
         const currentPages: MagazinePage[] =
           pagesRes?.success && Array.isArray(pagesRes.data)
             ? sortByPrintOrder(pagesRes.data as MagazinePage[])
@@ -1339,7 +1361,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         createdAt: new Date().toISOString(),
       };
       try {
-        const res = await addMagazinePageAction(id, newCoverPage);
+        const res = await callAction(addMagazinePageAction,id, newCoverPage);
         if (res.success && res.id) {
           nextPages = [...nextPages, { ...newCoverPage, docId: String(res.id) }];
           createdCount += 1;
@@ -1362,7 +1384,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         createdAt: new Date().toISOString(),
       };
       try {
-        const res = await addMagazinePageAction(id, newContentsPage);
+        const res = await callAction(addMagazinePageAction,id, newContentsPage);
         if (res.success && res.id) {
           nextPages = [...nextPages, { ...newContentsPage, docId: String(res.id) }];
           createdCount += 1;
@@ -1400,7 +1422,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
         let persisted: MagazinePage | null = null;
         try {
-          const res = await addMagazinePageAction(id, newPage);
+          const res = await callAction(addMagazinePageAction,id, newPage);
           if (!res.success || !res.id) {
             const msg = res.error || `Failed to add spread for "${story.title || 'Untitled Story'}"`;
             toast.error(msg);
@@ -1463,7 +1485,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         createdAt: new Date().toISOString(),
       };
       try {
-        const res = await addMagazinePageAction(id, newBackCoverPage);
+        const res = await callAction(addMagazinePageAction,id, newBackCoverPage);
         if (res.success && res.id) {
           nextPages = [...nextPages, { ...newBackCoverPage, docId: String(res.id) }];
           createdCount += 1;
@@ -1531,7 +1553,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         createdAt: new Date().toISOString()
       };
 
-      const res = await addMagazinePageAction(id, newPage, { skipSync: true });
+      const res = await callAction(addMagazinePageAction,id, newPage, { skipSync: true });
       if (res.success) {
         const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
         await syncContentsPage(nextPages);
@@ -1691,7 +1713,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       if (targetPageId) {
         // Update existing page
-        const res = await updateMagazinePageAction(id, targetPageId, { content }, { skipSync: true });
+        const res = await callAction(updateMagazinePageAction,id, targetPageId, { content }, { skipSync: true });
         if (res.success) {
           const nextPages = pages.map((page) =>
             page.docId === targetPageId ? { ...page, content } : page,
@@ -1713,7 +1735,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           createdAt: new Date().toISOString()
         };
 
-        const res = await addMagazinePageAction(id, newPage, { skipSync: true });
+        const res = await callAction(addMagazinePageAction,id, newPage, { skipSync: true });
         if (res.success) {
           const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
           await syncContentsPage(nextPages);
@@ -1721,7 +1743,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           
           const coverImageToSync = String(content.featureImage || content.image || '').trim();
           if (issue.autoSyncCover !== false && type === 'cover' && coverImageToSync) {
-            await updateMagazineIssueAction(id, { coverImage: coverImageToSync });
+            await callAction(updateMagazineIssueAction,id, { coverImage: coverImageToSync });
             setIssue(prev => ({ ...prev, coverImage: coverImageToSync }));
             toast.info('Issue thumbnail updated from imported cover');
           }
@@ -1763,12 +1785,12 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       const coverImageToSync = String(content?.featureImage || content?.image || '').trim();
       if (issue.autoSyncCover !== false && page?.type === 'cover' && coverImageToSync && coverImageToSync !== issue.coverImage) {
         console.log('Auto-syncing cover image from page to issue metadata...');
-        await updateMagazineIssueAction(id, { coverImage: coverImageToSync });
+        await callAction(updateMagazineIssueAction,id, { coverImage: coverImageToSync });
         setIssue(prev => ({ ...prev, coverImage: coverImageToSync }));
         toast.info('Issue thumbnail synced from cover page');
       }
 
-      const res = await updateMagazinePageAction(id, pageDocId, { content }, { skipSync: true });
+      const res = await callAction(updateMagazinePageAction,id, pageDocId, { content }, { skipSync: true });
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Spread content saved');
@@ -1802,7 +1824,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     setSaving(true);
     try {
-      const res = await updateMagazinePageAction(id, pageDocId, { type }, { skipSync: true });
+      const res = await callAction(updateMagazinePageAction,id, pageDocId, { type }, { skipSync: true });
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Layout updated');
@@ -1970,7 +1992,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 issue.storyLibrary?.[index]?.includedInPremiumReader
             );
             if (changedStoryLibrary) {
-              const storyLibraryRes = await saveMagazineStoryLibraryAction(
+              const storyLibraryRes = await callAction(saveMagazineStoryLibraryAction,
                 id,
                 nextStoryLibrary
               );
@@ -2014,7 +2036,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       }
 
       if (legacyDocIdsToDelete.length > 0) {
-        const bulkRes = await bulkDeleteMagazinePagesAction(id, legacyDocIdsToDelete, { skipSync: true });
+        const bulkRes = await callAction(bulkDeleteMagazinePagesAction,id, legacyDocIdsToDelete, { skipSync: true });
         if (bulkRes.success) {
           firestoreDeleted += legacyDocIdsToDelete.length;
           legacyDocIdsToDelete.forEach((did) => deletedLegacyDocIds.add(did));
@@ -2069,7 +2091,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       setReaderEditionPages(remainingShadowPages);
 
       try {
-        await syncBuilderToReaderEditionAction(id, { readerPagesOverride: mergedAfterDelete });
+        await callAction(syncBuilderToReaderEditionAction,id, { readerPagesOverride: mergedAfterDelete });
       } catch (syncErr) {
         console.warn('[delete-all] ReaderEdition post-delete sync non-fatal:', syncErr);
       }
@@ -2169,7 +2191,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             );
 
             if (changedStoryLibrary) {
-              const storyLibraryRes = await saveMagazineStoryLibraryAction(id, nextStoryLibrary);
+              const storyLibraryRes = await callAction(saveMagazineStoryLibraryAction,id, nextStoryLibrary);
               if (!storyLibraryRes.success) {
                 throw new Error(
                   storyLibraryRes.error || 'Failed to update Story Library inclusion',
@@ -2194,7 +2216,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       let firestoreOk = true;
       let firestoreErrMsg: string | undefined;
       if (legacyDocId) {
-        const res = await deleteMagazinePageAction(id, legacyDocId, { skipSync: true });
+        const res = await callAction(deleteMagazinePageAction,id, legacyDocId, { skipSync: true });
         if (!res.success) {
           firestoreOk = false;
           firestoreErrMsg = res.error;
@@ -2223,7 +2245,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       } catch {}
 
       try {
-        await syncBuilderToReaderEditionAction(id, { readerPagesOverride: combinedForContents });
+        await callAction(syncBuilderToReaderEditionAction,id, { readerPagesOverride: combinedForContents });
       } catch (syncErr) {
         console.warn('[delete-page] ReaderEdition post-delete sync non-fatal:', syncErr);
       }
@@ -2391,6 +2413,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <DeployStalenessBanner api={staleness} />
       <input
         ref={idmlFileInputRef}
         type="file"
