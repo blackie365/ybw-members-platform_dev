@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PAGE_TYPES } from '@/components/admin/magazine-builder/types';
+import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
 
 /**
  * Zod schemas for the magazine pipeline. Parse at every boundary so
@@ -195,7 +196,14 @@ export const MagazinePageSchema = z
     createdAt: z.string().trim().default(() => new Date().toISOString()),
     updatedAt: z.string().trim().optional(),
   })
-  .passthrough();
+  .passthrough()
+  .transform((page) => {
+    const content =
+      page.content && typeof page.content === 'object'
+        ? normalizeMagazinePageContent(page.content)
+        : normalizeMagazinePageContent({});
+    return { ...page, content };
+  });
 
 export type ValidMagazinePage = z.infer<typeof MagazinePageSchema>;
 

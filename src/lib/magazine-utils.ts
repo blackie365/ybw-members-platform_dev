@@ -322,19 +322,75 @@ export function normalizeMagazinePageContent(contentIn: any): any {
   const out = { ...contentIn };
 
   // 1) text ↔ body (PageEditor reads "Main Text" from .text; IDML imports
-  //    populate .body). Keep both populated.
-  const hasText = typeof out.text === 'string';
-  const hasBody = typeof out.body === 'string';
-  if (hasText && !hasBody) out.body = out.text;
-  else if (hasBody && !hasText) out.text = out.body;
-  else if (hasText && hasBody && !out.text && !!out.body) out.text = out.body;
+  //    populate .body). Keep both populated and always equal. The editor
+  //    onChange writes .text (new edits) while legacy IDML imports write
+  //    .body; stale content objects typically carry both as separate
+  //    strings, so prefer whichever is a real string, longer/newer, or
+  //    last resort use .text as editor primary.
+  const textRaw = typeof out.text === 'string' ? out.text : '';
+  const bodyRaw = typeof out.body === 'string' ? out.body : '';
+  const textTrimmed = textRaw.trim();
+  const bodyTrimmed = bodyRaw.trim();
+  let chosenBodyText = '';
+  if (textTrimmed && !bodyTrimmed) chosenBodyText = textTrimmed;
+  else if (bodyTrimmed && !textTrimmed) chosenBodyText = bodyTrimmed;
+  else if (textTrimmed && bodyTrimmed) {
+    if (textTrimmed !== bodyTrimmed) {
+      chosenBodyText = textTrimmed.length >= bodyTrimmed.length ? textTrimmed : bodyTrimmed;
+    } else {
+      chosenBodyText = textTrimmed;
+    }
+  }
+  out.text = chosenBodyText;
+  out.body = chosenBodyText;
 
   // 2) intro ↔ standfirst (PageEditor reads .intro; IDML imports populate
-  //    .standfirst). Keep both populated.
-  const hasIntro = typeof out.intro === 'string';
-  const hasStandfirst = typeof out.standfirst === 'string';
-  if (hasIntro && !hasStandfirst) out.standfirst = out.intro;
-  else if (hasStandfirst && !hasIntro) out.intro = out.standfirst;
+  //    .standfirst). Keep both populated and always equal. Editor writes
+  //    .intro, legacy writes .standfirst, both strings exist on
+  //    roundtripped docs so choose the real/longer/newer one.
+  const introRaw = typeof out.intro === 'string' ? out.intro : '';
+  const standfirstRaw = typeof out.standfirst === 'string' ? out.standfirst : '';
+  const introTrimmed = introRaw.trim();
+  const standfirstTrimmed = standfirstRaw.trim();
+  let chosenIntro = '';
+  if (introTrimmed && !standfirstTrimmed) chosenIntro = introTrimmed;
+  else if (standfirstTrimmed && !introTrimmed) chosenIntro = standfirstTrimmed;
+  else if (introTrimmed && standfirstTrimmed) {
+    if (introTrimmed !== standfirstTrimmed) {
+      chosenIntro = introTrimmed.length >= standfirstTrimmed.length ? introTrimmed : standfirstTrimmed;
+    } else {
+      chosenIntro = introTrimmed;
+    }
+  }
+  out.intro = chosenIntro;
+  out.standfirst = chosenIntro;
+
+  // 2b) author ↔ name: often both populated, some templates read author
+  //     while others print name. Keep them in sync.
+  const authorRaw = typeof out.author === 'string' ? out.author : '';
+  const nameRaw = typeof out.name === 'string' ? out.name : '';
+  const authorTrim = authorRaw.trim();
+  const nameTrim = nameRaw.trim();
+  let chosenAuthor = '';
+  if (authorTrim && !nameTrim) chosenAuthor = authorTrim;
+  else if (nameTrim && !authorTrim) chosenAuthor = nameTrim;
+  else if (authorTrim && nameTrim) {
+    chosenAuthor = authorTrim.length >= nameTrim.length ? authorTrim : nameTrim;
+  }
+  if (chosenAuthor) {
+    out.author = chosenAuthor;
+    out.name = chosenAuthor;
+  }
+
+  // 2c) headline ↔ title. Some old importers used 'headline' as title,
+  //     some new sections use 'title' as headline. Keep them consistent so
+  //     either change propagates both ways.
+  const titleRaw = typeof out.title === 'string' ? out.title : '';
+  const headlineRaw = typeof out.headline === 'string' ? out.headline : '';
+  const titleTrim = titleRaw.trim();
+  const headlineTrim = headlineRaw.trim();
+  if (titleTrim && !headlineTrim) out.headline = titleTrim;
+  else if (headlineTrim && !titleTrim) out.title = headlineTrim;
 
   // 3) image URL fields → rewrite broken storage.googleapis.com URLs.
   for (const spec of IMAGE_FIELD_SPECS) {
@@ -405,13 +461,27 @@ export function normalizeMagazinePageContent(contentIn: any): any {
 export function normalizeStoryLibraryItem(itemIn: any): any {
   if (!itemIn || typeof itemIn !== 'object') return {};
   const out = { ...itemIn };
-  const hasText = typeof out.text === 'string';
-  const hasBody = typeof out.body === 'string';
-  if (hasText && !hasBody) out.body = out.text;
-  else if (hasBody && !hasText) out.text = out.body;
+  const textRaw = typeof out.text === 'string' ? out.text : '';
+  const bodyRaw = typeof out.body === 'string' ? out.body : '';
+  const trimmed = (s: string) => s.trim();
+  if (trimmed(textRaw) && !trimmed(bodyRaw)) out.body = trimmed(textRaw);
+  else if (trimmed(bodyRaw) && !trimmed(textRaw)) out.text = trimmed(bodyRaw);
+  else if (trimmed(textRaw) && trimmed(bodyRaw) && trimmed(textRaw) !== trimmed(bodyRaw)) {
+    const chosen = trimmed(textRaw).length >= trimmed(bodyRaw).length ? trimmed(textRaw) : trimmed(bodyRaw);
+    out.text = chosen;
+    out.body = chosen;
+  }
   if (typeof out.imageUrl === 'string') out.imageUrl = fixMagazineImageUrl(out.imageUrl);
-  if (typeof out.standfirst === 'string' && !out.summary) out.summary = out.standfirst;
-  else if (typeof out.summary === 'string' && !out.standfirst) out.standfirst = out.summary;
+  const standfirst = typeof out.standfirst === 'string' ? out.standfirst : '';
+  const summary = typeof out.summary === 'string' ? out.summary : '';
+  const sT = trimmed(standfirst), sumT = trimmed(summary);
+  if (sT && !sumT) out.summary = sT;
+  else if (sumT && !sT) out.standfirst = sumT;
+  else if (sT && sumT && sT !== sumT) {
+    const chosen = sT.length >= sumT.length ? sT : sumT;
+    out.standfirst = chosen;
+    out.summary = chosen;
+  }
   return out;
 }
 
