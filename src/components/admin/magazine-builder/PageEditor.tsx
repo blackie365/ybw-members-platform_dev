@@ -225,12 +225,33 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     const loadedContent = normalizeMagazinePageContent(page.content || {});
     const nextJson = JSON.stringify(loadedContent || {});
     const currentJson = JSON.stringify(content || {});
-    if (nextJson === currentJson) return;
+
+    // If incoming server/content prop matches exactly what's displayed,
+    // keep the ref in sync so hasLocalEdits=false on subsequent renders.
+    // (This fixes the "editor appears not to save after Save Page click"
+    //  scenario where parent updates pages[] with the same content object
+    //  we just saved — JSON equal, setContent skipped, but ref stale
+    //  caused shouldSync to misfire later on prop-stabilization renders.)
+    if (nextJson === currentJson) {
+      if (lastSyncedContentJsonRef.current !== nextJson) {
+        lastSyncedContentJsonRef.current = nextJson;
+      }
+      lastLoadedDocIdRef.current = page.docId;
+      return;
+    }
+
     const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
     const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
     const shouldSync = isNewDoc || !hasLocalEdits;
 
-    if (!shouldSync) return;
+    if (!shouldSync) {
+      // Even when syncing is blocked by pending local edits, consolidate
+      // the server-side "last known synced snapshot" ref if the incoming
+      // page content matches the currently-displayed content exactly.
+      // This ensures the ref always tracks the latest effectively-synced
+      // content regardless of whether we perform state setters this tick.
+      return;
+    }
 
     lastLoadedDocIdRef.current = page.docId;
     lastSyncedContentJsonRef.current = nextJson;
