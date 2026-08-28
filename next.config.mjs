@@ -7,6 +7,7 @@ const nextConfig = {
   },
   experimental: {
     swcTraceProfiling: false,
+    staticPageGenerationTimeout: 180,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
