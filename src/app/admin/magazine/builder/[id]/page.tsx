@@ -1531,7 +1531,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         createdAt: new Date().toISOString()
       };
 
-      const res = await addMagazinePageAction(id, newPage);
+      const res = await addMagazinePageAction(id, newPage, { skipSync: true });
       if (res.success) {
         const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
         await syncContentsPage(nextPages);
@@ -1544,6 +1544,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to add page');
     } finally {
       setSaving(false);
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
+        console.warn('[handleAddPage] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+      });
     }
   };
 
@@ -1688,7 +1691,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
       if (targetPageId) {
         // Update existing page
-        const res = await updateMagazinePageAction(id, targetPageId, { content });
+        const res = await updateMagazinePageAction(id, targetPageId, { content }, { skipSync: true });
         if (res.success) {
           const nextPages = pages.map((page) =>
             page.docId === targetPageId ? { ...page, content } : page,
@@ -1710,7 +1713,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           createdAt: new Date().toISOString()
         };
 
-        const res = await addMagazinePageAction(id, newPage);
+        const res = await addMagazinePageAction(id, newPage, { skipSync: true });
         if (res.success) {
           const nextPages = [...pages, { ...newPage, docId: String(res.id) }];
           await syncContentsPage(nextPages);
@@ -1734,6 +1737,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error(err instanceof Error ? err.message : 'Failed to import content');
     } finally {
       setSaving(false);
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
+        console.warn('[handleImportContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+      });
     }
   };
 
@@ -1762,7 +1768,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         toast.info('Issue thumbnail synced from cover page');
       }
 
-      const res = await updateMagazinePageAction(id, pageDocId, { content });
+      const res = await updateMagazinePageAction(id, pageDocId, { content }, { skipSync: true });
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Spread content saved');
@@ -1778,6 +1784,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       await loadData(true);
     } finally {
       setSaving(false);
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
+        console.warn('[handleSavePageContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+      });
     }
   };
 
@@ -1793,7 +1802,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
 
     setSaving(true);
     try {
-      const res = await updateMagazinePageAction(id, pageDocId, { type });
+      const res = await updateMagazinePageAction(id, pageDocId, { type }, { skipSync: true });
       if (res.success) {
         await syncContentsPage(nextPages);
         toast.success('Layout updated');
@@ -1807,6 +1816,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       await loadData(true);
     } finally {
       setSaving(false);
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
+        console.warn('[handleChangePageType] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+      });
     }
   };
 
