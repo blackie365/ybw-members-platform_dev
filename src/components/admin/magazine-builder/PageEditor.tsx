@@ -66,6 +66,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
 
   const stringifyJson = (value: any) => JSON.stringify(value ?? null, null, 2);
 
+  const stableContentKey = (value: any) =>
+    JSON.stringify(normalizeMagazinePageContent(value ?? {}));
+
   const stringifyPullQuotes = (value: any) => {
     const list = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
     return list.map((q: any) => String(q || '').trim()).filter(Boolean).join('\n');
@@ -223,38 +226,41 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     if (rawJsonError) return;
 
     const loadedContent = normalizeMagazinePageContent(page.content || {});
-    const nextJson = JSON.stringify(loadedContent || {});
-    const currentJson = JSON.stringify(content || {});
+    const nextKey = stableContentKey(loadedContent);
+    const currentKey = stableContentKey(content);
 
-    // If incoming server/content prop matches exactly what's displayed,
-    // keep the ref in sync so hasLocalEdits=false on subsequent renders.
-    // (This fixes the "editor appears not to save after Save Page click"
-    //  scenario where parent updates pages[] with the same content object
-    //  we just saved — JSON equal, setContent skipped, but ref stale
-    //  caused shouldSync to misfire later on prop-stabilization renders.)
-    if (nextJson === currentJson) {
-      if (lastSyncedContentJsonRef.current !== nextJson) {
-        lastSyncedContentJsonRef.current = nextJson;
+    // If incoming server/content prop matches exactly what's displayed
+    // (same normalized shape, including alias-mirror fields), keep
+    // both refs in sync so hasLocalEdits stays FALSE on subsequent
+    // renders. Fixes the "editor appears to revert words after Save"
+    // scenario where parent setPages updates the prop but JSON is
+    // equal so setContent was historically skipped, leaving refs
+    // stale.
+    if (nextKey === currentKey) {
+      if (lastSyncedContentJsonRef.current !== nextKey) {
+        lastSyncedContentJsonRef.current = nextKey;
       }
       lastLoadedDocIdRef.current = page.docId;
       return;
     }
 
     const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
-    const hasLocalEdits = currentJson !== lastSyncedContentJsonRef.current;
+    const hasLocalEdits = currentKey !== lastSyncedContentJsonRef.current;
     const shouldSync = isNewDoc || !hasLocalEdits;
 
     if (!shouldSync) {
-      // Even when syncing is blocked by pending local edits, consolidate
-      // the server-side "last known synced snapshot" ref if the incoming
-      // page content matches the currently-displayed content exactly.
-      // This ensures the ref always tracks the latest effectively-synced
-      // content regardless of whether we perform state setters this tick.
+      // Sync blocked by pending local edits, but if server content and
+      // displayed content are still equal-shaped the snapshot ref still
+      // needs to track the latest effectively-equivalent saved snapshot
+      // so subsequent small edits compute hasLocalEdits correctly.
+      if (nextKey === currentKey && lastSyncedContentJsonRef.current !== nextKey) {
+        lastSyncedContentJsonRef.current = nextKey;
+      }
       return;
     }
 
     lastLoadedDocIdRef.current = page.docId;
-    lastSyncedContentJsonRef.current = nextJson;
+    lastSyncedContentJsonRef.current = nextKey;
     setContent(loadedContent);
     setRawJsonDraft(JSON.stringify(loadedContent || {}, null, 2));
     setRawJsonError('');
@@ -1650,7 +1656,18 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               </Select>
             )}
             <Button
-              onClick={() => !readOnly && onSave(normalizeMagazinePageContent(content))}
+              onClick={() => {
+                if (readOnly) return;
+                const next = normalizeMagazinePageContent(content);
+                const nextKey = stableContentKey(next);
+                if (lastSyncedContentJsonRef.current !== nextKey) {
+                  lastSyncedContentJsonRef.current = nextKey;
+                }
+                if (page?.docId && lastLoadedDocIdRef.current !== page.docId) {
+                  lastLoadedDocIdRef.current = page.docId;
+                }
+                onSave(next);
+              }}
               disabled={isSaving || hasJsonErrors || readOnly}
               className="bg-accent text-white"
             >
