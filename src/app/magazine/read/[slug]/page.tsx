@@ -3,8 +3,7 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import MagazineShell from '@/features/magazine/components/MagazineShell';
 import MagazineReaderSkeleton from '@/components/magazine/MagazineReaderSkeleton';
-import { getReaderEditionBySlug } from '@/features/magazine/server/simple-reader';
-import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
 export const revalidate = 60;
@@ -12,7 +11,8 @@ export const dynamicParams = true;
 
 export async function generateStaticParams() {
   try {
-    const issues = await getMagazineIssuesServer();
+    const store = getMagazineReadStore();
+    const issues = await store.getMagazineIssues();
     const slugs = new Set<string>();
     for (const issue of issues) {
       const slug = deriveIssueSlug({
@@ -35,7 +35,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const edition = await getReaderEditionBySlug(slug);
+  const edition = await getMagazineReadStore().getReaderEditionBySlug(slug);
   return {
     title: edition ? `${edition.title} | Yorkshire BusinessWoman` : 'Digital Edition',
     description: edition?.description || 'Read the latest edition of Yorkshire BusinessWoman magazine.',
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function MagazineReadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const edition = await getReaderEditionBySlug(slug);
+  const edition = await getMagazineReadStore().getReaderEditionBySlug(slug);
 
   if (!edition) {
     redirect('/new-edition');

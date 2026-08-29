@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
-import { getMagazineIssuesServer } from '@/lib/magazine-service-server';
-import { listReaderEditions } from '@/features/magazine/server/simple-reader';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
@@ -82,10 +81,11 @@ function getArchiveCoverForEdition(
 }
 
 export default async function NewEditionPage() {
+  const store = getMagazineReadStore();
   const [issues, ghostPosts, readerEditions] = await Promise.all([
-    getMagazineIssuesServer(),
+    store.getMagazineIssues(),
     getPosts({ limit: 1, filter: "featured:true" }),
-    listReaderEditions()
+    store.listReaderEditions()
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;

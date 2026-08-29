@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { listReaderEditions } from '@/features/magazine/server/simple-reader';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'
@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === '' ? 1 : 0.8,
   }))
 
-  const editions = await listReaderEditions(50).catch(() => [])
+  const editions = await getMagazineReadStore().listReaderEditions(50).catch(() => [])
   const editionRoutes = editions.map((edition) => ({
     url: `${baseUrl}/magazine/read/${edition.slug}`,
     lastModified: edition.createdAt || new Date().toISOString(),

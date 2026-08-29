@@ -1,10 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getMagazineIssueServer, getMagazineIssuesServer } from '@/lib/magazine-service-server';
-import {
-  getReaderEditionById,
-  listReaderEditions,
-} from '@/features/magazine/server/simple-reader';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
@@ -14,7 +10,7 @@ export const dynamicParams = true;
 
 export async function generateStaticParams() {
   try {
-    const issues = await getMagazineIssuesServer();
+    const issues = await getMagazineReadStore().getMagazineIssues();
     return issues.filter((i) => i && String(i.id || '').trim()).map((issue) => ({
       id: String(issue.id),
     }));
@@ -26,7 +22,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const issue = await getMagazineIssueServer(id);
+  const issue = await getMagazineReadStore().getMagazineIssue(id);
   return {
     title: issue ? `${issue.title} | Yorkshire BusinessWoman` : 'Magazine Edition',
     description: issue?.description || 'Read the latest edition of Yorkshire BusinessWoman magazine.',
@@ -53,10 +49,11 @@ function pickLinkedReaderEdition(
 
 export default async function DigitalMagazinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const store = getMagazineReadStore();
   const [directIssue, allIssues, readerEditions] = await Promise.all([
-    getMagazineIssueServer(id),
-    getMagazineIssuesServer(),
-    listReaderEditions(100),
+    store.getMagazineIssue(id),
+    store.getMagazineIssues(),
+    store.listReaderEditions(100),
   ]);
   const issue = directIssue ?? allIssues.find((candidate) => candidate.id === id) ?? null;
 
@@ -80,7 +77,7 @@ export default async function DigitalMagazinePage({ params }: { params: Promise<
   const explicitReaderId = String((issue as any).readerEditionId || '').trim();
   if (explicitReaderId) {
     try {
-      linkedFromReaderId = await getReaderEditionById(explicitReaderId);
+      linkedFromReaderId = await store.getReaderEditionById(explicitReaderId);
     } catch {
       linkedFromReaderId = null;
     }
