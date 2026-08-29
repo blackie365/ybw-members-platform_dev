@@ -64,10 +64,27 @@ jobs:
           sudo -u www-data -H env CI=true pnpm -C "$APPDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
           echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" | tee -a "$LOG"
-          sudo rm -rf "$APPDIR/.next/cache" "$APPDIR/node_modules/.cache" \
-                 "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
+          echo "[4a/6] kill any stale www-data build workers + purge .next + export leftovers everywhere" | tee -a "$LOG"
+          sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|node.*build" 2>/dev/null || true
+          sleep 2
+          sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
+          sudo rm -rf "$APPDIR/.next" "$APPDIR/.next/export" "$APPDIR/.next/cache" \
+                 "$APPDIR/node_modules/.cache" "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
+          sudo rm -rf /tmp/.next-export* /tmp/next-export* 2>/dev/null || true
+          sudo -u www-data mkdir -p "$APPDIR/.next" 2>/dev/null || true
+          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>/dev/null || true
+          set +e
           sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
             pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -e
+          echo "[4b/6] post-build purge any leftover .next/export partial dirs (ENOENT rename defense)" | tee -a "$LOG"
+          sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
+          sudo rm -rf "$APPDIR/.next/export" 2>/dev/null || true
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            echo "FATAL: pnpm build exit=$BUILD_EXIT" | tee -a "$LOG"
+            exit "$BUILD_EXIT"
+          fi
 
           echo "[5/6] chown build artifacts" | tee -a "$LOG"
           sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true

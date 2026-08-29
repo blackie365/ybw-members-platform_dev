@@ -5,9 +5,9 @@ const nextConfig = {
   serverActions: {
     bodySizeLimit: '10mb',
   },
+  staticPageGenerationTimeout: 180,
   experimental: {
     swcTraceProfiling: false,
-    staticPageGenerationTimeout: 180,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
