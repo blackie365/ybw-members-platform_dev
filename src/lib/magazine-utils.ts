@@ -324,9 +324,10 @@ export function normalizeMagazinePageContent(contentIn: any): any {
   // 1) text ↔ body (PageEditor reads "Main Text" from .text; IDML imports
   //    populate .body). Keep both populated and always equal. The editor
   //    onChange writes .text (new edits) while legacy IDML imports write
-  //    .body; stale content objects typically carry both as separate
-  //    strings, so prefer whichever is a real string, longer/newer, or
-  //    last resort use .text as editor primary.
+  //    .body equal to .text at import time. `.text` is the editor-primary
+  //    field and therefore the source of truth on save: when the two
+  //    diverge, always prefer `.text` — a stale `.body` must never clobber a
+  //    freshly edited (possibly shorter) `.text`.
   const textRaw = typeof out.text === 'string' ? out.text : '';
   const bodyRaw = typeof out.body === 'string' ? out.body : '';
   const textTrimmed = textRaw.trim();
@@ -335,19 +336,16 @@ export function normalizeMagazinePageContent(contentIn: any): any {
   if (textTrimmed && !bodyTrimmed) chosenBodyText = textTrimmed;
   else if (bodyTrimmed && !textTrimmed) chosenBodyText = bodyTrimmed;
   else if (textTrimmed && bodyTrimmed) {
-    if (textTrimmed !== bodyTrimmed) {
-      chosenBodyText = textTrimmed.length >= bodyTrimmed.length ? textTrimmed : bodyTrimmed;
-    } else {
-      chosenBodyText = textTrimmed;
-    }
+    chosenBodyText = textTrimmed;
   }
   out.text = chosenBodyText;
   out.body = chosenBodyText;
 
   // 2) intro ↔ standfirst (PageEditor reads .intro; IDML imports populate
-  //    .standfirst). Keep both populated and always equal. Editor writes
-  //    .intro, legacy writes .standfirst, both strings exist on
-  //    roundtripped docs so choose the real/longer/newer one.
+  //    .standfirst). Keep both populated and always equal. `.intro` is the
+  //    editor-primary field so, like text/body, it is the source of truth
+  //    when the two diverge — a stale `.standfirst` must never clobber a
+  //    freshly edited `.intro`.
   const introRaw = typeof out.intro === 'string' ? out.intro : '';
   const standfirstRaw = typeof out.standfirst === 'string' ? out.standfirst : '';
   const introTrimmed = introRaw.trim();
@@ -356,11 +354,7 @@ export function normalizeMagazinePageContent(contentIn: any): any {
   if (introTrimmed && !standfirstTrimmed) chosenIntro = introTrimmed;
   else if (standfirstTrimmed && !introTrimmed) chosenIntro = standfirstTrimmed;
   else if (introTrimmed && standfirstTrimmed) {
-    if (introTrimmed !== standfirstTrimmed) {
-      chosenIntro = introTrimmed.length >= standfirstTrimmed.length ? introTrimmed : standfirstTrimmed;
-    } else {
-      chosenIntro = introTrimmed;
-    }
+    chosenIntro = introTrimmed;
   }
   out.intro = chosenIntro;
   out.standfirst = chosenIntro;
