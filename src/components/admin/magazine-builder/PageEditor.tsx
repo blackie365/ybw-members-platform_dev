@@ -299,7 +299,17 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
   }, [content, rawJsonError]);
 
   const updateContent = (field: string, value: any) => {
-    setContent((prev: any) => ({ ...prev, [field]: value }));
+    setContent((prev: any) => {
+      const next: any = { ...prev, [field]: value };
+      // Keep the legacy alias fields mirrored so the editor's local state
+      // never carries a stale superset (e.g. `.body` longer than `.text`)
+      // that later normalisation could prefer and swallow the user's edit.
+      if (field === 'text') next.body = value;
+      else if (field === 'body') next.text = value;
+      else if (field === 'intro') next.standfirst = value;
+      else if (field === 'standfirst') next.intro = value;
+      return next;
+    });
   };
 
   const uploadOneFile = useCallback(async (file: File): Promise<string> => {
