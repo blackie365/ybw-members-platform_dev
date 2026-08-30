@@ -249,6 +249,28 @@ export async function persistStoryLibraryForIssue(
   const nextDocIds = new Set(nextItems.map((item) => resolveStoryLibraryDocId(issueId, item)));
   const now = new Date().toISOString();
 
+  const engine = (process.env.MAGAZINE_STORE || 'firestore').toLowerCase();
+  if (engine === 'pg' || engine === 'postgres') {
+    // Phase 5: persist through the composite write store (Postgres primary +
+    // Firestore mirror). The PG writer projects the story library onto the
+    // issue row for the public reader; the Firestore mirror keeps the admin
+    // builder consistent. Stale-doc cleanup for the Firestore legacy collection
+    // is handled by the mirror's own delete logic.
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    const resolvedNext = nextItems.map((item) => ({
+      ...item,
+      id: resolveStoryLibraryDocId(issueId, item),
+    }));
+    await getMagazineWriteStore().persistStoryLibrary(issueId, resolvedNext);
+
+    const persistedItems = await getIssueStoryLibraryCollectionItems(issueId);
+    return persistedItems.length > 0
+      ? mergeStoryLibraryItems(persistedItems, nextItems)
+      : nextItems;
+  }
+
+  // Default (Firestore) engine: original batch upsert + stale-doc deletion +
+  // issue mirror, preserved so behaviour is byte-for-byte unchanged.
   const batch = adminDb.batch();
 
   for (const item of nextItems) {

@@ -1168,7 +1168,8 @@ export async function saveIdmlDraft(draft: {
     await checkAdmin();
     if (!adminDb) throw new Error('Firebase Admin not configured');
 
-    await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draft.id).set({
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().saveIdmlDraft({
       ...draft,
       updatedAt: new Date().toISOString(),
     });
@@ -1221,7 +1222,8 @@ export async function deleteIdmlDraft(draftId: string) {
     await checkAdmin();
     if (!adminDb) throw new Error('Firebase Admin not configured');
 
-    await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draftId).delete();
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().deleteIdmlDraft(draftId);
     return { success: true };
   } catch (error: any) {
     console.error('Error deleting IDML draft:', error);

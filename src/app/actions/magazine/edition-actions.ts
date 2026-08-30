@@ -153,7 +153,8 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     }
 
     const { id: _idFromValidated, ...cleanValidated } = validated.value as any;
-    await adminDb.collection('magazine_issues').doc(issueId).update({
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().updateIssue(issueId, {
       ...cleanValidated,
       slug,
       updatedAt: new Date().toISOString()
@@ -179,17 +180,8 @@ export async function setLatestMagazineIssueAction(issueId: string) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const now = new Date().toISOString();
-    const issuesRef = adminDb.collection('magazine_issues');
-
-    await adminDb.runTransaction(async (tx) => {
-      const latestSnap = await tx.get(issuesRef.where('isLatest', '==', true));
-      for (const doc of latestSnap.docs) {
-        if (doc.id === issueId) continue;
-        tx.update(doc.ref, { isLatest: false, updatedAt: now });
-      }
-      tx.set(issuesRef.doc(issueId), { isLatest: true, updatedAt: now }, { merge: true });
-    });
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().setLatestIssue(issueId);
 
     safeRevalidatePath('/admin/magazine');
     safeRevalidatePath('/new-edition');
@@ -206,17 +198,8 @@ export async function setFeaturedFlipbookIssueAction(issueId: string) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const now = new Date().toISOString();
-    const issuesRef = adminDb.collection('magazine_issues');
-
-    await adminDb.runTransaction(async (tx) => {
-      const featuredSnap = await tx.get(issuesRef.where('featureInFlipbook', '==', true));
-      for (const doc of featuredSnap.docs) {
-        if (doc.id === issueId) continue;
-        tx.update(doc.ref, { featureInFlipbook: false, updatedAt: now });
-      }
-      tx.set(issuesRef.doc(issueId), { featureInFlipbook: true, updatedAt: now }, { merge: true });
-    });
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().setFeaturedFlipbookIssue(issueId);
 
     safeRevalidatePath('/new-edition');
     return { success: true };
@@ -251,7 +234,8 @@ export async function createMagazineIssueAction(data: any) {
     }
 
     const { id: _vId, ...cleanCreate } = validated.value as any;
-    const docRef = await adminDb.collection('magazine_issues').add({
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    const createdId = await getMagazineWriteStore().createIssue({
       ...cleanCreate,
       slug,
       createdAt: new Date().toISOString(),
@@ -261,7 +245,7 @@ export async function createMagazineIssueAction(data: any) {
     safeRevalidatePath('/admin/magazine');
     safeRevalidatePath('/magazine');
     safeRevalidatePath('/new-edition');
-    return { success: true, id: docRef.id, slug };
+    return { success: true, id: createdId, slug };
   } catch (error: any) {
     console.error("Error in createMagazineIssueAction:", error);
     return { success: false, error: error.message };
@@ -273,7 +257,8 @@ export async function deleteMagazineIssueAction(issueId: string) {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    await adminDb.collection('magazine_issues').doc(issueId).delete();
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().deleteIssue(issueId);
     safeRevalidatePath('/admin/magazine');
     return { success: true };
   } catch (error: any) {

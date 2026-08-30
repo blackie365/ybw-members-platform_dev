@@ -1335,13 +1335,12 @@ export async function getReaderEditionIdBySlug(slug: string): Promise<string | n
 }
 
 export async function upsertReaderEdition(edition: ReaderEdition): Promise<void> {
-  const firestore = getFirestore();
-  if (!firestore) throw new Error('Firebase not configured for server writes');
+  const { getMagazineWriteStore } = await import('./write-store');
   const stamped: ReaderEdition & { schemaVersion: number } = {
     ...edition,
     schemaVersion: CURRENT_READER_SCHEMA_VERSION,
   };
-  await firestore.collection(COLLECTION).doc(edition.id).set(stamped, { merge: true });
+  await getMagazineWriteStore().upsertReaderEdition(stamped);
 }
 
 export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {
@@ -1424,6 +1423,6 @@ export async function syncReaderEditionsForIssue(issueId: string): Promise<numbe
 }
 
 export async function deleteReaderEdition(id: string): Promise<void> {
-  if (!adminDb) throw new Error('Firebase Admin not configured');
-  await adminDb.collection(COLLECTION).doc(id).delete();
+  const { getMagazineWriteStore } = await import('./write-store');
+  await getMagazineWriteStore().deleteReaderEdition(id);
 }
