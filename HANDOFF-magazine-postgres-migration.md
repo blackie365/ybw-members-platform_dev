@@ -1,7 +1,8 @@
 # HANDOFF — Magazine "edits don't save" fix + Firestore→Postgres migration
 
-Status: [IN PROGRESS — for next agent]
+Status: [READS LIVE ON POSTGRES — Phase 3 & 4 DONE; Phase 5 (writes→PG + destructive cleanup) NOT started]
 Created: 2026-08-29 (Weekend quiet-time session)
+Updated: 2026-08-30 (Phase 3 & Phase 4 complete, verified live)
 Author note: Option 1 (safe adapter-based migration) chosen by user.
 
 ---
@@ -14,17 +15,30 @@ Author note: Option 1 (safe adapter-based migration) chosen by user.
 - Added 8 regression tests that FAIL on old code / PASS on new.
 - MERGED to `main` (#436) + auto-deployed to VPS. Verified working by user.
 
-### DONE (PART 2 — Phase 2 read-layer seam, branch `feat-magazine-read-store-seam`)
+### DONE (PART 2 — Phase 2 read-layer seam, PR #437, branch `feat-magazine-read-store-seam`)
 - `MagazineReadStore` interface + `FirestoreMagazineReadStore` (pure delegation, read-layer only).
 - `getMagazineReadStore()` env selector (`MAGAZINE_STORE`, defaults `firestore`).
 - Wired all PUBLIC read call sites onto the seam (read/[slug], issue/[id], new-edition, sitemap, magazine-experience).
 - 12 parity tests; verification: `pnpm typecheck` clean, full suite 90/90.
 - Writes/batches/transactions STILL in Firestore (unchanged).
 
-### REMAINS (Option 1 — adapter-based migration)
-- Phase 3: `PgMagazineReadStore` + Postgres schema + one-time backfill script + read parity proving Postgres == Firestore.
-- Phase 4: cutover reads to Postgres (`MAGAZINE_STORE=pg`), keep Firestore for membership/auth; migrate writes in a later pass.
-- Phase 5: cleanup (remove magazine collections + 1MB workarounds).
+### DONE (PART 3 — Phase 3 Postgres read store + backfill, PR #438, commit `8b1e488`)
+- `PgMagazineReadStore`: reads resolved JSONB output from PG (`magazine_issues`, `magazine_pages`, `magazine_reader_editions`) with per-method full/light shapes.
+- `CompositeMagazineReadStore` (Pg primary + Firestore fallback) selected when `MAGAZINE_STORE=pg`.
+- Idempotent schema init (`pg-schema.ts`) + one-time backfill `scripts/backfill-firestore-to-pg.ts`.
+- Fixed duplicate-slug reader-edition row identity and Firestore issue-order tie-break (`publish_date DESC, id DESC`).
+- Verification: 104/104 tests, `tsc --noEmit` clean; real backfill `issues:11 / pages:160 / reader_editions:2`; byte-identical parity across all 8 read methods.
+
+### DONE (PART 4 — Phase 4 read cutover to Postgres, LIVE)
+- Set `MAGAZINE_STORE=pg` + `PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD` in VPS `/srv/ybw-frontend/.env.local` (backed up to `.env.local.bak.magstore-pg`).
+- Deployed via the VPS self-hosted runner (build `33330387889` success); VPS HEAD now `ab41e6e` = origin/main; `ybw-frontend.service` active.
+- Live verification: `/magazine/read/yorkshire-business-woman-summer-2026-edition` → HTTP 200; no `PgMagazineReadStore` errors / no Firestore fallback warnings in `journalctl`.
+- **Issuu flip-book preserved (user constraint):** flip-book is driven by issue `flipbookUrl`/`pdfUrl`/`featureInFlipbook`/`readerType` through `getMagazineReadStore()` (`/new-edition` page) — all intact in the backfilled PG issue rows (featured `ybw_august_2026` + all `readerType=issuu` archive issues).
+
+### REMAINS (Phase 5 — NOT started; user authorised, storage is safe to discard, do NOT touch Issuu flip-book)
+- Migrate magazine WRITE paths (edition-actions, page-actions, reader-edition-actions, idml-import-actions, story-library-actions, _helpers, API route, `simple-reader` upserts/batches/transactions) to Postgres.
+- Then remove Firestore magazine collections + the 1MB/IDML chunking workarounds.
+- User: no existing magazine writes need preserving (will create a new edition if needed); must NOT touch the Issuu flip-book editions.
 
 ---
 
@@ -183,7 +197,7 @@ src/features/magazine/server/read-store/      <- DONE (Phase 2)
   - `deploy-vps.yml` — on push to main: build on VPS (~5min), reset `/srv/ybw-frontend` to origin/main, pnpm build, restart `ybw-frontend.service`.
   - `test.yml` — Vitest required check (`pnpm test`). **Note:** local Mac run fails 1 ga4 test (OpenSSL 3), but CI self-hosted passes — CI is the source of truth.
 - VPS manual deploy fallback script: `/root/deploy-ybw-pr391.sh`.
-- Env keys in `.env.local`: `FIREBASE_*`, `NEXT_PUBLIC_FIREBASE_*`, `GHOST_CONTENT_API_KEY`, `NEXT_PUBLIC_GHOST_API_URL`, etc. (see firing up). Postgres connection vars not yet added.
+- Env keys in `.env.local`: `FIREBASE_*`, `NEXT_PUBLIC_FIREBASE_*`, `GHOST_CONTENT_API_KEY`, `NEXT_PUBLIC_GHOST_API_URL`, plus now `MAGAZINE_STORE=pg` and `PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD` (added Phase 4, 2026-08-30; backup `.env.local.bak.magstore-pg`).
 
 ---
 
@@ -195,6 +209,10 @@ src/features/magazine/server/read-store/      <- DONE (Phase 2)
 
 ## 9. NEXT ACTIONS (priority order)
 1. ~~Commit + PR + deploy the editor fix~~ — DONE: PR #436 merged & deployed, saving stable.
-2. ~~Phase 2 read-layer seam~~ — DONE: `MagazineReadStore` + `FirestoreMagazineReadStore` + wiring + 12 parity tests (branch `feat-magazine-read-store-seam`, PR in flight).
-3. **Phase 3 (NEXT):** implement `PgMagazineReadStore` (reads) + Postgres schema + one-time backfill script + read parity proving Postgres == Firestore.
-4. Then Phase 4 (cutover reads to Postgres), Phase 5 (cleanup).
+2. ~~Phase 2 read-layer seam~~ — DONE: `MagazineReadStore` + `FirestoreMagazineReadStore` + wiring + 12 parity tests (PR #437).
+3. ~~Phase 3 Postgres read store + backfill~~ — DONE: `PgMagazineReadStore` + schema + backfill + byte-identical parity (PR #438, commit `8b1e488`).
+4. ~~Phase 4 read cutover to Postgres~~ — DONE & LIVE: `MAGAZINE_STORE=pg` on VPS; verified serving from PG, Issuu flip-book preserved; no PG/fallback errors.
+5. **Phase 5 (NEXT, NOT started — user authorised, do NOT touch Issuu flip-book):**
+   a. Migrate magazine WRITE paths to Postgres: `edition-actions.ts`, `page-actions.ts`, `reader-edition-actions.ts`, `idml-import-actions.ts`, `story-library-actions.ts`, `_helpers.ts`, `src/app/api/admin/reader-editions/[id]/route.ts`, `simple-reader` upserts/batches/transactions.
+   b. Remove Firestore magazine collections + the 1MB/IDML chunking workarounds.
+   c. User constraint: no existing magazine writes need preserving (will create a new edition if needed); keep Issuu flip-book editions rendering via `/new-edition`.
