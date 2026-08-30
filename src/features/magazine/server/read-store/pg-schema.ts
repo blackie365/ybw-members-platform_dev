@@ -28,11 +28,23 @@ CREATE TABLE IF NOT EXISTS magazine_reader_editions (
   issue_id     TEXT,
   publish_date TIMESTAMPTZ
 );
+CREATE TABLE IF NOT EXISTS magazine_story_library (
+  id         TEXT PRIMARY KEY,
+  issue_id   TEXT NOT NULL,
+  data       JSONB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS magazine_idml_drafts (
+  id           TEXT PRIMARY KEY,
+  updated_at   TIMESTAMPTZ,
+  data         JSONB NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_magazine_issues_publish   ON magazine_issues (publish_date DESC);
 CREATE INDEX IF NOT EXISTS idx_reader_editions_publish   ON magazine_reader_editions (publish_date DESC);
 CREATE INDEX IF NOT EXISTS idx_reader_editions_slug      ON magazine_reader_editions (slug);
 CREATE INDEX IF NOT EXISTS idx_reader_editions_issue     ON magazine_reader_editions (issue_id);
 CREATE INDEX IF NOT EXISTS idx_magazine_pages_issue_sort ON magazine_pages (issue_id, sort_key ASC);
+CREATE INDEX IF NOT EXISTS idx_story_library_issue       ON magazine_story_library (issue_id);
+CREATE INDEX IF NOT EXISTS idx_idml_drafts_updated       ON magazine_idml_drafts (updated_at DESC);
 ALTER TABLE magazine_reader_editions ADD COLUMN IF NOT EXISTS data_light JSONB;
 `;
 

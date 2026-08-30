@@ -1,8 +1,8 @@
 # HANDOFF — Magazine "edits don't save" fix + Firestore→Postgres migration
 
-Status: [READS LIVE ON POSTGRES — Phase 3 & 4 DONE; Phase 5 (writes→PG + destructive cleanup) NOT started]
+Status: [READS LIVE ON POSTGRES — Phase 3 & 4 DONE. Phase 5 IN PROGRESS: write-store seam built (PG primary + Firestore mirror, env-gated by MAGAZINE_STORE=pg) and core write paths routed; builder-pages & admin-read conversion + Firestore removal remain]
 Created: 2026-08-29 (Weekend quiet-time session)
-Updated: 2026-08-30 (Phase 3 & Phase 4 complete, verified live)
+Updated: 2026-08-30 (Phase 3 & 4 complete; Phase 5 write-store wiring merged)
 Author note: Option 1 (safe adapter-based migration) chosen by user.
 
 ---
@@ -212,7 +212,8 @@ src/features/magazine/server/read-store/      <- DONE (Phase 2)
 2. ~~Phase 2 read-layer seam~~ — DONE: `MagazineReadStore` + `FirestoreMagazineReadStore` + wiring + 12 parity tests (PR #437).
 3. ~~Phase 3 Postgres read store + backfill~~ — DONE: `PgMagazineReadStore` + schema + backfill + byte-identical parity (PR #438, commit `8b1e488`).
 4. ~~Phase 4 read cutover to Postgres~~ — DONE & LIVE: `MAGAZINE_STORE=pg` on VPS; verified serving from PG, Issuu flip-book preserved; no PG/fallback errors.
-5. **Phase 5 (NEXT, NOT started — user authorised, do NOT touch Issuu flip-book):**
-   a. Migrate magazine WRITE paths to Postgres: `edition-actions.ts`, `page-actions.ts`, `reader-edition-actions.ts`, `idml-import-actions.ts`, `story-library-actions.ts`, `_helpers.ts`, `src/app/api/admin/reader-editions/[id]/route.ts`, `simple-reader` upserts/batches/transactions.
-   b. Remove Firestore magazine collections + the 1MB/IDML chunking workarounds.
-   c. User constraint: no existing magazine writes need preserving (will create a new edition if needed); keep Issuu flip-book editions rendering via `/new-edition`.
+5. **Phase 5 (IN PROGRESS — user chose "Full PG migration, dual-origin transition"; do NOT touch Issuu flip-book):**
+   a. **Write-store seam BUILT** (`src/features/magazine/server/write-store/`): `MagazineWriteStore` interface + `FirestoreMagazineWriteStore` (default/unchanged) + `PgMagazineWriteStore` (JSONB rows) + `CompositeMagazineWriteStore` (PG primary + Firestore mirror, mirror failures non-fatal) + env selector `getMagazineWriteStore()` (returns composite when `MAGAZINE_STORE=pg`). Schema extended with `magazine_story_library` + `magazine_idml_drafts`. Unit tests added; typecheck/lint/113 tests green.
+   b. **Core write paths routed through the store** (behavior-preserving on default engine): issue create/update/delete/latest/featured (`edition-actions.ts`), reader-edition upsert/delete + issue link patch (`simple-reader.ts`, `reader-edition-actions.ts`), story-library persist (`_helpers.ts`), IDML draft save/delete (`idml-import-actions.ts`). Enough to create/publish a NEW magazine end-to-end on PG while the admin builder keeps working via the Firestore mirror.
+   c. **REMAINS in Phase 5:** builder-pages writes (`page-actions.ts` — Firestore auto-docId vs PG numeric-id friction deferred), admin-builder READS → PG, admin `reader-editions/[id]/route.ts` audit, backfill story_library/idml_drafts, then remove Firestore magazine collections + 1MB/IDML chunking workarounds.
+   d. User constraint: no existing magazine writes need preserving (will create a new edition if needed); keep Issuu flip-book editions rendering via `/new-edition`.

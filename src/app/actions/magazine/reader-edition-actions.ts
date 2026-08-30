@@ -166,7 +166,8 @@ export async function syncBuilderToReaderEditionAction(
       pageCount: Array.isArray(validated.pages) ? validated.pages.length : 0,
       updatedAt: new Date().toISOString(),
     };
-    await issueRef.set(issuePatch, { merge: true });
+    const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+    await getMagazineWriteStore().updateIssue(issueId, issuePatch);
 
     try {
       const tSync = Date.now();
