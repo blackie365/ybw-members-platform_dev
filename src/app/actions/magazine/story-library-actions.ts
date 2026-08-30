@@ -1,4 +1,3 @@
-import { adminDb } from '@/lib/firebase-admin';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { StoryLibraryItemSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';
@@ -13,14 +12,14 @@ import { syncBuilderToReaderEditionAction } from './reader-edition-actions';
 export async function getMagazineStoryLibraryAction(issueId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
 
     const [issueDoc, collectionItems] = await Promise.all([
-      adminDb.collection('magazine_issues').doc(issueId).get(),
+      getMagazineReadStore().getMagazineIssue(issueId),
       getIssueStoryLibraryCollectionItems(issueId),
     ]);
 
-    const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
+    const issueData = (issueDoc || {}) as { storyLibrary?: StoryLibraryItem[] };
     const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
     const merged = mergeStoryLibraryItems(collectionItems, issueItems);
 
@@ -34,7 +33,6 @@ export async function getMagazineStoryLibraryAction(issueId: string) {
 export async function saveMagazineStoryLibraryAction(issueId: string, storyLibrary: StoryLibraryItem[]) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
 
     const validatedItems: StoryLibraryItem[] = [];
     for (let i = 0; i < (Array.isArray(storyLibrary) ? storyLibrary.length : 0); i += 1) {

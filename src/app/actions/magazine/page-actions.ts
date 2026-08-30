@@ -1,9 +1,11 @@
-import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { MagazinePageSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';
 import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
+import { getMagazineWriteStore } from '@/features/magazine/server/write-store';
 import { syncBuilderToReaderEditionAction } from './reader-edition-actions';
 import { safeRevalidatePath } from './_helpers';
+import { MagazinePage } from '@/components/admin/magazine-builder/types';
 
 function eagerRevalidateAdminBuilderPaths(issueId: string): void {
   safeRevalidatePath('/admin/magazine');
@@ -11,32 +13,18 @@ function eagerRevalidateAdminBuilderPaths(issueId: string): void {
   safeRevalidatePath(`/admin/magazine/builder`);
 }
 
+/**
+ * Page identity (Phase 5): a builder page is keyed by its numeric `id` in the
+ * magazine_pages table, and that numeric id is surfaced to the builder client
+ * as its `docId` (docId === String(id)). All reads go through the magazine read
+ * store (Postgres primary on VPS) and all writes through the write store, so
+ * the admin builder is fully decoupled from Firestore.
+ */
+
 export async function getMagazinePagesAction(issueId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
-
-    const snapshot = await adminDb.collection('magazine_issues').doc(issueId).collection('pages')
-      .orderBy('id', 'asc')
-      .get();
-
-    const pages = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
-        if (value && typeof value === 'object' && 'seconds' in value) {
-          acc[key] = new Date((value as any).seconds * 1000).toISOString();
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as any);
-
-      return {
-        docId: doc.id,
-        ...serializedData
-      };
-    });
-
+    const pages = await getMagazineReadStore().getMagazinePages(issueId);
     return { success: true, data: pages };
   } catch (error: any) {
     console.error("Error in getMagazinePagesAction:", error);
@@ -47,22 +35,18 @@ export async function getMagazinePagesAction(issueId: string) {
 export async function updateMagazinePageAction(issueId: string, pageId: string, data: any, opts: { skipSync?: boolean; skipExistingFetch?: boolean; existingDoc?: unknown } = {}) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getMagazineWriteStore();
 
-    // IMPORTANT: partial saves (e.g. handleSavePageContent only ever passes
-    // `{ content }`) must NOT clobber fields they don't mention. Previously
-    // this defaulted `id`/`type` to 0/'feature-full' whenever the caller
-    // omitted them, and because MagazinePageSchema requires `id`, that 0
-    // ended up in every merge payload — silently corrupting the page's
-    // sort-order id (orderBy('id','asc') everywhere) on every plain content
-    // save. Fetch the existing doc first so unspecified fields fall back to
-    // their CURRENT stored values, not hardcoded defaults.
+    // Partial saves (e.g. handleSavePageContent only ever passes `{ content }`)
+    // must NOT clobber fields they don't mention. Fetch the current page so
+    // unspecified fields fall back to their CURRENT stored values, not defaults.
     let existingData: any = opts.existingDoc && typeof opts.existingDoc === 'object'
       ? { ...(opts.existingDoc as any) }
       : undefined;
     if (!opts.skipExistingFetch || typeof existingData !== 'object') {
-      const existingSnap = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).get();
-      existingData = existingSnap.exists ? existingSnap.data() : {};
+      const current = await getMagazineReadStore().getMagazinePages(issueId);
+      const found = current.find((p: MagazinePage & { docId?: string }) => String(p.docId) === String(pageId) || String((p as any)?.id) === String(pageId));
+      existingData = found ? { ...(found as any) } : {};
     }
 
     const raw: any = {
@@ -82,9 +66,8 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       return { success: false, error: validated.error, validationIssues: validated.issues };
     }
     const payload: any = { ...validated.value };
-    delete payload.docId;
     const t0 = Date.now();
-    await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).set(payload, { merge: true });
+    await store.upsertPage(issueId, { ...payload, id: payload.id ?? pageId });
     console.log(`[SAVEDIAG] ${new Date().toISOString()} updateMagazinePageAction write OK pageId=${pageId} in ${Date.now() - t0}ms`);
     eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
@@ -107,7 +90,7 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
 export async function addMagazinePageAction(issueId: string, data: any, opts: { skipSync?: boolean } = {}) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getMagazineWriteStore();
 
     const now = new Date().toISOString();
     const raw: any = {
@@ -127,8 +110,7 @@ export async function addMagazinePageAction(issueId: string, data: any, opts: { 
       return { success: false, error: validated.error, validationIssues: validated.issues };
     }
     const payload: any = { ...validated.value };
-    delete payload.docId;
-    const docRef = await adminDb.collection('magazine_issues').doc(issueId).collection('pages').add(payload);
+    const id = await store.addPage(issueId, { ...payload, id: payload.id ?? payload.docId ?? undefined });
     eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
       try {
@@ -137,7 +119,7 @@ export async function addMagazinePageAction(issueId: string, data: any, opts: { 
         console.warn('[addMagazinePageAction] post-sync Builder→ReaderEdition non-fatal:', syncErr?.message || syncErr);
       }
     }
-    return { success: true, id: docRef.id };
+    return { success: true, id };
   } catch (error: any) {
     console.error("Error in addMagazinePageAction:", error);
     return { success: false, error: error.message };
@@ -147,9 +129,9 @@ export async function addMagazinePageAction(issueId: string, data: any, opts: { 
 export async function deleteMagazinePageAction(issueId: string, pageId: string, opts: { skipSync?: boolean } = {}) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getMagazineWriteStore();
 
-    await adminDb.collection('magazine_issues').doc(issueId).collection('pages').doc(pageId).delete();
+    await store.deletePage(issueId, pageId);
     eagerRevalidateAdminBuilderPaths(issueId);
     if (!opts.skipSync) {
       try {
@@ -179,16 +161,19 @@ export async function bulkUpdateMagazinePagesAction(
 ) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    const store = getMagazineWriteStore();
     if (!Array.isArray(entries) || entries.length === 0) {
       return { success: true, updated: 0 };
     }
 
-    const collectionRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
-    const batch = adminDb.batch();
-    let staged = 0;
-    let fetchedDocs = 0;
     const t0 = Date.now();
+    const current = await getMagazineReadStore().getMagazinePages(issueId);
+    const currentByDocId = new Map<string, any>();
+    for (const p of current as Array<MagazinePage & { docId?: string }>) {
+      const key = String((p as any).docId ?? (p as any).id);
+      currentByDocId.set(key, { ...(p as any) });
+      currentByDocId.set(String((p as any).id), { ...(p as any) });
+    }
 
     const existingById = new Map<string, any>();
     const needFetch: string[] = [];
@@ -203,14 +188,14 @@ export async function bulkUpdateMagazinePagesAction(
     }
 
     if (needFetch.length > 0) {
-      const existingSnaps = await Promise.all(
-        needFetch.map((pid) => collectionRef.doc(pid).get()),
-      );
-      existingSnaps.forEach((snap, i) => {
-        existingById.set(needFetch[i], snap.exists ? snap.data() || {} : {});
-      });
-      fetchedDocs += existingSnaps.length;
+      for (const pid of needFetch) {
+        const found = currentByDocId.get(pid);
+        existingById.set(pid, found ? { ...found } : {});
+      }
     }
+
+    const resolvedPages: Array<MagazinePage & { id: number | string }> = [];
+    let staged = 0;
 
     for (const entry of entries) {
       if (!entry?.pageId) continue;
@@ -239,15 +224,14 @@ export async function bulkUpdateMagazinePagesAction(
         return { success: false, error: validated.error, validationIssues: validated.issues, updated: staged };
       }
       const payload: any = { ...validated.value };
-      delete payload.docId;
-      batch.set(collectionRef.doc(entry.pageId), payload, { merge: true });
+      resolvedPages.push({ ...payload, id: payload.id ?? entry.pageId });
       staged++;
     }
 
-    await batch.commit();
+    await store.bulkUpsertPages(issueId, resolvedPages);
     const elapsed = Date.now() - t0;
     console.log(
-      `[SAVEDIAG] ${new Date().toISOString()} bulkUpdateMagazinePagesAction commit OK: ${staged} pages, ${fetchedDocs} fetched, ${Date.now() - t0}ms`,
+      `[SAVEDIAG] ${new Date().toISOString()} bulkUpdateMagazinePagesAction commit OK: ${staged} pages, ${Date.now() - t0}ms`,
     );
     eagerRevalidateAdminBuilderPaths(issueId);
 
@@ -277,20 +261,14 @@ export async function bulkDeleteMagazinePagesAction(
 ) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    const store = getMagazineWriteStore();
     const ids = Array.isArray(pageIds) ? pageIds.filter((p) => typeof p === 'string' && p) : [];
     if (ids.length === 0) {
       return { success: true, deleted: 0 };
     }
 
-    const collectionRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
-    const batch = adminDb.batch();
     const t0 = Date.now();
-
-    for (const pid of ids) {
-      batch.delete(collectionRef.doc(pid));
-    }
-    await batch.commit();
+    await store.bulkDeletePages(issueId, ids);
 
     const elapsed = Date.now() - t0;
     console.log(

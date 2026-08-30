@@ -1,4 +1,4 @@
-import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
 import { MagazineReadStore } from './interface';
 import { FirestoreMagazineReadStore } from './firestore-store';
@@ -63,5 +63,21 @@ export class CompositeMagazineReadStore implements MagazineReadStore {
 
   async getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
     return (await this.primary.getReaderEditionBySlug(slug)) ?? this.fallback.getReaderEditionBySlug(slug);
+  }
+
+  async getStoryLibrary(issueId: string): Promise<StoryLibraryItem[]> {
+    const fromPg = await this.primary.getStoryLibrary(issueId);
+    if (fromPg && fromPg.length > 0) return fromPg;
+    return this.fallback.getStoryLibrary(issueId);
+  }
+
+  async listIdmlDrafts(): Promise<any[]> {
+    const fromPg = await this.primary.listIdmlDrafts();
+    if (fromPg && fromPg.length > 0) return fromPg;
+    return this.fallback.listIdmlDrafts();
+  }
+
+  async getIdmlDraft(draftId: string): Promise<any | null> {
+    return (await this.primary.getIdmlDraft(draftId)) ?? this.fallback.getIdmlDraft(draftId);
   }
 }

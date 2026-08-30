@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/lib/server/auth-utils';
-import { adminDb } from '@/lib/firebase-admin';
-import { deleteReaderEdition, listReaderEditions } from '@/features/magazine/server/simple-reader';
+import { deleteReaderEdition } from '@/features/magazine/server/simple-reader';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { revalidatePath } from 'next/cache';
 
 export const runtime = 'nodejs';
@@ -12,7 +12,6 @@ export async function DELETE(
 ) {
   try {
     await checkAdmin();
-    if (!adminDb) return NextResponse.json({ success: false, error: 'DB not initialized' }, { status: 500 });
 
     const { id } = await params;
     if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
@@ -20,23 +19,23 @@ export async function DELETE(
     await deleteReaderEdition(id);
 
     try {
-      const snapshot = await adminDb.collection('magazine_issues')
-        .where('readerEditionId', '==', id)
-        .select()
-        .limit(20)
-        .get();
-      await Promise.all(
-        snapshot.docs.map((doc) =>
-          adminDb!.collection('magazine_issues').doc(doc.id).update({
-            readerEditionId: null,
-            readerEditionSlug: null,
-            readerEditionPublished: false,
-            readerEditionTitle: null,
-            readerEditionPublishDate: null,
-            readerEditionPageCount: null,
-          }).catch(() => null),
-        ),
-      );
+      const readStore = getMagazineReadStore();
+      const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+      const issues = await readStore.getMagazineIssues();
+      const patch: Record<string, unknown> = {
+        readerEditionId: null,
+        readerEditionSlug: null,
+        readerEditionPublished: false,
+        readerEditionTitle: null,
+        readerEditionPublishDate: null,
+        readerEditionPageCount: null,
+        updatedAt: new Date().toISOString(),
+      };
+      for (const issue of issues) {
+        if (String((issue as any).readerEditionId || '') === String(id)) {
+          await getMagazineWriteStore().updateIssue(String((issue as any).id), patch);
+        }
+      }
     } catch {
       // Deletion itself already succeeded; unlink failure is non-fatal
     }
@@ -59,7 +58,7 @@ export async function GET(
     await checkAdmin();
     const { id } = await params;
     if (id === '_list' || id === 'list') {
-      const editions = await listReaderEditions(100);
+      const editions = await getMagazineReadStore().listReaderEditions(100);
       return NextResponse.json({
         success: true,
         count: editions.length,

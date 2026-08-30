@@ -40,14 +40,14 @@ describe('PgMagazineReadStore — simple JSONB lookups', () => {
     expect(await new PgMagazineReadStore().getLatestIssue()).toBeNull();
   });
 
-  it('getMagazinePages orders by sort_key asc and returns data rows', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ data: { id: 1 } }, { data: { id: 2 } }] });
+  it('getMagazinePages orders by sort_key asc, selects id+data, and injects docId', async () => {
+    fakePool.query.mockResolvedValue({ rows: [{ id: 1, data: { id: 1 } }, { id: 2, data: { id: 2 } }] });
     const out = await new PgMagazineReadStore().getMagazinePages('iss');
     expect(fakePool.query).toHaveBeenCalledWith(
-      'SELECT data FROM magazine_pages WHERE issue_id = $1 ORDER BY sort_key ASC, id ASC',
+      'SELECT id, data FROM magazine_pages WHERE issue_id = $1 ORDER BY sort_key ASC, id ASC',
       ['iss'],
     );
-    expect(out).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(out).toEqual([{ id: 1, docId: '1' }, { id: 2, docId: '2' }]);
   });
 
   it('getReaderEditionBySlug queries by slug and returns data', async () => {
@@ -104,6 +104,9 @@ describe('CompositeMagazineReadStore — Firestore fallback on Pg miss/error', (
       getReaderEditionById: vi.fn().mockResolvedValue(null),
       listReaderEditions: vi.fn().mockResolvedValue([]),
       getReaderEditionBySlug: vi.fn().mockResolvedValue(null),
+      getStoryLibrary: vi.fn().mockResolvedValue([]),
+      listIdmlDrafts: vi.fn().mockResolvedValue([]),
+      getIdmlDraft: vi.fn().mockResolvedValue(null),
       ...overrides,
     };
     return base;
