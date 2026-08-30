@@ -1343,6 +1343,15 @@ export async function getReaderEditionIdBySlug(slug: string): Promise<string | n
   const firestore = getFirestore();
   if (!firestore) return null;
 
+  // PG-PRIMARY FAST PATH: find the edition by slug via the read store.
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    const ed = await getMagazineReadStore().getReaderEditionBySlug(slug);
+    if (ed && (ed as any)?.id) return String((ed as any).id);
+  } catch (err) {
+    console.warn('[getReaderEditionIdBySlug] PG fast path failed (falling back to legacy):', err);
+  }
+
   /** AUTHORITY #1: COLLECTION slug match. */
   try {
     const snapshot = await firestore
@@ -1372,13 +1381,24 @@ export async function upsertReaderEdition(edition: ReaderEdition): Promise<void>
 }
 
 export async function syncReaderEditionCoverFromIssue(editionId: string): Promise<ReaderEdition | null> {
-  const firestore = getFirestore();
-  if (!firestore) return null;
+  // PG-PRIMARY FAST PATH: load the edition through the read store (which is
+  // PG-first), falling back to the legacy Firestore doc read only when null.
+  let edition: ReaderEdition | null = null;
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    edition = await getMagazineReadStore().getReaderEditionById(editionId);
+  } catch (err) {
+    console.warn('[syncReaderEditionCoverFromIssue] read-store load failed:', err);
+  }
 
-  const editionDoc = await firestore.collection(COLLECTION).doc(editionId).get();
-  const exists = typeof editionDoc?.exists === 'boolean' ? editionDoc.exists : Boolean(editionDoc);
-  if (!exists) return null;
-  const edition = serializeData({ id: editionId, ...(editionDoc.data ? editionDoc.data() : editionDoc) }) as ReaderEdition;
+  if (!edition) {
+    const firestore = getFirestore();
+    if (!firestore) return null;
+    const editionDoc = await firestore.collection(COLLECTION).doc(editionId).get();
+    const exists = typeof editionDoc?.exists === 'boolean' ? editionDoc.exists : Boolean(editionDoc);
+    if (!exists) return null;
+    edition = serializeData({ id: editionId, ...(editionDoc.data ? editionDoc.data() : editionDoc) }) as ReaderEdition;
+  }
 
   const issues = await getMagazineIssuesServer();
   const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition)) ?? null;
@@ -1410,12 +1430,25 @@ export async function syncReaderEditionsForIssue(issueId: string): Promise<numbe
   const firestore = getFirestore();
   if (!firestore) return 0;
 
-  const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
-  const exists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
-  if (!exists) return 0;
+  let issueRaw: any = null;
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    issueRaw = await getMagazineReadStore().getMagazineIssue(issueId);
+  } catch (err) {
+    console.warn('[syncReaderEditionsForIssue] PG issue read failed:', err);
+  }
+  if (!issueRaw) {
+    const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
+    const exists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
+    if (!exists) return 0;
+    issueRaw = {
+      id: issueDoc.id,
+      ...serializeData(issueDoc.data ? issueDoc.data() : issueDoc),
+    };
+  }
   const issue = {
-    id: issueDoc.id,
-    ...serializeData(issueDoc.data ? issueDoc.data() : issueDoc),
+    id: String((issueRaw as any)?.id ?? issueId),
+    ...(issueRaw || {}),
   } as { title?: string; coverImage?: string; publishDate?: string };
   const issueCover = sanitizeImageUrl(issue.coverImage) || '';
   if (!issueCover) return 0;

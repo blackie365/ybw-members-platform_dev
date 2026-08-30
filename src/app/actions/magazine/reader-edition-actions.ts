@@ -1,4 +1,3 @@
-import { adminDb } from '@/lib/firebase-admin';
 import type { StoryLibraryItem, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import type { ReaderPage, ReaderEdition } from '@/features/magazine/domain/types';
@@ -352,7 +351,6 @@ export async function syncReaderEditionToLegacyIssue(
   legacyPageCount: number;
   removedLegacyIds: string[];
 }> {
-  if (!adminDb) throw new Error('Database not initialized');
   if (!editionId) throw new Error('ReaderEdition id is required');
   if (!issueId) throw new Error('Issue id is required');
 
@@ -366,26 +364,23 @@ export async function syncReaderEditionToLegacyIssue(
   const nextStoryLibrary = buildStoryLibraryItemsFromReaderPages(issueId, editionId, flatPages);
   await persistStoryLibraryForIssue(issueId, nextStoryLibrary);
 
-  const pagesRef = adminDb.collection('magazine_issues').doc(issueId).collection('pages');
-  const existingSnap = await pagesRef.orderBy('id', 'asc').get();
-  const existingById = new Map<number, { docId: string; data: MagazinePage }>();
-  for (const doc of existingSnap.docs) {
-    const d = doc.data() as MagazinePage;
-    const num = typeof d.id === 'number' ? d.id : Number(d.id || 0);
-    existingById.set(num, { docId: doc.id, data: d });
-  }
+  const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+  const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
 
-  const now = new Date().toISOString();
-  const batch = adminDb.batch();
+  const existingPages = await getMagazineReadStore().getMagazinePages(issueId);
   const removedLegacyIds: string[] = [];
 
+  const now = new Date().toISOString();
+
   const maxPrintId = Math.max(...flatPages.map((rp: any) => typeof rp.position === 'number' ? rp.position : 0));
-  for (const [idNum, info] of existingById) {
-    if (idNum > 0 && idNum <= maxPrintId) {
-      batch.delete(pagesRef.doc(info.docId));
-      removedLegacyIds.push(info.docId);
-    }
+  for (const p of existingPages) {
+    const raw = (p as any)?.id;
+    const num = typeof raw === 'number' ? raw : Number(raw || 0);
+    if (num > 0 && num <= maxPrintId) removedLegacyIds.push(String(num));
   }
+  await getMagazineWriteStore().bulkDeletePages(issueId, removedLegacyIds);
+
+  const legacyDocs: any[] = [];
 
   const SOURCE_TEMPLATE_TO_PAGE_TYPE: Record<string, string> = {
     'cover': 'cover',
@@ -446,11 +441,10 @@ export async function syncReaderEditionToLegacyIssue(
       updatedAt: now,
       name: title || `${String(rp.template || 'Page')} ${pos}`,
     };
-    const docRef = pagesRef.doc();
-    batch.set(docRef, legacyDoc);
+    legacyDocs.push(legacyDoc as unknown as MagazinePage & { id: number | string });
   }
 
-  await batch.commit();
+  await getMagazineWriteStore().bulkUpsertPages(issueId, legacyDocs);
 
   return { storyLibraryCount: nextStoryLibrary.length, legacyPageCount, removedLegacyIds };
 }
