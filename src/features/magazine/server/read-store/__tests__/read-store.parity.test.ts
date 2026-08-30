@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { FirestoreMagazineReadStore } from '@/features/magazine/server/read-store/firestore-store';
+import { CompositeMagazineReadStore } from '@/features/magazine/server/read-store/composite-store';
 
 import * as magazineServiceServer from '@/lib/magazine-service-server';
 import * as simpleReader from '@/features/magazine/server/simple-reader';
@@ -31,9 +32,9 @@ describe('FirestoreMagazineReadStore — pure delegation parity', () => {
     expect(getMagazineReadStore()).toBeInstanceOf(FirestoreMagazineReadStore);
   });
 
-  it('getMagazineReadStore() falls back to Firestore store when MAGAZINE_STORE=pg (Pg store not yet landed)', () => {
+  it('getMagazineReadStore() returns a Composite store (Pg primary + Firestore fallback) when MAGAZINE_STORE=pg', () => {
     process.env.MAGAZINE_STORE = 'pg';
-    expect(getMagazineReadStore()).toBeInstanceOf(FirestoreMagazineReadStore);
+    expect(getMagazineReadStore()).toBeInstanceOf(CompositeMagazineReadStore);
   });
 
   it('getMagazineIssues() delegates to getMagazineIssuesServer()', async () => {
