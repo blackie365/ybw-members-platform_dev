@@ -2,7 +2,6 @@ import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { MagazineIssueSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';
-import { listReaderEditions } from '@/features/magazine/server/simple-reader';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 import { safeRevalidatePath } from './_helpers';
@@ -88,29 +87,8 @@ export async function getGhostPostsAction(options?: any) {
 export async function getMagazineIssuesAction() {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
-
-    const snapshot = await adminDb.collection('magazine_issues')
-      .orderBy('publishDate', 'desc')
-      .get();
-
-    const issues = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
-        if (value && typeof value === 'object' && 'seconds' in value) {
-          acc[key] = new Date((value as any).seconds * 1000).toISOString();
-        } else {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as any);
-
-      return {
-        ...serializedData,
-        id: doc.id
-      };
-    });
-
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+    const issues = await getMagazineReadStore().getMagazineIssues();
     return { success: true, data: issues };
   } catch (error: any) {
     console.error("Error in getMagazineIssuesAction:", error);
@@ -124,8 +102,9 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
     if (!adminDb) throw new Error("Database not initialized");
 
     const { id: _ignoredId, ...rest } = data ?? {};
-    const issueDoc = await adminDb.collection('magazine_issues').doc(issueId).get();
-    const existing = issueDoc.exists ? issueDoc.data() : {};
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+    const issueDoc = await getMagazineReadStore().getMagazineIssue(issueId);
+    const existing = issueDoc ? { ...(issueDoc as any) } : {};
     const mergedTitle = String(rest.title ?? existing?.title ?? '').trim();
     const mergedTag = String(rest.ghostSyncTag ?? existing?.ghostSyncTag ?? '').trim();
     const mergedReaderSlug = String(rest.readerEditionSlug ?? existing?.readerEditionSlug ?? '').trim();
@@ -291,11 +270,12 @@ export interface UnifiedEditionRow {
 export async function getEditionsListingAction(): Promise<{ success: boolean; data?: UnifiedEditionRow[]; error?: string }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+    const readStore = getMagazineReadStore();
 
-    const [issuesSnapshot, readerEditions] = await Promise.all([
-      adminDb.collection('magazine_issues').orderBy('publishDate', 'desc').limit(100).get(),
-      listReaderEditions(100).catch(() => []),
+    const [issues, readerEditions] = await Promise.all([
+      readStore.getMagazineIssues(),
+      readStore.listReaderEditions(100).catch(() => []),
     ]);
 
     const readerByIssueId = new Map<string, ReaderEdition>();
@@ -306,9 +286,8 @@ export async function getEditionsListingAction(): Promise<{ success: boolean; da
 
     const rows: UnifiedEditionRow[] = [];
 
-    for (const doc of issuesSnapshot.docs) {
-      const raw: any = doc.data() ?? {};
-      const issueId = doc.id;
+    for (const raw of issues as any[]) {
+      const issueId = String(raw.id || '');
       const normalizeTs = (v: any): string => {
         if (!v) return '';
         if (typeof v === 'string') return v;

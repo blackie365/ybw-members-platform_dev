@@ -1,4 +1,4 @@
-import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import { adminStorage } from '@/lib/firebase-admin';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { parseIdml } from '@/lib/idml-parser';
@@ -722,7 +722,7 @@ async function importIdmlBufferToStoryLibrary(
   fileName: string,
   location: string,
 ) {
-  if (!adminDb) throw new Error('Database not initialized');
+  if (!issueId) throw new Error('Database not initialized');
 
   const parsed = await parseIdml(buffer);
 
@@ -738,12 +738,13 @@ async function importIdmlBufferToStoryLibrary(
   const imageUrls = await uploadStoryLibraryArticleImages(parsed, fileName, previewItems);
   const importedItems = buildStoryLibraryItemsFromParsedIdml(parsed, fileName, imageUrls);
 
+  const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
   const [issueDoc, collectionItems] = await Promise.all([
-    adminDb.collection('magazine_issues').doc(issueId).get(),
+    getMagazineReadStore().getMagazineIssue(issueId),
     getIssueStoryLibraryCollectionItems(issueId),
   ]);
 
-  const issueData = (issueDoc.data() || {}) as { storyLibrary?: StoryLibraryItem[] };
+  const issueData = (issueDoc || {}) as { storyLibrary?: StoryLibraryItem[] };
   const issueItems = Array.isArray(issueData.storyLibrary) ? issueData.storyLibrary : [];
   const existingItems = mergeStoryLibraryItems(collectionItems, issueItems);
   const nextLibrary = mergeStoryLibraryItems(importedItems, existingItems);
@@ -780,8 +781,6 @@ function slugify(text: string): string {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const IDML_DRAFT_COLLECTION = 'magazine_idml_drafts';
 
 // ---------------------------------------------------------------------------
 // Exported actions
@@ -989,20 +988,18 @@ export async function publishIdmlEditionAction(params: {
     // issue.slug fields with article titles produced garbage public URLs like
     // /magazine/read/west-yorkshire-law-firm-achieves-...
     let issueMeta: Partial<{ title: string; slug: string; readerEditionSlug: string; ghostSyncTag: string; id: string }> | null = null;
-    if (params.issueId && adminDb) {
+    if (params.issueId) {
       try {
-        const d = await adminDb.collection('magazine_issues').doc(params.issueId).get();
-        if (d.exists) {
-          const raw = d.data() as Record<string, unknown> | undefined;
-          if (raw) {
-            issueMeta = {
-              id: d.id,
-              title: String(raw.title || ''),
-              slug: String(raw.slug || ''),
-              readerEditionSlug: String(raw.readerEditionSlug || ''),
-              ghostSyncTag: String(raw.ghostSyncTag || ''),
-            };
-          }
+        const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+        const issue = await getMagazineReadStore().getMagazineIssue(params.issueId);
+        if (issue) {
+          issueMeta = {
+            id: String((issue as any).id ?? params.issueId),
+            title: String((issue as any).title || ''),
+            slug: String((issue as any).slug || ''),
+            readerEditionSlug: String((issue as any).readerEditionSlug || ''),
+            ghostSyncTag: String((issue as any).ghostSyncTag || ''),
+          };
         }
       } catch (issueLoadErr) {
         console.warn('[publishIdmlEditionAction] failed to load magazine issue metadata:', issueLoadErr);
@@ -1046,19 +1043,17 @@ export async function publishIdmlEditionAction(params: {
     if (params.issueId) {
       try {
         await syncReaderEditionsForIssue(params.issueId);
-        if (adminDb) {
-          const issueRef = adminDb.collection('magazine_issues').doc(params.issueId);
-          await issueRef.set({
-            readerEditionId: edition.id,
-            readerEditionSlug: edition.slug,
-            slug: edition.slug,
-            readerEditionPublished: true,
-            readerEditionTitle: edition.title,
-            readerEditionPublishDate: edition.publishDate || now,
-            readerEditionPageCount: edition.pageCount,
-            schemaVersion: CURRENT_READER_SCHEMA_VERSION,
-          }, { merge: true }).catch((err) => console.warn('Failed to link reader edition to magazine_issue:', err));
-        }
+        const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+        await getMagazineWriteStore().updateIssue(params.issueId, {
+          readerEditionId: edition.id,
+          readerEditionSlug: edition.slug,
+          slug: edition.slug,
+          readerEditionPublished: true,
+          readerEditionTitle: edition.title,
+          readerEditionPublishDate: edition.publishDate || now,
+          readerEditionPageCount: edition.pageCount,
+          schemaVersion: CURRENT_READER_SCHEMA_VERSION,
+        }).catch((err) => console.warn('Failed to link reader edition to issue:', err));
       } catch (syncError: any) {
         console.warn('syncReaderEditionsForIssue failed after publish, edition still saved:', syncError?.message || syncError);
       }
@@ -1166,7 +1161,6 @@ export async function saveIdmlDraft(draft: {
 }) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Firebase Admin not configured');
 
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().saveIdmlDraft({
@@ -1184,12 +1178,10 @@ export async function saveIdmlDraft(draft: {
 export async function loadIdmlDraft(draftId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) return { success: false, error: 'Firebase Admin not configured' };
-
-    const doc = await adminDb.collection(IDML_DRAFT_COLLECTION).doc(draftId).get();
-    if (!doc.exists) return { success: false, error: 'Draft not found' };
-
-    return { success: true, data: doc.data() as Record<string, any> };
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+    const draft = await getMagazineReadStore().getIdmlDraft(draftId);
+    if (!draft) return { success: false, error: 'Draft not found' };
+    return { success: true, data: draft as Record<string, any> };
   } catch (error: any) {
     console.error('Error loading IDML draft:', error);
     return { success: false, error: error.message };
@@ -1199,18 +1191,11 @@ export async function loadIdmlDraft(draftId: string) {
 export async function loadLatestIdmlDraft() {
   try {
     await checkAdmin();
-    if (!adminDb) return { success: false, error: 'Firebase Admin not configured' };
-
-    const snapshot = await adminDb
-      .collection(IDML_DRAFT_COLLECTION)
-      .orderBy('updatedAt', 'desc')
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) return { success: false, error: 'No draft found' };
-
-    const doc = snapshot.docs[0];
-    return { success: true, data: { id: doc.id, ...doc.data() } };
+    const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+    const drafts = await getMagazineReadStore().listIdmlDrafts();
+    if (!drafts || drafts.length === 0) return { success: false, error: 'No draft found' };
+    const doc = drafts[0];
+    return { success: true, data: { id: (doc as any).id, ...doc } };
   } catch (error: any) {
     console.error('Error loading latest IDML draft:', error);
     return { success: false, error: error.message };
@@ -1220,7 +1205,6 @@ export async function loadLatestIdmlDraft() {
 export async function deleteIdmlDraft(draftId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Firebase Admin not configured');
 
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().deleteIdmlDraft(draftId);

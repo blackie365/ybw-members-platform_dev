@@ -316,6 +316,18 @@ export async function persistStoryLibraryForIssue(
 }
 
 export async function getIssueStoryLibraryCollectionItems(issueId: string): Promise<StoryLibraryItem[]> {
+  if (!issueId) return [];
+
+  const engine = (process.env.MAGAZINE_STORE || 'firestore').toLowerCase();
+  if (engine === 'pg' || engine === 'postgres') {
+    try {
+      const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
+      const items = await getMagazineReadStore().getStoryLibrary(issueId);
+      if (items && Array.isArray(items)) return items;
+    } catch (err) {
+      console.warn('[getIssueStoryLibraryCollectionItems] PG read failed, falling back to Firestore:', err);
+    }
+  }
   if (!adminDb) throw new Error('Database not initialized');
 
   const collectionRef = adminDb.collection(STORY_LIBRARY_COLLECTION);

@@ -1,6 +1,7 @@
-import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
 import { MagazineReadStore } from './interface';
+import { adminDb } from '@/lib/firebase-admin';
 
 import {
   getMagazineIssuesServer,
@@ -59,5 +60,39 @@ export class FirestoreMagazineReadStore implements MagazineReadStore {
 
   getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null> {
     return getReaderEditionBySlug(slug);
+  }
+
+  async getStoryLibrary(issueId: string): Promise<StoryLibraryItem[]> {
+    if (!adminDb) return [];
+    const collectionRef = adminDb.collection('magazine_story_library');
+    const [sourceRefSnapshot, issueIdSnapshot] = await Promise.all([
+      collectionRef
+        .where('sourceRef', '>=', `${issueId}:`)
+        .where('sourceRef', '<', `${issueId}:\uf8ff`)
+        .get(),
+      collectionRef.where('issueId', '==', issueId).get(),
+    ]);
+    const docMap = new Map<string, StoryLibraryItem>();
+    for (const snapshot of [sourceRefSnapshot, issueIdSnapshot]) {
+      for (const doc of snapshot.docs) {
+        docMap.set(doc.id, { id: doc.id, ...(doc.data() as any) } as StoryLibraryItem);
+      }
+    }
+    return [...docMap.values()];
+  }
+
+  async listIdmlDrafts(): Promise<any[]> {
+    if (!adminDb) return [];
+    const snapshot = await adminDb
+      .collection('magazine_idml_drafts')
+      .orderBy('updatedAt', 'desc')
+      .get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  }
+
+  async getIdmlDraft(draftId: string): Promise<any | null> {
+    if (!adminDb) return null;
+    const doc = await adminDb.collection('magazine_idml_drafts').doc(draftId).get();
+    return doc.exists ? (doc.data() as any) : null;
   }
 }

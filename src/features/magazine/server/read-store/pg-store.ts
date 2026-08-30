@@ -1,4 +1,4 @@
-import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
 import { MagazineReadStore } from './interface';
 import { getMagazinePgPool } from './pg-client';
@@ -76,10 +76,17 @@ export class PgMagazineReadStore implements MagazineReadStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        'SELECT data FROM magazine_pages WHERE issue_id = $1 ORDER BY sort_key ASC, id ASC',
+        'SELECT id, data FROM magazine_pages WHERE issue_id = $1 ORDER BY sort_key ASC, id ASC',
         [issueId],
       );
-      return rows.map((r) => r.data as MagazinePage);
+      // Inject a stable identity (docId = numeric page id) so the admin builder
+      // can address pages consistently across PG rows and its client state. This
+      // is the Phase 5 page-identity invariant: docId === String(id).
+      return rows.map((r) => {
+        const page = { ...(r.data as MagazinePage) } as MagazinePage & { docId?: string };
+        page.docId = String(r.id);
+        return page as MagazinePage;
+      });
     } catch (err) {
       console.warn(`[PgMagazineReadStore] getMagazinePages(${issueId}) failed:`, err);
       return [];
@@ -143,6 +150,50 @@ export class PgMagazineReadStore implements MagazineReadStore {
       return rows.length ? (rows[0].data as ReaderEdition) : null;
     } catch (err) {
       console.warn(`[PgMagazineReadStore] getReaderEditionBySlug(${slug}) failed:`, err);
+      return null;
+    }
+  }
+
+  async getStoryLibrary(issueId: string): Promise<StoryLibraryItem[]> {
+    if (!(await this.ready())) return [];
+    try {
+      const pool = getMagazinePgPool()!;
+      const { rows } = await pool.query(
+        'SELECT data FROM magazine_story_library WHERE issue_id = $1 ORDER BY data->>\'premiumReaderPriority\' ASC NULLS LAST, id ASC',
+        [issueId],
+      );
+      return rows.map((r) => r.data as StoryLibraryItem);
+    } catch (err) {
+      console.warn(`[PgMagazineReadStore] getStoryLibrary(${issueId}) failed:`, err);
+      return [];
+    }
+  }
+
+  async listIdmlDrafts(): Promise<any[]> {
+    if (!(await this.ready())) return [];
+    try {
+      const pool = getMagazinePgPool()!;
+      const { rows } = await pool.query(
+        'SELECT data FROM magazine_idml_drafts ORDER BY updated_at DESC NULLS LAST',
+      );
+      return rows.map((r) => r.data);
+    } catch (err) {
+      console.warn('[PgMagazineReadStore] listIdmlDrafts failed:', err);
+      return [];
+    }
+  }
+
+  async getIdmlDraft(draftId: string): Promise<any | null> {
+    if (!(await this.ready())) return null;
+    try {
+      const pool = getMagazinePgPool()!;
+      const { rows } = await pool.query(
+        'SELECT data FROM magazine_idml_drafts WHERE id = $1',
+        [draftId],
+      );
+      return rows.length ? rows[0].data : null;
+    } catch (err) {
+      console.warn(`[PgMagazineReadStore] getIdmlDraft(${draftId}) failed:`, err);
       return null;
     }
   }

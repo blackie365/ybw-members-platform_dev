@@ -1034,6 +1034,16 @@ export async function getReaderEditionByIssueId(issueId: string): Promise<Reader
   const firestore = getFirestore();
   if (!firestore) return null;
 
+  // PG-PRIMARY FAST PATH: route through the composite read store (PG first,
+  // Firestore fallback) before the legacy FileSystem authority chain below.
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    const fromPg = await getMagazineReadStore().getReaderEditionByIssueId(issueId);
+    if (fromPg && Array.isArray(fromPg.pages) && fromPg.pages.length > 0) return fromPg;
+  } catch (err) {
+    console.warn('[getReaderEditionByIssueId] PG fast path failed (falling back to legacy):', err);
+  }
+
   const issueDoc = await firestore.collection(LEGACY_ISSUES_COLLECTION).doc(issueId).get();
   const issueExists = typeof issueDoc?.exists === 'boolean' ? issueDoc.exists : Boolean(issueDoc);
   const issueRaw =
@@ -1132,6 +1142,15 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
   const firestore = getFirestore();
   if (!firestore) return null;
 
+  // PG-PRIMARY FAST PATH: route through the composite read store (PG first).
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    const fromPg = await getMagazineReadStore().getReaderEditionById(id);
+    if (fromPg && Array.isArray(fromPg.pages) && fromPg.pages.length > 0) return fromPg;
+  } catch (err) {
+    console.warn('[getReaderEditionById] PG fast path failed (falling back to legacy):', err);
+  }
+
   /**
    * AUTHORITY #1 (see file-level comment):
    * magazine_reader_editions/<id> — THE actual ReaderEdition produced by IDML publish.
@@ -1196,6 +1215,15 @@ export async function getReaderEditionById(id: string): Promise<ReaderEdition | 
 export async function listReaderEditions(limit = 24): Promise<ReaderEdition[]> {
   const firestore = getFirestore();
   if (!firestore) return [];
+
+  // PG-PRIMARY FAST PATH: route through the composite read store (PG first).
+  try {
+    const { getMagazineReadStore } = await import('./read-store');
+    const fromPg = await getMagazineReadStore().listReaderEditions(limit);
+    if (Array.isArray(fromPg) && fromPg.length > 0) return fromPg;
+  } catch (err) {
+    console.warn('[listReaderEditions] PG fast path failed (falling back to legacy):', err);
+  }
 
   /**
    * AUTHORITY #1 (see file-level comment):

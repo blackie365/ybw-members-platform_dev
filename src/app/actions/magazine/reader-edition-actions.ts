@@ -18,6 +18,7 @@ import {
 } from '@/features/magazine/server/simple-reader';
 import { mapBuilderIssueToReaderEdition } from '@/features/magazine/domain/builder-to-reader';
 import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
+import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { safeRevalidatePath, persistStoryLibraryForIssue } from './_helpers';
 
 function safeRevalidatePublicMagazineRoutesForIssue(params: { issueId: string; slug?: string | null }): void {
@@ -44,15 +45,13 @@ export async function syncBuilderToReaderEditionAction(
 ): Promise<{ success: boolean; error?: string; readerEditionId?: string; pageCount?: number; schemaIssues?: unknown[] }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Database not initialized');
     if (!issueId) return { success: false, error: 'issueId required' };
 
-    const issueRef = adminDb.collection('magazine_issues').doc(issueId);
-    const issueSnap = await issueRef.get();
-    if (!issueSnap.exists) {
+    const readStore = getMagazineReadStore();
+    const issueDoc = await readStore.getMagazineIssue(issueId);
+    if (!issueDoc) {
       return { success: false, error: `magazine_issues/${issueId} not found` };
     }
-    const issueDoc = { id: issueSnap.id, ...(issueSnap.data() as any) };
 
     let sourcePages: MagazinePage[] = [];
 
@@ -67,8 +66,7 @@ export async function syncBuilderToReaderEditionAction(
         return obj as MagazinePage;
       });
     } else {
-      const pagesSnap = await issueRef.collection('pages').get();
-      const builderPages: MagazinePage[] = pagesSnap.docs.map((d) => ({ docId: d.id, ...(d.data() as any) }) as MagazinePage);
+      const builderPages: MagazinePage[] = await readStore.getMagazinePages(issueId);
 
       if (builderPages.length === 0 && issueDoc.readerEditionId) {
         try {
@@ -160,7 +158,7 @@ export async function syncBuilderToReaderEditionAction(
       readerEditionId,
       slug: publicSlug || issueDoc.slug,
       readerEditionSlug: publicSlug || issueDoc.readerEditionSlug,
-      published: (validated as any).published ?? issueDoc.published ?? true,
+      published: (validated as any).published ?? (issueDoc as any).published ?? true,
       title: validated.title || issueDoc.title,
       publishDate: validated.publishDate || issueDoc.publishDate,
       pageCount: Array.isArray(validated.pages) ? validated.pages.length : 0,
@@ -195,33 +193,30 @@ export async function syncBuilderToReaderEditionAction(
 export async function deleteReaderEditionAction(editionId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error('Firebase Admin not configured');
     if (!editionId) throw new Error('Edition ID is required');
 
     const { deleteReaderEdition } = await import('@/features/magazine/server/simple-reader');
     await deleteReaderEdition(editionId);
 
-    if (adminDb) {
-      const snapshot = await adminDb.collection('magazine_issues')
-        .where('readerEditionId', '==', editionId)
-        .select()
-        .limit(20)
-        .get();
-      const unlinkPromises = snapshot.docs.map(async (doc) => {
-        try {
-          await adminDb!.collection('magazine_issues').doc(doc.id).update({
-            readerEditionId: null,
-            readerEditionSlug: null,
-            readerEditionPublished: false,
-            readerEditionTitle: null,
-            readerEditionPublishDate: null,
-            readerEditionPageCount: null,
-          });
-        } catch (unlinkErr) {
-          console.warn(`Failed to unlink edition from issue ${doc.id}:`, unlinkErr);
+    try {
+      const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
+      const issues = await getMagazineReadStore().getMagazineIssues();
+      const patch: Record<string, unknown> = {
+        readerEditionId: null,
+        readerEditionSlug: null,
+        readerEditionPublished: false,
+        readerEditionTitle: null,
+        readerEditionPublishDate: null,
+        readerEditionPageCount: null,
+        updatedAt: new Date().toISOString(),
+      };
+      for (const issue of issues) {
+        if (String((issue as any).readerEditionId || '') === String(editionId)) {
+          await getMagazineWriteStore().updateIssue(String((issue as any).id), patch);
         }
-      });
-      await Promise.all(unlinkPromises);
+      }
+    } catch (unlinkErr) {
+      console.warn(`Failed to unlink edition from issue:`, unlinkErr);
     }
 
     safeRevalidatePath('/magazine');

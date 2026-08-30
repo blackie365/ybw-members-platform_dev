@@ -1,4 +1,4 @@
-import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
+import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
 
 /**
@@ -44,4 +44,13 @@ export interface MagazineReadStore {
 
   /** Reader edition by slug, else null (AUTHORITY chain preserved). */
   getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null>;
+
+  /** Story library items for an issue (admin builder). */
+  getStoryLibrary(issueId: string): Promise<StoryLibraryItem[]>;
+
+  /** IDML drafts (latest first) for the admin importer. */
+  listIdmlDrafts(): Promise<any[]>;
+
+  /** A single IDML draft by id, else null. */
+  getIdmlDraft(draftId: string): Promise<any | null>;
 }
