@@ -297,7 +297,6 @@ export class PgMagazineWriteStore implements MagazineWriteStore {
   private async writePage(exec: any, issueId: string, page: MagazinePage & { id: number | string }, inTxn = false): Promise<void> {
     const raw = { ...(page as any) };
     delete raw.docId;
-    delete raw.__stagedDocId;
     const id = this.pageId(page);
     let sortKey = 0;
     const numeric = Number(raw.id);

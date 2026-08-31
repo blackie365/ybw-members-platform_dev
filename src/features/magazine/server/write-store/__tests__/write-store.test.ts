@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PgMagazineWriteStore } from '../pg-write-store';
-import { CompositeMagazineWriteStore } from '../composite-write-store';
-import type { MagazineWriteStore } from '../interface';
 
 vi.mock('../../read-store/pg-client', () => ({ getMagazinePgPool: vi.fn() }));
 vi.mock('../../read-store/pg-schema', () => ({
@@ -111,54 +109,5 @@ describe('PgMagazineWriteStore — reader editions & pages', () => {
     const parsed = JSON.parse(issueUpsert![1][1]);
     expect(parsed.storyLibraryCount).toBe(1);
     expect(parsed.storyLibrary[0]).toMatchObject({ id: 's1', title: 'A' });
-  });
-});
-
-describe('CompositeMagazineWriteStore — PG primary + Firestore mirror', () => {
-  const makeStub = (overrides: Partial<MagazineWriteStore>): MagazineWriteStore => {
-    const base: MagazineWriteStore = {
-      createIssue: vi.fn().mockResolvedValue('id'),
-      updateIssue: vi.fn().mockResolvedValue(undefined),
-      deleteIssue: vi.fn().mockResolvedValue(undefined),
-      setLatestIssue: vi.fn().mockResolvedValue(undefined),
-      setFeaturedFlipbookIssue: vi.fn().mockResolvedValue(undefined),
-      upsertPage: vi.fn().mockResolvedValue(undefined),
-      addPage: vi.fn().mockResolvedValue('pageid'),
-      deletePage: vi.fn().mockResolvedValue(undefined),
-      bulkUpsertPages: vi.fn().mockResolvedValue(undefined),
-      bulkDeletePages: vi.fn().mockResolvedValue(undefined),
-      upsertReaderEdition: vi.fn().mockResolvedValue(undefined),
-      deleteReaderEdition: vi.fn().mockResolvedValue(undefined),
-      persistStoryLibrary: vi.fn().mockResolvedValue(undefined),
-      saveIdmlDraft: vi.fn().mockResolvedValue(undefined),
-      deleteIdmlDraft: vi.fn().mockResolvedValue(undefined),
-      ...overrides,
-    };
-    return base;
-  };
-
-  it('writes to PG primary and mirrors to Firestore', async () => {
-    const pg = makeStub({ upsertReaderEdition: vi.fn().mockResolvedValue(undefined) });
-    const fs = makeStub({ upsertReaderEdition: vi.fn().mockResolvedValue(undefined) });
-    const store = new CompositeMagazineWriteStore(pg, fs);
-    await store.upsertReaderEdition({ id: 'ed' } as any);
-    expect(pg.upsertReaderEdition).toHaveBeenCalledTimes(1);
-    expect(fs.upsertReaderEdition).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not throw when the Firestore mirror fails', async () => {
-    const pg = makeStub({ upsertReaderEdition: vi.fn().mockResolvedValue(undefined) });
-    const fs = makeStub({ upsertReaderEdition: vi.fn().mockRejectedValue(new Error('fs down')) });
-    const store = new CompositeMagazineWriteStore(pg, fs);
-    await expect(store.upsertReaderEdition({ id: 'ed' } as any)).resolves.toBeUndefined();
-  });
-
-  it('createIssue returns the PG id and mirrors the same id for Firestore', async () => {
-    const pg = makeStub({ createIssue: vi.fn().mockResolvedValue('abc') });
-    const fs = makeStub({ createIssue: vi.fn().mockResolvedValue('abc') });
-    const store = new CompositeMagazineWriteStore(pg, fs);
-    await expect(store.createIssue({ title: 'T' } as any)).resolves.toBe('abc');
-    expect(pg.createIssue).toHaveBeenCalledWith({ title: 'T' });
-    expect(fs.createIssue).toHaveBeenCalledWith({ title: 'T', id: 'abc' });
   });
 });

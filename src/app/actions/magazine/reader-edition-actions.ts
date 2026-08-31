@@ -12,7 +12,6 @@ import {
   getReaderEditionIdBySlug,
   getReaderEditionById,
   getReaderEditionByIssueId,
-  hydrateEditionWithLegacyPages,
   CURRENT_READER_SCHEMA_VERSION,
 } from '@/features/magazine/server/simple-reader';
 import { mapBuilderIssueToReaderEdition } from '@/features/magazine/domain/builder-to-reader';
@@ -234,9 +233,7 @@ export async function getReaderEditionByIssueIdAction(issueId: string): Promise<
     if (!issueId) return { success: true, data: null };
     const edition = await getReaderEditionByIssueId(issueId);
     if (!edition) return { success: true, data: null };
-    const { hydrateEditionWithLegacyPages } = await import('@/features/magazine/server/simple-reader');
-    const hydrated = await hydrateEditionWithLegacyPages(edition);
-    return { success: true, data: hydrated };
+    return { success: true, data: edition };
   } catch (error: any) {
     console.error('getReaderEditionByIssueIdAction error:', error);
     return { success: false, error: error.message || 'Failed to fetch reader edition' };
@@ -354,10 +351,9 @@ export async function syncReaderEditionToLegacyIssue(
   if (!editionId) throw new Error('ReaderEdition id is required');
   if (!issueId) throw new Error('Issue id is required');
 
-  const { getReaderEditionById, hydrateEditionWithLegacyPages } = await import('@/features/magazine/server/simple-reader');
-  const rawEdition = await getReaderEditionById(editionId);
-  if (!rawEdition) throw new Error(`ReaderEdition not found: ${editionId}`);
-  const edition = (await hydrateEditionWithLegacyPages(rawEdition)) || rawEdition;
+  const { getReaderEditionById } = await import('@/features/magazine/server/simple-reader');
+  const edition = await getReaderEditionById(editionId);
+  if (!edition) throw new Error(`ReaderEdition not found: ${editionId}`);
   const flatPages = Array.isArray(edition.pages) ? edition.pages : [];
   if (flatPages.length === 0) throw new Error(`ReaderEdition ${editionId} has an empty pages array`);
 

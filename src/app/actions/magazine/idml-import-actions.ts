@@ -11,7 +11,6 @@ import {
   getReaderEditionIdBySlug,
   getReaderEditionById,
   getReaderEditionByIssueId,
-  hydrateEditionWithLegacyPages,
   CURRENT_READER_SCHEMA_VERSION,
 } from '@/features/magazine/server/simple-reader';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
