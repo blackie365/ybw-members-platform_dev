@@ -1793,9 +1793,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         toast.info('Issue thumbnail synced from cover page');
       }
 
-      const t = content?.text != null ? String(content.text) : '';
-      const b = content?.body != null ? String(content.body) : '';
-      console.log(`[EDITDIAG] client handleSavePageContent SEND pageDocId=${pageDocId} textLen=${t.trim().length} bodyLen=${b.trim().length} textPfx=${t.trim().slice(0,50).replace(/\n/g,' ')}`);
       const res = await callAction(updateMagazinePageAction,id, pageDocId, { content }, { skipSync: true });
       if (res.success) {
         await syncContentsPage(nextPages);
