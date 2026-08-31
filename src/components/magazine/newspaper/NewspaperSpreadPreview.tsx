@@ -5,21 +5,30 @@
  *
  * Art direction: classic broadsheet. White paper, ink-black serif headlines,
  * hairline rules, generous whitespace, a drop-cap lead, justified multi-column
- * body, floating pull-quotes, and a folio. Built 100% on Tailwind utilities
- * using only default breakpoints (sm/md/lg/xl) and the project's already-loaded
- * faces: `font-serif` = Playfair Display, `font-sans` = Inter.
+ * body, a standalone hero plate with caption, an inline body figure, a
+ * pull-quote rail, and a folio. Built 100% on Tailwind utilities using only
+ * default breakpoints (sm/md/lg/xl) and the project's already-loaded faces:
+ * `font-serif` = Playfair Display, `font-sans` = Inter.
  *
- * This is a standalone prototype using the REAL feature view-model field names
- * (title, kicker, name, intro, text, pullQuotes, stats, featureImage) so it can
- * be wired into the reader with minimal change.
+ * Uses the REAL feature view-model field names and the SAME image helpers as
+ * production (safeImageSrc + fixMagazineImageUrl) so it can be wired into the
+ * reader with minimal change.
  */
+
+import { fixMagazineImageUrl } from "@/lib/magazine-utils";
+
+function safeImageSrc(raw: unknown): string {
+  const src = String(raw || "").trim();
+  if (!src) return "";
+  return src;
+}
 
 const DEMO_DATA = {
   title: "The quiet reinvention of St Peter's School",
   kicker: "Education · Summer 2026",
   name: "By Ella Hartshorne",
   intro:
-    "This milestone marked the beginning of co-education at St Peter's School, a pivotal moment in a 1,500-year story that has quietly positioned York's oldest school for its next chapter.",
+    "This milestone marked the beginning of co-education at St Peter's School — a pivotal moment in a 1,500-year story that has quietly positioned York's oldest school for its next chapter. Senior master Thomas Whittaker has spent three years convincing the ancient and the modern of one another's company.",
   text: `Twelve hundred years ago, a king's son chose the site beside the River Ouse and planted a school that would outlive empires. Today, the gates open on the closing of one argument and the opening of another: what a centuries-old institution owes to the young people walking through them now.
 
 The head, arriving with a decade of plans and a single conviction, has set about disassembling the received wisdom of the old house. Uniforms have relaxed. The chapel no longer stands at the centre of every assembly. The timetable bends around the child rather than the other way round.
@@ -28,7 +37,9 @@ It is a delicate operation, because a school like this is not a business to be r
 
 Sceptics ask whether tradition can survive reform without quietly becoming something else. The counters are gentle. The archives show the school has been reinventing itself since the ninth century, and each reinvention was described at the time as the end of everything that mattered.
 
-What is different this time is confidence. There is an ease in the corridors that was not there a decade ago. The pupils move with the particular lightness of institutions that have stopped trying to prove themselves.`,
+What is different this time is confidence. There is an ease in the corridors that was not there a decade ago. The pupils move with the particular lightness of institutions that have stopped trying to prove themselves.
+
+The governing body speaks of a school entering its second millennium in good heart, with waiting lists the longest in living memory and a scholarship trust that now stretches into the half of the city it once politely overlooked. The oldest school in York is, by its own quiet account, just getting going.`,
   pullQuotes: [
     "“The school now starts from the question of what a pupil needs, and works backwards.”",
     "“A school like this is a sandstone conversation between generations.”",
@@ -38,7 +49,14 @@ What is different this time is confidence. There is an ease in the corridors tha
     { value: "52%", label: "increase in applications" },
     { value: "11+", label: "co-ed year groups" },
   ],
-  featureImage: "",
+  featureImage:
+    "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1600&auto=format&fit=crop",
+  featureCaption: "The Cloister Court at St Peter's, York — photographed in May.",
+  featureCredit: "Photo: J. R. Whitfield",
+  inlineImage:
+    "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200&auto=format&fit=crop",
+  inlineCaption:
+    "Pupils in the new library wing, six months after the co-education decision.",
 };
 
 function Paper({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -99,8 +117,29 @@ export default function NewspaperSpreadPreview() {
           {DEMO_DATA.title}
         </h2>
 
+        {/* ── Hero plate (below-headline image + rule) ──── */}
+        {safeImageSrc(DEMO_DATA.featureImage) ? (
+          <figure className="mt-7">
+            <img
+              src={fixMagazineImageUrl(DEMO_DATA.featureImage)}
+              alt={DEMO_DATA.title}
+              className="w-full object-cover"
+            />
+            {/* plate caption bar */}
+            <div className="flex items-end justify-between gap-4 border-b border-[#191412]/30 pt-2">
+              <figcaption className="font-sans text-[0.72rem] leading-snug text-[#191412]/75">
+                {DEMO_DATA.featureCaption}
+              </figcaption>
+              <span className="shrink-0 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[#191412]/50">
+                {DEMO_DATA.featureCredit}
+              </span>
+            </div>
+            <div className="my-6 h-[3px] w-full bg-[#191412]" />
+          </figure>
+        ) : null}
+
         {/* ── Lead with drop cap + pull quote column ────── */}
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+        <div className="mt-4 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
           {/* Lead / body */}
           <article>
             <p className="font-serif text-[1.05rem] leading-[1.75] text-[#191412]/90 sm:text-[1.15rem] sm:leading-[1.7]">
@@ -122,18 +161,42 @@ export default function NewspaperSpreadPreview() {
                   {para}
                 </p>
               ))}
+
+              {/* Inline body figure — sits within the column flow */}
+              {safeImageSrc(DEMO_DATA.inlineImage) ? (
+                <figure className="mb-5 break-inside-avoid">
+                  <img
+                    src={fixMagazineImageUrl(DEMO_DATA.inlineImage)}
+                    alt={DEMO_DATA.inlineCaption}
+                    className="w-full object-cover"
+                  />
+                  <figcaption className="pt-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/70">
+                    {DEMO_DATA.inlineCaption}
+                  </figcaption>
+                </figure>
+              ) : null}
             </div>
           </article>
 
           {/* Pull-quote rail */}
-          <aside className="flex flex-col gap-8 border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.2)]">
-            <p className="font-serif text-[1.25rem] leading-[1.4] text-[#191412] lg:text-[1.4rem]">
+          <aside className="flex flex-col gap-7 border-t-[3px] border-[#191412] pt-5 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.2)]">
+            <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+              In her own words
+            </span>
+            <p className="-mt-3 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
               {DEMO_DATA.pullQuotes[0]}
             </p>
-            <div className="w-10 border-t-2 border-[#a3413a]" />
-            <p className="font-serif text-[1.05rem] leading-[1.45] italic text-[#191412]/75">
-              {DEMO_DATA.pullQuotes[1]}
-            </p>
+            <figure className="border-t border-[#191412]/25 pt-3">
+              <blockquote className="font-serif text-[1.05rem] leading-[1.5] italic text-[#191412]/80">
+                {DEMO_DATA.pullQuotes[1]}
+              </blockquote>
+            </figure>
+            <div className="mt-auto hidden lg:block">
+              <div className="w-12 border-t-2 border-[#a3413a]" />
+              <p className="mt-2 font-sans text-[0.6rem] uppercase tracking-[0.2em] text-[#191412]/50">
+                Elle Hartshorne · York
+              </p>
+            </div>
           </aside>
         </div>
 
