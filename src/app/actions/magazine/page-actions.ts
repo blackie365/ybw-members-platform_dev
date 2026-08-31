@@ -58,7 +58,13 @@ export async function updateMagazinePageAction(issueId: string, pageId: string, 
       updatedAt: new Date().toISOString(),
     };
     if (raw.content && typeof raw.content === 'object') {
+      const incomingTxt = typeof raw.content.text === 'string' ? raw.content.text.trim() : '';
+      const incomingBody = typeof raw.content.body === 'string' ? raw.content.body.trim() : '';
+      console.log(`[EDITDIAG] ${new Date().toISOString()} updateMagazinePageAction IN  pageId=${pageId} textLen=${incomingTxt.length} bodyLen=${incomingBody.length} textPfx=${incomingTxt.slice(0,50).replace(/\n/g,' ')}`);
       raw.content = normalizeMagazinePageContent(raw.content);
+      const outTxt = typeof raw.content.text === 'string' ? raw.content.text.trim() : '';
+      const outBody = typeof raw.content.body === 'string' ? raw.content.body.trim() : '';
+      console.log(`[EDITDIAG] ${new Date().toISOString()} updateMagazinePageAction OUT pageId=${pageId} textLen=${outTxt.length} bodyLen=${outBody.length} textPfx=${outTxt.slice(0,50).replace(/\n/g,' ')}`);
     }
     const validated = safeParseMagazine(MagazinePageSchema, raw, `MagazinePage pageId=${pageId} (updateMagazinePageAction)`);
     if (!validated.ok) {
