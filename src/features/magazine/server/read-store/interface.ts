@@ -4,18 +4,13 @@ import { ReaderEdition } from '@/features/magazine/domain/types';
 /**
  * MagazineReadStore — the storage seam for the PUBLIC magazine read layer.
  *
- * Phase 2 (Option 1 — adapter-based migration): we abstract ONLY the read
- * paths that serve the public reader, issue pages, sitemap and magazine
- * experiences. All magazine *writes* still go to Firestore (unchanged) in this
- * phase, so a later phase can add a Postgres implementation behind the same
- * interface without touching any call site.
+ * Postgres-only (Phase 5 complete): every method serves magazine data stored
+ * as JSONB rows in Postgres. Firestore is no longer used for magazine reads.
  *
- * Implementations:
- *   - FirestoreMagazineReadStore  (current behaviour — delegates to the existing
- *     magazine-service-server + simple-reader functions, byte-for-byte unchanged)
- *   - PgMagazineReadStore          (added in a later phase)
+ * Implementation:
+ *   - PgMagazineReadStore — resolves JSONB output from PG tables.
  *
- * Selector: getMagazineReadStore() in ./index.ts (env-driven, defaults to firestore).
+ * Selector: getMagazineReadStore() in ./index.ts (always returns the Pg store).
  */
 export interface MagazineReadStore {
   /** All issues, ordered publishDate DESC. Falls back to static siteContent. */
@@ -30,10 +25,7 @@ export interface MagazineReadStore {
   /** Builder pages for an issue, ordered by numeric id ASC. */
   getMagazinePages(issueId: string): Promise<MagazinePage[]>;
 
-  /**
-   * Reader edition looked up by issueId, with the full AUTHORITY #0/#1/#2
-   * legacy fallback chain preserved. Returns null if unresolvable.
-   */
+  /** Reader edition looked up by issueId, else null. */
   getReaderEditionByIssueId(issueId: string): Promise<ReaderEdition | null>;
 
   /** Reader edition by its document id, else null. */
@@ -42,7 +34,7 @@ export interface MagazineReadStore {
   /** Reader editions ordered publishDate DESC (public listing). */
   listReaderEditions(limit?: number): Promise<ReaderEdition[]>;
 
-  /** Reader edition by slug, else null (AUTHORITY chain preserved). */
+  /** Reader edition by slug, else null. */
   getReaderEditionBySlug(slug: string): Promise<ReaderEdition | null>;
 
   /** Story library items for an issue (admin builder). */

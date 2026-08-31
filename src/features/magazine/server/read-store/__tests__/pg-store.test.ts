@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PgMagazineReadStore } from '../pg-store';
-import { CompositeMagazineReadStore } from '../composite-store';
-import type { MagazineReadStore } from '../interface';
 
 vi.mock('../pg-client', () => ({ getMagazinePgPool: vi.fn() }));
 vi.mock('../pg-schema', () => ({ initMagazinePgSchema: vi.fn().mockResolvedValue(undefined) }));
@@ -90,67 +88,5 @@ describe('PgMagazineReadStore — simple JSONB lookups', () => {
     (getMagazinePgPool as any).mockReturnValue(null);
     expect(await new PgMagazineReadStore().getMagazineIssues()).toEqual([]);
     expect(await new PgMagazineReadStore().getReaderEditionBySlug('x')).toBeNull();
-  });
-});
-
-describe('CompositeMagazineReadStore — Firestore fallback on Pg miss/error', () => {
-  const makeStub = (overrides: Partial<MagazineReadStore>): MagazineReadStore => {
-    const base: MagazineReadStore = {
-      getMagazineIssues: vi.fn().mockResolvedValue([]),
-      getMagazineIssue: vi.fn().mockResolvedValue(null),
-      getLatestIssue: vi.fn().mockResolvedValue(null),
-      getMagazinePages: vi.fn().mockResolvedValue([]),
-      getReaderEditionByIssueId: vi.fn().mockResolvedValue(null),
-      getReaderEditionById: vi.fn().mockResolvedValue(null),
-      listReaderEditions: vi.fn().mockResolvedValue([]),
-      getReaderEditionBySlug: vi.fn().mockResolvedValue(null),
-      getStoryLibrary: vi.fn().mockResolvedValue([]),
-      listIdmlDrafts: vi.fn().mockResolvedValue([]),
-      getIdmlDraft: vi.fn().mockResolvedValue(null),
-      ...overrides,
-    };
-    return base;
-  };
-
-  it('falls back to Firestore when Pg returns empty issues list', async () => {
-    const pg = makeStub({ getMagazineIssues: vi.fn().mockResolvedValue([]) });
-    const fs = makeStub({ getMagazineIssues: vi.fn().mockResolvedValue([{ id: 'fs' }] as any) });
-    const store = new CompositeMagazineReadStore(pg, fs);
-    expect(await store.getMagazineIssues()).toEqual([{ id: 'fs' }]);
-    expect((fs as any).getMagazineIssues).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns Pg data when Pg has issues (no fallback)', async () => {
-    const pg = makeStub({ getMagazineIssues: vi.fn().mockResolvedValue([{ id: 'pg' }] as any) });
-    const fs = makeStub({ getMagazineIssues: vi.fn().mockResolvedValue([{ id: 'fs' }] as any) });
-    const store = new CompositeMagazineReadStore(pg, fs);
-    expect(await store.getMagazineIssues()).toEqual([{ id: 'pg' }]);
-    expect((fs as any).getMagazineIssues).not.toHaveBeenCalled();
-  });
-
-  it('falls back to Firestore when Pg reader edition by issueId is null', async () => {
-    const pg = makeStub({ getReaderEditionByIssueId: vi.fn().mockResolvedValue(null) });
-    const fs = makeStub({
-      getReaderEditionByIssueId: vi.fn().mockResolvedValue({ id: 'ed', pages: [] } as any),
-    });
-    const store = new CompositeMagazineReadStore(pg, fs);
-    expect(await store.getReaderEditionByIssueId('iss')).toEqual({ id: 'ed', pages: [] });
-  });
-
-  it('returns Pg edition when Pg finds one (no fallback)', async () => {
-    const pg = makeStub({
-      getReaderEditionBySlug: vi.fn().mockResolvedValue({ id: 'ed', pages: [] } as any),
-    });
-    const fs = makeStub({ getReaderEditionBySlug: vi.fn().mockResolvedValue({ id: 'other' } as any) });
-    const store = new CompositeMagazineReadStore(pg, fs);
-    expect(await store.getReaderEditionBySlug('ed')).toEqual({ id: 'ed', pages: [] });
-    expect((fs as any).getReaderEditionBySlug).not.toHaveBeenCalled();
-  });
-
-  it('falls back to Firestore when Pg listReaderEditions is empty', async () => {
-    const pg = makeStub({ listReaderEditions: vi.fn().mockResolvedValue([]) });
-    const fs = makeStub({ listReaderEditions: vi.fn().mockResolvedValue([{ id: 'fs' }] as any) });
-    const store = new CompositeMagazineReadStore(pg, fs);
-    expect(await store.listReaderEditions(3)).toEqual([{ id: 'fs' }]);
   });
 });
