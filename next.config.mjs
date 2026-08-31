@@ -2,12 +2,12 @@
 const nextConfig = {
   poweredByHeader: false,
   compress: true,
-  serverActions: {
-    bodySizeLimit: '10mb',
-  },
   staticPageGenerationTimeout: 180,
   experimental: {
     swcTraceProfiling: false,
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
   },
   images: {
     formats: ['image/avif', 'image/webp'],
