@@ -20,6 +20,7 @@ import {
   getTemplateViewModel,
   loadTemplateRenderers,
 } from "@/features/magazine/domain/template-registry";
+import type { StorySummary } from "@/features/magazine/domain/template-registry";
 import {
   emitMagazineMutation,
   subscribeMagazineMutations,
@@ -218,7 +219,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
 
   const renderedPages = useMemo(() => {
     void containerVersion;
-    return pages.map((page) => {
+    const entries = pages.map((page) => {
       const template = String(page.template || "").trim().toLowerCase();
       const title = String(page.content?.title || "").trim().toLowerCase();
       const body = String(page.content?.body || page.content?.text || "").trim().toLowerCase();
@@ -250,8 +251,35 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       );
       const label =
         String(viewModel.title || "") || humanizeTemplate(effectiveTemplate);
-      return { page, entry, viewModel, label, effectiveTemplate };
+      return { page, entry, viewModel, label, effectiveTemplate, siblings: [] as StorySummary[] };
     });
+
+    // Newspaper-style mixing: each feature page gets a "More from this edition"
+    // list of the other feature stories, ordered by their print position.
+    const featureIndexes = entries
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => String(item.effectiveTemplate || "").startsWith("feature"));
+    for (const { item, index } of featureIndexes) {
+      const vm = (item.viewModel || {}) as Record<string, unknown>;
+      const ownId = String(item.page.id || "");
+      item.siblings = featureIndexes
+        .filter(({ index: j }) => j !== index)
+        .slice(0, 4)
+        .map(({ item: other }) => {
+          const o = (other.viewModel || {}) as Record<string, unknown>;
+          return {
+            pageId: String(other.page.id || "") || null,
+            position: extractPrintPageNumber(other.page) ?? (Number(other.page.position) || 1),
+            title: String(o.title || ""),
+            kicker: String(o.kicker || ""),
+            standfirst: String(o.intro || ""),
+            featureImage: String(o.featureImage || o.image || ""),
+          } as StorySummary;
+        })
+        .filter((s) => s.title && s.title !== vm?.title);
+    }
+
+    return entries;
   }, [pages, edition, containerVersion]);
 
   useEffect(() => {
@@ -585,6 +613,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
                 viewModel={current.viewModel}
                 imageVersion={imageVersion}
                 editionSlug={editionSlug}
+                siblings={current.siblings}
               />
             ) : current ? (
               <section className="mx-auto max-w-6xl px-6 py-16">

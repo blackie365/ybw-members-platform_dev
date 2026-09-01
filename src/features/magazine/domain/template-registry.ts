@@ -2,6 +2,15 @@ import type { ComponentType } from "react";
 import type { ReaderPage } from "./types";
 import { isPlaceholderImageUrl, filterNonPlaceholderUrls, firstNonPlaceholderImage } from "@/lib/magazine-utils";
 
+export interface StorySummary {
+  pageId: string | null;
+  position: number;
+  title: string;
+  kicker: string;
+  standfirst: string;
+  featureImage: string;
+}
+
 export interface TemplateRenderProps {
   edition: {
     title: string;
@@ -13,6 +22,8 @@ export interface TemplateRenderProps {
   viewModel: Record<string, unknown>;
   imageVersion?: string;
   editionSlug?: string;
+  /** Other feature pages from the same edition, for newspaper-style mixing. */
+  siblings?: StorySummary[];
 }
 
 interface TemplateRegistryEntry {
