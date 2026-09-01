@@ -106,3 +106,41 @@ Successful mediation is about far more than reaching an agreement. It enables bu
   gallery: [],
 };
 
+/**
+ * Cover view-model, shaped like the reader's `coverEntry.buildViewModel` output.
+ * Uses real Summer 2026 edition metadata + the St Peter's hero as cover art so
+ * the broadsheet front page is proven against live content.
+ */
+export const realCoverPage = {
+  image: realStPetersPage.featureImage,
+  featureImage: realStPetersPage.featureImage,
+  headline: "Yorkshire BusinessWoman — Summer 2026",
+  subheadline:
+    "Inside this edition: St Peter's marks 50 years of co-education, the region's founders and leaders on what shapes them, and the stories powering Yorkshire business.",
+  date: "Summer 2026",
+  issue: "Summer 2026",
+  badge: "Summer Edition",
+  kicker: "Summer Edition",
+  gallery: realStPetersPage.gallery,
+};
+
+/**
+ * Contents view-model, shaped like the reader's `contentsEntry.buildViewModel`
+ * output. Real stories from the Summer 2026 issue with their page positions.
+ */
+export const realContentsPage = {
+  title: "In This Issue",
+  kicker: "Contents",
+  items: [
+    { title: "St Peter's celebrates 50 years of co-education", kicker: "Feature", page: 7 },
+    {
+      title: "Mediation is the diplomatic alternative to workplace tribunals",
+      kicker: "Law",
+      page: 2,
+    },
+    { title: "Editor's Note", kicker: "From the editor", page: 1 },
+    { title: "The founders shaping Yorkshire business", kicker: "Feature", page: 12 },
+    { title: "Inside the Summer 2026 edition", kicker: "Contents", page: 3 },
+  ],
+};
+

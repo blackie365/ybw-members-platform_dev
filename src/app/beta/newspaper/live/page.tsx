@@ -1,5 +1,5 @@
-import { PageNewspaperSpread } from "@/features/magazine/templates/shared";
-import { realStPetersPage, realMediationPage } from "../live-data";
+import { PageNewspaperSpread, PageNewspaperCover, PageNewspaperContents } from "@/features/magazine/templates/shared";
+import { realStPetersPage, realMediationPage, realCoverPage, realContentsPage } from "../live-data";
 
 export const metadata = {
   title: "Newspaper Spread — Live Data | Yorkshire BusinessWoman",
@@ -29,10 +29,23 @@ const mediationSummary = {
  * is now the DEFAULT for every feature page in the reader. Two pages shown to
  * demonstrate variety: an image-led feature and a no-image article, plus the
  * "More from this edition" cross-linking strip.
+ *
+ * Also renders the new broadsheet FRONT-OF-BOOK: the cover (PageNewspaperCover)
+ * and the contents page (PageNewspaperContents), both against live-producing
+ * view-models, to prove the whole edition reads as a newspaper.
  */
 export default function NewspaperLivePage() {
   return (
     <div>
+      {/* Front of book — broadsheet cover */}
+      <PageNewspaperCover data={realCoverPage} imageVersion={""} />
+      <div className="h-px w-full bg-[#a3413a]" />
+
+      {/* Front of book — broadsheet contents */}
+      <PageNewspaperContents data={realContentsPage} imageVersion={""} editionSlug="yorkshire-business-woman-summer-2026-edition" />
+      <div className="h-px w-full bg-[#a3413a]" />
+
+      {/* Feature spreads */}
       <PageNewspaperSpread
         data={realStPetersPage}
         imageVersion={""}

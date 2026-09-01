@@ -1,6 +1,6 @@
 import type { TemplateRenderProps } from '../../domain/template-registry';
-import { PageContents } from '../shared';
+import { PageNewspaperContents } from '../shared';
 
 export default function ContentsTemplate({ viewModel, imageVersion, editionSlug }: TemplateRenderProps) {
-  return <PageContents data={viewModel} imageVersion={imageVersion ?? ''} editionSlug={editionSlug} />;
+  return <PageNewspaperContents data={viewModel} imageVersion={imageVersion ?? ''} editionSlug={editionSlug} />;
 }
