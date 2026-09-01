@@ -2043,10 +2043,10 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
             {bodyBlocks.length > 0 ? (
-              <div className="columns-1 gap-10 md:columns-2 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+              <div className="columns-1 gap-10 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
                 <SafeText
                   html={bodyBlocks.join("")}
-                  className="break-inside-avoid font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 [&_p]:font-sans [&_p]:text-[0.98rem] [&_p]:leading-[1.8] [&_p]:mb-5 [&_p]:break-inside-avoid"
+                  className="font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 [&_p]:font-sans [&_p]:text-[0.98rem] [&_p]:leading-[1.8] [&_p]:mb-5 [&_p]:break-inside-avoid [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
                 />
               </div>
             ) : null}
