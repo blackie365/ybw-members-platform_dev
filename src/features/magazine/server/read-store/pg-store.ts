@@ -98,7 +98,10 @@ export class PgMagazineReadStore implements MagazineReadStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        'SELECT data FROM magazine_reader_editions WHERE issue_id = $1 ORDER BY publish_date DESC NULLS LAST LIMIT 1',
+        `SELECT data FROM magazine_reader_editions
+         WHERE issue_id = $1
+         ORDER BY (data->>'updatedAt') DESC NULLS LAST, publish_date DESC NULLS LAST, id DESC
+         LIMIT 1`,
         [issueId],
       );
       return rows.length ? (rows[0].data as ReaderEdition) : null;
@@ -143,8 +146,14 @@ export class PgMagazineReadStore implements MagazineReadStore {
     if (!(await this.ready())) return null;
     try {
       const pool = getMagazinePgPool()!;
+      // Slug lookups can collide (a legacy row keyed by the issue id and the
+      // current synced row share the same slug). Always resolve to the most
+      // recently written edition so builder edits land in the reader.
       const { rows } = await pool.query(
-        'SELECT data FROM magazine_reader_editions WHERE slug = $1 LIMIT 1',
+        `SELECT data FROM magazine_reader_editions
+         WHERE slug = $1
+         ORDER BY (data->>'updatedAt') DESC NULLS LAST, publish_date DESC NULLS LAST, id DESC
+         LIMIT 1`,
         [slug],
       );
       return rows.length ? (rows[0].data as ReaderEdition) : null;

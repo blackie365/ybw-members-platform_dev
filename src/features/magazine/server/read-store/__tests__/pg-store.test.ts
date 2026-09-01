@@ -48,11 +48,14 @@ describe('PgMagazineReadStore — simple JSONB lookups', () => {
     expect(out).toEqual([{ id: 1, docId: '1' }, { id: 2, docId: '2' }]);
   });
 
-  it('getReaderEditionBySlug queries by slug and returns data', async () => {
+  it('getReaderEditionBySlug queries by slug, ordered by freshest updatedAt, and returns data', async () => {
     fakePool.query.mockResolvedValue({ rows: [{ data: { slug: 'ed', pages: [] } }] });
     const out = await new PgMagazineReadStore().getReaderEditionBySlug('ed');
     expect(fakePool.query).toHaveBeenCalledWith(
-      'SELECT data FROM magazine_reader_editions WHERE slug = $1 LIMIT 1',
+      `SELECT data FROM magazine_reader_editions
+         WHERE slug = $1
+         ORDER BY (data->>'updatedAt') DESC NULLS LAST, publish_date DESC NULLS LAST, id DESC
+         LIMIT 1`,
       ['ed'],
     );
     expect(out).toEqual({ slug: 'ed', pages: [] });
