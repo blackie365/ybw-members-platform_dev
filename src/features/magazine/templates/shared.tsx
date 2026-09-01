@@ -1941,6 +1941,166 @@ function PageContinuation({ data }: any) {
   );
 }
 
+export const PageNewspaperSpread = ({ data, imageVersion = "" }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const kicker = String((data.kicker || data.category) ?? "").trim();
+  const name = String(data.name || data.author || "").trim();
+  const title = String(data.title || data.name || kicker || "Feature").trim();
+  const featureImage = safeImageSrc(data.featureImage || data.image || "");
+  const { leadHtml, bodyBlocks } = buildFeatureTextSections(data, {
+    dropCap: false,
+  });
+  const featureQuote = getDistinctFeatureQuote(data.quote, leadHtml);
+  const pullQuotes = getDistinctFeaturePullQuotes(data.pullQuotes || data.quotes, {
+    leadHtml,
+    featureQuote,
+  });
+  const stats = Array.isArray(data.stats) ? data.stats : [];
+
+  return (
+    <div
+      ref={ref}
+      className="min-h-full w-full bg-[#fdfdfb] text-[#191412]"
+    >
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
+        {/* Masthead band */}
+        <header className="flex items-center justify-between gap-4 pb-2">
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            {kicker || "Digital Edition"}
+          </span>
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            Yorkshire BusinessWoman
+          </span>
+        </header>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="py-3 text-center">
+          <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
+            Yorkshire <span className="italic">Business</span>Woman
+          </h1>
+          <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
+            A broadsheet for the region&rsquo;s founders &amp; leaders
+          </p>
+        </div>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="flex flex-col items-center justify-between gap-1 py-2 sm:flex-row">
+          <span className="font-sans text-[0.65rem] text-[#191412]/60">
+            The finest of its kind, printed without apology
+          </span>
+          <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
+            YBW · No. 12
+          </span>
+        </div>
+        <div className="h-px w-full bg-[#191412]/60" />
+
+        {/* Kicker + byline */}
+        <div className="flex flex-col gap-2 pt-10 sm:flex-row sm:items-end sm:justify-between">
+          <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+            {kicker}
+          </span>
+          {name && (
+            <span className="font-sans text-[0.7rem] text-[#191412]/70">{name}</span>
+          )}
+        </div>
+
+        {/* Headline */}
+        <h2 className="mt-4 max-w-3xl font-serif text-[clamp(1.9rem,6vw,3.7rem)] leading-[1.02] tracking-tight text-[#191412]">
+          {renderTitleArt(title, "font-serif text-[#191412]")}
+        </h2>
+
+        {/* Hero plate */}
+        {featureImage ? (
+          <figure className="mt-7">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fixMagazineImageUrl(featureImage, imageVersion)}
+              alt={title}
+              className="w-full object-cover"
+            />
+            <div className="flex items-end justify-between gap-4 border-b border-[#191412]/30 pt-2">
+              <figcaption className="font-sans text-[0.72rem] leading-snug text-[#191412]/75">
+                {title}
+              </figcaption>
+              <span className="shrink-0 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[#191412]/50">
+                YBW
+              </span>
+            </div>
+            <div className="my-6 h-[3px] w-full bg-[#191412]" />
+          </figure>
+        ) : null}
+
+        {/* Lead + pull-quote rail (rail only when quotes exist) */}
+        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
+          <article>
+            {leadHtml ? (
+              <SafeText
+                html={leadHtml}
+                className="font-serif text-[1.05rem] leading-[1.75] text-[#191412]/90 sm:text-[1.15rem] sm:leading-[1.7] first:[&_p]:first-letter:float-left first:[&_p]:first-letter:mt-1 first:[&_p]:first-letter:pr-3 first:[&_p]:first-letter:font-serif first:[&_p]:first-letter:text-[2.9rem] first:[&_p]:first-letter:font-bold first:[&_p]:first-letter:leading-[0.78] first:[&_p]:first-letter:text-[#a3413a]"
+              />
+            ) : null}
+
+            <div className="my-7 h-px w-full bg-[#191412]/25" />
+
+            {bodyBlocks.length > 0 ? (
+              <div className="columns-1 gap-10 md:columns-2 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+                <SafeText
+                  html={bodyBlocks.join("")}
+                  className="break-inside-avoid font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 [&_p]:font-sans [&_p]:text-[0.98rem] [&_p]:leading-[1.8] [&_p]:mb-5 [&_p]:break-inside-avoid"
+                />
+              </div>
+            ) : null}
+          </article>
+
+          {/* Pull-quote rail (sibling column on lg when quotes present) */}
+          {pullQuotes.length > 0 && (
+            <aside className="flex flex-col gap-7 border-t-[3px] border-[#191412] pt-5 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.2)]">
+              <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+                In this feature
+              </span>
+              <p className="-mt-3 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
+                {pullQuotes[0]}
+              </p>
+              {pullQuotes.length > 1 && (
+                <figure className="border-t border-[#191412]/25 pt-3">
+                  <blockquote className="font-serif text-[1.05rem] leading-[1.5] italic text-[#191412]/80">
+                    {pullQuotes[1]}
+                  </blockquote>
+                </figure>
+              )}
+            </aside>
+          )}
+        </div>
+
+        {/* Stats band */}
+        {stats.length > 0 ? (
+          <div className="mt-12 grid grid-cols-1 gap-px border border-[#191412]/20 bg-[#191412]/20 sm:grid-cols-3">
+            {stats.slice(0, 3).map((stat: any, i: number) => (
+              <div key={`${stat?.label ?? "stat"}-${i}`} className="bg-[#fdfdfb] px-5 py-5">
+                <p className="font-serif text-3xl font-bold text-[#191412]">
+                  {stat?.value}
+                </p>
+                <p className="mt-1 font-sans text-[0.65rem] uppercase tracking-[0.22em] text-[#191412]/55">
+                  {stat?.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Folio */}
+        <footer className="mt-12">
+          <div className="h-px w-full bg-[#191412]/25" />
+          <div className="flex items-center justify-between pt-3 font-sans text-[0.65rem] uppercase tracking-[0.18em] text-[#191412]/55">
+            <span>YBW</span>
+            <span className="text-[#a3413a]">◆ broadsheet</span>
+            <span>{kicker}</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+};
+
 export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   // Hooks must be called unconditionally (Rules of Hooks)
   const ref = useRef<HTMLDivElement>(null);
@@ -1955,6 +2115,11 @@ export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   const kicker = String((data.kicker || data.category) ?? "").trim();
   const mediaLayout = String(data.mediaLayout || "").trim();
   const isFullBackground = mediaLayout === "background";
+
+  // Newspaper broadsheet layout — opt-in via mediaLayout: 'newspaper'
+  if (mediaLayout === "newspaper") {
+    return <PageNewspaperSpread data={data} imageVersion={imageVersion} />;
+  }
   const featureImage = safeImageSrc(data.featureImage || data.image || "");
   const backgroundMedia = featureImage;
   const additionalMedia = getAdditionalMedia(

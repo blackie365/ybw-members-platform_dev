@@ -1,16 +1,17 @@
 import type { TemplateRenderProps } from '../../domain/template-registry';
-import { PageFeatureLeft, PageFeatureRight } from '../shared';
+import { PageNewspaperSpread, PageFeatureLeft } from '../shared';
 
 export default function FeatureTemplate({ page, viewModel, imageVersion }: TemplateRenderProps) {
   const iv = imageVersion ?? '';
 
-  if (page.template === 'feature-right') {
-    return <PageFeatureRight data={viewModel} imageVersion={iv} />;
-  }
+  // The newspaper broadsheet layout is now the DEFAULT style for every feature
+  // page. An explicit mediaLayout:'background' opts back into the legacy
+  // full-bleed background treatment on a per-page basis.
+  const layout = String((viewModel as any)?.mediaLayout || '').trim();
 
-  if (page.template === 'feature-full') {
+  if (layout === 'background') {
     return <PageFeatureLeft data={{ ...viewModel, mediaLayout: 'background' }} imageVersion={iv} />;
   }
 
-  return <PageFeatureLeft data={viewModel} imageVersion={iv} />;
+  return <PageNewspaperSpread data={viewModel} imageVersion={iv} />;
 }
