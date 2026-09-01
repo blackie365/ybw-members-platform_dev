@@ -2145,6 +2145,247 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   );
 };
 
+// ─────────────────────────────────────────────
+// NEWSPAPER COVER — broadsheet front page
+// ─────────────────────────────────────────────
+export const PageNewspaperCover = ({ data, imageVersion = "" }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const title = String(data.title || data.headline || "").trim();
+  const subheadline = String(
+    data.subheadline || data.standfirst || data.description || "",
+  ).trim();
+  const kicker = String(data.kicker || data.badge || data.category || "").trim();
+  const date = String(data.date || data.issue || "").trim();
+  const coverImage = safeImageSrc(data.image || data.featureImage || "");
+
+  return (
+    <div
+      ref={ref}
+      className="min-h-full w-full bg-[#fdfdfb] text-[#191412]"
+    >
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
+        {/* Masthead band */}
+        <header className="flex items-center justify-between gap-4 pb-2">
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            {date || "Digital Edition"}
+          </span>
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            {kicker || "Yorkshire BusinessWoman"}
+          </span>
+        </header>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="py-3 text-center">
+          <h1 className="font-serif text-[clamp(1.9rem,6.5vw,3.9rem)] leading-none tracking-tight text-[#191412]">
+            Yorkshire <span className="italic">Business</span>Woman
+          </h1>
+          <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
+            A broadsheet for the region&rsquo;s founders &amp; leaders
+          </p>
+        </div>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="flex flex-col items-center justify-between gap-1 py-2 sm:flex-row">
+          <span className="font-sans text-[0.65rem] text-[#191412]/60">
+            The finest of its kind, printed without apology
+          </span>
+          <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
+            {date || "YBW"}
+          </span>
+        </div>
+        <div className="h-px w-full bg-[#191412]/60" />
+
+        {/* Front-page splash image */}
+        {coverImage ? (
+          <figure className="mt-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fixMagazineImageUrl(coverImage, imageVersion)}
+              alt={title}
+              className="w-full object-cover"
+            />
+            <div className="flex items-end justify-between gap-4 border-b border-[#191412]/30 pt-2">
+              <figcaption className="font-sans text-[0.72rem] leading-snug text-[#191412]/75">
+                {title}
+              </figcaption>
+              <span className="shrink-0 font-sans text-[0.6rem] uppercase tracking-[0.14em] text-[#191412]/50">
+                YBW
+              </span>
+            </div>
+            <div className="my-6 h-[3px] w-full bg-[#191412]" />
+          </figure>
+        ) : (
+          <div className="my-10 h-[3px] w-full bg-[#191412]" />
+        )}
+
+        {/* Skyline */}
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+          <div>
+            {kicker ? (
+              <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+                {kicker}
+              </span>
+            ) : null}
+            {title ? (
+              <h2 className="mt-3 font-serif text-[clamp(1.9rem,6vw,3.7rem)] leading-[1.02] tracking-tight text-[#191412]">
+                {renderTitleArt(title, "font-serif text-[#191412]")}
+              </h2>
+            ) : null}
+            {subheadline ? (
+              <SafeText
+                html={subheadline}
+                className="mt-5 font-serif text-[1.05rem] leading-[1.75] text-[#191412]/90 sm:text-[1.15rem] sm:leading-[1.7]"
+              />
+            ) : null}
+          </div>
+
+          {/* Cover rail */}
+          <aside className="border-t-[3px] border-[#191412] pt-5 md:border-t-0 md:pt-0 md:pl-10 md:[border-left:1px_solid_rgba(25,20,18,0.2)]">
+            <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+              Front page
+            </span>
+            <p className="-mt-1 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
+              {subheadline || title || "A new edition, ready to read"}
+            </p>
+          </aside>
+        </div>
+
+        {/* Folio */}
+        <footer className="mt-12">
+          <div className="h-px w-full bg-[#191412]/25" />
+          <div className="flex items-center justify-between pt-3 font-sans text-[0.65rem] uppercase tracking-[0.18em] text-[#191412]/55">
+            <span>YBW</span>
+            <span className="text-[#a3413a]">◆ broadsheet</span>
+            <span>{kicker || "cover"}</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// NEWSPAPER CONTENTS — broadsheet table of contents
+// ─────────────────────────────────────────────
+export const PageNewspaperContents = ({ data, imageVersion = "", editionSlug }: any) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  const title = String(data.title || "In This Issue").trim();
+  const kicker = String(data.kicker || data.category || "").trim();
+
+  const [slug, setSlug] = useState("");
+  useEffect(() => {
+    if (editionSlug) {
+      setSlug(editionSlug);
+      return;
+    }
+    try {
+      const match = window.location.pathname.match(/\/magazine\/read\/([^/?]+)/);
+      if (match) setSlug(decodeURIComponent(match[1]));
+    } catch {}
+  }, [editionSlug]);
+
+  return (
+    <div
+      ref={ref}
+      className="min-h-full w-full bg-[#fdfdfb] text-[#191412]"
+    >
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
+        {/* Masthead band */}
+        <header className="flex items-center justify-between gap-4 pb-2">
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            {kicker || "Contents"}
+          </span>
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            Yorkshire BusinessWoman
+          </span>
+        </header>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="py-3 text-center">
+          <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
+            Yorkshire <span className="italic">Business</span>Woman
+          </h1>
+          <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
+            In this issue
+          </p>
+        </div>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="flex flex-col items-center justify-between gap-1 py-2 sm:flex-row">
+          <span className="font-sans text-[0.65rem] text-[#191412]/60">
+            What&rsquo;s inside
+          </span>
+          <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
+            {kicker || "YBW"}
+          </span>
+        </div>
+        <div className="h-px w-full bg-[#191412]/60" />
+
+        {/* Contents heading */}
+        <div className="flex flex-col gap-2 pt-10 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="font-serif text-[clamp(1.6rem,4.5vw,2.8rem)] leading-[1.02] tracking-tight text-[#191412]">
+            {renderTitleArt(title, "font-serif text-[#191412]")}
+          </h2>
+          <span className="font-sans text-[0.7rem] text-[#191412]/70">
+            {items.length} stories
+          </span>
+        </div>
+
+        {/* Contents grid — newspaper columns with page-number anchors */}
+        {items.length > 0 ? (
+          <div className="mt-10 columns-1 gap-10 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+            {items.map((item: any, i: number) => {
+              const rawPage = item?.page;
+              const pageNum =
+                typeof rawPage === "number"
+                  ? rawPage
+                  : Number.parseInt(String(rawPage ?? "").trim(), 10);
+              const nums = Number.isFinite(pageNum) && pageNum > 0 ? pageNum : i + 1;
+              const pageLabel = Number.isFinite(pageNum)
+                ? String(pageNum).padStart(2, "0")
+                : "";
+              const hashHref = Number.isFinite(pageNum) ? `#page-${pageNum}` : "#";
+              const pageHref =
+                slug && Number.isFinite(pageNum)
+                  ? `/magazine/read/${slug}?page=${pageNum}`
+                  : hashHref;
+              return (
+                <a
+                  key={`${pageLabel}-${item?.title ?? i}`}
+                  href={pageHref}
+                  data-page={Number.isFinite(pageNum) ? String(pageNum) : undefined}
+                  className="mb-6 block break-inside-avoid border-b border-[#191412]/20 pb-5 text-left transition-colors hover:bg-[#f3efe8]"
+                >
+                  <span className="font-sans text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#a3413a]">
+                    Page {pageLabel || String(nums).padStart(2, "0")}
+                  </span>
+                  <span className="mt-2 block font-serif text-[1.05rem] font-bold leading-snug text-[#191412] group-hover:underline hover:underline">
+                    {item?.title}
+                  </span>
+                  {item?.kicker ? (
+                    <span className="mt-1 block font-sans text-[0.7rem] uppercase tracking-[0.16em] text-[#191412]/55">
+                      {String(item.kicker).toUpperCase()}
+                    </span>
+                  ) : null}
+                </a>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {/* Folio */}
+        <footer className="mt-12">
+          <div className="h-px w-full bg-[#191412]/25" />
+          <div className="flex items-center justify-between pt-3 font-sans text-[0.65rem] uppercase tracking-[0.18em] text-[#191412]/55">
+            <span>YBW</span>
+            <span className="text-[#a3413a]">◆ broadsheet</span>
+            <span>{kicker || "contents"}</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+};
+
 export const PageFeatureLeft = ({ data, imageVersion }: any) => {
   // Hooks must be called unconditionally (Rules of Hooks)
   const ref = useRef<HTMLDivElement>(null);
