@@ -74,10 +74,33 @@ jobs:
           sudo -u www-data mkdir -p "$APPDIR/.next" 2>/dev/null || true
           sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>/dev/null || true
           set +e
+          # Build under a watchdog: Next can spawn detached jest-worker
+          # processes (processChild.js) that, if the build stalls, hang for
+          # days and starve this 3.8GB box (see 2026-09-01 outage). Time-box
+          # the build and kill the whole www-data build tree on any exit.
+          BUILD_TIMEOUT_SECS="${YBW_BUILD_TIMEOUT_SECS:-720}"
+          mkdir -p /tmp/ybw-deploy
+          WATCHDOG=/tmp/ybw-deploy/build-watchdog-$$.json
+          (
+            sleep "$BUILD_TIMEOUT_SECS"
+            sudo pkill -9 -u www-data -f "pnpm.*build|next.*build|jest-worker" 2>/dev/null || true
+            printf '{"timedOut":true}' > "$WATCHDOG"
+          ) &
+          WATCHDOG_PID=$!
+
           sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
             pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
+
+          # Stop the watchdog if the build finished first; then always reap
+          # any orphaned build workers so none can starve the box.
+          [ "$(cat "$WATCHDOG" 2>/dev/null || echo '{"timedOut":false}')" = '{"timedOut":false}' ] \
+            && kill "$WATCHDOG_PID" 2>/dev/null || true
+          sudo pkill -9 -u www-data -f "next/dist/compiled/jest-worker/processChild.js" 2>/dev/null || true
+          sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|jest-worker" 2>/dev/null || true
+          rm -f "$WATCHDOG"
+
           echo "[4b/6] post-build purge any leftover .next/export partial dirs (ENOENT rename defense)" | tee -a "$LOG"
           sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
           sudo rm -rf "$APPDIR/.next/export" 2>/dev/null || true
