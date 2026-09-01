@@ -1,17 +1,13 @@
 import type { TemplateRenderProps } from '../../domain/template-registry';
-import { PageNewspaperSpread, PageFeatureLeft } from '../shared';
+import { PageNewspaperSpread } from '../shared';
 
-export default function FeatureTemplate({ page, viewModel, imageVersion }: TemplateRenderProps) {
+export default function FeatureTemplate({ viewModel, siblings, imageVersion }: TemplateRenderProps) {
   const iv = imageVersion ?? '';
 
-  // The newspaper broadsheet layout is now the DEFAULT style for every feature
-  // page. An explicit mediaLayout:'background' opts back into the legacy
-  // full-bleed background treatment on a per-page basis.
-  const layout = String((viewModel as any)?.mediaLayout || '').trim();
-
-  if (layout === 'background') {
-    return <PageFeatureLeft data={{ ...viewModel, mediaLayout: 'background' }} imageVersion={iv} />;
-  }
-
-  return <PageNewspaperSpread data={viewModel} imageVersion={iv} />;
+  // The newspaper broadsheet layout is the DEFAULT for every feature page in
+  // the reader. mediaLayout is intentionally ignored here — imported IDML
+  // content carries mediaLayout:'background' on most pages, and the whole
+  // magazine should read as a newspaper. The legacy full-bleed background
+  // renderer (PageFeatureLeft) is still exported for bespoke pages.
+  return <PageNewspaperSpread data={viewModel} imageVersion={iv} siblings={siblings} />;
 }

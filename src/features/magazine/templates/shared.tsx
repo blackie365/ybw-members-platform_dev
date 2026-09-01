@@ -1941,7 +1941,7 @@ function PageContinuation({ data }: any) {
   );
 }
 
-export const PageNewspaperSpread = ({ data, imageVersion = "" }: any) => {
+export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: any) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const kicker = String((data.kicker || data.category) ?? "").trim();
@@ -1957,6 +1957,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "" }: any) => {
     featureQuote,
   });
   const stats = Array.isArray(data.stats) ? data.stats : [];
+  const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
 
   return (
     <div
@@ -2085,6 +2086,49 @@ export const PageNewspaperSpread = ({ data, imageVersion = "" }: any) => {
               </div>
             ))}
           </div>
+        ) : null}
+
+        {/* More from this edition — newspaper-style story mixing */}
+        {moreStories.length > 0 ? (
+          <section className="mt-12">
+            <div className="flex items-center justify-between gap-4 pb-2">
+              <h3 className="font-serif text-[0.85rem] font-bold uppercase tracking-[0.22em] text-[#191412]/70">
+                More from this edition
+              </h3>
+              <span className="font-sans text-[0.6rem] uppercase tracking-[0.18em] text-[#191412]/45">
+                Yorkshire BusinessWoman
+              </span>
+            </div>
+            <div className="h-px w-full bg-[#191412]/60" />
+            <div className="mt-0 grid grid-cols-1 gap-px border-x border-b border-[#191412]/25 bg-[#191412]/25 sm:grid-cols-2 lg:grid-cols-4">
+              {moreStories.map((s: any, i: number) => {
+                const pos = Number.parseInt(String(s?.position ?? ""), 10);
+                const nums = Number.isFinite(pos) && pos > 0 ? pos : i + 1;
+                const href = Number.isFinite(nums) ? `?page=${nums}` : "#";
+                return (
+                  <a
+                    key={`${s?.pageId ?? "story"}-${i}`}
+                    href={href}
+                    data-page={Number.isFinite(nums) ? String(nums) : undefined}
+                    className="group flex flex-col bg-[#fdfdfb] p-5 text-left transition-colors hover:bg-[#f3efe8]"
+                    aria-label={s?.title ? `Jump to page ${nums}: ${String(s.title)}` : undefined}
+                  >
+                    <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-[#a3413a]">
+                      #{String(nums).padStart(2, "0")} · {String(s?.kicker || "Feature").toUpperCase()}
+                    </span>
+                    <span className="mt-3 font-serif text-[1.05rem] font-bold leading-snug text-[#191412] group-hover:underline">
+                      {s?.title}
+                    </span>
+                    {s?.standfirst ? (
+                      <span className="mt-2 line-clamp-3 font-sans text-[0.78rem] leading-relaxed text-[#191412]/65">
+                        {s?.standfirst}
+                      </span>
+                    ) : null}
+                  </a>
+                );
+              })}
+            </div>
+          </section>
         ) : null}
 
         {/* Folio */}
