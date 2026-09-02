@@ -136,10 +136,15 @@
  * runs. Author-written (not a Tailwind-scanned utility) so it is deterministic,
  * survives the arbitrary-variant scanner, and doesn't depend on a specific
  * hashed CSS cache. !important makes it authoritative against any Preflight or
- * utility override. */
+ * utility override. Sized for tight, natural broadsheet serif columns. */
 .magazine-body p {
   margin-block-start: 0 !important;
-  margin-block-end: 1.25rem !important;
+  margin-block-end: 0.85rem !important;
+  /* allow a long paragraph to continue across columns (true column flow) */
+  break-inside: auto !important;
+}
+.magazine-body figure {
+  break-inside: avoid;
 }
 
 .dark {

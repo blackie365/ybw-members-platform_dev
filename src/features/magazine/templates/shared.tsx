@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls, buildBalancedColumns } from "@/lib/magazine-utils";
+import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
 import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 
@@ -1964,24 +1964,6 @@ function PageContinuation({ data }: any) {
   );
 }
 
-// Responsive column count: 1 on phones, 2 from md, 3 from xl (matches the
-// previous CSS `columns-1 md:columns-2 xl:columns-3` breakpoints).
-function useNColumns(): number {
-  const [count, setCount] = useState(1);
-  useEffect(() => {
-    const compute = () => {
-      const w = typeof window !== "undefined" ? window.innerWidth : 0;
-      if (w >= 1024) setCount(4);
-      else if (w >= 768) setCount(2);
-      else setCount(1);
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
-  return count;
-}
-
 export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: any) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -2036,11 +2018,29 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
     return out;
   }, [data, featureImage, imageVersion]);
 
-  const columnCount = useNColumns();
-  const bodyColumns = useMemo(
-    () => buildBalancedColumns(bodyBlocks, galleryItems, columnCount),
-    [bodyBlocks, galleryItems, columnCount],
-  );
+  // Continuous column flow: keep the story's paragraphs AND its gallery images
+  // in one ordered sequence, then let CSS multi-column (columns-*) flow the text
+  // naturally from one column into the next. Images are spread ~evenly through
+  // the text (never clustered), each marked break-inside-avoid so a plate never
+  // gets bisected by a column break.
+  const flowItems: ColumnItem[] = useMemo(() => {
+    const texts: ColumnItem[] = bodyBlocks.map((html) => ({ kind: "text", html }));
+    if (galleryItems.length === 0) return texts;
+    if (texts.length === 0) return galleryItems;
+
+    const out: ColumnItem[] = [];
+    const nText = texts.length;
+    const nImg = galleryItems.length;
+    let textIdx = 0;
+    let imgIdx = 0;
+    // Even-spacing: the k-th image lands after ~(nText*(k+1))/(nImg+1) texts.
+    while (textIdx < nText || imgIdx < nImg) {
+      if (textIdx < nText) out.push(texts[textIdx++]);
+      const want = imgIdx < nImg ? (nText * (imgIdx + 1)) / (nImg + 1) : Infinity;
+      while (imgIdx < nImg && textIdx >= want) out.push(galleryItems[imgIdx++]);
+    }
+    return out;
+  }, [bodyBlocks, galleryItems]);
 
   return (
     <div
@@ -2130,54 +2130,32 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {bodyColumns.length > 0 ? (
-              <div
-                className={`grid items-start gap-x-8 gap-y-0 ${
-                  columnCount >= 4
-                    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-                    : columnCount === 3
-                      ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-                      : columnCount === 2
-                        ? "grid-cols-1 md:grid-cols-2"
-                        : "grid-cols-1"
-                }`}
-              >
-                {bodyColumns.map((items, colIndex) => (
-                  <div
-                    key={`col-${colIndex}`}
-                    className={`space-y-0 ${
-                      columnCount >= 4 && colIndex < 3
-                        ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
-                        : columnCount === 3 && colIndex < 2
-                          ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
-                          : columnCount === 2 && colIndex < 1
-                            ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
-                            : ""
-                    }`}
-                  >
-                    {items.map((item, i) =>
-                      item.kind === "img" ? (
-                        <figure key={`col-${colIndex}-img-${i}`} className="my-5 break-inside-avoid">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={item.src}
-                            alt={item.alt}
-                            className="w-full object-cover"
-                          />
-                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                            {title}
-                          </figcaption>
-                        </figure>
-                      ) : (
-                        <SafeText
-                          key={`col-${colIndex}-t-${i}`}
-                          html={item.html}
-                          className="magazine-body font-sans text-[0.98rem] leading-[1.8] tracking-[-0.025em] text-[#191412]/86 text-justify hyphens-auto [&_p]:font-sans [&_p]:tracking-[-0.025em] [&_p]:mb-5 [&_p]:break-inside-avoid [&_p]:hyphens-auto [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid [&_p+p]:mt-5"
-                        />
-                      ),
-                    )}
-                  </div>
-                ))}
+            {flowItems.length > 0 ? (
+              <div className="mt-6 columns-1 gap-6 md:columns-2 lg:columns-3 lg:gap-7 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+                {flowItems.map((item, i) =>
+                  item.kind === "img" ? (
+                    <figure
+                      key={`flow-img-${i}`}
+                      className="my-5 break-inside-avoid [break-after:column]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.src}
+                        alt={item.alt}
+                        className="w-full object-cover"
+                      />
+                      <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                        {title}
+                      </figcaption>
+                    </figure>
+                  ) : (
+                    <SafeText
+                      key={`flow-t-${i}`}
+                      html={item.html}
+                      className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
+                    />
+                  ),
+                )}
               </div>
             ) : null}
           </article>
