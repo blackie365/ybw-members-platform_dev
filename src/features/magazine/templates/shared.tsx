@@ -13,7 +13,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
+import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls, buildBalancedColumns } from "@/lib/magazine-utils";
+import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 
 // ─────────────────────────────────────────────
@@ -1939,101 +1940,6 @@ function PageContinuation({ data }: any) {
       </div>
     </div>
   );
-}
-
-// ─────────────────────────────────────────────
-// BALANCED NEWSPAPER COLUMNS
-// Native CSS multicol equalises each column to the full (unbounded) content
-// height, so body text renders as one very tall block and reads unevenly on
-// screen. Instead we balance the blocks by hand: split body paragraphs +
-// inline gallery images into N columns with as-equal an estimated height as
-// possible, so no single column is noticeably longer than the others.
-// ─────────────────────────────────────────────
-
-type ColumnItem =
-  | { kind: "text"; html: string }
-  | { kind: "img"; src: string; alt: string };
-
-// Strip tags to get a rough text length for height weighting (image items are
-// weighted by a flat figure cost since their height is much larger than a line).
-function estimateColumnItemHeight(item: ColumnItem): number {
-  if (item.kind === "img") return 24;
-  const text = String(item.html)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!text) return 2;
-  // ~90 chars per line at column width; add paragraph margins.
-  return Math.max(2, Math.ceil(text.length / 90) + 1.2);
-}
-
-// Spacing-preserving HTML strip used only for height estimation.
-function estimateHtmlTextLength(html: string): number {
-  const text = String(html || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.length;
-}
-
-// Greedily place each flow item into the currently-shortest column so the
-// resulting columns are as close in height as possible.
-function buildBalancedColumns(
-  blocks: string[],
-  imageItems: ColumnItem[],
-  columnCount: number,
-): ColumnItem[][] {
-  const n = Math.max(1, columnCount);
-  const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
-  const heights = Array.from({ length: n }, () => 0);
-  const imageWeight = estimateColumnItemHeight({ kind: "img", src: "", alt: "" });
-
-  // Build a single ordered flow: interleave the gallery images evenly through
-  // the body paragraphs so they don't all pile into one column, then assign
-  // each item to the currently-shortest column.
-  const flow: { item: ColumnItem; weight: number }[] = [];
-  const blockWeights = blocks.map((block) => ({
-    item: { kind: "text" as const, html: block },
-    weight: estimateColumnItemHeight({ kind: "text" as const, html: block }),
-  }));
-  const imageTotal = imageItems.length * imageWeight;
-  // Insert images roughly evenly: compute a running text budget and place an
-  // image whenever the paragraph stream has consumed ~textShare of its weight.
-  const textTotal = blockWeights.reduce((s, { weight }) => s + weight, 0);
-  let consumed = 0;
-  let imgIdx = 0;
-  for (let i = 0; i < blockWeights.length; i++) {
-    flow.push(blockWeights[i]);
-    consumed += blockWeights[i].weight;
-    // After this paragraph, if we're at/beyond the next image slot, fill it.
-    while (imgIdx < imageItems.length) {
-      const want = imageTotal > 0
-        ? (textTotal * (imgIdx + 1)) / (imageItems.length + 1)
-        : Infinity;
-      if (consumed < want) break;
-      flow.push({ item: imageItems[imgIdx], weight: imageWeight });
-      imgIdx++;
-    }
-  }
-  // Any remaining images tail off at the end of the text.
-  while (imgIdx < imageItems.length) {
-    flow.push({ item: imageItems[imgIdx], weight: imageWeight });
-    imgIdx++;
-  }
-
-  const pickShortest = () => {
-    let min = 0;
-    for (let i = 1; i < n; i++) if (heights[i] < heights[min]) min = i;
-    return min;
-  };
-  for (const { item, weight } of flow) {
-    const col = pickShortest();
-    cols[col].push(item);
-    heights[col] += weight;
-  }
-  return cols;
 }
 
 // Responsive column count: 1 on phones, 2 from md, 3 from xl (matches the
