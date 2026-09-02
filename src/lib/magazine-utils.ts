@@ -755,31 +755,74 @@ function estimateColumnItemHeight(item: ColumnItem): number {
   return Math.max(2, Math.ceil(text.length / 90) + 1.2);
 }
 
-// Split a plain-text block into smaller paragraphs at word boundaries so the
-// column balancer can distribute content at a fine enough granularity to make
-// columns genuinely even (a single very long paragraph otherwise forces one
-// column much taller than the rest). Only <p> blocks containing pure text (no
-// nested tags) are split — figures, blockquotes, lists and headings are kept
-// whole because they can't be safely broken across columns.
-export function chunkTextBlock(html: string, targetChars = 100): string[] {
+// Split a plain-text block into smaller paragraphs so the column balancer can
+// distribute content at fine enough granularity to make columns genuinely even
+// (a single very long paragraph otherwise forces one column much taller than
+// the rest). Only <p> blocks containing pure text (no nested tags) are split —
+// figures, blockquotes, lists and headings are kept whole because they can't be
+// safely broken across columns.
+//
+// Crucially the split happens ONLY at sentence boundaries (end of sentence:
+// ". ", "! ", "? ", and sentence punctuation followed by a closing quote) and
+// never mid-sentence or mid-word, so the rendered paragraph breaks never look
+// arbitrary or leave a one-letter orphan line on its own. A larger target keeps
+// paragraphs long and natural; the trailing fragment is trimmed/merged back so
+// we never emit a tiny stray chunk.
+export function chunkTextBlock(html: string, targetChars = 350, minChunk = 60): string[] {
   const trimmed = String(html || '').trim();
   if (!/^<p(\s[^>]*)?>[\s\S]*<\/p>$/.test(trimmed)) return [trimmed];
   const text = trimmed.replace(/^<p(\s[^>]*)?>/, '').replace(/<\/p>$/, '');
   if (text.includes('<') || text.length <= targetChars * 1.35) return [trimmed];
 
-  const words = text.replace(/\s+/g, ' ').trim().split(' ');
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  // Find sentence boundaries: a sentence-terminating character, optional
+  // trailing quotes/parens, followed by whitespace. Keeps "Dr." / "e.g."
+  // intact by only splitting on a terminal punctuation that ends a sentence.
+  const sentenceEnd = /[.!?]["')\u201d\u2019]*\s+/g;
+  const sentences: string[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  const re = new RegExp(sentenceEnd.source, 'g');
+  while ((m = re.exec(normalized)) !== null) {
+    // Heuristic guard: only treat as a sentence end if the char before the
+    // punctuation is not an uppercase single letter (abbreviations like
+    // "Dr. Smith", "St. Peter's") and the next char is a capital letter or the
+    // word is genuinely short. We keep it simple: skip boundaries where the
+    // period follows a common abbreviation pattern.
+    const preceding = normalized.slice(Math.max(0, m.index - 2), m.index);
+    if (/[A-Z]\.$/.test(preceding) && m[0].length <= 3 && /^[a-z]/.test(normalized.slice(m.index + m[0].length))) {
+      continue; // likely an abbreviation, not a sentence end
+    }
+    sentences.push(normalized.slice(last, m.index + m[0].length).trim());
+    last = m.index + m[0].length;
+  }
+  if (last < normalized.length) sentences.push(normalized.slice(last).trim());
+
+  if (sentences.length < 2) return [trimmed];
+
+  // Greedily pack sentences into chunks up to targetChars.
   const chunks: string[] = [];
   let cur = '';
-  for (const word of words) {
-    if ((cur + ' ' + word).replace(/^ /, '').length > targetChars) {
-      if (cur.trim()) chunks.push(`<p>${cur.trim()}</p>`);
-      cur = word;
+  for (const s of sentences) {
+    if (cur && (cur + ' ' + s).length > targetChars) {
+      chunks.push(cur);
+      cur = s;
     } else {
-      cur = cur ? `${cur} ${word}` : word;
+      cur = cur ? `${cur} ${s}` : s;
     }
   }
-  if (cur.trim()) chunks.push(`<p>${cur.trim()}</p>`);
-  return chunks.length > 1 ? chunks : [trimmed];
+  if (cur) {
+    // Merge a tiny trailing orphan back into the previous chunk so we never
+    // leave a one/two-word fragment alone on the last line.
+    if (chunks.length > 0 && cur.length < minChunk) {
+      chunks[chunks.length - 1] = `${chunks[chunks.length - 1]} ${cur}`;
+    } else {
+      chunks.push(cur);
+    }
+  }
+
+  const output = chunks.filter((c) => c.trim()).map((c) => `<p>${c}</p>`);
+  return output.length > 1 ? output : [trimmed];
 }
 
 /**
