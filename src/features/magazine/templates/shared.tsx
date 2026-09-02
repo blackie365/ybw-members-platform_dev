@@ -2067,21 +2067,11 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           )}
         </div>
 
-        {/* Headline — broadsheet deck */} 
+        {/* Headline */}
         <div className="mt-4 max-w-3xl border-b border-[#191412] pb-3">
           <h2 className="font-serif text-[clamp(1.9rem,6vw,3.7rem)] font-bold leading-[0.98] tracking-tight text-[#191412] [&_span]:font-normal">
             {renderTitleArt(title, "font-serif italic text-[#a3413a]")}
           </h2>
-          {(() => {
-            const deck = String(
-              data.subheadline || data.standfirst || data.intro || "",
-            ).trim();
-            return deck ? (
-              <p className="mt-2.5 font-serif text-[clamp(1rem,2.2vw,1.25rem)] italic leading-[1.45] text-[#191412]/75">
-                {deck}
-              </p>
-            ) : null;
-          })()}
         </div>
 
         {/* Hero plate */}
