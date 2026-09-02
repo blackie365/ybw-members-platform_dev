@@ -2145,7 +2145,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                         <SafeText
                           key={`col-${colIndex}-t-${i}`}
                           html={item.html}
-                          className="font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 text-justify hyphens-auto [&_p]:font-sans [&_p]:mb-5 [&_p]:break-inside-avoid [&_p]:hyphens-auto [&_p]:[text-align:justify] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid [&_p+p]:mt-5"
+                          className="font-sans text-[0.98rem] leading-[1.8] tracking-[-0.025em] text-[#191412]/86 text-justify hyphens-auto [&_p]:font-sans [&_p]:tracking-[-0.025em] [&_p]:mb-5 [&_p]:break-inside-avoid [&_p]:hyphens-auto [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid [&_p+p]:mt-5"
                         />
                       ),
                     )}
