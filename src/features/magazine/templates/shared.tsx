@@ -1941,6 +1941,119 @@ function PageContinuation({ data }: any) {
   );
 }
 
+// ─────────────────────────────────────────────
+// BALANCED NEWSPAPER COLUMNS
+// Native CSS multicol equalises each column to the full (unbounded) content
+// height, so body text renders as one very tall block and reads unevenly on
+// screen. Instead we balance the blocks by hand: split body paragraphs +
+// inline gallery images into N columns with as-equal an estimated height as
+// possible, so no single column is noticeably longer than the others.
+// ─────────────────────────────────────────────
+
+type ColumnItem =
+  | { kind: "text"; html: string }
+  | { kind: "img"; src: string; alt: string };
+
+// Strip tags to get a rough text length for height weighting (image items are
+// weighted by a flat figure cost since their height is much larger than a line).
+function estimateColumnItemHeight(item: ColumnItem): number {
+  if (item.kind === "img") return 24;
+  const text = String(item.html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return 2;
+  // ~90 chars per line at column width; add paragraph margins.
+  return Math.max(2, Math.ceil(text.length / 90) + 1.2);
+}
+
+// Spacing-preserving HTML strip used only for height estimation.
+function estimateHtmlTextLength(html: string): number {
+  const text = String(html || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length;
+}
+
+// Greedily place each flow item into the currently-shortest column so the
+// resulting columns are as close in height as possible.
+function buildBalancedColumns(
+  blocks: string[],
+  imageItems: ColumnItem[],
+  columnCount: number,
+): ColumnItem[][] {
+  const n = Math.max(1, columnCount);
+  const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
+  const heights = Array.from({ length: n }, () => 0);
+  const imageWeight = estimateColumnItemHeight({ kind: "img", src: "", alt: "" });
+
+  // Build a single ordered flow: interleave the gallery images evenly through
+  // the body paragraphs so they don't all pile into one column, then assign
+  // each item to the currently-shortest column.
+  const flow: { item: ColumnItem; weight: number }[] = [];
+  const blockWeights = blocks.map((block) => ({
+    item: { kind: "text" as const, html: block },
+    weight: estimateColumnItemHeight({ kind: "text" as const, html: block }),
+  }));
+  const imageTotal = imageItems.length * imageWeight;
+  // Insert images roughly evenly: compute a running text budget and place an
+  // image whenever the paragraph stream has consumed ~textShare of its weight.
+  const textTotal = blockWeights.reduce((s, { weight }) => s + weight, 0);
+  let consumed = 0;
+  let imgIdx = 0;
+  for (let i = 0; i < blockWeights.length; i++) {
+    flow.push(blockWeights[i]);
+    consumed += blockWeights[i].weight;
+    // After this paragraph, if we're at/beyond the next image slot, fill it.
+    while (imgIdx < imageItems.length) {
+      const want = imageTotal > 0
+        ? (textTotal * (imgIdx + 1)) / (imageItems.length + 1)
+        : Infinity;
+      if (consumed < want) break;
+      flow.push({ item: imageItems[imgIdx], weight: imageWeight });
+      imgIdx++;
+    }
+  }
+  // Any remaining images tail off at the end of the text.
+  while (imgIdx < imageItems.length) {
+    flow.push({ item: imageItems[imgIdx], weight: imageWeight });
+    imgIdx++;
+  }
+
+  const pickShortest = () => {
+    let min = 0;
+    for (let i = 1; i < n; i++) if (heights[i] < heights[min]) min = i;
+    return min;
+  };
+  for (const { item, weight } of flow) {
+    const col = pickShortest();
+    cols[col].push(item);
+    heights[col] += weight;
+  }
+  return cols;
+}
+
+// Responsive column count: 1 on phones, 2 from md, 3 from xl (matches the
+// previous CSS `columns-1 md:columns-2 xl:columns-3` breakpoints).
+function useNColumns(): number {
+  const [count, setCount] = useState(1);
+  useEffect(() => {
+    const compute = () => {
+      const w = typeof window !== "undefined" ? window.innerWidth : 0;
+      if (w >= 1280) setCount(3);
+      else if (w >= 768) setCount(2);
+      else setCount(1);
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+  return count;
+}
+
 export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: any) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -1958,6 +2071,48 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   });
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
+
+  // Balanced body columns + interleaved gallery images. The newspaper spread
+  // should show every image attached to the story (the "add more images"
+  // gallery), not just the hero, and should equalise column length on screen.
+  const galleryItems: ColumnItem[] = useMemo(() => {
+    const raw = Array.isArray(data.gallery)
+      ? data.gallery
+      : Array.isArray(data.images)
+        ? data.images
+        : Array.isArray(data.additionalImages)
+          ? data.additionalImages
+          : [];
+    const seen = new Set<string>();
+    const out: ColumnItem[] = [];
+    for (const item of raw) {
+      let src = "";
+      if (typeof item === "string") src = String(item || "").trim();
+      else if (item && typeof item === "object") {
+        const r = item as Record<string, unknown>;
+        src = String(r.src || r.image || r.url || "").trim();
+      }
+      const fixed = fixMagazineImageUrl(src, imageVersion);
+      if (!fixed || isPlaceholderImageUrl(fixed)) continue;
+      if (seen.has(fixed)) continue;
+      seen.add(fixed);
+      // Skip the hero plate — it already renders as the opening figure.
+      if (featureImage && fixed === fixMagazineImageUrl(featureImage, imageVersion))
+        continue;
+      out.push({
+        kind: "img" as const,
+        src: fixed,
+        alt: String(data.title || "Story image"),
+      });
+    }
+    return out;
+  }, [data, featureImage, imageVersion]);
+
+  const columnCount = useNColumns();
+  const bodyColumns = useMemo(
+    () => buildBalancedColumns(bodyBlocks, galleryItems, columnCount),
+    [bodyBlocks, galleryItems, columnCount],
+  );
 
   return (
     <div
@@ -2042,12 +2197,50 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {bodyBlocks.length > 0 ? (
-              <div className="columns-1 gap-10 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
-                <SafeText
-                  html={bodyBlocks.join("")}
-                  className="font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 [&_p]:font-sans [&_p]:text-[0.98rem] [&_p]:leading-[1.8] [&_p]:mb-5 [&_p]:break-inside-avoid [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
-                />
+            {bodyColumns.length > 0 ? (
+              <div
+                className={`grid items-start gap-x-10 gap-y-0 ${
+                  columnCount >= 3
+                    ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                    : columnCount === 2
+                      ? "grid-cols-1 md:grid-cols-2"
+                      : "grid-cols-1"
+                }`}
+              >
+                {bodyColumns.map((items, colIndex) => (
+                  <div
+                    key={`col-${colIndex}`}
+                    className={`space-y-0 ${
+                      columnCount >= 3 && colIndex < 2
+                        ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
+                        : columnCount === 2 && colIndex < 1
+                          ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
+                          : ""
+                    }`}
+                  >
+                    {items.map((item, i) =>
+                      item.kind === "img" ? (
+                        <figure key={`col-${colIndex}-img-${i}`} className="my-5 break-inside-avoid">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.src}
+                            alt={item.alt}
+                            className="w-full object-cover"
+                          />
+                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                            {title}
+                          </figcaption>
+                        </figure>
+                      ) : (
+                        <SafeText
+                          key={`col-${colIndex}-t-${i}`}
+                          html={item.html}
+                          className="font-sans text-[0.98rem] leading-[1.8] text-[#191412]/86 [&_p]:font-sans [&_p]:mb-5 [&_p]:break-inside-avoid [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid [&_p+p]:mt-5"
+                        />
+                      ),
+                    )}
+                  </div>
+                ))}
               </div>
             ) : null}
           </article>
