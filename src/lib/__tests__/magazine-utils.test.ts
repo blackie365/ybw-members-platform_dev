@@ -144,18 +144,67 @@ describe('buildBalancedColumns — equalise newspaper columns', () => {
   });
 });
 
-describe('chunkTextBlock — split long paragraphs at word boundaries', () => {
+describe('chunkTextBlock — split long paragraphs at sentence boundaries', () => {
   it('leaves short paragraphs whole', () => {
     expect(chunkTextBlock('<p>hello short world</p>', 100)).toEqual(['<p>hello short world</p>']);
   });
 
   it('splits a long paragraph into multiple <p> chunks', () => {
-    const long = Array.from({ length: 60 }, () => 'word').join(' '); // ~299 chars
+    const long = Array.from({ length: 60 }, () => 'word').join(' '); // ~299 chars, no punctuation
     const out = chunkTextBlock(`<p>${long}</p>`, 100);
+    for (const chunk of out) {
+      expect(chunk.startsWith('<p>')).toBe(true);
+      expect(chunk.endsWith('</p>')).toBe(true);
+    }
+  });
+
+  it('splits a punctuated long paragraph into multiple <p> chunks', () => {
+    const long = Array.from({ length: 60 }, (_, i) => `Sentence number ${i + 1} is complete and ends here.`).join(' ');
+    const out = chunkTextBlock(`<p>${long}</p>`, 200);
     expect(out.length).toBeGreaterThan(1);
     for (const chunk of out) {
       expect(chunk.startsWith('<p>')).toBe(true);
       expect(chunk.endsWith('</p>')).toBe(true);
+    }
+  });
+
+  it('never splits mid-sentence and never leaves an orphan-word chunk', () => {
+    // 5 long sentences joined by ". " — every split must fall on a sentence
+    // boundary, never mid-sentence, and no chunk may be a single stray word.
+    const sentences = [
+      'This is the first complete sentence with enough words to be reasonably long in the paragraph.',
+      'Here follows a second complete sentence that continues the same long paragraph for the reader.',
+      'A third sentence keeps the paragraph going so that chunking is definitely required here today.',
+      'The fourth sentence adds still more length so the balancer has several natural break points.',
+      'Finally a fifth sentence closes the paragraph out completely and finishes the whole thing.',
+    ];
+    const out = chunkTextBlock(`<p>${sentences.join(' ')}</p>`, 120);
+    expect(out.length).toBeGreaterThan(1);
+    for (const chunk of out) {
+      const inner = chunk.replace(/<\/?p>/g, '');
+      // Every chunk is whole sentences: it must start with a capital and end
+      // with sentence punctuation.
+      expect(inner[0]).toMatch(/[A-Z]/);
+      expect(inner.trimEnd()).toMatch(/[.!?]["')\u201d\u2019]*$/);
+      // Never an orphan fragment.
+      expect(inner.trim().split(/\s+/).length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('keeps a trailing short fragment merged so no orphan chunk is emitted', () => {
+    // `a` is long enough that the paragraph must split (> targetChars*1.35),
+    // and `b` is a short trailing sentence that should be folded back instead
+    // of being left as a one/two-word orphan chunk.
+    const a =
+      'This first long complete sentence rambles on for quite a while with enough words to comfortably exceed the target chunk size so that a split is definitely required.';
+    const b = 'And here ends it.';
+    const out = chunkTextBlock(`<p>${a} ${b}</p>`, 120, 60);
+    expect(out.length).toBeGreaterThanOrEqual(1);
+    // The short second sentence must be merged into the previous chunk rather
+    // than appearing as its own standalone (orphan) chunk: no chunk may contain
+    // only the short sentence.
+    for (const chunk of out) {
+      expect(chunk.replace(/<\/?p>/g, '').trim().split(/\s+/).length).toBeGreaterThanOrEqual(3);
     }
   });
 
