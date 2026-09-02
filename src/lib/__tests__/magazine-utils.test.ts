@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeMagazinePageContent } from '../magazine-utils';
+import { normalizeMagazinePageContent, buildBalancedColumns, chunkTextBlock } from '../magazine-utils';
 
 describe('normalizeMagazinePageContent — text/body + intro/standfirst alias merge', () => {
   /**
@@ -64,5 +64,103 @@ describe('normalizeMagazinePageContent — text/body + intro/standfirst alias me
     expect(normalizeMagazinePageContent(null as any)).toEqual({});
     expect(normalizeMagazinePageContent(undefined as any)).toEqual({});
     expect(normalizeMagazinePageContent('nope' as any)).toEqual({});
+  });
+});
+
+describe('buildBalancedColumns — equalise newspaper columns', () => {
+  const estWeight = (html: string): number => {
+    const t = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return Math.max(2, Math.ceil(t.length / 90) + 1.2);
+  };
+
+  it('splits long paragraphs so columns come out near-equal', () => {
+    // One very long paragraph that, kept whole, could only sit in one column.
+    const longWordy = 'word '.repeat(40); // 200 chars
+    const blocks = Array.from(
+      { length: 3 },
+      () => `<p>${longWordy.trim()}</p>`,
+    );
+    const cols = buildBalancedColumns(blocks, [], 3);
+    expect(cols.length).toBe(3);
+    // Every column has content and text length is balanced (no empty col).
+    const lens = cols.map((c) => c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0));
+    const total = lens.reduce((a, b) => a + b, 0);
+    for (const len of lens) {
+      const share = len / Math.max(1, total);
+      // Each column holds a fair share (not one column dominating).
+      expect(share).toBeGreaterThan(0.2);
+    }
+  });
+
+  it('greedy shortest-column distributes many blocks evenly', () => {
+    const blocks = Array.from({ length: 12 }, (_, i) => `<p>para numero ${i} with a little text</p>`);
+    const cols = buildBalancedColumns(blocks, [], 3);
+    expect(cols.length).toBe(3);
+    const w = cols.map((c) =>
+      c.reduce((s, i) => s + (i.kind === 'text' ? estWeight(i.html) : 0), 0),
+    );
+    const max = Math.max(...w);
+    const min = Math.min(...w);
+    // Max column not more than ~40% taller than the min.
+    expect(max - min).toBeLessThanOrEqual(4);
+  });
+
+  it('interleaves gallery images across columns, never duplicating', () => {
+    const blocks = Array.from({ length: 10 }, (_, i) => `<p>block #${i} with enough words</p>`);
+    const images = [
+      { kind: 'img' as const, src: 'a.jpg', alt: 'a' },
+      { kind: 'img' as const, src: 'b.jpg', alt: 'b' },
+    ];
+    const cols = buildBalancedColumns(blocks, images, 2);
+    const flat = cols.flat();
+    const imgs = flat.filter((i) => i.kind === 'img');
+    expect(imgs.length).toBe(2);
+    // Images spread across at least 2 columns.
+    const colsWithImg = cols.filter((c) => c.some((i) => i.kind === 'img')).length;
+    expect(colsWithImg).toBeGreaterThanOrEqual(2);
+    // No duplicate src across the whole output.
+    const srcs = flat.filter((i) => i.kind === 'img').map((i) => (i.kind === 'img' ? i.src : ''));
+    expect(new Set(srcs).size).toBe(2);
+  });
+
+  it('keeps non-<p> blocks (blockquote/figure) whole — never split', () => {
+    const blocks = [
+      '<p>short</p>',
+      '<blockquote>A very long blockquote that must never be broken apart across columns because it is a quote and would lose meaning.</blockquote>',
+      '<figure><img src="x.jpg"/></figure>',
+    ];
+    const cols = buildBalancedColumns(blocks, [], 2);
+    const flat = cols.flat();
+    const bq = flat.filter((i) => i.kind === 'text' && i.html.includes('<blockquote>'));
+    expect(bq).toHaveLength(1); // still one whole blockquote
+    expect(bq[0] && 'html' in bq[0] ? bq[0].html.includes('A very long blockquote') : false).toBe(true);
+  });
+
+  it('returns a single column when columnCount is 1', () => {
+    const blocks = ['<p>one</p>', '<p>two</p>', '<p>three</p>'];
+    const cols = buildBalancedColumns(blocks, [], 1);
+    expect(cols).toHaveLength(1);
+    expect(cols[0].length).toBe(3);
+  });
+});
+
+describe('chunkTextBlock — split long paragraphs at word boundaries', () => {
+  it('leaves short paragraphs whole', () => {
+    expect(chunkTextBlock('<p>hello short world</p>', 100)).toEqual(['<p>hello short world</p>']);
+  });
+
+  it('splits a long paragraph into multiple <p> chunks', () => {
+    const long = Array.from({ length: 60 }, () => 'word').join(' '); // ~299 chars
+    const out = chunkTextBlock(`<p>${long}</p>`, 100);
+    expect(out.length).toBeGreaterThan(1);
+    for (const chunk of out) {
+      expect(chunk.startsWith('<p>')).toBe(true);
+      expect(chunk.endsWith('</p>')).toBe(true);
+    }
+  });
+
+  it('never splits a blockquote', () => {
+    const q = '<blockquote>' + Array.from({ length: 60 }, () => 'word').join(' ') + '</blockquote>';
+    expect(chunkTextBlock(q, 100)).toEqual([q]);
   });
 });

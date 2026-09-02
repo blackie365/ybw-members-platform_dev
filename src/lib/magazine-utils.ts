@@ -726,3 +726,122 @@ export function isReaderSchemaCurrent(doc: unknown): boolean {
   const version = (doc as any).schemaVersion;
   return typeof version === 'number' && version >= CURRENT_READER_SCHEMA_VERSION;
 }
+
+// ─────────────────────────────────────────────
+// BALANCED NEWSPAPER COLUMNS
+// The newspaper reader lays story text out in columns. Native CSS multicol
+// equalises each column to the full (unbounded) content height, so long text
+// renders as one very tall block and reads unevenly. Instead we balance the
+// blocks by hand: split body paragraphs + inline gallery images into N columns
+// with as-equal an estimated height as possible, so no single column is
+// noticeably longer than the others.
+// ─────────────────────────────────────────────
+
+export type ColumnItem =
+  | { kind: 'text'; html: string }
+  | { kind: 'img'; src: string; alt: string };
+
+// Rough height weight for a flow item: image items use a flat figure cost
+// (their height dwarfs a line of text); text items are weighted by the number
+// of rendered lines (~90 chars/line at newspaper column width) plus margins.
+function estimateColumnItemHeight(item: ColumnItem): number {
+  if (item.kind === 'img') return 24;
+  const text = String(item.html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return 2;
+  return Math.max(2, Math.ceil(text.length / 90) + 1.2);
+}
+
+// Split a plain-text block into smaller paragraphs at word boundaries so the
+// column balancer can distribute content at a fine enough granularity to make
+// columns genuinely even (a single very long paragraph otherwise forces one
+// column much taller than the rest). Only <p> blocks containing pure text (no
+// nested tags) are split — figures, blockquotes, lists and headings are kept
+// whole because they can't be safely broken across columns.
+export function chunkTextBlock(html: string, targetChars = 100): string[] {
+  const trimmed = String(html || '').trim();
+  if (!/^<p(\s[^>]*)?>[\s\S]*<\/p>$/.test(trimmed)) return [trimmed];
+  const text = trimmed.replace(/^<p(\s[^>]*)?>/, '').replace(/<\/p>$/, '');
+  if (text.includes('<') || text.length <= targetChars * 1.35) return [trimmed];
+
+  const words = text.replace(/\s+/g, ' ').trim().split(' ');
+  const chunks: string[] = [];
+  let cur = '';
+  for (const word of words) {
+    if ((cur + ' ' + word).replace(/^ /, '').length > targetChars) {
+      if (cur.trim()) chunks.push(`<p>${cur.trim()}</p>`);
+      cur = word;
+    } else {
+      cur = cur ? `${cur} ${word}` : word;
+    }
+  }
+  if (cur.trim()) chunks.push(`<p>${cur.trim()}</p>`);
+  return chunks.length > 1 ? chunks : [trimmed];
+}
+
+/**
+ * Distribute body blocks + gallery images into exactly `columnCount` columns,
+ * greedily placing each item into the currently-shortest column (after chunking
+ * long paragraphs) so the resulting columns are as close in height as possible.
+ * Gallery images are interleaved roughly evenly through the text rather than
+ * clustering in one column.
+ */
+export function buildBalancedColumns(
+  blocks: string[],
+  imageItems: ColumnItem[],
+  columnCount: number,
+): ColumnItem[][] {
+  const n = Math.max(1, columnCount);
+  const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
+  const heights = Array.from({ length: n }, () => 0);
+  const imageWeight = estimateColumnItemHeight({ kind: 'img', src: '', alt: '' });
+
+  const textItems: { item: ColumnItem; weight: number }[] = [];
+  for (const block of blocks) {
+    for (const html of chunkTextBlock(block)) {
+      textItems.push({
+        item: { kind: 'text', html },
+        weight: estimateColumnItemHeight({ kind: 'text', html }),
+      });
+    }
+  }
+
+  // Build a single ordered flow, interleaving images ~evenly through the text.
+  const flow: { item: ColumnItem; weight: number }[] = [];
+  const imageTotal = imageItems.length * imageWeight;
+  const textTotal = textItems.reduce((s, { weight }) => s + weight, 0);
+  let consumed = 0;
+  let imgIdx = 0;
+  for (let i = 0; i < textItems.length; i++) {
+    flow.push(textItems[i]);
+    consumed += textItems[i].weight;
+    while (imgIdx < imageItems.length) {
+      const want =
+        imageTotal > 0
+          ? (textTotal * (imgIdx + 1)) / (imageItems.length + 1)
+          : Infinity;
+      if (consumed < want) break;
+      flow.push({ item: imageItems[imgIdx], weight: imageWeight });
+      imgIdx++;
+    }
+  }
+  while (imgIdx < imageItems.length) {
+    flow.push({ item: imageItems[imgIdx], weight: imageWeight });
+    imgIdx++;
+  }
+
+  const pickShortest = () => {
+    let min = 0;
+    for (let i = 1; i < n; i++) if (heights[i] < heights[min]) min = i;
+    return min;
+  };
+  for (const { item, weight } of flow) {
+    const col = pickShortest();
+    cols[col].push(item);
+    heights[col] += weight;
+  }
+  return cols;
+}
