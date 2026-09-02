@@ -37,44 +37,21 @@ function safeImageSrc(raw: unknown): string {
 }
 
 function splitPlainTextIntoParagraphs(input: string): string[] {
-  const normalized = String(input || "").replace(/\r\n/g, "\n").trim();
-  if (!normalized) return [];
+  const normalized = String(input || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!normalized.trim()) return [];
 
-  const explicitParagraphs = normalized
-    .split(/\n{2,}/g)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (explicitParagraphs.length > 1) return explicitParagraphs;
-
+  // A hard newline is an explicit break the author typed (Press Enter in the
+  // Editorial Body textarea). Honour it: each non-empty line becomes its own
+  // paragraph so the rendered broadsheet skips a line between them. We do NOT
+  // merge lines with a heuristic ("sentence punctuation + capital next") —
+  // that collapsed real paragraph breaks whenever a line didn't happen to end
+  // in .!? or start with a capital, which is exactly the reported bug.
   const lines = normalized
     .split(/\n/g)
-    .map((line) => line.trim())
+    .map((line) => line.replace(/^\s+|\s+$/g, ""))
     .filter(Boolean);
-  if (lines.length <= 1) return lines;
-
-  const paragraphs: string[] = [];
-  let current = "";
-
-  const endsParagraph = (line: string) => /[.!?:"'”’)\]]$/.test(line.trim());
-  const startsNewSentence = (line: string) => /^[A-Z0-9"'“‘(\[]/.test(line.trim());
-
-  for (const line of lines) {
-    if (!current) {
-      current = line;
-      continue;
-    }
-
-    if (endsParagraph(current) && startsNewSentence(line)) {
-      paragraphs.push(current.trim());
-      current = line;
-      continue;
-    }
-
-    current = `${current} ${line}`.replace(/\s+/g, " ").trim();
-  }
-
-  if (current) paragraphs.push(current.trim());
-  return paragraphs;
+  if (lines.length === 0) return [];
+  return lines;
 }
 
 // ─────────────────────────────────────────────
@@ -848,12 +825,57 @@ export function getHtmlBlocks(html: string): string[] {
     );
   }
 
+  // Server-safe block split for content that contains HTML tags. Runs in the
+  // bundle where DOMParser is unavailable (the client-only branch above is
+  // bypassed on the server), so we split on <p>/</p> and standalone <br>
+  // markers directly. This honours the literal <p>…</p> and <br /> the
+  // FormattingToolbar / an author can type, guaranteeing each is a separate
+  // block (a real paragraph) instead of collapsing them into one blob.
+  const tagBlocks = splitHtmlIntoBlocks(normalized);
+  if (tagBlocks.length > 0) return dedupeTextBlocks(tagBlocks);
+
   const parts = normalized
     .split(/\n{2,}/g)
     .map((p) => p.trim())
     .filter(Boolean);
   if (parts.length === 0) return dedupeTextBlocks([html]);
   return dedupeTextBlocks(parts);
+}
+
+/**
+ * Split an HTML string on paragraph-ish boundaries without a DOM:
+ *  - a `</p>` close ends a block, then following content becomes a new block
+ *  - a `<br>` / `<br />` alone acts as a block separator AND a legit spacer
+ *    for content that came from a rich editor (turn it into a fresh block)
+ * Works on the server (no DOMParser). Preserves any inline tags inside a block.
+ */
+function splitHtmlIntoBlocks(html: string): string[] {
+  const input = String(html || "");
+  // Turn every <br> into a paragraph boundary. This makes a single-<br>
+  // spacer a real paragraph too, so an author who typed <br /> to separate
+  // lines gets a skipped line on the broadsheet instead of a soft break.
+  const normalized = input
+    .replace(/<br\s*\/?>/gi, "</p><p>")
+    .replace(/\r\n/g, "\n");
+
+  const blocks: string[] = [];
+  const parts = normalized.split(/<\/p>/gi);
+
+  for (let raw of parts) {
+    let seg = raw.replace(/^\s+|\s+$/g, "");
+    // If this segment still has an unmatched <p> open (e.g. "<p>some text"),
+    // it's a partial block that continues; but here each </p> already splits,
+    // so the only stray-open case is leftover content after the last </p>.
+    seg = seg.replace(/^<p[^>]*>/gi, "<p>");
+    if (!seg) continue;
+    blocks.push(seg);
+  }
+
+  // Wrap any block not already opened by `<p>` so the container's [&_p] rules
+  // apply and it renders as a real paragraph.
+  return blocks
+    .map((b) => (/^\s*<p(\s[^>]*)?>/i.test(b) ? b : `<p>${b}</p>`))
+    .filter(Boolean);
 }
 
 function addClassToFirstParagraph(html: string, className: string) {
