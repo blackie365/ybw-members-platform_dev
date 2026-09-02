@@ -23,6 +23,7 @@ jobs:
     env:
       CI: 'true'
       APPDIR: /srv/ybw-frontend
+      GITHUB_TOKEN: ${{ github.token }}
 
     steps:
       - name: Sanity-check runner host and tooling
@@ -50,7 +51,16 @@ jobs:
 
           echo "[1/6] git fetch + reset hard to origin/main (sha=${GITHUB_SHA})" | tee -a "$LOG"
           OLDREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
-          sudo git -C "$APPDIR" fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
+          # The repo is private and origin is HTTPS, so an anonymous fetch fails
+          # ("could not read Username"). Authenticate with the Actions token via a
+          # one-off store credential file: the token never lands in the repo config
+          # or the deploy log, and is removed after the fetch.
+          CREDFILE=/tmp/ybw-deploy-cred-${GITHUB_SHA}.txt
+          trap 'sudo rm -f "$CREDFILE" 2>/dev/null || true' EXIT
+          printf 'https://x-access-token:%s@github.com\n' "${GITHUB_TOKEN}" | sudo tee "$CREDFILE" >/dev/null
+          sudo chmod 600 "$CREDFILE"
+          sudo git -C "$APPDIR" -c "credential.helper=store --file=$CREDFILE" fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
+          sudo rm -f "$CREDFILE"
           sudo git -C "$APPDIR" -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
           NEWREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
           echo "old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
