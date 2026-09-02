@@ -132,6 +132,16 @@
   box-shadow: none !important;
 }
 
+/* Broadsheet / magazine body copy: guarantee a real paragraph skip between
+ * runs. Author-written (not a Tailwind-scanned utility) so it is deterministic,
+ * survives the arbitrary-variant scanner, and doesn't depend on a specific
+ * hashed CSS cache. !important makes it authoritative against any Preflight or
+ * utility override. */
+.magazine-body p {
+  margin-block-start: 0 !important;
+  margin-block-end: 1.25rem !important;
+}
+
 .dark {
   /* Dark Mode - Deep, rich, and sophisticated */
   --background: #0a0a0a;
