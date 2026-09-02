@@ -1949,7 +1949,7 @@ function useNColumns(): number {
   useEffect(() => {
     const compute = () => {
       const w = typeof window !== "undefined" ? window.innerWidth : 0;
-      if (w >= 1280) setCount(3);
+      if (w >= 1024) setCount(4);
       else if (w >= 768) setCount(2);
       else setCount(1);
     };
@@ -2105,23 +2105,27 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             {bodyColumns.length > 0 ? (
               <div
-                className={`grid items-start gap-x-10 gap-y-0 ${
-                  columnCount >= 3
-                    ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-                    : columnCount === 2
-                      ? "grid-cols-1 md:grid-cols-2"
-                      : "grid-cols-1"
+                className={`grid items-start gap-x-8 gap-y-0 ${
+                  columnCount >= 4
+                    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+                    : columnCount === 3
+                      ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                      : columnCount === 2
+                        ? "grid-cols-1 md:grid-cols-2"
+                        : "grid-cols-1"
                 }`}
               >
                 {bodyColumns.map((items, colIndex) => (
                   <div
                     key={`col-${colIndex}`}
                     className={`space-y-0 ${
-                      columnCount >= 3 && colIndex < 2
-                        ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
-                        : columnCount === 2 && colIndex < 1
+                      columnCount >= 4 && colIndex < 3
+                        ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-8"
+                        : columnCount === 3 && colIndex < 2
                           ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
-                          : ""
+                          : columnCount === 2 && colIndex < 1
+                            ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
+                            : ""
                     }`}
                   >
                     {items.map((item, i) =>
