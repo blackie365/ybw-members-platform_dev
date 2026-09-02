@@ -2044,16 +2044,18 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             A broadsheet for the region&rsquo;s founders &amp; leaders
           </p>
         </div>
-        <div className="h-px w-full bg-[#191412]/25" />
-        <div className="flex flex-col items-center justify-between gap-1 py-2 sm:flex-row">
-          <span className="font-sans text-[0.65rem] text-[#191412]/60">
+        {/* Dateline + printer's graduated rule stack */}
+        <div className="flex flex-col items-center justify-between gap-1 border-b border-t border-[#191412] py-1.5 sm:flex-row">
+          <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
             The finest of its kind, printed without apology
           </span>
           <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
             YBW · No. 12
           </span>
         </div>
-        <div className="h-px w-full bg-[#191412]/60" />
+        <div className="mt-0 h-[2px] w-full bg-[#191412]" />
+        <div className="h-px w-full bg-[#191412]/70" />
+        <div className="h-[3px] w-full bg-[#191412]" />
 
         {/* Kicker + byline */}
         <div className="flex flex-col gap-2 pt-10 sm:flex-row sm:items-end sm:justify-between">
@@ -2065,10 +2067,22 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           )}
         </div>
 
-        {/* Headline */}
-        <h2 className="mt-4 max-w-3xl font-serif text-[clamp(1.9rem,6vw,3.7rem)] leading-[1.02] tracking-tight text-[#191412]">
-          {renderTitleArt(title, "font-serif text-[#191412]")}
-        </h2>
+        {/* Headline — broadsheet deck */} 
+        <div className="mt-4 max-w-3xl border-b border-[#191412] pb-3">
+          <h2 className="font-serif text-[clamp(1.9rem,6vw,3.7rem)] font-bold leading-[0.98] tracking-tight text-[#191412] [&_span]:font-normal">
+            {renderTitleArt(title, "font-serif italic text-[#a3413a]")}
+          </h2>
+          {(() => {
+            const deck = String(
+              data.subheadline || data.standfirst || data.intro || "",
+            ).trim();
+            return deck ? (
+              <p className="mt-2.5 font-serif text-[clamp(1rem,2.2vw,1.25rem)] italic leading-[1.45] text-[#191412]/75">
+                {deck}
+              </p>
+            ) : null;
+          })()}
+        </div>
 
         {/* Hero plate */}
         {featureImage ? (
@@ -2088,6 +2102,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
               </span>
             </div>
             <div className="my-6 h-[3px] w-full bg-[#191412]" />
+            <div className="h-px w-full bg-[#191412]/40" />
           </figure>
         ) : null}
 
@@ -2120,11 +2135,11 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                     key={`col-${colIndex}`}
                     className={`space-y-0 ${
                       columnCount >= 4 && colIndex < 3
-                        ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-8"
+                        ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
                         : columnCount === 3 && colIndex < 2
-                          ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
+                          ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
                           : columnCount === 2 && colIndex < 1
-                            ? "md:border-r md:border-[rgba(25,20,18,0.18)] md:pr-10"
+                            ? "md:border-r md:border-[rgba(25,20,18,0.22)] md:pr-8"
                             : ""
                     }`}
                   >
@@ -2157,15 +2172,23 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
           {/* Pull-quote rail (sibling column on lg when quotes present) */}
           {pullQuotes.length > 0 && (
-            <aside className="flex flex-col gap-7 border-t-[3px] border-[#191412] pt-5 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.2)]">
-              <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+            <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)] lg:pl-10">
+              <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
                 In this feature
               </span>
-              <p className="-mt-3 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
-                {pullQuotes[0]}
-              </p>
+              <figure>
+                <span
+                  aria-hidden="true"
+                  className="block font-serif text-[3rem] leading-none text-[#191412]/25"
+                >
+                  &ldquo;
+                </span>
+                <blockquote className="-mt-6 font-serif text-[1.25rem] italic leading-[1.35] text-[#191412] lg:text-[1.35rem]">
+                  {pullQuotes[0]}
+                </blockquote>
+              </figure>
               {pullQuotes.length > 1 && (
-                <figure className="border-t border-[#191412]/25 pt-3">
+                <figure className="mt-7 border-t border-[#191412]/25 pt-4">
                   <blockquote className="font-serif text-[1.05rem] leading-[1.5] italic text-[#191412]/80">
                     {pullQuotes[1]}
                   </blockquote>
@@ -2179,12 +2202,17 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
         {stats.length > 0 ? (
           <div className="mt-12 grid grid-cols-1 gap-px border border-[#191412]/20 bg-[#191412]/20 sm:grid-cols-3">
             {stats.slice(0, 3).map((stat: any, i: number) => (
-              <div key={`${stat?.label ?? "stat"}-${i}`} className="bg-[#fdfdfb] px-5 py-5">
-                <p className="font-serif text-3xl font-bold text-[#191412]">
-                  {stat?.value}
-                </p>
-                <p className="mt-1 font-sans text-[0.65rem] uppercase tracking-[0.22em] text-[#191412]/55">
+              <div
+                key={`${stat?.label ?? "stat"}-${i}`}
+                className={`bg-[#fdfdfb] px-6 py-6 ${
+                  i > 0 ? "border-l border-[#191412]/20" : ""
+                }`}
+              >
+                <p className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.26em] text-[#a3413a]">
                   {stat?.label}
+                </p>
+                <p className="mt-2 font-serif text-3xl font-bold leading-none text-[#191412]">
+                  {stat?.value}
                 </p>
               </div>
             ))}
@@ -2234,12 +2262,13 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </section>
         ) : null}
 
-        {/* Folio */}
-        <footer className="mt-12">
-          <div className="h-px w-full bg-[#191412]/25" />
+        {/* Folio with ornamental centre */}
+        <footer className="mt-12 pt-6">
+          <div className="h-[3px] w-full bg-[#191412]" />
+          <div className="h-px w-full bg-[#191412]/50" />
           <div className="flex items-center justify-between pt-3 font-sans text-[0.65rem] uppercase tracking-[0.18em] text-[#191412]/55">
             <span>YBW</span>
-            <span className="text-[#a3413a]">◆ broadsheet</span>
+            <span className="hidden text-[#a3413a] sm:inline">◆ ◆ ◆</span>
             <span>{kicker}</span>
           </div>
         </footer>
