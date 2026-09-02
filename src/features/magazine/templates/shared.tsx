@@ -2136,7 +2136,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                   item.kind === "img" ? (
                     <figure
                       key={`flow-img-${i}`}
-                      className="my-5 break-inside-avoid [break-after:column]"
+                      className="float-left mb-3 mr-4 w-[58%] break-inside-avoid"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -2221,7 +2221,18 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
               </span>
             </div>
             <div className="h-px w-full bg-[#191412]/60" />
-            <div className="mt-0 grid grid-cols-1 gap-px border-x border-b border-[#191412]/25 bg-[#191412]/25 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              className={[
+                "mt-0 grid gap-px border-x border-b border-[#191412]/25 bg-[#191412]/25",
+                moreStories.length === 1
+                  ? "grid-cols-1"
+                  : moreStories.length === 2
+                    ? "grid-cols-1 sm:grid-cols-2"
+                    : moreStories.length === 3
+                      ? "grid-cols-1 sm:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+              ].join(" ")}
+            >
               {moreStories.map((s: any, i: number) => {
                 const pos = Number.parseInt(String(s?.position ?? ""), 10);
                 const nums = Number.isFinite(pos) && pos > 0 ? pos : i + 1;
