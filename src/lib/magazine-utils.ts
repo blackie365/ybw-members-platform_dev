@@ -741,18 +741,26 @@ export type ColumnItem =
   | { kind: 'text'; html: string }
   | { kind: 'img'; src: string; alt: string };
 
-// Rough height weight for a flow item: image items use a flat figure cost
-// (their height dwarfs a line of text); text items are weighted by the number
-// of rendered lines (~90 chars/line at newspaper column width) plus margins.
+// Height weight for a flow item, calibrated to the *rendered* broadsheet
+// measure. Text is weighted by the number of lines it actually occupies at the
+// narrow 4-column body width (~30 chars/line at 0.98rem on the max-w-5xl
+// container), NOT a desktop paragraph measure — using 90 chars/line here
+// underweighted text ~3x, so text-heavy columns rendered far taller than the
+// balancer expected and the columns came out uneven. Images are weighted in
+// the same "number of rendered text lines" scale: a full-column-width plate at
+// ~184px with its caption and spacing occupies roughly 12-14 text lines.
+const CHARS_PER_LINE = 30;
+const IMAGE_LINES = 14;
+
 function estimateColumnItemHeight(item: ColumnItem): number {
-  if (item.kind === 'img') return 24;
+  if (item.kind === 'img') return IMAGE_LINES;
   const text = String(item.html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   if (!text) return 2;
-  return Math.max(2, Math.ceil(text.length / 90) + 1.2);
+  return Math.max(2, Math.ceil(text.length / CHARS_PER_LINE) + 1.2);
 }
 
 // Split a plain-text block into smaller paragraphs so the column balancer can
