@@ -3,7 +3,12 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
-const PAGE_LIMIT = 120;
+// Generous page-view budget: only real page navigations hit this (the matcher
+// excludes /_next/static and other static assets), so a human reading a
+// broadsheet — long pages, image loading, hard refreshes, preview iframes —
+// should never trip it. It still bounds pathological page-fetching. The tight
+// anti-abuse limits (5/min) live on the contact/newsletter/events API routes.
+const PAGE_LIMIT = 600;
 const PAGE_WINDOW_MS = 60_000;
 
 const PUBLIC_URL = (

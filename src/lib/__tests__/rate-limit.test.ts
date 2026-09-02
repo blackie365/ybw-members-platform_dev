@@ -65,11 +65,18 @@ describe('checkRateLimit', () => {
 });
 
 describe('getClientIp', () => {
-  it('extracts IP from x-forwarded-for header', () => {
+  it('uses the rightmost x-forwarded-for value (nginx-appended, trusted)', () => {
     const request = new Request('http://localhost', {
       headers: { 'x-forwarded-for': '192.168.1.1, 10.0.0.1' }
     });
-    expect(getClientIp(request)).toBe('192.168.1.1');
+    expect(getClientIp(request)).toBe('10.0.0.1');
+  });
+
+  it('ignores a client-spoofed first x-forwarded-for value', () => {
+    const request = new Request('http://localhost', {
+      headers: { 'x-forwarded-for': '203.0.113.99, 10.0.0.1' }
+    });
+    expect(getClientIp(request)).toBe('10.0.0.1');
   });
 
   it('extracts IP from x-real-ip header', () => {
@@ -84,13 +91,13 @@ describe('getClientIp', () => {
     expect(getClientIp(request)).toBe('unknown');
   });
 
-  it('prefers x-forwarded-for over x-real-ip', () => {
+  it('prefers x-real-ip over x-forwarded-for', () => {
     const request = new Request('http://localhost', {
       headers: {
         'x-forwarded-for': '1.2.3.4',
         'x-real-ip': '5.6.7.8',
       }
     });
-    expect(getClientIp(request)).toBe('1.2.3.4');
+    expect(getClientIp(request)).toBe('5.6.7.8');
   });
 });

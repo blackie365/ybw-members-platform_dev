@@ -67,15 +67,29 @@ export function checkRateLimit(
 
 /**
  * Get client IP from request headers.
+ *
+ * The app sits behind a single trusted nginx proxy that sets:
+ *   - `x-real-ip` = `$remote_addr` (the true TCP peer = the end client), and
+ *   - `x-forwarded-for` = `$proxy_add_x_forwarded_for`, which APPENDS the
+ *     peer's address to whatever the client supplied.
+ *
+ * A client can therefore spoof the FIRST entry of `x-forwarded-for`; reading
+ * the first value would let a caller collide with / impersonate another key
+ * (and, in a shared/VPN/NAT setup, would fold many users onto one key, blasting
+ * past the page limit and producing 429s). So prefer the trusted `x-real-ip`,
+ * and for `x-forwarded-for` take the RIGHTMOST address (the one nginx appended),
+ * which is the real peer.
  */
 export function getClientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
   const realIp = request.headers.get('x-real-ip');
   if (realIp) {
-    return realIp;
+    return realIp.trim();
+  }
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const parts = forwarded.split(',');
+    const last = parts[parts.length - 1];
+    return (last || '').trim();
   }
   return 'unknown';
 }
