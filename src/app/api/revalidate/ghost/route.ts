@@ -62,10 +62,18 @@ export async function POST(req: Request) {
     // We revalidate 'ghost-posts' which covers all getPosts calls
     revalidateTag('ghost-posts');
     revalidateTag('ghost-pages');
-    
-    // Explicitly revalidate key paths to ensure the UI updates immediately
+    revalidateTag('ghost-tags');
+
+    // Explicitly revalidate key paths to ensure the UI updates immediately.
+    // Also bust the specific post page when a post is published/edited so the
+    // article is available on-demand rather than waiting for the next TTL.
     revalidatePath('/');
     revalidatePath('/news');
+    if (payload?.post?.current?.slug) {
+      revalidatePath(`/news/${payload.post.current.slug}`);
+    } else if (payload?.post?.slug) {
+      revalidatePath(`/news/${payload.post.slug}`);
+    }
 
     console.log('[Webhook] Successfully revalidated Ghost content and paths');
     
