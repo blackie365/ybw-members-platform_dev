@@ -70,7 +70,7 @@ async function getFeaturedMembers() {
   }
 }
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 const FEATURED_MAX_AGE_DAYS = 60;
 const RECENT_HERO_BONUS_FILL_N = 3;
