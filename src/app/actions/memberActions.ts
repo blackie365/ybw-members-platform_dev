@@ -312,25 +312,29 @@ function choosePrimary(docs: Array<{ id: string; data: MemberDoc }>) {
 export async function repairMemberDuplicatesByEmailAction(email: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
     if (typeof email !== 'string' || !email.includes('@')) {
       return { success: false, error: 'Valid email is required' };
     }
 
     const emailLower = email.toLowerCase();
-    const ref = adminDb.collection('newMemberCollection');
+    const all = await getMemberStore().getAll();
+    const matching = all
+      .filter((member) => {
+        const data = (member as unknown as MemberDoc) || {};
+        const el = String(data.emailLower || '').toLowerCase();
+        const e = String(data.email || '').toLowerCase();
+        return el === emailLower || e === emailLower;
+      })
+      .map((member) => ({
+        id: member.clerkId,
+        data: (member as unknown as MemberDoc) || {},
+      }));
 
-    let snap = await ref.where('emailLower', '==', emailLower).get();
-    if (snap.empty) {
-      snap = await ref.where('email', '==', email).get();
-    }
-
-    if (snap.empty || snap.size === 1) {
+    if (matching.length <= 1) {
       return { success: true, repaired: false, merged: 0 };
     }
 
-    const docs = snap.docs.map((d) => ({ id: d.id, data: (d.data() as MemberDoc) || {} }));
-    const primary = choosePrimary(docs);
+    const primary = choosePrimary(matching);
     const nowIso = new Date().toISOString();
 
     const merged: Record<string, any> = {
@@ -342,7 +346,7 @@ export async function repairMemberDuplicatesByEmailAction(email: string) {
     let bestTier = primary.data.membershipTier;
     let earliestCreatedAt = safeIso(primary.data.createdAt);
 
-    for (const { id, data } of docs) {
+    for (const { id, data } of matching) {
       if (tierRank(data.membershipTier) > tierRank(bestTier)) bestTier = data.membershipTier;
       const createdAt = safeIso(data.createdAt);
       if (createdAt && (!earliestCreatedAt || new Date(createdAt) < new Date(earliestCreatedAt))) {
@@ -377,20 +381,18 @@ export async function repairMemberDuplicatesByEmailAction(email: string) {
     if (bestTier) merged.membershipTier = bestTier;
     if (earliestCreatedAt) merged.createdAt = earliestCreatedAt;
 
-    const batch = adminDb.batch();
-    const primaryRef = ref.doc(primary.id);
-    batch.set(primaryRef, merged, { merge: true });
+    const primaryId = primary.id;
+    if (!primaryId) return { success: true, repaired: false, merged: 0 };
 
-    for (const doc of snap.docs) {
-      if (doc.id === primary.id) continue;
-      batch.delete(doc.ref);
+    await getMemberStore().patch(primaryId, merged);
+
+    for (const { id } of matching) {
+      if (id !== primaryId) await getMemberStore().remove(id);
     }
 
-    await batch.commit();
-
     try {
-      const fresh = await primaryRef.get();
-      const freshData = (fresh.data() as MemberDoc) || {};
+      const fresh = await getMemberStore().getMemberByClerkId(primaryId);
+      const freshData = (fresh as any) || {};
       if (!freshData.ghostSyncedAt) {
         const firstName = typeof freshData.firstName === 'string' ? freshData.firstName : '';
         const lastName = typeof freshData.lastName === 'string' ? freshData.lastName : '';
@@ -404,7 +406,7 @@ export async function repairMemberDuplicatesByEmailAction(email: string) {
           labels: ['admin-repair'],
         });
         if (res) {
-          await primaryRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+          await getMemberStore().patch(primaryId, { ghostSyncedAt: nowIso });
         }
       }
     } catch (ghostErr) {
@@ -412,7 +414,7 @@ export async function repairMemberDuplicatesByEmailAction(email: string) {
     }
 
     revalidatePath('/admin/members');
-    return { success: true, repaired: true, primaryId: primary.id, merged: snap.size - 1 };
+    return { success: true, repaired: true, primaryId, merged: matching.length - 1 };
   } catch (error: any) {
     console.error("Error in repairMemberDuplicatesByEmailAction:", error);
     return { success: false, error: error.message };
@@ -588,7 +590,6 @@ async function mapWithConcurrency<T, R>(
 export async function getMembershipAuditAction() {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
 
     const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY);
     const ghostConfigured = Boolean(process.env.GHOST_ADMIN_API_KEY || process.env.GHOST_ADMIN_KEY);
@@ -599,12 +600,12 @@ export async function getMembershipAuditAction() {
         })
       : null;
 
-    const membersSnapshot = await adminDb.collection("newMemberCollection").get();
+    const allMembers = await getMemberStore().getAll();
 
-    const appMembers = membersSnapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as AuditMemberRecord),
+    const appMembers = allMembers
+      .map((member) => ({
+        id: member.clerkId,
+        ...(member as unknown as AuditMemberRecord),
       }))
       .filter((member) => member.userInactive !== true)
       .sort((a, b) => {

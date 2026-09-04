@@ -1,5 +1,5 @@
-import { adminDb } from '@/lib/firebase-admin';
-import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
+import { getMemberStore } from '@/features/members/server';
+import type { MemberProfile } from '@/features/members/server/member-store';
 import { sendEmail } from '@/lib/email';
 import { getWelcomeEmailTemplate, getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 
@@ -18,40 +18,21 @@ export function isPaidSignal(data: Record<string, unknown> | null | undefined): 
 }
 
 /**
- * Atomically claim a one-time side effect so racing callers (Stripe webhook vs
- * dashboard reconciliation) can never both run it. If the attempt later fails
- * the caller is expected to clear the claim so it can be retried.
- */
-async function claimOnce(memberRef: DocumentReference, attemptField: string): Promise<boolean> {
-  const db = adminDb;
-  if (!db) return false;
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(memberRef);
-    const data = snap.exists ? (snap.data() || {}) : {};
-    if (data[attemptField]) return false;
-    tx.set(memberRef, { [attemptField]: new Date().toISOString() }, { merge: true });
-    return true;
-  });
-}
-
-async function clearClaim(memberRef: DocumentReference, attemptField: string) {
-  await memberRef.set({ [attemptField]: FieldValue.delete() }, { merge: true });
-}
-
-/**
- * Send the premium welcome email at most once. Uses a transactional claim so the
- * Stripe webhook and the dashboard post-checkout polling cannot both send it.
+ * Send the premium welcome email at most once. Uses an atomic Postgres claim
+ * (row-level) so the Stripe webhook and the dashboard post-checkout polling
+ * cannot both send it. Claim/flag state lives in the member's data blob.
  */
 export async function sendPremiumWelcomeOnce(
-  memberRef: DocumentReference,
+  clerkId: string,
   email: string,
   firstName: string,
 ) {
-  if (!email) return;
-  const snap = await memberRef.get();
-  if (snap.exists && (snap.data() || {}).premiumWelcomeEmailSentAt) return;
+  if (!clerkId || !email) return;
+  const store = getMemberStore();
+  const member = await store.getMemberByClerkId(clerkId);
+  if (member && (member.premiumWelcomeEmailSentAt as string | undefined)) return;
 
-  const claimed = await claimOnce(memberRef, 'premiumWelcomeEmailAttemptedAt');
+  const claimed = await store.claimOnce(clerkId, 'premiumWelcomeEmailAttemptedAt');
   if (!claimed) return;
 
   try {
@@ -60,10 +41,10 @@ export async function sendPremiumWelcomeOnce(
       subject: 'Welcome to Yorkshire Businesswoman!',
       html: await getWelcomeEmailTemplate(firstName || 'there', SITE_URL),
     });
-    await memberRef.set({ premiumWelcomeEmailSentAt: new Date().toISOString() }, { merge: true });
+    await store.setFlags(clerkId, { premiumWelcomeEmailSentAt: new Date().toISOString() });
   } catch (err) {
     // Clear the claim so a later event (e.g. next invoice) can retry the send.
-    await clearClaim(memberRef, 'premiumWelcomeEmailAttemptedAt');
+    await store.clearClaim(clerkId, 'premiumWelcomeEmailAttemptedAt');
     console.error('Failed to send premium welcome email:', err);
   }
 }
@@ -74,16 +55,17 @@ export async function sendPremiumWelcomeOnce(
  * re-welcomed.
  */
 export async function sendFreeWelcomeOnce(
-  memberRef: DocumentReference,
+  clerkId: string,
   email: string,
   firstName: string,
 ) {
-  if (!email) return;
-  const snap = await memberRef.get();
-  const data = snap.exists ? (snap.data() || {}) : {};
+  if (!clerkId || !email) return;
+  const store = getMemberStore();
+  const member = await store.getMemberByClerkId(clerkId);
+  const data = (member as Record<string, unknown> | null) || {};
   if (data.welcomeEmailSentAt || data.freeWelcomeEmailSentAt) return;
 
-  const claimed = await claimOnce(memberRef, 'freeWelcomeEmailAttemptedAt');
+  const claimed = await store.claimOnce(clerkId, 'freeWelcomeEmailAttemptedAt');
   if (!claimed) return;
 
   try {
@@ -93,12 +75,9 @@ export async function sendFreeWelcomeOnce(
       html: await getFreeWelcomeEmailTemplate(firstName || 'there', SITE_URL),
     });
     const sentAt = new Date().toISOString();
-    await memberRef.set(
-      { freeWelcomeEmailSentAt: sentAt, welcomeEmailSentAt: sentAt },
-      { merge: true },
-    );
+    await store.setFlags(clerkId, { freeWelcomeEmailSentAt: sentAt, welcomeEmailSentAt: sentAt });
   } catch (err) {
-    await clearClaim(memberRef, 'freeWelcomeEmailAttemptedAt');
+    await store.clearClaim(clerkId, 'freeWelcomeEmailAttemptedAt');
     console.error('Failed to send free welcome email:', err);
   }
 }
@@ -107,16 +86,14 @@ export async function sendFreeWelcomeOnce(
  * Send the appropriate welcome email (premium vs free) based on the member's
  * current paid state, each at most once. Call after any reconciliation step.
  */
-export async function ensureWelcomeEmailForMember(memberRef: DocumentReference) {
-  const snap = await memberRef.get();
-  if (!snap.exists) return;
-  const data = snap.data() || {};
-  const email = typeof data?.email === 'string' ? data.email : '';
-  const firstName = typeof data?.firstName === 'string' ? data.firstName : 'there';
+export async function ensureWelcomeEmailForMember(member: MemberProfile) {
+  if (!member?.clerkId) return;
+  const email = typeof member.email === 'string' ? member.email : '';
+  const firstName = typeof member.firstName === 'string' ? member.firstName : 'there';
 
-  if (isPaidSignal(data)) {
-    await sendPremiumWelcomeOnce(memberRef, email, firstName);
+  if (isPaidSignal(member)) {
+    await sendPremiumWelcomeOnce(member.clerkId, email, firstName);
   } else {
-    await sendFreeWelcomeOnce(memberRef, email, firstName);
+    await sendFreeWelcomeOnce(member.clerkId, email, firstName);
   }
 }

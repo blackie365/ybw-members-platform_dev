@@ -1,7 +1,6 @@
 'use server';
 
 import { currentUser } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { getMemberStore } from '@/features/members/server';
 import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 import { addGhostMember } from '@/lib/ghost-admin';
@@ -137,36 +136,35 @@ function paidTierFromInterval(interval: string | undefined): 'paid_monthly' | 'p
 
 export async function reconcilePostCheckout(uid: string) {
   try {
-    if (!process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
-    }
     if (!uid) throw new Error('User ID is required');
 
     await validateUserOrAdmin(uid);
 
-    if (!adminDb) throw new Error('Database not initialized');
-    const docRef = adminDb.collection('newMemberCollection').doc(uid);
-    const docSnap = await docRef.get();
-    if (!docSnap.exists) return { success: true, updated: false };
+    const store = getMemberStore();
+    let member = await store.getMemberByClerkId(uid);
+    if (!member) return { success: true, updated: false };
 
-    const data = docSnap.data() || {};
+    const data = (member as Record<string, unknown>) || {};
     const nowIso = new Date().toISOString();
-    const email = typeof (data as any).email === 'string' ? (data as any).email : '';
-    const firstName = typeof (data as any).firstName === 'string' ? (data as any).firstName : '';
-    const lastName = typeof (data as any).lastName === 'string' ? (data as any).lastName : '';
-    const displayName = typeof (data as any).displayName === 'string' ? (data as any).displayName : `${firstName} ${lastName}`.trim();
+    const email = typeof data.email === 'string' ? data.email : '';
+    const firstName = typeof data.firstName === 'string' ? data.firstName : '';
+    const lastName = typeof data.lastName === 'string' ? data.lastName : '';
+    const displayName =
+      typeof data.displayName === 'string'
+        ? data.displayName
+        : `${firstName} ${lastName}`.trim();
 
     // Self-heal: if the member looks free but has a Stripe customer/subscription,
     // promote them. Throttled so routine free-member dashboard visits don't hit
     // the Stripe API every time.
     if (!isPaidSignal(data) && email && process.env.STRIPE_SECRET_KEY) {
       const lastAttempt =
-        typeof (data as any).lastReconcileAttemptAt === 'string'
-          ? Date.parse((data as any).lastReconcileAttemptAt)
+        typeof data.lastReconcileAttemptAt === 'string'
+          ? Date.parse(data.lastReconcileAttemptAt)
           : 0;
 
       if (Date.now() - lastAttempt > 5 * 60 * 1000) {
-        await docRef.set({ lastReconcileAttemptAt: nowIso }, { merge: true });
+        await store.patch(uid, { lastReconcileAttemptAt: nowIso });
 
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
           apiVersion: '2023-10-16' as any,
@@ -182,31 +180,28 @@ export async function reconcilePostCheckout(uid: string) {
           if (preferred) {
             const interval = preferred.items.data[0]?.plan?.interval;
             const tier = paidTierFromInterval(interval);
-            await docRef.set(
-              {
-                status: 'active',
-                membershipTier: tier,
-                billingInterval: interval === 'year' ? 'year' : 'month',
-                stripeCustomerId: customer.id,
-                subscriptionId: preferred.id,
-                lastPaymentDate: nowIso,
-                userInactive: false,
-                updatedAt: nowIso,
-              },
-              { merge: true }
-            );
+            await store.patch(uid, {
+              status: 'active',
+              isActive: true,
+              membershipTier: tier,
+              billingInterval: interval === 'year' ? 'year' : 'month',
+              stripeCustomerId: customer.id,
+              subscriptionId: preferred.id,
+              lastPaymentDate: nowIso,
+              userInactive: false,
+              updatedAt: nowIso,
+            });
           }
         }
       }
     }
 
-    const refreshedSnap = await docRef.get();
-    const refreshed = refreshedSnap.data() || {};
+    const refreshed = (await store.getMemberByClerkId(uid)) || {};
     const paid = isPaidSignal(refreshed);
 
     if (paid && email) {
       if (!(refreshed as any).ghostSyncedAt && !(refreshed as any).ghostSyncAttemptedAt) {
-        await docRef.set({ ghostSyncAttemptedAt: nowIso }, { merge: true });
+        await store.patch(uid, { ghostSyncAttemptedAt: nowIso });
         try {
           const ghostRes = await addGhostMember({
             email,
@@ -214,7 +209,7 @@ export async function reconcilePostCheckout(uid: string) {
             labels: ['platform-paid', 'paid-member', String((refreshed as any).membershipTier || 'paid')],
           });
           if (ghostRes) {
-            await docRef.set({ ghostSyncedAt: nowIso }, { merge: true });
+            await store.patch(uid, { ghostSyncedAt: nowIso });
           }
         } catch (ghostErr) {
           console.warn('Ghost sync failed (non-critical):', ghostErr);
@@ -223,9 +218,9 @@ export async function reconcilePostCheckout(uid: string) {
     }
 
     // Send the appropriate welcome email (premium or free) exactly once, decided by
-    // the member's final paid state. Transactionally claimed so it cannot race the
+    // the member's final paid state. Atomically claimed so it cannot race the
     // Stripe webhook into sending two premium welcomes.
-    await ensureWelcomeEmailForMember(docRef);
+    await ensureWelcomeEmailForMember(refreshed as any);
 
     return { success: true, updated: paid };
   } catch (error: any) {

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
-import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 import { sendEmail } from '@/lib/email';
 import { getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
 import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendPremiumWelcomeOnce } from '@/lib/member-notifications';
+import { getMemberStore } from '@/features/members/server';
+import type { MemberProfile } from '@/features/members/server/member-store';
 import { config } from '@/lib/config';
 
 // Need to access raw body for Stripe signature verification
@@ -14,23 +15,15 @@ export const dynamic = 'force-dynamic';
 async function getAdminRecipients(): Promise<string[]> {
   const fallback = [config.adminEmail];
   try {
-    const db = adminDb;
-    if (!db) return fallback;
-
-    const byRoleSnap = await db
-      .collection('newMemberCollection')
-      .where('role', 'in', ['admin', 'super_admin'])
-      .get();
-
-    const byFlagSnap = await db
-      .collection('newMemberCollection')
-      .where('isAdmin', '==', true)
-      .get();
-
+    const all = await getMemberStore().getAll();
     const emails = new Set<string>();
-    for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
-      const e = (doc.data() as any)?.email;
-      if (typeof e === 'string' && e.includes('@')) emails.add(e);
+    for (const p of all) {
+      const role = p.role;
+      const isAdmin = (p as any).isAdmin === true || (p as any).isAdmin === 'true';
+      if (role === 'admin' || role === 'super_admin' || isAdmin) {
+        const e = typeof p.email === 'string' ? p.email : '';
+        if (e && e.includes('@')) emails.add(e);
+      }
     }
     return emails.size > 0 ? Array.from(emails) : fallback;
   } catch (err) {
@@ -56,58 +49,54 @@ const PROCESSING_STALE_MS = 15 * 1000;
  */
 const OUTCOME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-async function findMemberRefBySubscriptionId(subscriptionId: string) {
-  const db = adminDb;
-  if (!db || !subscriptionId) return null;
-  const bySub = await db.collection('newMemberCollection').where('subscriptionId', '==', subscriptionId).limit(1).get();
-  if (!bySub.empty) return bySub.docs[0].ref;
-  const byLegacy = await db.collection('newMemberCollection').where('stripeSubscriptionId', '==', subscriptionId).limit(1).get();
-  if (!byLegacy.empty) return byLegacy.docs[0].ref;
+async function findMemberClerkIdBySubscriptionId(subscriptionId: string): Promise<string | null> {
+  if (!subscriptionId) return null;
+  const store = getMemberStore();
+  const bySub = await store.queryOne({ field: 'subscriptionId', value: subscriptionId });
+  if (bySub) return bySub.clerkId;
+  const byLegacy = await store.queryOne({ field: 'stripeSubscriptionId', value: subscriptionId });
+  if (byLegacy) return byLegacy.clerkId;
   return null;
 }
 
-async function findMemberRefForSubscription(sub: Stripe.Subscription) {
-  const db = adminDb;
-  if (!db) return null;
+async function findMemberClerkIdForSubscription(sub: Stripe.Subscription): Promise<string | null> {
+  const store = getMemberStore();
 
   const userId = typeof sub?.metadata?.userId === 'string' ? sub.metadata.userId : undefined;
   if (userId) {
-    const docRef = db.collection('newMemberCollection').doc(userId);
-    const snap = await docRef.get();
-    if (snap.exists) return docRef;
+    const member = await store.getMemberByClerkId(userId);
+    if (member) return member.clerkId;
   }
 
   const subscriptionId = typeof sub?.id === 'string' ? sub.id : '';
-  const bySub = await findMemberRefBySubscriptionId(subscriptionId);
+  const bySub = await findMemberClerkIdBySubscriptionId(subscriptionId);
   if (bySub) return bySub;
 
   const customerId = typeof sub?.customer === 'string' ? sub.customer : (sub.customer as any)?.id;
   if (typeof customerId === 'string' && customerId) {
-    const byCustomer = await db.collection('newMemberCollection').where('stripeCustomerId', '==', customerId).limit(1).get();
-    if (!byCustomer.empty) return byCustomer.docs[0].ref;
+    const byCustomer = await store.queryOne({ field: 'stripeCustomerId', value: customerId });
+    if (byCustomer) return byCustomer.clerkId;
   }
 
   return null;
 }
 
-async function demoteMemberToFree(ref: DocumentReference, reason: string) {
+async function demoteMemberToFree(clerkId: string, reason: string) {
   const nowIso = new Date().toISOString();
-  const snap = await ref.get();
-  const data = snap.data() || {};
+  const store = getMemberStore();
+  const member = await store.getMemberByClerkId(clerkId);
+  const data = (member as Record<string, unknown>) || {};
   const alreadyCanceled = data?.subscriptionStatus === 'canceled' || data?.membershipTier === 'free';
 
-  await ref.set(
-    {
-      membershipTier: 'free',
-      subscriptionStatus: 'canceled',
-      subscriptionId: FieldValue.delete(),
-      stripeSubscriptionId: FieldValue.delete(),
-      status: 'active',
-      userInactive: false,
-      updatedAt: nowIso,
-    },
-    { merge: true }
-  );
+  await store.patch(clerkId, {
+    membershipTier: 'free',
+    subscriptionStatus: 'canceled',
+    status: 'active',
+    isActive: true,
+    userInactive: false,
+    updatedAt: nowIso,
+  });
+  await store.removeFields(clerkId, ['subscriptionId', 'stripeSubscriptionId']);
 
   const email = typeof data?.email === 'string' ? data.email : '';
   if (email && !alreadyCanceled) {
@@ -214,10 +203,6 @@ export async function POST(req: Request) {
       // If this was a subscription checkout, update the user immediately.
       // We check if it's a subscription mode checkout OR if they passed 'premium' plan metadata.
       if ((session.mode === 'subscription' || plan === 'premium') && userId) {
-        const usersRef = adminDb.collection('newMemberCollection');
-        const userRef = usersRef.doc(userId);
-        const userSnap = await userRef.get();
-
         const nowIso = new Date().toISOString();
         const emailFromStripe = session.customer_details?.email || session.customer_email || '';
         const emailLower = typeof emailFromStripe === 'string' ? emailFromStripe.toLowerCase() : '';
@@ -244,6 +229,7 @@ export async function POST(req: Request) {
 
         const membershipUpdate: Record<string, any> = {
           status: 'active',
+          isActive: true,
           membershipTier,
           billingInterval,
           stripeCustomerId,
@@ -253,7 +239,9 @@ export async function POST(req: Request) {
           updatedAt: nowIso,
         };
 
-        if (!userSnap.exists) {
+        const existingMember = await getMemberStore().getMemberByClerkId(userId);
+
+        if (!existingMember) {
           membershipUpdate.createdAt = nowIso;
           membershipUpdate.role = 'member';
           membershipUpdate.isAdmin = false;
@@ -264,22 +252,26 @@ export async function POST(req: Request) {
           }
         }
 
-        await userRef.set(membershipUpdate, { merge: true });
+        if (existingMember) {
+          await getMemberStore().patch(userId, membershipUpdate);
+        } else {
+          await getMemberStore().upsert({ clerkId: userId, profile: membershipUpdate });
+        }
         console.log(`Successfully activated ${membershipTier} subscription`);
 
-        const userData = userSnap.data() || {};
+        const userData = (existingMember as any) || {};
         const userEmail = emailFromStripe || userData.email;
         const firstName = userData.firstName || 'there';
 
         if (userEmail) {
-          await sendPremiumWelcomeOnce(userRef, userEmail, firstName);
+          await sendPremiumWelcomeOnce(userId, userEmail, firstName);
         }
 
         if (userEmail && !(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
-          userRef.set({ ghostPaidSyncAttemptedAt: nowIso }, { merge: true }).catch(() => {});
+          getMemberStore().patch(userId, { ghostPaidSyncAttemptedAt: nowIso }).catch(() => {});
           upgradeGhostMemberByEmail(userEmail, membershipTier)
             .then((res) => {
-              if (res) return userRef.set({ ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso }, { merge: true });
+              if (res) return getMemberStore().patch(userId, { ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso });
             })
             .catch(() => {});
         }
@@ -339,9 +331,8 @@ export async function POST(req: Request) {
 
             if (userId) {
               attendeeKey = userId;
-              const profileRef = adminDb.collection('newMemberCollection').doc(userId);
-              const profileSnap = await profileRef.get();
-              const profileData = profileSnap.data() || {};
+              const rsvpMember = await getMemberStore().getMemberByClerkId(userId);
+              const profileData = (rsvpMember || {}) as MemberProfile;
               if (profileData.firstName) {
                 rsvpName = `${profileData.firstName} ${profileData.lastName || ''}`.trim() || rsvpName;
               }
@@ -397,20 +388,15 @@ export async function POST(req: Request) {
         const customerEmail = invoice.customer_email;
         if (customerEmail) {
           const customerEmailLower = String(customerEmail).trim().toLowerCase();
-          const usersRef = adminDb.collection('newMemberCollection');
-          let snapshot = await usersRef.where('emailLower', '==', customerEmailLower).limit(1).get();
-          if (snapshot.empty) {
-            snapshot = await usersRef.where('email', '==', customerEmail).limit(1).get();
-          }
-          
-          if (!snapshot.empty) {
-            const userDoc = snapshot.docs[0];
-            const userData = userDoc.data();
-            
+          const store = getMemberStore();
+          const member = await store.getMemberByEmail(customerEmailLower);
+          const userData = (member as Record<string, unknown>) || {};
+
+          if (member) {
             // Determine tier based on subscription interval if possible
-            let tier = userData.membershipTier || 'paid_monthly';
-            let interval = userData.billingInterval || 'month';
-            
+            let tier = (userData.membershipTier as string) || 'paid_monthly';
+            let interval = (userData.billingInterval as string) || 'month';
+
             try {
               const sub = await stripe.subscriptions.retrieve(invoice.subscription);
               interval = sub.items.data[0].plan.interval; // 'month' or 'year'
@@ -421,8 +407,9 @@ export async function POST(req: Request) {
 
             const nowIso = new Date().toISOString();
 
-            await userDoc.ref.update({
+            await store.patch(member.clerkId, {
               status: 'active',
+              isActive: true,
               membershipTier: tier,
               billingInterval: interval,
               stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id,
@@ -433,7 +420,7 @@ export async function POST(req: Request) {
             });
             console.log(`Updated member tier to ${tier}`);
 
-            await sendPremiumWelcomeOnce(userDoc.ref, customerEmail, userData.firstName || 'there');
+            await sendPremiumWelcomeOnce(member.clerkId, customerEmail, (userData.firstName as string) || 'there');
 
             const adminRecipients = await getAdminRecipients();
             sendEmail({
@@ -462,36 +449,34 @@ export async function POST(req: Request) {
     // Handle subscription lifecycle events (cancellation, failed payments, updates)
     if (event.type === 'customer.subscription.deleted') {
       const sub = event.data.object as Stripe.Subscription;
-      const memberRef = await findMemberRefForSubscription(sub);
-      if (memberRef) {
-        await demoteMemberToFree(memberRef, 'customer.subscription.deleted');
+      const memberClerkId = await findMemberClerkIdForSubscription(sub);
+      if (memberClerkId) {
+        await demoteMemberToFree(memberClerkId, 'customer.subscription.deleted');
         console.log('Demoted member to free after subscription deletion');
       }
     }
 
     if (event.type === 'customer.subscription.updated') {
       const sub = event.data.object as Stripe.Subscription;
-      const memberRef = await findMemberRefForSubscription(sub);
-      if (memberRef) {
+      const memberClerkId = await findMemberClerkIdForSubscription(sub);
+      if (memberClerkId) {
         const nowIso = new Date().toISOString();
         const status = sub.status;
         if (['canceled', 'unpaid', 'incomplete_expired'].includes(status)) {
-          await demoteMemberToFree(memberRef, `customer.subscription.updated (${status})`);
+          await demoteMemberToFree(memberClerkId, `customer.subscription.updated (${status})`);
         } else {
           const interval = sub.items?.data?.[0]?.plan?.interval;
           const tier = interval === 'year' ? 'paid_annual' : 'paid_monthly';
           const isActive = status === 'active' || status === 'trialing';
-          await memberRef.set(
-            {
-              subscriptionStatus: status,
-              status: 'active',
-              ...(isActive && (interval === 'month' || interval === 'year')
-                ? { membershipTier: tier, billingInterval: interval }
-                : {}),
-              updatedAt: nowIso,
-            },
-            { merge: true }
-          );
+          await getMemberStore().patch(memberClerkId, {
+            subscriptionStatus: status,
+            status: 'active',
+            isActive,
+            ...(isActive && (interval === 'month' || interval === 'year')
+              ? { membershipTier: tier, billingInterval: interval }
+              : {}),
+            updatedAt: nowIso,
+          });
         }
       }
     }
@@ -499,19 +484,17 @@ export async function POST(req: Request) {
     if (event.type === 'invoice.payment_failed') {
       const invoice = event.data.object as any;
       const subscriptionId = typeof invoice?.subscription === 'string' ? invoice.subscription : '';
-      const memberRef = subscriptionId ? await findMemberRefBySubscriptionId(subscriptionId) : null;
-      if (memberRef) {
-        await memberRef.set(
-          {
-            subscriptionStatus: 'past_due',
-            status: 'active',
-            lastPaymentFailedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-        const snap = await memberRef.get();
-        const email = snap.data()?.email || '';
+      const memberClerkId = subscriptionId ? await findMemberClerkIdBySubscriptionId(subscriptionId) : null;
+      if (memberClerkId) {
+        await getMemberStore().patch(memberClerkId, {
+          subscriptionStatus: 'past_due',
+          status: 'active',
+          isActive: true,
+          lastPaymentFailedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        const member = await getMemberStore().getMemberByClerkId(memberClerkId);
+        const email = member?.email || '';
         const adminRecipients = await getAdminRecipients();
         sendEmail({
           to: adminRecipients,

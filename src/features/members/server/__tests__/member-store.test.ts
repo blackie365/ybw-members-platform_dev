@@ -183,6 +183,57 @@ describe('PgMemberStore — writes', () => {
   });
 });
 
+describe('PgMemberStore — atomic claims & flags', () => {
+  it('claimOnce claims when the field is absent, keyed by clerk_id + data flag', async () => {
+    fakePool.query.mockResolvedValue({ rowCount: 1 });
+    const ok = await store().claimOnce('u1', 'premiumWelcomeEmailAttemptedAt');
+    expect(ok).toBe(true);
+    expect(fakePool.query).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `WHERE clerk_id = $1 AND data->>'premiumWelcomeEmailAttemptedAt' IS NULL`,
+      ),
+      ['u1', ['premiumWelcomeEmailAttemptedAt'], expect.stringMatching(/^\d{4}-\d{2}-\d{2}/)],
+    );
+  });
+
+  it('claimOnce returns false when the field is already set (rowCount 0)', async () => {
+    fakePool.query.mockResolvedValue({ rowCount: 0 });
+    expect(await store().claimOnce('u1', 'premiumWelcomeEmailAttemptedAt')).toBe(false);
+  });
+
+  it('claimOnce returns false when the query fails', async () => {
+    fakePool.query.mockRejectedValue(new Error('boom'));
+    expect(await store().claimOnce('u1', 'premiumWelcomeEmailAttemptedAt')).toBe(false);
+  });
+
+  it('clearClaim removes the claim field from the data blob', async () => {
+    fakePool.query.mockResolvedValue({ rows: [] });
+    await store().clearClaim('u1', 'premiumWelcomeEmailAttemptedAt');
+    expect(fakePool.query).toHaveBeenCalledWith(
+      expect.stringContaining('data - $2'),
+      ['u1', 'premiumWelcomeEmailAttemptedAt'],
+    );
+  });
+
+  it('setFlags merges flags into the data blob via jsonb ||', async () => {
+    fakePool.query.mockResolvedValue({ rows: [] });
+    await store().setFlags('u1', { premiumWelcomeEmailSentAt: '2024-03-01T00:00:00.000Z' });
+    expect(fakePool.query).toHaveBeenCalledWith(
+      expect.stringContaining('data = data || $2::jsonb'),
+      ['u1', JSON.stringify({ premiumWelcomeEmailSentAt: '2024-03-01T00:00:00.000Z' })],
+    );
+  });
+
+  it('removeFields deletes the listed keys from the data blob', async () => {
+    fakePool.query.mockResolvedValue({ rows: [] });
+    await store().removeFields('u1', ['subscriptionId', 'stripeSubscriptionId']);
+    expect(fakePool.query).toHaveBeenCalledWith(
+      expect.stringContaining('data - $2::text[]'),
+      ['u1', ['subscriptionId', 'stripeSubscriptionId']],
+    );
+  });
+});
+
 describe('PgMemberStore — resilience', () => {
   it('returns null/[]/0 and swallows errors when Postgres is not configured', async () => {
     (getMagazinePgPool as any).mockReturnValue(null);
