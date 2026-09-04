@@ -20,6 +20,9 @@
  *
  * Optional:
  *   --page-id <n>   pin a specific builder page when the needle matches several
+ *   --old-url <url> also replace every occurrence of this URL in the page (string
+ *                   fields and image-array entries) with --url, then dedupe the
+ *                   arrays (handles placeholder SVGs the IDML import left behind)
  *   --no-backfill   only set content.featureImage (default also backfills empty
  *                   single-image fields image/heroImage/photo/mainImage)
  */
@@ -43,11 +46,37 @@ const BACKFILL = !process.argv.includes('--no-backfill');
 
 const BACKFILL_FIELDS = ['image', 'heroImage', 'photo', 'mainImage'];
 
+const IMAGE_ARRAY_FIELDS = ['images', 'gallery', 'imageUrls', 'additionalImages', 'logoImages'];
+
+function replaceInContent(content: Record<string, unknown>, oldUrl: string, newUrl: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(content || {})) {
+    if (typeof v === 'string') {
+      out[k] = v === oldUrl ? newUrl : v;
+    } else if (IMAGE_ARRAY_FIELDS.includes(k) && Array.isArray(v)) {
+      const seen = new Set<string>();
+      const next: unknown[] = [];
+      for (const u of v) {
+        const resolved = typeof u === 'string' && u === oldUrl ? newUrl : u;
+        if (typeof resolved !== 'string' || !seen.has(resolved)) {
+          next.push(resolved);
+          if (typeof resolved === 'string') seen.add(resolved);
+        }
+      }
+      out[k] = next.length > 0 ? next : undefined;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 async function main() {
   const issueSlug = arg('--issue-slug');
   const needle = arg('--needle');
   const url = arg('--url');
   const pageId = arg('--page-id');
+  const oldUrl = arg('--old-url');
   if (!issueSlug || !needle || !url) {
     console.error('Missing required arg. See header comment.');
     process.exit(1);
@@ -94,7 +123,16 @@ async function main() {
   console.log(`  needle found in: ${Object.keys(flatten(target)).filter((k) => String(flatten(target)[k]).includes(needle)).join(', ')}`);
 
   const patched: MagazinePage = JSON.parse(JSON.stringify(target));
-  const content: any = patched.content || {};
+  let content: any = patched.content || {};
+  if (oldUrl) {
+    const before = JSON.stringify(content);
+    content = replaceInContent(content, oldUrl, url);
+    const changed: string[] = [];
+    for (const k of Object.keys(content)) {
+      if (JSON.stringify(content[k]) !== JSON.stringify((patched.content as any)[k])) changed.push(k);
+    }
+    console.log(`  --old-url replacement (${basenameUrl(oldUrl)} -> ${basenameUrl(url)}) affected fields: ${changed.join(', ') || 'none'}`);
+  }
   content.featureImage = url;
   if (BACKFILL) {
     for (const field of BACKFILL_FIELDS) {
@@ -165,6 +203,14 @@ async function main() {
 }
 
 const EMPTY = '<empty>';
+function basenameUrl(value: string): string {
+  try {
+    const u = new URL(value.startsWith('http') ? value : `https://x/${value}`);
+    return decodeURIComponent(u.pathname.split('/').pop() || '').slice(0, 80);
+  } catch {
+    return value.slice(0, 80);
+  }
+}
 function flatten(obj: unknown, prefix = ''): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj || {})) {
