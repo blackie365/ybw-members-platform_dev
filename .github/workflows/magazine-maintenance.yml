@@ -1,0 +1,50 @@
+name: Magazine Maintenance (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      script_args:
+        description: 'Args for scripts/magazine-set-feature-image.ts'
+        required: false
+        default: '--dry-run'
+        type: string
+      appdir:
+        description: 'Path to the deployed app (leave default)'
+        required: false
+        default: '/srv/ybw-frontend'
+        type: string
+
+concurrency:
+  group: magazine-maintenance
+  cancel-in-progress: true
+
+jobs:
+  run:
+    name: Run maintenance script (self-hosted runner on vps725503)
+    runs-on: [self-hosted, deploy]
+    timeout-minutes: 20
+
+    env:
+      APPDIR: '/srv/ybw-frontend'
+
+    steps:
+      - name: Sanity-check runner host + sudo
+        run: |
+          set -euo pipefail
+          echo "hostname: $(hostname)"
+          echo "whoami:   $(whoami)"
+          ls -ld "$APPDIR"
+          sudo -n true || { echo "sudo requires password - maintenance needs nopasswd sudo like deploy"; exit 1; }
+
+      - name: Run magazine-set-feature-image.ts as www-data (prod .env.local)
+        env:
+          ARGS: ${{ github.event.inputs.script_args }}
+        run: |
+          set -euo pipefail
+          ARGS="${ARGS:---dry-run}"
+          echo "Running: tsx scripts/magazine-set-feature-image.ts ${ARGS}"
+          sudo -u www-data -H bash -lc 'cd "${APPDIR}" && set -a && . ./.env.local && set +a && CI=true pnpm exec tsx scripts/magazine-set-feature-image.ts "$@"' _ ${ARGS}
+
+      - name: Report
+        run: |
+          echo "Maintenance dispatch finished. If --apply was used, reader routes regenerate via their own ISR (revalidate=60)."

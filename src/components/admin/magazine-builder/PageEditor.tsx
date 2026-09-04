@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage } from 'lucide-react';
+import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -457,12 +457,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     arrayValue,
     rowsHint,
     accept = 'image/*,application/pdf',
+    allowSetAsFeature = false,
+    currentFeature,
   }: {
     label: string;
     field: string;
     arrayValue?: string[];
     rowsHint?: string;
     accept?: string;
+    allowSetAsFeature?: boolean;
+    currentFeature?: string;
   }) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const multiInputRef = useRef<HTMLInputElement>(null);
@@ -518,6 +522,22 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, -1)} title="Move up">↑</Button>
               <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => move(i, 1)} title="Move down">↓</Button>
             </div>
+            {allowSetAsFeature ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={`h-7 w-7 self-center ${u === currentFeature ? 'text-amber-500' : 'text-muted-foreground hover:text-amber-500'}`}
+                onClick={() => updateContent('featureImage', u)}
+                title={
+                  u === currentFeature
+                    ? 'This is currently the feature image'
+                    : 'Set as feature image'
+                }
+              >
+                <Star className={`h-4 w-4 ${u === currentFeature ? 'fill-current' : ''}`} />
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -898,7 +918,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                 label="Additional Images (Inline / Gallery)"
                 field="images"
                 arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
-                rowsHint="First 4 images inline in text, rest in gallery below."
+                rowsHint="First 4 images inline in text, rest in gallery below. Use the star to make any of these the feature image."
+                allowSetAsFeature
+                currentFeature={(safeContent.featureImage || safeContent.image) || ''}
               />
             </div>
           </div>
@@ -1044,15 +1066,21 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Input value={safeContent.name || ''} onChange={(e) => updateContent('name', e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Feature Image</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+              <SingleImageRow
+                label="Feature Image"
+                field="featureImage"
+                value={(safeContent.featureImage ?? safeContent.image) || ''}
+                hint="Main hero image. Upload or paste a URL — or hit the star on an image below."
+              />
             </div>
             <div className="col-span-2">
               <GalleryUploadList
                 label="Additional Images (Inline / Gallery)"
                 field="images"
                 arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
-                rowsHint="First 4 images inline in text, rest in gallery below."
+                rowsHint="First 4 images inline in text, rest in gallery below. Use the star to make any of these the feature image."
+                allowSetAsFeature
+                currentFeature={(safeContent.featureImage || safeContent.image) || ''}
               />
             </div>
             <SingleImageRow
@@ -1169,7 +1197,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                 label="Additional Images (Inline / Gallery)"
                 field="images"
                 arrayValue={safeContent.images || safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || []}
-                rowsHint="First 4 images inline in text, rest in gallery below."
+                rowsHint="First 4 images inline in text, rest in gallery below. Use the star to make any of these the feature image."
+                allowSetAsFeature
+                currentFeature={(safeContent.featureImage || safeContent.image) || ''}
               />
             </div>
             <div className="space-y-2">
@@ -1291,7 +1321,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                   ? safeContent.images
                   : (safeContent.additionalImages || safeContent.gallery || safeContent.imageUrls || [])
               }
-              rowsHint="Used as a lifestyle gallery; reorder with ↑/↓ arrows."
+              rowsHint="Used as a lifestyle gallery; reorder with ↑/↓ arrows. Use the star to make any of these the feature image."
+              allowSetAsFeature
+              currentFeature={(safeContent.featureImage || safeContent.image) || ''}
             />
             <div className="space-y-2">
               <Label>Main Text</Label>
@@ -1363,8 +1395,11 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Input value={safeContent.role || ''} onChange={(e) => updateContent('role', e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Spotlight Image</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+              <SingleImageRow
+                label="Spotlight Image"
+                field="featureImage"
+                value={(safeContent.featureImage ?? safeContent.image) || ''}
+              />
             </div>
             <SingleImageRow
               label="Background Image (Optional)"
@@ -1441,8 +1476,11 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               />
             </div>
             <div className="space-y-2">
-              <Label>Feature Image</Label>
-              <Input value={(safeContent.featureImage ?? safeContent.image) || ''} onChange={(e) => updateContent('featureImage', e.target.value)} />
+              <SingleImageRow
+                label="Feature Image"
+                field="featureImage"
+                value={(safeContent.featureImage ?? safeContent.image) || ''}
+              />
             </div>
             <SingleImageRow
               label="Background Image (Optional)"
