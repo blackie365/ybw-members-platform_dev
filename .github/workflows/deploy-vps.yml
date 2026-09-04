@@ -66,6 +66,14 @@ jobs:
           echo "old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
           [ "$(sudo git -C "$APPDIR" rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA"; exit 2; }
 
+          echo "[1b/6] purge stray root-level source duplicates (untracked leftovers from past manual sessions; next build type-checks them and they fall out of date with src/)" | tee -a "$LOG"
+          for f in profile.ts ghost.ts firebase-admin.ts middleware.ts auth-utils.ts; do
+            if sudo test -f "$APPDIR/$f"; then
+              sudo rm -f "$APPDIR/$f"
+              echo "removed stray root file: $f" | tee -a "$LOG"
+            fi
+          done
+
           echo "[2/6] chown checkout to www-data" | tee -a "$LOG"
           sudo /bin/chown -R www-data:www-data "$APPDIR" || true
 
