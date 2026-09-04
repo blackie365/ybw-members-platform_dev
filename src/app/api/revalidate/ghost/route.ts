@@ -1,7 +1,7 @@
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { addGhostMember } from '@/lib/ghost-admin';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 
 // You can find this secret in your .env.local file
 // Ghost will call this URL: https://your-domain.com/api/revalidate/ghost?secret=YOUR_SECRET
@@ -24,19 +24,20 @@ export async function POST(req: Request) {
       if (!uid || !email) {
         return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
       }
-      if (!adminDb) {
-        return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
-      }
 
-      await adminDb.collection('newMemberCollection').doc(uid).set({
-        firstName: firstName || '',
-        lastName: lastName || '',
-        email: email,
-        profileImage: profileImage || '',
-        slug: `${(firstName || '').toLowerCase()}-${(lastName || '').toLowerCase()}-${Date.now().toString().slice(-4)}`,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      }, { merge: true });
+      await getMemberStore().upsert({
+        clerkId: uid,
+        profile: {
+          firstName: firstName || '',
+          lastName: lastName || '',
+          email: email,
+          emailLower: (email || '').toLowerCase(),
+          profileImage: profileImage || '',
+          memberSlug: `${(firstName || '').toLowerCase()}-${(lastName || '').toLowerCase()}-${Date.now().toString().slice(-4)}`,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        },
+      });
 
       return NextResponse.json({ success: true, message: 'Member created via Admin SDK' });
     }

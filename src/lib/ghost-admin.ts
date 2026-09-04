@@ -79,6 +79,37 @@ export async function createDraftArticle({ title, html, customExcerpt, featureIm
 }
 
 /**
+ * Fetch a single Ghost member by email.
+ * Returns the member object or null (member not found / API unavailable).
+ */
+export async function getGhostMemberByEmail(email: string): Promise<any | null> {
+  const admin = getGhostAdmin();
+  if (!admin) return null;
+  if (!email) return null;
+  try {
+    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    return members && members.length > 0 ? members[0] : null;
+  } catch (err: any) {
+    console.warn('Ghost member lookup failed:', err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Determine paid-state from a Ghost member object.
+ *
+ * Ghost members expose a `status` of 'free' | 'paid' | 'comped'. We treat
+ * 'paid' and 'comped' as non-free (premium access). The flag defaults to false
+ * when the member cannot be resolved so a missing/broken Ghost lookup never
+ * accidentally grants premium.
+ */
+export function isPaidGhostMember(member: any | null): boolean {
+  if (!member) return false;
+  const status = String(member.status || '').toLowerCase();
+  return status === 'paid' || status === 'comped';
+}
+
+/**
  * Add a new member to Ghost via Admin API
  */
 export async function addGhostMember(data: { email: string; name?: string; note?: string; labels?: string[] }) {

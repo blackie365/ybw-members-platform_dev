@@ -1,5 +1,5 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 
 function getAllowedAdminEmails(): string[] {
   const raw =
@@ -97,47 +97,38 @@ export async function checkAdmin() {
     console.error('[checkAdmin] Clerk currentUser() call failed:', err);
   }
 
-  // 3. Fallback: Firestore profile
+  // 3. Fallback: member profile store (Postgres)
   try {
-    if (adminDb) {
-      if (!userEmail && clerkUser) {
-        userEmail =
-          clerkUser.primaryEmailAddress?.emailAddress ||
-          clerkUser.emailAddresses?.[0]?.emailAddress ||
-          '';
-      }
-      let byId = false;
-      let byEmail = false;
-      const doc = await adminDb.collection('newMemberCollection').doc(userId).get();
-      if (doc.exists) {
-        const profile = doc.data() as Record<string, unknown> | undefined;
-        byId = isAdminField(profile?.isAdmin) || isAdminField(profile?.role);
-      }
-      if (!byId && userEmail) {
-        const snap = await adminDb
-          .collection('newMemberCollection')
-          .where('email', '==', userEmail)
-          .limit(1)
-          .get();
-        if (!snap.empty) {
-          const profile = snap.docs[0].data() as Record<string, unknown> | undefined;
-          byEmail = isAdminField(profile?.isAdmin) || isAdminField(profile?.role);
-        }
-      }
-      if (byId || byEmail) {
-        console.info(
-          `[checkAdmin] PASS layer=firestore uid=${userId} byId=${byId} byEmail=${byEmail} email=${userEmail}`
-        );
-        return userId;
-      }
-      console.info(
-        `[checkAdmin] firestore miss uid=${userId} docExists=${doc.exists} email=${userEmail}`
-      );
-    } else {
-      console.warn('[checkAdmin] adminDb not initialized — skipping Firestore layer');
+    if (!userEmail && clerkUser) {
+      userEmail =
+        clerkUser.primaryEmailAddress?.emailAddress ||
+        clerkUser.emailAddresses?.[0]?.emailAddress ||
+        '';
     }
+    const store = getMemberStore();
+    let byId = false;
+    let byEmail = false;
+    const byIdProfile = await store.getMemberByClerkId(userId);
+    if (byIdProfile) {
+      byId = isAdminField(byIdProfile?.isAdmin) || isAdminField(byIdProfile?.role);
+    }
+    if (!byId && userEmail) {
+      const byEmailProfile = await store.getMemberByEmail(userEmail);
+      if (byEmailProfile) {
+        byEmail = isAdminField(byEmailProfile?.isAdmin) || isAdminField(byEmailProfile?.role);
+      }
+    }
+    if (byId || byEmail) {
+      console.info(
+        `[checkAdmin] PASS layer=member-store uid=${userId} byId=${byId} byEmail=${byEmail} email=${userEmail}`
+      );
+      return userId;
+    }
+    console.info(
+      `[checkAdmin] member-store miss uid=${userId} profileLoaded=${Boolean(byIdProfile)} email=${userEmail}`
+    );
   } catch (err) {
-    console.error('[checkAdmin] Firestore layer error:', err);
+    console.error('[checkAdmin] member-store layer error:', err);
   }
 
   console.warn(

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 
 export async function POST(request: Request) {
   try {
@@ -64,12 +65,9 @@ export async function POST(request: Request) {
         : (process.env.STRIPE_MONTHLY_PRICE_ID || 'price_1TVHicLZwCrAHQYPLXqio8Bi')
 
       let stripeCustomerId: string | undefined;
-      if (adminDb) {
-        const snap = await adminDb.collection('newMemberCollection').doc(userId).get();
-        const existing = snap.data() as any;
-        if (existing?.stripeCustomerId && typeof existing.stripeCustomerId === 'string') {
-          stripeCustomerId = existing.stripeCustomerId;
-        }
+      const existing = await getMemberStore().getMemberByClerkId(userId);
+      if (existing?.stripeCustomerId && typeof existing.stripeCustomerId === 'string') {
+        stripeCustomerId = existing.stripeCustomerId;
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -143,8 +141,7 @@ export async function POST(request: Request) {
       let profileData: any = null;
 
       if (userId) {
-        const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
-        profileData = profileSnap.data() || {};
+        profileData = await getMemberStore().getMemberByClerkId(userId);
         if (profileData) {
           if (profileData.firstName) {
             attendeeName = `${profileData.firstName} ${profileData.lastName || ''}`.trim() || attendeeName;

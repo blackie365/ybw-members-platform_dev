@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 import { config } from '@/lib/config';
 
@@ -15,24 +15,19 @@ export async function POST(request: Request) {
     // Send notification to all admins
     let adminRecipients: string[] = [config.adminEmail];
     try {
-      if (adminDb) {
-        const byRoleSnap = await adminDb
-          .collection('newMemberCollection')
-          .where('role', 'in', ['admin', 'super_admin'])
-          .get();
-
-        const byFlagSnap = await adminDb
-          .collection('newMemberCollection')
-          .where('isAdmin', '==', true)
-          .get();
-
-        const emails = new Set<string>();
-        for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
-          const e = (doc.data() as any)?.email;
+      const members = await getMemberStore().getAll();
+      const emails = new Set<string>();
+      for (const doc of members) {
+        const isAdmin =
+          (doc as any)?.isAdmin === true ||
+          (doc as any)?.role === 'admin' ||
+          (doc as any)?.role === 'super_admin';
+        if (isAdmin) {
+          const e = (doc as any)?.email;
           if (typeof e === 'string' && e.includes('@')) emails.add(e);
         }
-        if (emails.size > 0) adminRecipients = Array.from(emails);
       }
+      if (emails.size > 0) adminRecipients = Array.from(emails);
     } catch (err) {
       console.error('Failed to fetch admin recipients:', err);
     }

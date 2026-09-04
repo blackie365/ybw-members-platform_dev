@@ -12,8 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Download, Loader2, UserCog, Calendar, Tag, ShieldCheck } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts } from "@/lib/ghost";
 import { getAllEventsMetadata, updateEventMetadata, getFeaturedHomepageEvent, setFeaturedHomepageEvent as setFeaturedHomepageEventAction, type FeaturedHomepageEvent } from "@/app/actions/eventActions";
@@ -23,6 +21,8 @@ import {
   getMembersAction,
   getMembershipAuditAction,
   toggleFeaturedStatus, 
+  updateMemberTierAction,
+  updateMemberRoleAction,
   repairMemberDuplicatesByEmailAction,
   getFirestoreOffersAction, 
   approveOfferAction, 
@@ -123,7 +123,7 @@ function AdminMembersContent() {
     try {
       const res = await getMembersAction()
       if (res.success && res.data) {
-        setMembers(res.data as Member[])
+        setMembers(res.data as unknown as Member[])
       }
     } catch (error) {
       console.error("Failed to fetch members:", error)
@@ -415,8 +415,8 @@ function AdminMembersContent() {
   const updateMemberTier = async (memberId: string, tier: string) => {
     setUpdating(memberId)
     try {
-      const memberRef = doc(db, "newMemberCollection", memberId)
-      await updateDoc(memberRef, { membershipTier: tier })
+      const res = await updateMemberTierAction(memberId, tier)
+      if (!res.success) alert(res.error || "Failed to update tier")
       setMembers((prev) =>
         prev.map((m) => (m.id === memberId ? { ...m, membershipTier: tier } : m))
       )
@@ -430,8 +430,8 @@ function AdminMembersContent() {
   const updateMemberRole = async (memberId: string, role: string) => {
     setUpdating(memberId)
     try {
-      const memberRef = doc(db, "newMemberCollection", memberId)
-      await updateDoc(memberRef, { role })
+      const res = await updateMemberRoleAction(memberId, role)
+      if (!res.success) alert(res.error || "Failed to update role")
       setMembers((prev) =>
         prev.map((m) => (m.id === memberId ? { ...m, role } : m))
       )

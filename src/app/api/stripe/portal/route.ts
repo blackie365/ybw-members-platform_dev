@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 
 export async function POST(_request: Request) {
   try {
@@ -29,12 +29,10 @@ export async function POST(_request: Request) {
     const cleanOrigin = origin.replace(/\/$/, '');
     let stripeCustomerId: string | undefined;
 
-    if (adminDb) {
-      const profileSnap = await adminDb.collection('newMemberCollection').doc(userId).get();
-      const profile = profileSnap.data() as any;
-      if (profile?.stripeCustomerId && typeof profile.stripeCustomerId === 'string') {
-        stripeCustomerId = profile.stripeCustomerId;
-      }
+    const store = getMemberStore();
+    const existing = await store.getMemberByClerkId(userId);
+    if (typeof existing?.stripeCustomerId === 'string' && existing.stripeCustomerId) {
+      stripeCustomerId = existing.stripeCustomerId;
     }
 
     if (!stripeCustomerId && userEmail) {
@@ -47,9 +45,7 @@ export async function POST(_request: Request) {
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create(userEmail ? { email: userEmail } : undefined);
       stripeCustomerId = customer.id;
-      if (adminDb) {
-        await adminDb.collection('newMemberCollection').doc(userId).set({ stripeCustomerId }, { merge: true });
-      }
+      await store.patch(userId, { stripeCustomerId, updatedAt: new Date().toISOString() });
     }
 
     const session = await stripe.billingPortal.sessions.create({

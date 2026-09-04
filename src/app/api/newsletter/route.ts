@@ -1,5 +1,5 @@
 import { addGhostMember } from '@/lib/ghost-admin';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { sendEmail, bareEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate, getNewsletterSignupAlertTemplate } from '@/lib/email-templates';
 import { addBeehiivSubscriber, isBeehiivConfigured } from '@/lib/beehiiv';
@@ -191,59 +191,58 @@ export async function POST(request: Request) {
       console.warn('⚠️ [API/Newsletter] Ghost sync skipped:', msg);
     }
 
-    // Step 3: Add to Firebase (Non-critical)
+    // Step 3: Add to the member profile store (Non-critical)
     try {
-      if (adminDb) {
-        const membersRef = adminDb.collection('newMemberCollection');
-        const querySnapshot = await membersRef.where('email', '==', email).limit(1).get();
+      const store = getMemberStore();
 
-        const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-        const nowIso = new Date().toISOString();
-        const listLabels = Array.from(new Set(
-          ['newsletter-signup', source ? `source:${source}` : 'source:unknown'].filter(Boolean)
-        ));
+      const userEmail = (email as string).toLowerCase();
+      const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const nowIso = new Date().toISOString();
+      const listLabels = Array.from(new Set(
+        ['newsletter-signup', source ? `source:${source}` : 'source:unknown'].filter(Boolean)
+      ));
 
-        const memberData: Record<string, unknown> = {
-          email,
-          emailLower: email.toLowerCase(),
-          firstName,
-          lastName,
-          displayName,
-          updatedAt: nowIso,
-          // Newsletter-only subscribers are also valid recipients for Resend
-          // bulk sends: userInactive:false ensures they appear alongside
-          // registered members in list queries.
-          userInactive: false,
-          newsletterSubscribed: true,
-          isNewsletterRecipient: true,
-          newsletterListLabels: listLabels,
-        };
-        if (industry) memberData.industrySector = industry;
-        if (source) memberData.signupSource = source;
-        if (querySnapshot.empty) {
-          memberData.status = 'active';
-          memberData.membershipTier = 'free';
-          memberData.createdAt = nowIso;
-        } else {
-          const existing = querySnapshot.docs[0].data() as Record<string, unknown>;
-          // Preserve existing list labels, merge in the new source label.
-          const priorLabels = Array.isArray(existing?.newsletterListLabels)
-            ? (existing.newsletterListLabels as string[])
-            : [];
-          memberData.newsletterListLabels = Array.from(new Set([...priorLabels, ...listLabels]));
-          memberData.status = (existing?.status as string) || 'active';
-        }
+      const existing = await store.getMemberByEmail(userEmail);
 
-        if (querySnapshot.empty) {
-          const newsletterDocId = `newsletter_${Buffer.from(email, 'utf8').toString('base64url')}`;
-          await membersRef.doc(newsletterDocId).set(memberData, { merge: true });
-        } else {
-          await querySnapshot.docs[0].ref.update(memberData);
-        }
+      const memberData: Record<string, unknown> = {
+        email,
+        emailLower: userEmail,
+        firstName,
+        lastName,
+        displayName,
+        updatedAt: nowIso,
+        // Newsletter-only subscribers are also valid recipients for Resend
+        // bulk sends: userInactive:false ensures they appear alongside
+        // registered members in list queries.
+        userInactive: false,
+        newsletterSubscribed: true,
+        isNewsletterRecipient: true,
+        newsletterListLabels: listLabels,
+      };
+      if (industry) memberData.industrySector = industry;
+      if (source) memberData.signupSource = source;
+
+      if (!existing) {
+        memberData.status = 'active';
+        memberData.membershipTier = 'free';
+        memberData.createdAt = nowIso;
+        const newsletterKey = `newsletter_${Buffer.from(userEmail, 'utf8').toString('base64url')}`;
+        await store.upsert({ clerkId: newsletterKey, profile: memberData });
+      } else {
+        // Preserve existing list labels, merge in the new source label.
+        const priorLabels = Array.isArray(existing.newsletterListLabels)
+          ? (existing.newsletterListLabels as string[])
+          : [];
+        const status = (existing.status as string) || 'active';
+        await store.patch(existing.clerkId, {
+          ...memberData,
+          newsletterListLabels: Array.from(new Set([...priorLabels, ...listLabels])),
+          status,
+        });
       }
-    } catch (firebaseError: unknown) {
-      const msg = firebaseError instanceof Error ? firebaseError.message : String(firebaseError);
-      console.warn('⚠️ [API/Newsletter] Firebase sync failed:', msg);
+    } catch (syncError: unknown) {
+      const msg = syncError instanceof Error ? syncError.message : String(syncError);
+      console.warn('⚠️ [API/Newsletter] Member profile sync failed:', msg);
     }
 
     // Step 4: Send Welcome Email (Non-critical)

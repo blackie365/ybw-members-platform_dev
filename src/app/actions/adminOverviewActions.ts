@@ -2,6 +2,7 @@
 
 import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
+import { getMemberStore } from '@/features/members/server';
 import { getGhostMembers } from '@/lib/ghost-admin';
 
 export async function getAdminOverviewStats() {
@@ -10,14 +11,14 @@ export async function getAdminOverviewStats() {
     
     if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
 
-    // Fetch Firestore stats
-    const [membersSnap, eventsSnap, messagesSnap] = await Promise.all([
-      adminDb.collection('newMemberCollection').where('userInactive', '==', false).get(),
+    // Fetch stats
+    const [allMembers, eventsSnap, messagesSnap] = await Promise.all([
+      getMemberStore().getAll(),
       adminDb.collection('events').get(),
       adminDb.collection('messageThreads').get()
     ]);
 
-    const totalMembers = membersSnap.size;
+    const totalMembers = allMembers.filter((m) => m.userInactive !== true).length;
     const totalEvents = eventsSnap.size;
     const totalMessages = messagesSnap.size;
 
@@ -56,30 +57,30 @@ export async function getAdminOverviewStats() {
     }
 
     // Fetch recent members
-    const recentMembersSnap = await adminDb.collection('newMemberCollection')
-      .orderBy('createdAt', 'desc')
-      .limit(5)
-      .get();
-
-    const recentMembers = recentMembersSnap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
+    const recentMembers = allMembers
+      .slice()
+      .sort((a, b) => {
+        const da = a.createdAt ? Date.parse(String(a.createdAt)) : 0;
+        const db = b.createdAt ? Date.parse(String(b.createdAt)) : 0;
+        return db - da;
+      })
+      .slice(0, 5)
+      .map((data: any) => ({
+        id: data.clerkId,
         firstName: data.firstName || '',
         lastName: data.lastName || '',
         email: data.email || '',
         createdAt: data.createdAt ? new Date(data.createdAt).getTime() : Date.now(),
         membershipTier: data.membershipTier || 'free',
-      };
-    });
+      }));
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    const newMembersThisMonthSnap = await adminDb.collection('newMemberCollection')
-      .where('createdAt', '>=', startOfMonth.toISOString())
-      .get();
-    const newMembersThisMonth = newMembersThisMonthSnap.size;
+    const newMembersThisMonth = allMembers.filter((m: any) => {
+      const createdAt = String(m.createdAt || '');
+      return createdAt.length > 0 && Date.parse(createdAt) >= startOfMonth.getTime();
+    }).length;
 
     return {
       success: true,

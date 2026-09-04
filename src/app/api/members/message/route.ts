@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { sendEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
@@ -8,10 +8,6 @@ export async function POST(req: Request) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!adminDb) {
-      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
     }
 
     const body = await req.json();
@@ -25,13 +21,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Fetch Recipient Email from Firestore
-    const recipientDoc = await adminDb.collection('newMemberCollection').doc(recipientId).get();
-    if (!recipientDoc.exists) {
+    // Fetch Recipient from the member store
+    const recipientData = await getMemberStore().getMemberByClerkId(recipientId) || await getMemberStore().getMemberBySlug(recipientId);
+    if (!recipientData) {
       return NextResponse.json({ error: 'Recipient not found' }, { status: 404 });
     }
 
-    const recipientData = recipientDoc.data();
     const recipientEmail = recipientData?.email;
     const recipientName = recipientData?.firstName || 'Member';
 

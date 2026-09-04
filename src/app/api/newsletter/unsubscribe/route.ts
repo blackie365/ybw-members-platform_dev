@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getMemberStore } from "@/features/members/server";
 import { deleteBeehiivSubscriber } from "@/lib/beehiiv";
 import crypto from 'crypto';
 
@@ -35,21 +35,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    // 1. Update Firestore
-    if (adminDb) {
-      const snapshot = await adminDb.collection("newMemberCollection").where("email", "==", email).get();
-
-      if (!snapshot.empty) {
-        const batch = adminDb.batch();
-        snapshot.docs.forEach((doc) => {
-          batch.update(doc.ref, { 
-            newsletterSubscribed: false,
-            isNewsletterAuthorized: false,
-            updatedAt: new Date().toISOString()
-          });
-        });
-        await batch.commit();
-      }
+    // 1. Update the member profile
+    const member = await getMemberStore().getMemberByEmail(email);
+    if (member) {
+      await getMemberStore().patch(member.clerkId, {
+        newsletterSubscribed: false,
+        isNewsletterAuthorized: false,
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     // 2. Update Beehiiv (Optional sync)
