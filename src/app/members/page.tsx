@@ -2,7 +2,7 @@ import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
 import { getMemberStore } from '@/features/members/server';
 import type { Metadata } from 'next';
 
-export const revalidate = 1800;
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Members Directory',
