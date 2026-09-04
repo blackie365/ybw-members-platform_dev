@@ -7,7 +7,7 @@ import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 import { ConnectButton } from '@/components/ConnectButton';
 import { ArrowLeft, MapPin, Globe, Linkedin, Twitter, Instagram } from 'lucide-react';
 
-export const revalidate = 1800;
+export const dynamic = 'force-dynamic';
 
 async function getMember(slug: string) {
   try {
