@@ -9,7 +9,8 @@ vi.mock('@tryghost/admin-api', () => {
   return { default: FakeAdminAPI };
 });
 
-import { getGhostMemberByEmail, isPaidGhostMember } from '../ghost-admin';
+import { getGhostMemberByEmail } from '../ghost-admin';
+import { isPaidGhostMember } from '../ghost-members';
 
 describe('isPaidGhostMember', () => {
   it('returns true for paid status', () => {
