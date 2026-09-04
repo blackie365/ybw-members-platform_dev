@@ -96,20 +96,6 @@ export async function getGhostMemberByEmail(email: string): Promise<any | null> 
 }
 
 /**
- * Determine paid-state from a Ghost member object.
- *
- * Ghost members expose a `status` of 'free' | 'paid' | 'comped'. We treat
- * 'paid' and 'comped' as non-free (premium access). The flag defaults to false
- * when the member cannot be resolved so a missing/broken Ghost lookup never
- * accidentally grants premium.
- */
-export function isPaidGhostMember(member: any | null): boolean {
-  if (!member) return false;
-  const status = String(member.status || '').toLowerCase();
-  return status === 'paid' || status === 'comped';
-}
-
-/**
  * Add a new member to Ghost via Admin API
  */
 export async function addGhostMember(data: { email: string; name?: string; note?: string; labels?: string[] }) {
