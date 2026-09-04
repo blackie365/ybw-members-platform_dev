@@ -3,6 +3,7 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 import { addGhostMember } from '@/lib/ghost-admin';
 import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
 
@@ -170,30 +171,23 @@ export async function POST(request: Request) {
       // We still append the eventId + newsletter flags onto the existing
       // member profile so the admin record stays consistent when someone is
       // already an account-holding member.
-      const membersRef = adminDb.collection('newMemberCollection');
-      const existingMember = await membersRef
-        .where('emailLower', '==', email)
-        .limit(1)
-        .get();
+      const existingMember = await getMemberStore().getMemberByEmail(email);
 
-      if (!existingMember.empty) {
-        const memberPayload = {
-          firstName: firstName || (existingMember.docs[0].data() as any)?.firstName || '',
+      if (existingMember) {
+        await getMemberStore().patch(existingMember.clerkId, {
+          firstName: firstName || existingMember.firstName || '',
           isNewsletterRecipient:
-            newsletterOptIn ||
-            (existingMember.docs[0].data() as any)?.isNewsletterRecipient === true,
+            newsletterOptIn || existingMember.isNewsletterRecipient === true,
           newsletterSubscribed:
-            newsletterOptIn ||
-            (existingMember.docs[0].data() as any)?.newsletterSubscribed === true,
+            newsletterOptIn || existingMember.newsletterSubscribed === true,
           eventInterests: Array.from(
             new Set([
-              ...((existingMember.docs[0].data() as any)?.eventInterests || []),
+              ...((existingMember.eventInterests as string[]) || []),
               eventId,
             ]),
           ),
           updatedAt: createdAt,
-        };
-        await existingMember.docs[0].ref.update(memberPayload);
+        });
       }
     }
   } catch (error: any) {

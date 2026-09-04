@@ -2,6 +2,7 @@
 
 import { adminDb } from "@/lib/firebase-admin";
 import { addGhostMember, getGhostMembers } from "@/lib/ghost-admin";
+import { getMemberStore } from "@/features/members/server";
 import { revalidatePath } from "next/cache";
 import { checkAdmin } from "@/lib/server/auth-utils";
 import Stripe from "stripe";
@@ -9,17 +10,21 @@ import Stripe from "stripe";
 export async function getMembersAction() {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getMemberStore();
 
-    const snapshot = await adminDb.collection('newMemberCollection')
-      .where('userInactive', '==', false)
-      .orderBy('createdAt', 'desc')
-      .get();
+    const all = await store.getAll();
 
-    const members = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const members = all
+      .filter((m: any) => m.userInactive !== true)
+      .sort((a, b) => {
+        const da = a.createdAt ? Date.parse(String(a.createdAt)) : 0;
+        const db = b.createdAt ? Date.parse(String(b.createdAt)) : 0;
+        return db - da;
+      })
+      .map((doc) => ({
+        id: doc.clerkId,
+        ...doc,
+      }));
 
     return { success: true, data: members };
   } catch (error: any) {
@@ -31,26 +36,19 @@ export async function getMembersAction() {
 export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getMemberStore();
 
-    const memberRef = adminDb.collection('newMemberCollection').doc(memberId);
-    
     if (status) {
-      const snapshot = await adminDb.collection('newMemberCollection')
-        .where('isFeatured', '==', true)
-        .get();
-      
-      const batch = adminDb.batch();
-      snapshot.docs.forEach(doc => {
-        batch.update(doc.ref, { isFeatured: false });
-      });
-      await batch.commit();
+      const currentlyFeatured = await store.getFeatured();
+      for (const member of currentlyFeatured) {
+        if (member.clerkId !== memberId) {
+          await store.setFeatured(member.clerkId, false);
+        }
+      }
     }
 
-    await memberRef.update({ 
-      isFeatured: status,
-      updatedAt: new Date().toISOString()
-    });
+    await store.setFeatured(memberId, status);
+    await store.patch(memberId, { isFeatured: status, updatedAt: new Date().toISOString() });
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/directory');
@@ -62,14 +60,47 @@ export async function toggleFeaturedStatus(memberId: string, status: boolean) {
   }
 }
 
+export async function updateMemberTierAction(memberId: string, tier: string) {
+  try {
+    await checkAdmin();
+    await getMemberStore().patch(memberId, { membershipTier: tier, updatedAt: new Date().toISOString() });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in updateMemberTierAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMemberRoleAction(memberId: string, role: string) {
+  try {
+    await checkAdmin();
+    await getMemberStore().patch(memberId, { role, updatedAt: new Date().toISOString() });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in updateMemberRoleAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getMemberProfileAction(uid: string) {
+  try {
+    if (!uid) return { success: true, data: null };
+    const profile = await getMemberStore().getMemberByClerkId(uid);
+    return { success: true, data: profile ? { ...profile, id: profile.clerkId } : null };
+  } catch (error: any) {
+    console.error("Error in getMemberProfileAction:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getAnalyticsData() {
   try {
     await checkAdmin();
     if (!adminDb) throw new Error("Database not initialized");
 
-    const snapshot = await adminDb.collection('newMemberCollection').get();
-    const totalMembers = snapshot.docs.filter(d => !d.data().userInactive).length;
-    const totalInactive = snapshot.size - totalMembers;
+    const all = await getMemberStore().getAll();
+    const totalMembers = all.filter((d: any) => !d.userInactive).length;
+    const totalInactive = all.length - totalMembers;
 
     const ghostMembers = await getGhostMembers({ limit: 'all' });
     const totalGhostMembers = Array.isArray(ghostMembers) ? ghostMembers.length : 0;
@@ -95,23 +126,23 @@ export async function getAnalyticsData() {
     const totalEvents = eventsSnapshot.size;
 
     const tierCounts: Record<string, number> = {};
-    snapshot.docs.forEach(doc => {
-      if (doc.data().userInactive) return;
-      const tier = doc.data().membershipTier || 'free';
+    all.forEach((data: any) => {
+      if (data.userInactive) return;
+      const tier = data.membershipTier || 'free';
       tierCounts[tier] = (tierCounts[tier] || 0) + 1;
     });
 
     const industryCounts: Record<string, number> = {};
-    snapshot.docs.forEach(doc => {
-      if (doc.data().userInactive) return;
-      const industry = doc.data().industrySector || 'Other';
+    all.forEach((data: any) => {
+      if (data.userInactive) return;
+      const industry = data.industrySector || 'Other';
       industryCounts[industry] = (industryCounts[industry] || 0) + 1;
     });
 
     const locationCounts: Record<string, number> = {};
-    snapshot.docs.forEach(doc => {
-      if (doc.data().userInactive) return;
-      let loc = doc.data().location || doc.data().city || 'Unknown';
+    all.forEach((data: any) => {
+      if (data.userInactive) return;
+      let loc = data.location || data.city || 'Unknown';
       
       loc = loc.toString().split(',')[0].split('/')[0].trim();
       if (loc.toLowerCase() === 'wakefield') loc = 'Wakefield';
@@ -138,8 +169,7 @@ export async function getAnalyticsData() {
       };
     });
 
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
+    all.forEach((data: any) => {
       if (data.userInactive || !data.createdAt) return;
       const createdDate = new Date(data.createdAt);
       

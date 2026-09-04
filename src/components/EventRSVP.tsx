@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, collection, onSnapshot, query, serverTimestamp } from 'firebase/firestore';
+import { getMemberProfileAction } from '@/app/actions/memberActions';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -63,15 +64,14 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
         await deleteDoc(attendeeRef);
       } else {
         // Fetch user's profile details to store in the attendee doc
-        const profileRef = doc(db, 'newMemberCollection', user.uid);
-        const profileSnap = await getDoc(profileRef);
-        const profileData = profileSnap.data() || {};
+        const profileRes = await getMemberProfileAction(user.uid);
+        const profileData = profileRes.success ? (profileRes.data || {}) : {};
         
         await setDoc(attendeeRef, {
           uid: user.uid,
-          name: profileData.firstName ? `${profileData.firstName} ${profileData.lastName || ''}` : (user.displayName || 'Member'),
-          image: profileData.profileImage || '',
-          company: profileData.companyName || profileData['Company'] || '',
+          name: (profileData as any).firstName ? `${(profileData as any).firstName} ${(profileData as any).lastName || ''}` : (user.displayName || 'Member'),
+          image: (profileData as any).profileImage || '',
+          company: (profileData as any).companyName || (profileData as any)['Company'] || '',
           timestamp: serverTimestamp()
         });
       }

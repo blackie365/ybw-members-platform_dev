@@ -2,6 +2,7 @@
 
 import { currentUser } from '@clerk/nextjs/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 import { addGhostMember } from '@/lib/ghost-admin';
 import Stripe from 'stripe';
@@ -47,19 +48,15 @@ function applyAllowlistAdminOverride(
 
 export async function getProfile(uid: string) {
   try {
-    if (!process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
-    }
     if (!uid) throw new Error('User ID is required');
 
     // Security Check: Only the user or an admin can fetch the detailed profile
     await validateUserOrAdmin(uid);
-    
-    if (!adminDb) throw new Error('Database not initialized');
-    const docRef = adminDb.collection('newMemberCollection').doc(uid);
-    let docSnap = await docRef.get();
 
-    if (!docSnap.exists) {
+    const store = getMemberStore();
+    let data = await store.getMemberByClerkId(uid);
+
+    if (!data) {
       const clerkUser = await currentUser();
       const email =
         clerkUser?.primaryEmailAddress?.emailAddress ||
@@ -78,89 +75,58 @@ export async function getProfile(uid: string) {
         const memberSlug = slugify(fullName || email.split('@')[0]);
         const avatarUrl = clerkUser?.imageUrl || '';
 
-        const byLower = await adminDb
-          .collection('newMemberCollection')
-          .where('emailLower', '==', emailLower)
-          .limit(1)
-          .get();
-        const byExact = byLower.empty
-          ? await adminDb
-              .collection('newMemberCollection')
-              .where('email', '==', email)
-              .limit(1)
-              .get()
-          : null;
-        const existingDoc = !byLower.empty
-          ? byLower.docs[0]
-          : byExact && !byExact.empty
-              ? byExact.docs[0]
-              : null;
+        // Existing profile by email? Merge its persisted fields under the Clerk id.
+        const existing = await store.getMemberByEmail(email);
 
-        if (existingDoc && existingDoc.id !== uid) {
-          const existingData = existingDoc.data() || {};
-          await docRef.set(
-            {
-              ...existingData,
-              firstName,
-              lastName,
-              displayName: fullName,
-              email,
-              emailLower,
-              memberSlug: (existingData as any).memberSlug || memberSlug,
-              avatarUrl: (existingData as any).avatarUrl || avatarUrl,
-              profileImage: (existingData as any).profileImage || avatarUrl,
-              updatedAt: nowIso,
-              status: (existingData as any).status || 'active',
-            },
-            { merge: true }
-          );
-          await existingDoc.ref.delete();
-        } else {
-          await docRef.set(
-            {
-              firstName,
-              lastName,
-              displayName: fullName,
-              email,
-              emailLower,
-              memberSlug,
-              avatarUrl,
-              profileImage: avatarUrl,
-              status: 'active',
-              membershipTier: 'free',
-              role: allowlisted ? 'admin' : 'member',
-              isAdmin: allowlisted ? true : false,
-              isFeatured: false,
-              createdAt: nowIso,
-              updatedAt: nowIso,
-            },
-            { merge: true }
-          );
-        }
+        await store.upsert({
+          clerkId: uid,
+          profile: {
+            ...(existing || {}),
+            firstName,
+            lastName,
+            displayName: fullName,
+            email,
+            emailLower,
+            memberSlug: (existing && (existing as any).memberSlug) || memberSlug,
+            avatarUrl: (existing && (existing as any).avatarUrl) || avatarUrl,
+            profileImage: (existing && (existing as any).profileImage) || avatarUrl,
+            updatedAt: nowIso,
+            status: (existing && (existing as any).status) || 'active',
+            ...(!existing
+              ? {
+                  membershipTier: 'free',
+                  role: allowlisted ? 'admin' : 'member',
+                  isAdmin: allowlisted ? true : false,
+                  isFeatured: false,
+                  createdAt: nowIso,
+                }
+              : {}),
+          },
+        });
 
-        docSnap = await docRef.get();
+        data = await store.getMemberByClerkId(uid);
       }
     }
-    
-    if (docSnap.exists) {
-      const data = docSnap.data() as Record<string, unknown> | undefined || {};
-      const email = (data.email as string) || '';
-      const overridden = applyAllowlistAdminOverride(data, email);
 
-      // Sanitize the data to remove any Timestamps before sending to the client
+    if (data) {
+      const profileData = { ...data, clerkId: data.clerkId };
+      const email = (profileData.email as string) || '';
+      const overridden = applyAllowlistAdminOverride(profileData as Record<string, unknown>, email);
+
+      // Sanitize the data to remove any timestamp-like values before sending to the client
       const sanitizedData = JSON.parse(JSON.stringify(overridden, (_key, value) => {
         if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
           return new Date(value._seconds * 1000).toISOString();
         }
         return value;
       }));
-      
-      return { success: true, data: sanitizedData, id: docSnap.id };
+
+      return { success: true, data: sanitizedData, id: data.clerkId };
     }
-    
+
     return { success: true, data: null };
   } catch (error: any) {
-    console.error('Error fetching profile from admin SDK:', error);
+    console.error('Error fetching profile from member store:', error);
     return { success: false, error: error.message || 'Failed to fetch profile' };
   }
 }
@@ -270,26 +236,17 @@ export async function reconcilePostCheckout(uid: string) {
 
 export async function updateProfile(uid: string, email: string, profileData: any) {
   try {
-    if (!process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error('FIREBASE_PRIVATE_KEY is missing from the environment variables (e.g. Vercel).');
-    }
     if (!uid) throw new Error('User ID is required');
 
     // Security Check: Ensure only the owner or an admin can update this profile
     await validateUserOrAdmin(uid);
-    
-    if (!adminDb) throw new Error('Database not initialized');
-    const docRef = adminDb.collection('newMemberCollection').doc(uid);
-    
-    await docRef.set({
-      ...profileData,
-      email: email,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-    
+
+    const store = getMemberStore();
+    await store.patch(uid, { ...profileData, email, updatedAt: new Date().toISOString() });
+
     return { success: true };
   } catch (error: any) {
-    console.error('Error updating profile from admin SDK:', error);
+    console.error('Error updating profile from member store:', error);
     return { success: false, error: error.message || 'Failed to update profile' };
   }
 }

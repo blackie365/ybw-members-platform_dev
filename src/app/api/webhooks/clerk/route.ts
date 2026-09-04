@@ -1,11 +1,11 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
 import slugify from '@sindresorhus/slugify';
 import { addGhostMember, removeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
+import { getMemberStore } from '@/features/members/server';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -65,20 +65,16 @@ export async function POST(req: Request) {
     const lastName = last_name || ''
     const fullName = `${firstName} ${lastName}`.trim()
     const slug = slugify(fullName || email.split('@')[0])
+    const store = getMemberStore()
 
     // Check metadata for newsletter preference (from signup form)
     const acceptsNewsletter = unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
 
     try {
-      if (!adminDb) {
-        console.error('Firestore Admin SDK not initialized');
-        return new Response('Error: DB not initialized', { status: 500 });
-      }
-
-      const memberRef = adminDb.collection('newMemberCollection').doc(id);
-      const existingSnap = await memberRef.get();
       const nowIso = new Date().toISOString();
       const emailLower = email.toLowerCase();
+
+      const existing = await store.getMemberByClerkId(id);
 
       const baseUpdate: Record<string, any> = {
         firstName,
@@ -97,7 +93,7 @@ export async function POST(req: Request) {
         baseUpdate.isNewsletterAuthorized = true;
       }
 
-      if (!existingSnap.exists) {
+      if (!existing) {
         baseUpdate.membershipTier = 'free';
         baseUpdate.role = 'member';
         baseUpdate.isAdmin = false;
@@ -105,93 +101,30 @@ export async function POST(req: Request) {
         baseUpdate.createdAt = nowIso;
       }
 
-      await memberRef.set(baseUpdate, { merge: true })
+      await store.upsert({ clerkId: id, profile: baseUpdate });
 
-      console.log(`Successfully synced Clerk user to Firestore`)
+      console.log(`Successfully synced Clerk user to member store`);
     } catch (error) {
-      console.error('Error syncing user to Firestore:', error)
-      return new Response('Error: Firestore sync failed', { status: 500 })
+      console.error('Error syncing user to member store:', error)
+      return new Response('Error: Member store sync failed', { status: 500 })
     }
 
     // 2. Sync to Ghost CMS + send emails (Non-critical, don't fail the whole webhook)
     if (eventType === 'user.created') {
       const nowIso = new Date().toISOString();
 
-      try {
-        if (adminDb) {
-          const emailLowerSearch = email.toLowerCase();
-          let dupSnap = await adminDb
-            .collection('newMemberCollection')
-            .where('emailLower', '==', emailLowerSearch)
-            .get();
-
-          if (dupSnap.empty) {
-            dupSnap = await adminDb
-              .collection('newMemberCollection')
-              .where('email', '==', email)
-              .get();
-          }
-
-          const primaryRef = adminDb.collection('newMemberCollection').doc(id);
-          const primarySnap = await primaryRef.get();
-          const primaryData = primarySnap.data() || {};
-
-          for (const doc of dupSnap.docs) {
-            if (doc.id === id) continue;
-
-            const dupData = doc.data() || {};
-            const mergeIntoPrimary: Record<string, any> = {};
-
-            const fieldsToCarry = [
-              'newsletterSubscribed',
-              'isNewsletterRecipient',
-              'industrySector',
-              'industry',
-            ];
-
-            for (const field of fieldsToCarry) {
-              if (primaryData[field] === undefined && dupData[field] !== undefined) {
-                mergeIntoPrimary[field] = dupData[field];
-              }
-            }
-
-            if (primaryData.isNewsletterAuthorized !== true && dupData.isNewsletterAuthorized === true) {
-              mergeIntoPrimary.isNewsletterAuthorized = true;
-            }
-
-            if (Object.keys(mergeIntoPrimary).length > 0) {
-              await primaryRef.set(mergeIntoPrimary, { merge: true });
-            }
-
-            await doc.ref.delete();
-          }
-        }
-      } catch (err) {
-        console.warn('Duplicate cleanup failed (non-critical):', err);
-      }
-
       // 2a. Admin notification email (all admins)
       try {
         let adminRecipients: string[] = [config.adminEmail];
         try {
-          if (adminDb) {
-            const byRoleSnap = await adminDb
-              .collection('newMemberCollection')
-              .where('role', 'in', ['admin', 'super_admin'])
-              .get();
-
-            const byFlagSnap = await adminDb
-              .collection('newMemberCollection')
-              .where('isAdmin', '==', true)
-              .get();
-
-            const emails = new Set<string>();
-            for (const doc of [...byRoleSnap.docs, ...byFlagSnap.docs]) {
-              const e = (doc.data() as any)?.email;
-              if (typeof e === 'string' && e.includes('@')) emails.add(e);
+          const emails = new Set<string>();
+          const members = await store.getAll();
+          for (const m of members) {
+            if ((m.role === 'admin' || m.role === 'super_admin' || m.isAdmin === true) && typeof m.email === 'string' && m.email.includes('@')) {
+              emails.add(m.email);
             }
-            if (emails.size > 0) adminRecipients = Array.from(emails);
           }
+          if (emails.size > 0) adminRecipients = Array.from(emails);
         } catch (err) {
           console.error('Failed to fetch admin recipients:', err);
         }
@@ -213,7 +146,7 @@ export async function POST(req: Request) {
           `,
         });
 
-        await adminDb?.collection('newMemberCollection').doc(id).set({ adminNotifiedAt: nowIso }, { merge: true });
+        await store.patch(id, { adminNotifiedAt: nowIso });
       } catch (emailErr) {
         console.warn('Admin notification email failed (non-critical):', emailErr);
       }
@@ -223,7 +156,7 @@ export async function POST(req: Request) {
       //     member's paid state is known — this avoids the confusing double
       //     welcome when someone signs up through the premium checkout path.
 
-      // 2c. Ghost CMS sync
+      // 2c. Ghost CMS sync — creates the Ghost member (email is the join key)
       try {
         const ghostRes = await addGhostMember({
           email,
@@ -231,7 +164,7 @@ export async function POST(req: Request) {
           labels: ['clerk-signup', 'free-member']
         });
         if (ghostRes) {
-          await adminDb?.collection('newMemberCollection').doc(id).set({ ghostSyncedAt: nowIso }, { merge: true });
+          await store.patch(id, { ghostSyncedAt: nowIso });
         }
         console.log(`Successfully synced Clerk user to Ghost CMS.`);
       } catch (ghostError) {
@@ -248,21 +181,15 @@ export async function POST(req: Request) {
     }
 
     try {
-      if (!adminDb) {
-        console.error('Firestore Admin SDK not initialized');
-        return new Response('Error: DB not initialized', { status: 500 });
-      }
+      const store = getMemberStore();
 
       // Clerk's user.deleted payload does not include the email, so look it up
-      // before removing the member doc.
-      const memberRef = adminDb.collection('newMemberCollection').doc(id);
-      const memberSnap = await memberRef.get();
-      const email = memberSnap.exists
-        ? (memberSnap.data()?.email as string | undefined)
-        : undefined;
+      // before removing the member profile.
+      const member = await store.getMemberByClerkId(id);
+      const email = typeof member?.email === 'string' ? member.email : undefined;
 
-      await memberRef.delete();
-      console.log(`Deleted Firestore member doc for deleted Clerk user ${id}`);
+      await store.remove(id);
+      console.log(`Deleted member profile for deleted Clerk user ${id}`);
 
       if (email) {
         try {
@@ -272,8 +199,8 @@ export async function POST(req: Request) {
         }
       }
     } catch (error) {
-      console.error('Error deleting user from Firestore:', error);
-      return new Response('Error: Firestore delete failed', { status: 500 });
+      console.error('Error deleting user profile:', error);
+      return new Response('Error: Member store delete failed', { status: 500 });
     }
   }
 

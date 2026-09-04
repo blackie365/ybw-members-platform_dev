@@ -1,5 +1,5 @@
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import type { Metadata } from 'next';
 
 export const revalidate = 1800;
@@ -14,16 +14,31 @@ export const metadata: Metadata = {
   },
 };
 
+function isConfigured(): boolean {
+  return Boolean(
+    process.env.DATABASE_URL ||
+    process.env.PGHOST ||
+    process.env.PGDATABASE ||
+    process.env.PGUSER ||
+    process.env.PGPASSWORD,
+  );
+}
+
 async function getMembers() {
   try {
-    if (!adminDb) {
+    if (!isConfigured()) {
       return [];
     }
 
-    const snapshot = await adminDb.collection('newMemberCollection').get();
+    const store = getMemberStore();
+    const snapshots = await store.getAll();
+    const docs = snapshots.map((profile) => ({
+      id: profile.clerkId,
+      data: profile,
+    }));
 
-    const members = snapshot.docs.map((doc: any) => {
-      const data = doc.data();
+    const members = docs.map((doc: any) => {
+      const data = doc.data;
       
       // Manually sanitize data to avoid JSON circular issues or other serialization errors
       const sanitizedData: any = {};

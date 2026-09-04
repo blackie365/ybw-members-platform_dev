@@ -1,7 +1,7 @@
 'use server';
 
 import { getGhostMembers } from "@/lib/ghost-admin";
-import { adminDb } from "@/lib/firebase-admin";
+import { getMemberStore } from "@/features/members/server";
 import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
@@ -29,33 +29,25 @@ export async function getNewsletterRecipientStatsAction(): Promise<{ success: bo
       beehiivEnabled: isBeehiivConfigured(),
     };
     const seen = new Set<string>();
+    const memberEmail = (m: any): string =>
+      typeof m?.email === 'string' ? m.email.trim().toLowerCase() : '';
 
-    if (adminDb) {
-      const newsletterSnap = await adminDb
-        .collection('newMemberCollection')
-        .where('isNewsletterRecipient', '==', true)
-        .get();
-      const registeredSnap = await adminDb
-        .collection('newMemberCollection')
-        .where('userInactive', '==', false)
-        .get();
-      const emailsFromFirestore = (snap: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>) => {
-        const out: string[] = [];
-        snap.forEach((doc) => {
-          const d = doc.data() as { email?: unknown };
-          if (typeof d.email === 'string') out.push(d.email.trim().toLowerCase());
-        });
-        return out;
-      };
-      emailsFromFirestore(newsletterSnap).forEach((e) => {
-        breakdown.newsletter += 1;
-        if (!seen.has(e)) seen.add(e);
-      });
-      emailsFromFirestore(registeredSnap).forEach((e) => {
-        breakdown.registered += 1;
-        if (!seen.has(e)) seen.add(e);
-      });
-    }
+    const allMembers = await getMemberStore().getAll();
+    const newsletterEmails = allMembers.filter((m: any) => m.isNewsletterRecipient === true);
+    const registeredEmails = allMembers.filter((m: any) => m.userInactive !== true);
+
+    newsletterEmails.forEach((m) => {
+      const e = memberEmail(m);
+      if (!e) return;
+      breakdown.newsletter += 1;
+      if (!seen.has(e)) seen.add(e);
+    });
+    registeredEmails.forEach((m) => {
+      const e = memberEmail(m);
+      if (!e) return;
+      breakdown.registered += 1;
+      if (!seen.has(e)) seen.add(e);
+    });
 
     const ghostMembers = await getGhostMembers({ limit: 'all' }).catch(() => null);
     if (Array.isArray(ghostMembers)) {
@@ -152,27 +144,14 @@ export async function sendBulkNewsletterAction(editorNote?: string, subject?: st
       seen.add(e);
     };
 
-    if (adminDb) {
-      // Union: (a) explicit newsletter recipients (includes popup/inline)
-      //        (b) registered active members
-      const snaps = await Promise.all([
-        adminDb.collection('newMemberCollection')
-          .where('isNewsletterRecipient', '==', true)
-          .get()
-          .catch(() => null),
-        adminDb.collection('newMemberCollection')
-          .where('userInactive', '==', false)
-          .get()
-          .catch(() => null),
-      ]);
-      snaps.forEach((snap) => {
-        if (!snap) return;
-        snap.forEach((doc) => {
-          const d = doc.data() as { email?: unknown };
-          pushUnique(d.email);
-        });
-      });
-    }
+    // Union: (a) explicit newsletter recipients (includes popup/inline)
+    //        (b) registered active members
+    const allMembers = await getMemberStore().getAll();
+    allMembers.forEach((m: any) => {
+      if (m.isNewsletterRecipient === true || m.userInactive !== true) {
+        pushUnique(m.email);
+      }
+    });
 
     // Also merge in Ghost members so the weekly Resend send matches what admins
     // expect when Beehiiv is disabled on Vercel production (env vars missing).

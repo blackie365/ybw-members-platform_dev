@@ -10,58 +10,47 @@ import { CategorySection } from "@/components/magazine/category-section";
 import { TestimonialsSection } from "@/components/magazine/testimonials-section";
 import { MagazineExperience } from "@/components/magazine/magazine-experience";
 import { getPosts, getTags } from "@/lib/ghost";
+import { getMemberStore } from "@/features/members/server";
 import { adminDb } from "@/lib/firebase-admin";
 import Link from "next/link";
 
 // Homepage - Yorkshire BusinessWoman Magazine
 
+function toFeaturedMember(doc: any) {
+  const data = doc;
+  return {
+    id: data.clerkId,
+    name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
+    image: String(data.profileImage || data.image || data.avatarUrl || ''),
+    company: String(data.companyName || data.company || ''),
+    role: String(data.jobTitle || data.role || ''),
+    bio: String(data.bio || ''),
+    slug: String(data.slug || data.memberSlug || data.clerkId),
+    isFeatured: data.isFeatured === true,
+  };
+}
+
 async function getFeaturedMembers() {
   try {
-    if (!adminDb) return [];
-    
+    const store = getMemberStore();
+
     // First, try to fetch the explicitly featured member
-    const featuredSnapshot = await adminDb.collection('newMemberCollection')
-      .where('isFeatured', '==', true)
-      .limit(1)
-      .get();
-      
-    let members = [];
-    
-    if (!featuredSnapshot.empty) {
-      const doc = featuredSnapshot.docs[0];
-      const data = doc.data();
-      members.push({
-        id: doc.id,
-        name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
-        image: String(data.profileImage || data.image || data.avatarUrl || ''),
-        company: String(data.companyName || data.company || ''),
-        role: String(data.jobTitle || data.role || ''),
-        bio: String(data.bio || ''),
-        slug: String(data.slug || doc.id),
-        isFeatured: data.isFeatured === true,
-      });
-    } else {
-      // Fallback: Fetch a batch of members to find one with a complete profile
-      const snapshot = await adminDb.collection('newMemberCollection').limit(50).get();
-      members = snapshot.docs.map((doc: any) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
-          image: String(data.profileImage || data.image || data.avatarUrl || ''),
-          company: String(data.companyName || data.company || ''),
-          role: String(data.jobTitle || data.role || ''),
-          bio: String(data.bio || ''),
-          slug: String(data.slug || doc.id),
-          isFeatured: data.isFeatured === true,
-        }
-      }).filter((member: any) => {
+    const featured = await store.getFeatured(1);
+    if (featured.length > 0) {
+      return [toFeaturedMember(featured[0])];
+    }
+
+    // Fallback: Fetch a batch of members to find one with a complete profile
+    const all = await store.getAll();
+    const members = all
+      .slice(0, 50)
+      .map((p) => toFeaturedMember(p))
+      .filter((member: any) => {
         const hasImage = !!member.image;
         const hasBio = member.bio && typeof member.bio === 'string' && member.bio.trim().length > 20;
         const hasName = member.name && typeof member.name === 'string' && member.name.trim().length > 0;
         return hasImage && hasBio && hasName;
       });
-    }
 
     return members;
   } catch (error) {

@@ -1,4 +1,4 @@
-import { adminDb } from '@/lib/firebase-admin';
+import { getMemberStore } from '@/features/members/server';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -11,42 +11,28 @@ export const revalidate = 1800;
 
 async function getMember(slug: string) {
   try {
-    if (!adminDb) return null;
+    const store = getMemberStore();
 
-    const VALID_TIERS = ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium', 'founder'];
-    
-    function isValidMember(data: any): boolean {
-      return data.userInactive !== true;
+    function isValidMember(member: any): boolean {
+      return member.userInactive !== true;
+    }
+
+    async function tryMember(
+      candidate: Awaited<ReturnType<typeof store.getMemberByClerkId>> | null,
+    ) {
+      if (!candidate) return null;
+      const member = { id: candidate.clerkId, ...candidate } as any;
+      if (isValidMember(member)) return member;
+      return null;
     }
 
     // 1. Try document ID (most reliable — matches Clerk UID used in fallback links)
-    const docRef = await adminDb.collection('newMemberCollection').doc(slug).get();
-    if (docRef.exists) {
-      const member = { id: docRef.id, ...docRef.data() } as any;
-      if (isValidMember(member)) return member;
-    }
-    
-    // 2. Try memberSlug field (set by Clerk webhook on user creation)
-    const slugSnapshot = await adminDb.collection('newMemberCollection')
-      .where('memberSlug', '==', slug)
-      .limit(1)
-      .get();
+    const byId = await tryMember(await store.getMemberByClerkId(slug));
+    if (byId) return byId;
 
-    if (!slugSnapshot.empty) {
-      const member = { id: slugSnapshot.docs[0].id, ...slugSnapshot.docs[0].data() } as any;
-      if (isValidMember(member)) return member;
-    }
-    
-    // 3. Try legacy slug field
-    const legacySnapshot = await adminDb.collection('newMemberCollection')
-      .where('slug', '==', slug)
-      .limit(1)
-      .get();
-
-    if (!legacySnapshot.empty) {
-      const member = { id: legacySnapshot.docs[0].id, ...legacySnapshot.docs[0].data() } as any;
-      if (isValidMember(member)) return member;
-    }
+    // 2. Try memberSlug / legacy slug field (set by Clerk webhook on user creation)
+    const bySlug = await tryMember(await store.getMemberBySlug(slug));
+    if (bySlug) return bySlug;
 
     return null;
   } catch (error) {
