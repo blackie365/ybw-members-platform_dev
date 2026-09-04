@@ -56,6 +56,18 @@ export interface MemberStore {
   patch(clerkId: string, patch: Record<string, unknown>): Promise<void>;
   setFeatured(clerkId: string, featured: boolean): Promise<void>;
   remove(clerkId: string): Promise<void>;
+  /**
+   * Atomically claim a one-time side effect (e.g. sending a welcome email).
+   * Returns true only for the caller that wins the claim; the flag is written
+   * into the member's data blob so racing callers can never both claim.
+   */
+  claimOnce(clerkId: string, attemptField: string): Promise<boolean>;
+  /** Release a previously-held claim so the side effect can be retried. */
+  clearClaim(clerkId: string, attemptField: string): Promise<void>;
+  /** Merge top-level flags into the member's data blob (atomic jsonb merge). */
+  setFlags(clerkId: string, flags: Record<string, string>): Promise<void>;
+  /** Remove top-level fields from the member's data blob (atomic). */
+  removeFields(clerkId: string, fields: string[]): Promise<void>;
   health(): Promise<boolean>;
 }
 
@@ -74,6 +86,12 @@ function valueToParam(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'boolean' || typeof value === 'number') return String(value);
   return String(value);
+}
+
+function sanitizeField(field: string): string {
+  const safe = field.replace(/[^a-zA-Z0-9_]/g, '');
+  if (!safe) throw new Error(`Invalid member data field name: ${field}`);
+  return safe;
 }
 
 /**
@@ -330,6 +348,70 @@ export class PgMemberStore implements MemberStore {
       await pool.query('DELETE FROM member_profiles WHERE clerk_id = $1', [clerkId]);
     } catch (err) {
       console.warn(`[PgMemberStore] remove(${clerkId}) failed:`, err);
+    }
+  }
+
+  async claimOnce(clerkId: string, attemptField: string): Promise<boolean> {
+    if (!(await this.ready())) return false;
+    const field = sanitizeField(attemptField);
+    try {
+      const pool = getMagazinePgPool()!;
+      const nowIso = new Date().toISOString();
+      const { rowCount } = await pool.query(
+        `UPDATE member_profiles
+         SET data = jsonb_set(data, $2::text[], to_jsonb($3::text)), updated_at = NOW()
+         WHERE clerk_id = $1 AND data->>'${field}' IS NULL`,
+        [clerkId, [field], nowIso],
+      );
+      return (rowCount ?? 0) > 0;
+    } catch (err) {
+      console.warn(`[PgMemberStore] claimOnce(${clerkId}, ${attemptField}) failed:`, err);
+      return false;
+    }
+  }
+
+  async clearClaim(clerkId: string, attemptField: string): Promise<void> {
+    if (!(await this.ready())) return;
+    const field = sanitizeField(attemptField);
+    try {
+      const pool = getMagazinePgPool()!;
+      await pool.query(
+        'UPDATE member_profiles SET data = data - $2, updated_at = NOW() WHERE clerk_id = $1',
+        [clerkId, field],
+      );
+    } catch (err) {
+      console.warn(`[PgMemberStore] clearClaim(${clerkId}, ${attemptField}) failed:`, err);
+    }
+  }
+
+  async setFlags(clerkId: string, flags: Record<string, string>): Promise<void> {
+    if (!(await this.ready()) || !flags || Object.keys(flags).length === 0) return;
+    const clean: Record<string, string> = {};
+    for (const [key, value] of Object.entries(flags)) {
+      clean[sanitizeField(key)] = String(value ?? new Date().toISOString());
+    }
+    try {
+      const pool = getMagazinePgPool()!;
+      await pool.query(
+        'UPDATE member_profiles SET data = data || $2::jsonb, updated_at = NOW() WHERE clerk_id = $1',
+        [clerkId, JSON.stringify(clean)],
+      );
+    } catch (err) {
+      console.warn(`[PgMemberStore] setFlags(${clerkId}) failed:`, err);
+    }
+  }
+
+  async removeFields(clerkId: string, fields: string[]): Promise<void> {
+    if (!(await this.ready()) || !fields?.length) return;
+    const clean = fields.map(sanitizeField);
+    try {
+      const pool = getMagazinePgPool()!;
+      await pool.query(
+        "UPDATE member_profiles SET data = data - $2::text[], updated_at = NOW() WHERE clerk_id = $1",
+        [clerkId, clean],
+      );
+    } catch (err) {
+      console.warn(`[PgMemberStore] removeFields(${clerkId}) failed:`, err);
     }
   }
 }
