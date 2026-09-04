@@ -43,7 +43,11 @@ jobs:
           set -euo pipefail
           ARGS="${ARGS:---dry-run}"
           echo "Running: tsx scripts/magazine-set-feature-image.ts ${ARGS}"
-          sudo -u www-data -H bash -lc 'cd "${APPDIR}" && set -a && . ./.env.local && set +a && CI=true pnpm exec tsx scripts/magazine-set-feature-image.ts "$@"' _ ${ARGS}
+          # sudo resets the environment by default, so the path is hardcoded
+          # inside the sudo'd shell rather than relying on $APPDIR leaking in.
+          set -f
+          sudo -u www-data -H bash -lc 'cd /srv/ybw-frontend && set -a && . ./.env.local && set +a && CI=true pnpm exec tsx scripts/magazine-set-feature-image.ts "$@"' _ ${ARGS}
+          set +f
 
       - name: Report
         run: |
