@@ -79,8 +79,9 @@ export function SafeText({
 
   return (
     <div
+      lang="en-GB"
       className={[
-        "[&_p]:mb-5 [&_p+_p]:mt-5 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
+        "[&_p]:mb-5 [&_p+_p]:mt-5 [&_p:last-child]:mb-0 [&_p]:[text-wrap:pretty] [&_p]:[orphans:2] [&_p]:[widows:2] [&_strong]:font-semibold [&_em]:italic [&_a]:underline [&_a]:underline-offset-2 [&_h2]:[text-wrap:balance] [&_h3]:[text-wrap:balance] [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-5 [&_img]:shadow-[0_14px_60px_rgba(0,0,0,0.12)] [&_figure]:my-6 [&_figcaption]:mt-2 [&_figcaption]:text-xs [&_figcaption]:leading-snug [&_figcaption]:opacity-70 [&_blockquote]:my-8 [&_blockquote]:px-6 [&_blockquote]:py-5 [&_blockquote]:rounded-3xl [&_blockquote]:border-l-[3px] [&_blockquote]:border-[#a3413a] [&_blockquote]:bg-[#a3413a]/10 [&_blockquote]:font-serif [&_blockquote]:italic [&_blockquote]:text-[1.05em] [&_blockquote_p]:mb-0",
         className,
       ]
         .filter(Boolean)
@@ -1961,7 +1962,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             {leadHtml ? (
               <SafeText
                 html={leadHtml}
-                className="font-serif text-[1.05rem] leading-[1.75] text-[#191412]/90 sm:text-[1.15rem] sm:leading-[1.7] first:[&_p]:first-letter:float-left first:[&_p]:first-letter:mt-1 first:[&_p]:first-letter:pr-3 first:[&_p]:first-letter:font-serif first:[&_p]:first-letter:text-[2.9rem] first:[&_p]:first-letter:font-bold first:[&_p]:first-letter:leading-[0.78] first:[&_p]:first-letter:text-[#a3413a]"
+                className="font-serif text-[1.05rem] leading-[1.75] text-[#191412]/90 sm:text-[1.15rem] sm:leading-[1.7] [&_p]:max-w-[63ch] first:[&_p]:first-letter:float-left first:[&_p]:first-letter:mt-1 first:[&_p]:first-letter:pr-3 first:[&_p]:first-letter:font-serif first:[&_p]:first-letter:text-[2.9rem] first:[&_p]:first-letter:font-bold first:[&_p]:first-letter:leading-[0.78] first:[&_p]:first-letter:text-[#a3413a]"
               />
             ) : null}
 
@@ -1989,7 +1990,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                     <SafeText
                       key={`flow-t-${i}`}
                       html={item.html}
-                      className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
+                      className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_p]:[hyphens:auto] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
                     />
                   ),
                 )}
