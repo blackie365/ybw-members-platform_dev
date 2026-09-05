@@ -254,29 +254,42 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
       return { page, entry, viewModel, label, effectiveTemplate, siblings: [] as StorySummary[] };
     });
 
-    // Newspaper-style mixing: each feature page gets a "More from this edition"
-    // list of the other feature stories, ordered by their print position.
+    // Newspaper-style mixing: each feature page (and the cover) gets a
+    // "from this edition" list of the feature stories in print order.
     const featureIndexes = entries
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => String(item.effectiveTemplate || "").startsWith("feature"));
+
+    const toStorySummary = (other: (typeof entries)[number]): StorySummary => {
+      const o = (other.viewModel || {}) as Record<string, unknown>;
+      return {
+        pageId: String(other.page.id || "") || null,
+        position:
+          extractPrintPageNumber(other.page) ??
+          (Number(other.page.position) || 1),
+        title: String(o.title || ""),
+        kicker: String(o.kicker || ""),
+        standfirst: String(o.intro || ""),
+        featureImage: String(o.featureImage || o.image || ""),
+      };
+    };
+
     for (const { item, index } of featureIndexes) {
       const vm = (item.viewModel || {}) as Record<string, unknown>;
-      const ownId = String(item.page.id || "");
       item.siblings = featureIndexes
         .filter(({ index: j }) => j !== index)
         .slice(0, 4)
-        .map(({ item: other }) => {
-          const o = (other.viewModel || {}) as Record<string, unknown>;
-          return {
-            pageId: String(other.page.id || "") || null,
-            position: extractPrintPageNumber(other.page) ?? (Number(other.page.position) || 1),
-            title: String(o.title || ""),
-            kicker: String(o.kicker || ""),
-            standfirst: String(o.intro || ""),
-            featureImage: String(o.featureImage || o.image || ""),
-          } as StorySummary;
-        })
+        .map(({ item: other }) => toStorySummary(other))
         .filter((s) => s.title && s.title !== vm?.title);
+    }
+
+    // Front-page teasers ("01 The Founder…") = the first feature stories.
+    const coverPage = entries.find((e) => e.effectiveTemplate === "cover");
+    if (coverPage) {
+      coverPage.siblings = featureIndexes
+        .slice(0, 4)
+        .map(({ item }) => toStorySummary(item))
+        .filter((s) => s.title);
     }
 
     return entries;

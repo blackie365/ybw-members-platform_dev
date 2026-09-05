@@ -22,6 +22,7 @@ import {
   dedupeTextBlocks,
   normalizeRichTextForCompare,
 } from "./editorialBlocks";
+import type { StorySummary } from "../domain/template-registry";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -2119,7 +2120,17 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 // ─────────────────────────────────────────────
 // NEWSPAPER COVER — broadsheet front page
 // ─────────────────────────────────────────────
-export const PageNewspaperCover = ({ data, imageVersion = "" }: any) => {
+export const PageNewspaperCover = ({
+  data,
+  imageVersion = "",
+  editionSlug = "",
+  siblings = [],
+}: {
+  data: any;
+  imageVersion?: string;
+  editionSlug?: string;
+  siblings?: StorySummary[];
+}) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const title = String(data.title || data.headline || "").trim();
@@ -2129,6 +2140,23 @@ export const PageNewspaperCover = ({ data, imageVersion = "" }: any) => {
   const kicker = String(data.kicker || data.badge || data.category || "").trim();
   const date = String(data.date || data.issue || "").trim();
   const coverImage = safeImageSrc(data.image || data.featureImage || "");
+  const teasers = Array.isArray(siblings)
+    ? siblings
+        .filter((story) => story && String(story.title || "").trim())
+        .slice(0, 4)
+    : [];
+
+  const [slug, setSlug] = useState("");
+  useEffect(() => {
+    if (editionSlug) {
+      setSlug(editionSlug);
+      return;
+    }
+    try {
+      const match = window.location.pathname.match(/\/magazine\/read\/([^/?]+)/);
+      if (match) setSlug(decodeURIComponent(match[1]));
+    } catch {}
+  }, [editionSlug]);
 
   return (
     <div
@@ -2209,14 +2237,47 @@ export const PageNewspaperCover = ({ data, imageVersion = "" }: any) => {
             ) : null}
           </div>
 
-          {/* Cover rail */}
+          {/* Cover rail — numbered front-page teasers (01 The Founder…) */}
           <aside className="border-t-[3px] border-[#191412] pt-5 md:border-t-0 md:pt-0 md:pl-10 md:[border-left:1px_solid_rgba(25,20,18,0.2)]">
             <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
               Front page
             </span>
-            <p className="-mt-1 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
-              {subheadline || title || "A new edition, ready to read"}
-            </p>
+            {teasers.length > 0 ? (
+              <ol className="mt-4">
+                {teasers.map((story, i) => {
+                  const pos = Number(story.position) || i + 1;
+                  const href = slug
+                    ? `/magazine/read/${slug}?page=${pos}`
+                    : `#page-${pos}`;
+                  return (
+                    <li
+                      key={String(story.pageId ?? "") || `teaser-${i}`}
+                      className="mt-4 border-t border-[#191412]/15 pt-4 first:mt-0 first:border-t-0 first:pt-0"
+                    >
+                      <a href={href} data-page={String(pos)} className="group block">
+                        <span className="flex items-baseline gap-3">
+                          <span className="font-serif text-[2.3rem] leading-none tracking-tight text-[#a3413a]">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <span className="font-serif text-[1.12rem] font-bold leading-[1.2] text-[#191412] group-hover:underline">
+                            {story.title}
+                          </span>
+                        </span>
+                        {story.kicker ? (
+                          <span className="mt-1.5 block font-sans text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#191412]/55">
+                            {String(story.kicker).toUpperCase()}
+                          </span>
+                        ) : null}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="-mt-1 font-serif text-[1.25rem] leading-[1.35] text-[#191412] lg:text-[1.4rem]">
+                {subheadline || title || "A new edition, ready to read"}
+              </p>
+            )}
           </aside>
         </div>
 
