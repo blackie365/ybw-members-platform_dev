@@ -690,6 +690,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost" 
         size="sm" 
         className="h-8 w-8 p-0" 
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<strong>', '</strong>')}
         title="Bold"
       >
@@ -699,6 +700,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost" 
         size="sm" 
         className="h-8 w-8 p-0" 
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<em>', '</em>')}
         title="Italic"
       >
@@ -708,6 +710,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<span style="text-decoration: underline;">', '</span>')}
         title="Underline"
       >
@@ -717,6 +720,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => {
           const input = document.getElementById(`editor-color-${field}`) as HTMLInputElement | null;
           input?.click();
@@ -733,13 +737,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         onChange={(e) => insertTextAtCursor(field, `<span style="color: ${e.target.value};">`, '</span>')}
       />
       <Select
-        value=""
         onValueChange={(v) => {
           if (!v) return;
           insertTextAtCursor(field, `<span style="font-size: ${v};">`, '</span>');
         }}
       >
-        <SelectTrigger className="h-8 px-2 py-0 w-[88px]">
+        <SelectTrigger
+          className="h-8 px-2 py-0 w-[88px]"
+          onMouseDown={(e) => e.preventDefault()}
+        >
           <SelectValue placeholder="Size" />
         </SelectTrigger>
         <SelectContent>
@@ -758,6 +764,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
             variant="ghost" 
             size="sm" 
             className="h-8 w-8 p-0" 
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => insertTextAtCursor(field, '<p>', '</p>')}
             title="Paragraph"
           >
@@ -769,6 +776,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost" 
         size="sm" 
         className="h-8 w-8 p-0" 
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<br />')}
         title="Line Break"
       >
@@ -779,6 +787,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<h2>', '</h2>')}
         title="Heading"
       >
@@ -788,6 +797,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertTextAtCursor(field, '<h3>', '</h3>')}
         title="Subheading"
       >
@@ -797,6 +807,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertListAtCursor(field, 'ul')}
         title="Bulleted list"
       >
@@ -806,6 +817,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => insertListAtCursor(field, 'ol')}
         title="Numbered list"
       >
@@ -815,6 +827,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         variant="ghost"
         size="sm"
         className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => {
           const url = window.prompt('Link URL');
           if (!url) return;

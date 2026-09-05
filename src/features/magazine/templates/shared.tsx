@@ -16,6 +16,12 @@ import { ArrowRight, ExternalLink } from "lucide-react";
 import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
 import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
+import {
+  getHtmlBlocks,
+  splitPlainTextIntoParagraphs,
+  dedupeTextBlocks,
+  normalizeRichTextForCompare,
+} from "./editorialBlocks";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -34,24 +40,6 @@ function safeImageSrc(raw: unknown): string {
   if (!src) return "";
   if (isPlaceholderImageUrl(src)) return "";
   return src;
-}
-
-function splitPlainTextIntoParagraphs(input: string): string[] {
-  const normalized = String(input || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  if (!normalized.trim()) return [];
-
-  // A hard newline is an explicit break the author typed (Press Enter in the
-  // Editorial Body textarea). Honour it: each non-empty line becomes its own
-  // paragraph so the rendered broadsheet skips a line between them. We do NOT
-  // merge lines with a heuristic ("sentence punctuation + capital next") —
-  // that collapsed real paragraph breaks whenever a line didn't happen to end
-  // in .!? or start with a capital, which is exactly the reported bug.
-  const lines = normalized
-    .split(/\n/g)
-    .map((line) => line.replace(/^\s+|\s+$/g, ""))
-    .filter(Boolean);
-  if (lines.length === 0) return [];
-  return lines;
 }
 
 // ─────────────────────────────────────────────
@@ -87,7 +75,7 @@ export function SafeText({
     }
   }
 
-  const sanitized = sanitizeHtml(content);
+  const sanitized = sanitizeHtml(content, { allowStyles: true });
 
   return (
     <div
@@ -725,157 +713,6 @@ export function renderTitleArt(
 
   if (lastIndex < raw.length) nodes.push(raw.slice(lastIndex));
   return <>{nodes}</>;
-}
-
-function normalizeRichTextForCompare(value: string) {
-  return String(value || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function dedupeTextBlocks(blocks: string[]) {
-  const seen = new Set<string>();
-  const deduped: string[] = [];
-
-  for (const block of Array.isArray(blocks) ? blocks : []) {
-    const normalized = normalizeRichTextForCompare(block);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    deduped.push(block);
-  }
-
-  return deduped;
-}
-
-export function getHtmlBlocks(html: string): string[] {
-  if (!html) return [];
-  const hasTags = html.includes("<");
-  const normalizedRaw = html.replace(/\r\n/g, "\n");
-
-  if (hasTags && !html.includes("<p") && normalizedRaw.includes("\n")) {
-    const paragraphs = splitPlainTextIntoParagraphs(normalizedRaw);
-    if (paragraphs.length > 1) {
-      return dedupeTextBlocks(
-        paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
-      );
-    }
-  }
-
-  if (
-    typeof window !== "undefined" &&
-    hasTags &&
-    typeof DOMParser !== "undefined"
-  ) {
-    try {
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const body = doc.body;
-      const paragraphs = Array.from(body.querySelectorAll("p"));
-      if (paragraphs.length > 0)
-        return dedupeTextBlocks(
-          paragraphs.map((p) => p.outerHTML.trim()).filter(Boolean),
-        );
-
-      const blockTagNames = new Set([
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "ul",
-        "ol",
-        "blockquote",
-        "pre",
-        "figure",
-        "hr",
-      ]);
-      const blockChildren = Array.from(body.children).filter((el) =>
-        blockTagNames.has(el.tagName.toLowerCase()),
-      );
-      if (blockChildren.length > 0)
-        return dedupeTextBlocks(
-          blockChildren.map((el) => el.outerHTML.trim()).filter(Boolean),
-        );
-
-      const inner = body.innerHTML.trim();
-      if (!inner) return [];
-      const parts = inner
-        .split(/(?:<br\s*\/?>\\s*){2,}/gi)
-        .map((p) => p.trim())
-        .filter(Boolean);
-      if (parts.length > 1) {
-        return dedupeTextBlocks(parts.map((p) => `<p>${p}</p>`));
-      }
-      return dedupeTextBlocks([`<p>${inner}</p>`]);
-    } catch {}
-  }
-
-  const normalized = hasTags ? html : html.replace(/\r\n/g, "\n");
-  if (!hasTags) {
-    const paragraphs = splitPlainTextIntoParagraphs(normalized);
-    if (paragraphs.length === 0) return [];
-    return dedupeTextBlocks(
-      paragraphs.map((paragraph) => `<p>${paragraph}</p>`),
-    );
-  }
-
-  // Server-safe block split for content that contains HTML tags. Runs in the
-  // bundle where DOMParser is unavailable (the client-only branch above is
-  // bypassed on the server), so we split on <p>/</p> and standalone <br>
-  // markers directly. This honours the literal <p>…</p> and <br /> the
-  // FormattingToolbar / an author can type, guaranteeing each is a separate
-  // block (a real paragraph) instead of collapsing them into one blob.
-  const tagBlocks = splitHtmlIntoBlocks(normalized);
-  if (tagBlocks.length > 0) return dedupeTextBlocks(tagBlocks);
-
-  const parts = normalized
-    .split(/\n{2,}/g)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return dedupeTextBlocks([html]);
-  return dedupeTextBlocks(parts);
-}
-
-/**
- * Split an HTML string on paragraph-ish boundaries without a DOM:
- *  - a `</p>` close ends a block, then following content becomes a new block
- *  - a `<br>` / `<br />` alone acts as a block separator AND a legit spacer
- *    for content that came from a rich editor (turn it into a fresh block)
- * Works on the server (no DOMParser). Preserves any inline tags inside a block.
- */
-function splitHtmlIntoBlocks(html: string): string[] {
-  const input = String(html || "");
-  // Turn every <br> into a paragraph boundary. This makes a single-<br>
-  // spacer a real paragraph too, so an author who typed <br /> to separate
-  // lines gets a skipped line on the broadsheet instead of a soft break.
-  const normalized = input
-    .replace(/<br\s*\/?>/gi, "</p><p>")
-    .replace(/\r\n/g, "\n");
-
-  const blocks: string[] = [];
-  const parts = normalized.split(/<\/p>/gi);
-
-  for (let raw of parts) {
-    let seg = raw.replace(/^\s+|\s+$/g, "");
-    // If this segment still has an unmatched <p> open (e.g. "<p>some text"),
-    // it's a partial block that continues; but here each </p> already splits,
-    // so the only stray-open case is leftover content after the last </p>.
-    seg = seg.replace(/^<p[^>]*>/gi, "<p>");
-    if (!seg) continue;
-    blocks.push(seg);
-  }
-
-  // Wrap any block not already opened by `<p>` so the container's [&_p] rules
-  // apply and it renders as a real paragraph.
-  return blocks
-    .map((b) => (/^\s*<p(\s[^>]*)?>/i.test(b) ? b : `<p>${b}</p>`))
-    .filter(Boolean);
 }
 
 function addClassToFirstParagraph(html: string, className: string) {
