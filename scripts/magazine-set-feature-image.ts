@@ -22,7 +22,9 @@
  *   --page-id <n>   pin a specific builder page when the needle matches several
  *   --old-url <url> also replace every occurrence of this URL in the page (string
  *                   fields and image-array entries) with --url, then dedupe the
- *                   arrays (handles placeholder SVGs the IDML import left behind)
+ *                   arrays (handles placeholder SVGs the IDML import left behind).
+ *                   Matching is by exact URL or by filename, so host/encoding/token
+ *                   differences still get replaced.
  *   --no-backfill   only set content.featureImage (default also backfills empty
  *                   single-image fields image/heroImage/photo/mainImage)
  */
@@ -48,16 +50,29 @@ const BACKFILL_FIELDS = ['image', 'heroImage', 'photo', 'mainImage'];
 
 const IMAGE_ARRAY_FIELDS = ['images', 'gallery', 'imageUrls', 'additionalImages', 'logoImages'];
 
+function isOldTarget(value: string, oldUrl: string, newUrl: string): boolean {
+  if (value === newUrl) return false;
+  if (value === oldUrl) return true;
+  // Match by filename too ("IMG_0075.PNG") so we survive encoding/host/token
+  // differences between the stored URL and the URL passed on the CLI.
+  try {
+    const oldBase = basenameUrl(oldUrl);
+    return Boolean(oldBase) && basenameUrl(value) === oldBase;
+  } catch {
+    return false;
+  }
+}
+
 function replaceInContent(content: Record<string, unknown>, oldUrl: string, newUrl: string): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(content || {})) {
     if (typeof v === 'string') {
-      out[k] = v === oldUrl ? newUrl : v;
+      out[k] = isOldTarget(v, oldUrl, newUrl) ? newUrl : v;
     } else if (IMAGE_ARRAY_FIELDS.includes(k) && Array.isArray(v)) {
       const seen = new Set<string>();
       const next: unknown[] = [];
       for (const u of v) {
-        const resolved = typeof u === 'string' && u === oldUrl ? newUrl : u;
+        const resolved = typeof u === 'string' && isOldTarget(u, oldUrl, newUrl) ? newUrl : u;
         if (typeof resolved !== 'string' || !seen.has(resolved)) {
           next.push(resolved);
           if (typeof resolved === 'string') seen.add(resolved);
@@ -206,7 +221,8 @@ const EMPTY = '<empty>';
 function basenameUrl(value: string): string {
   try {
     const u = new URL(value.startsWith('http') ? value : `https://x/${value}`);
-    return decodeURIComponent(u.pathname.split('/').pop() || '').slice(0, 80);
+    const decoded = decodeURIComponent(u.pathname);
+    return decoded.split('/').filter(Boolean).pop()?.slice(0, 80) || '';
   } catch {
     return value.slice(0, 80);
   }
