@@ -13,7 +13,12 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ExternalLink } from "lucide-react";
-import { fixMagazineImageUrl, isPlaceholderImageUrl, filterNonPlaceholderUrls } from "@/lib/magazine-utils";
+import {
+  fixMagazineImageUrl,
+  isPlaceholderImageUrl,
+  filterNonPlaceholderUrls,
+  buildEdgeBalancedColumns,
+} from "@/lib/magazine-utils";
 import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 import {
@@ -977,6 +982,25 @@ export function useScrollReveal(
   }, [ref, options]);
 }
 
+/**
+ * Number of broadsheet body columns at the current viewport width, mirroring
+ * the breakpoints the multicol layout used: 1 base, 2 at md (768px), 3 at lg
+ * (1024px). Returns 0 until mounted so the first render can skip the columns.
+ */
+function useColumnCount(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const compute = () => {
+      const width = window.innerWidth;
+      setCount(width >= 1024 ? 3 : width >= 768 ? 2 : 1);
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+  return count;
+}
+
 // ─────────────────────────────────────────────
 // COVER PAGE
 // ─────────────────────────────────────────────
@@ -1857,47 +1881,16 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
     return out;
   }, [data, featureImage, imageVersion]);
 
-  // Continuous column flow: keep the story's paragraphs AND its gallery images
-  // in one ordered sequence, then let CSS multi-column (columns-*) flow the text
-  // naturally from one column into the next. Images are spread ~evenly through
-  // the text (never clustered); each is rendered as a full-column-width plate
-  // pinned to a column head/bottom in flowItemsWithPlacement below.
-  const flowItems: ColumnItem[] = useMemo(() => {
-    const texts: ColumnItem[] = bodyBlocks.map((html) => ({ kind: "text", html }));
-    if (galleryItems.length === 0) return texts;
-    if (texts.length === 0) return galleryItems;
-
-    const out: ColumnItem[] = [];
-    const nText = texts.length;
-    const nImg = galleryItems.length;
-    let textIdx = 0;
-    let imgIdx = 0;
-    // Even-spacing: the k-th image lands after ~(nText*(k+1))/(nImg+1) texts.
-    while (textIdx < nText || imgIdx < nImg) {
-      if (textIdx < nText) out.push(texts[textIdx++]);
-      const want = imgIdx < nImg ? (nText * (imgIdx + 1)) / (nImg + 1) : Infinity;
-      while (imgIdx < nImg && textIdx >= want) out.push(galleryItems[imgIdx++]);
-    }
-    return out;
-  }, [bodyBlocks, galleryItems]);
-
-  // Full-column-width plates pinned to a column edge. Instead of small images
-  // floated mid-text, each plate spans its full column and lands at the TOP
-  // (break-before-column) or BOTTOM (break-after-column) of a column,
-  // alternating for a balanced newspaper look.
-  const flowItemsWithPlacement = useMemo(() => {
-    let imgIdx = 0;
-    return flowItems.map((item) => {
-      if (item.kind === "img") {
-        const placement = imgIdx % 2 === 0 ? "head" : "bottom";
-        imgIdx++;
-        return { ...item, placement } as ColumnItem & {
-          placement: "head" | "bottom";
-        };
-      }
-      return item;
-    });
-  }, [flowItems]);
+  // Balanced body columns with images pinned to column head/bottom. Instead of
+  // racing CSS multi-column balancing with forced column breaks (which produced
+  // uneven columns), the body is cut into weighted, reading-order-preserving
+  // columns; every gallery image spans its full column width and sits at the
+  // column's top or bottom edge.
+  const columnCount = useColumnCount();
+  const columns: ColumnItem[][] = useMemo(() => {
+    if (columnCount === 0) return [];
+    return buildEdgeBalancedColumns(bodyBlocks, galleryItems, columnCount);
+  }, [bodyBlocks, galleryItems, columnCount]);
 
   return (
     <div
@@ -1987,38 +1980,44 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {flowItemsWithPlacement.length > 0 ? (
-              <div className="mt-6 columns-1 gap-6 md:columns-2 lg:columns-3 lg:gap-7 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
-                {flowItemsWithPlacement.map((item, i) =>
-                  item.kind === "img" ? (
-                    <figure
-                      key={`flow-img-${i}`}
-                      className={[
-                        "mb-4 w-full break-inside-avoid",
-                        item.placement === "head" ||
-                        i === flowItemsWithPlacement.length - 1
-                          ? "break-before-column"
-                          : "break-after-column",
-                      ].join(" ")}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.src}
-                        alt={item.alt}
-                        className="w-full object-cover"
-                      />
-                      <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                        {title}
-                      </figcaption>
-                    </figure>
-                  ) : (
-                    <SafeText
-                      key={`flow-t-${i}`}
-                      html={item.html}
-                      className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_p]:[hyphens:auto] [&_figure]:break-inside-avoid [&_blockquote]:break-inside-avoid"
-                    />
-                  ),
-                )}
+            {columns.length > 0 ? (
+              <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
+                {columns.map((col, colIdx) => (
+                  <div
+                    key={`col-${colIdx}`}
+                    className={[
+                      "min-w-0 flex-1",
+                      colIdx > 0
+                        ? "md:border-l md:border-[#191412]/20 md:pl-7"
+                        : "",
+                    ].join(" ")}
+                  >
+                    {col.map((item, i) =>
+                      item.kind === "img" ? (
+                        <figure
+                          key={`flow-img-${colIdx}-${i}`}
+                          className="mb-4 w-full"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.src}
+                            alt={item.alt}
+                            className="w-full object-cover"
+                          />
+                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                            {title}
+                          </figcaption>
+                        </figure>
+                      ) : (
+                        <SafeText
+                          key={`flow-t-${colIdx}-${i}`}
+                          html={item.html}
+                          className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_p]:[hyphens:auto]"
+                        />
+                      ),
+                    )}
+                  </div>
+                ))}
               </div>
             ) : null}
           </article>

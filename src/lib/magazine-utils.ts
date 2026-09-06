@@ -896,3 +896,84 @@ export function buildBalancedColumns(
   }
   return cols;
 }
+
+/**
+ * Build balanced columns for the broadsheet body that (a) preserve the natural
+ * top-to-bottom reading order and (b) pin every gallery image to the head or
+ * bottom edge of its column instead of floating mid-text.
+ *
+ * Unlike buildBalancedColumns (which row-distributes items across columns and
+ * therefore reorders the story), this cuts the interleaved story flow into
+ * columnCount sequential, weight-balanced chunks. Each column's images are then
+ * moved to the top (even image) or bottom (odd image) of that column — a
+ * weight-neutral move, so column lengths stay even.
+ */
+export function buildEdgeBalancedColumns(
+  blocks: string[],
+  imageItems: ColumnItem[],
+  columnCount: number,
+): ColumnItem[][] {
+  const n = Math.max(1, columnCount);
+
+  // 1. Interleave images ~evenly through the chunked text (same distribution
+  //    rule as buildBalancedColumns).
+  const textItems: ColumnItem[] = [];
+  for (const block of blocks) {
+    for (const html of chunkTextBlock(block)) {
+      textItems.push({ kind: 'text', html });
+    }
+  }
+
+  const imageOrder = new Map<ColumnItem, number>();
+  imageItems.forEach((img, idx) => imageOrder.set(img, idx));
+
+  const flow: ColumnItem[] = [];
+  if (imageItems.length === 0) {
+    flow.push(...textItems);
+  } else if (textItems.length === 0) {
+    flow.push(...imageItems);
+  } else {
+    const textTotal = textItems.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
+    const imageWeight = estimateColumnItemHeight({ kind: 'img', src: '', alt: '' });
+    let consumed = 0;
+    let imgIdx = 0;
+    for (const textItem of textItems) {
+      flow.push(textItem);
+      consumed += estimateColumnItemHeight(textItem);
+      while (imgIdx < imageItems.length) {
+        const want = (textTotal * (imgIdx + 1)) / (imageItems.length + 1);
+        if (consumed < want) break;
+        flow.push(imageItems[imgIdx]);
+        imgIdx++;
+      }
+    }
+    while (imgIdx < imageItems.length) flow.push(imageItems[imgIdx++]);
+  }
+
+  // 2. Sequential balanced split — preserves reading order.
+  const total = flow.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
+  const target = total / n;
+  const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
+  const heights = Array.from({ length: n }, () => 0);
+  let ci = 0;
+  for (const item of flow) {
+    const weight = estimateColumnItemHeight(item);
+    if (ci < n - 1 && heights[ci] > 0 && heights[ci] + weight > target) ci++;
+    cols[ci].push(item);
+    heights[ci] += weight;
+  }
+  const used = cols.filter((col) => col.length > 0);
+  if (used.length === 0) return used;
+
+  // 3. Pin images to the head (even) or bottom (odd) of their column.
+  return used.map((col) => {
+    const imgs = col.filter(
+      (it): it is Extract<ColumnItem, { kind: 'img' }> => it.kind === 'img',
+    );
+    if (imgs.length === 0) return col;
+    const texts = col.filter((it) => it.kind === 'text');
+    const headImgs = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 0);
+    const bottomImgs = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 1);
+    return [...headImgs, ...texts, ...bottomImgs];
+  });
+}
