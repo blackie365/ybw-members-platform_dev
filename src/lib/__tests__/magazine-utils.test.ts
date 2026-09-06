@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeMagazinePageContent, buildBalancedColumns, chunkTextBlock } from '../magazine-utils';
+import { normalizeMagazinePageContent, buildBalancedColumns, buildEdgeBalancedColumns, chunkTextBlock } from '../magazine-utils';
+import type { ColumnItem } from '../magazine-utils';
 
 describe('normalizeMagazinePageContent — text/body + intro/standfirst alias merge', () => {
   /**
@@ -211,5 +212,58 @@ describe('chunkTextBlock — split long paragraphs at sentence boundaries', () =
   it('never splits a blockquote', () => {
     const q = '<blockquote>' + Array.from({ length: 60 }, () => 'word').join(' ') + '</blockquote>';
     expect(chunkTextBlock(q, 100)).toEqual([q]);
+  });
+});
+
+describe('buildEdgeBalancedColumns — ordered columns with images at head/bottom', () => {
+  const block = (i: number) => `<p>paragraph number ${i} with a decent amount of words to act as body copy</p>`;
+  const img = (src: string): ColumnItem => ({ kind: 'img', src, alt: src });
+
+  it('keeps the natural reading order (column-major, like multicol)', () => {
+    const cols = buildEdgeBalancedColumns(
+      [block(1), block(2), block(3), block(4), block(5), block(6)],
+      [],
+      3,
+    );
+    expect(cols.length).toBeGreaterThanOrEqual(2);
+    const order = cols.flat().map((i) => (i.kind === 'text' ? Number(i.html.match(/paragraph number (\d+)/)![1]) : -1));
+    // Reading order must be the same as source order.
+    expect(order).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it('pins each image to the head or bottom edge of its column', () => {
+    const blocks = Array.from({ length: 12 }, (_, i) => block(i));
+    const images = [img('a.jpg'), img('b.jpg'), img('c.jpg')];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    const flat = cols.flat();
+    expect(flat.filter((i) => i.kind === 'img')).toHaveLength(3);
+    for (const col of cols) {
+      col.forEach((item, idx) => {
+        if (item.kind === 'img') {
+          // Image must be the first OR last item of its column.
+          expect(idx === 0 || idx === col.length - 1).toBe(true);
+        }
+      });
+    }
+  });
+
+  it('balances column weights so no column dominates', () => {
+    const blocks = Array.from({ length: 18 }, (_, i) => block(i));
+    const images = [img('a.jpg'), img('b.jpg')];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    const w = cols.map((c) =>
+      c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0),
+    );
+    const total = w.reduce((a, b) => a + b, 0);
+    for (const len of w) {
+      const share = len / Math.max(1, total);
+      expect(share).toBeGreaterThan(0.2);
+    }
+  });
+
+  it('returns a single ordered column when there is only one', () => {
+    const cols = buildEdgeBalancedColumns([block(1), block(2)], [], 1);
+    expect(cols).toHaveLength(1);
+    expect(cols[0].length).toBe(2);
   });
 });
