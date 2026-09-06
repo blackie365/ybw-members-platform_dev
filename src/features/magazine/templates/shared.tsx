@@ -1902,7 +1902,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             Yorkshire <span className="italic">Business</span>Woman
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
-            A broadsheet for the region&rsquo;s founders &amp; leaders
+            News for the region&rsquo;s entrepreneurs &amp; businesswomen
           </p>
         </div>
         {/* Dateline + printer's graduated rule stack */}
@@ -1911,7 +1911,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             The finest of its kind, printed without apology
           </span>
           <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
-            YBW · No. 12
+            YBW · No. 32
           </span>
         </div>
         <div className="mt-0 h-[2px] w-full bg-[#191412]" />
@@ -2179,7 +2179,7 @@ export const PageNewspaperCover = ({
             Yorkshire <span className="italic">Business</span>Woman
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
-            A broadsheet for the region&rsquo;s founders &amp; leaders
+            News for the region&rsquo;s entrepreneurs &amp; businesswomen
           </p>
         </div>
         <div className="h-px w-full bg-[#191412]/25" />
