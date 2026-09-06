@@ -2362,9 +2362,10 @@ export const PageNewspaperContents = ({ data, imageVersion = "", editionSlug }: 
           </span>
         </div>
 
-        {/* Contents grid — newspaper columns with page-number anchors */}
+        {/* Contents grid — newspaper columns; rows styled like the cover's
+            front-page teasers (big terracotta numeral + serif title + kicker) */}
         {items.length > 0 ? (
-          <div className="mt-10 columns-1 gap-10 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+          <ol className="mt-10 columns-1 gap-10 md:columns-2 xl:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
             {items.map((item: any, i: number) => {
               const rawPage = item?.page;
               const pageNum =
@@ -2372,36 +2373,40 @@ export const PageNewspaperContents = ({ data, imageVersion = "", editionSlug }: 
                   ? rawPage
                   : Number.parseInt(String(rawPage ?? "").trim(), 10);
               const nums = Number.isFinite(pageNum) && pageNum > 0 ? pageNum : i + 1;
-              const pageLabel = Number.isFinite(pageNum)
-                ? String(pageNum).padStart(2, "0")
-                : "";
+              const pageLabel = String(nums).padStart(2, "0");
               const hashHref = Number.isFinite(pageNum) ? `#page-${pageNum}` : "#";
               const pageHref =
                 slug && Number.isFinite(pageNum)
                   ? `/magazine/read/${slug}?page=${pageNum}`
                   : hashHref;
               return (
-                <a
+                <li
                   key={`${pageLabel}-${item?.title ?? i}`}
-                  href={pageHref}
-                  data-page={Number.isFinite(pageNum) ? String(pageNum) : undefined}
-                  className="mb-6 block break-inside-avoid border-b border-[#191412]/20 pb-5 text-left transition-colors hover:bg-[#f3efe8]"
+                  className="mb-6 break-inside-avoid border-b border-[#191412]/15 pb-5"
                 >
-                  <span className="font-sans text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#a3413a]">
-                    Page {pageLabel || String(nums).padStart(2, "0")}
-                  </span>
-                  <span className="mt-2 block font-serif text-[1.05rem] font-bold leading-snug text-[#191412] group-hover:underline hover:underline">
-                    {item?.title}
-                  </span>
-                  {item?.kicker ? (
-                    <span className="mt-1 block font-sans text-[0.7rem] uppercase tracking-[0.16em] text-[#191412]/55">
-                      {String(item.kicker).toUpperCase()}
+                  <a
+                    href={pageHref}
+                    data-page={Number.isFinite(pageNum) ? String(pageNum) : undefined}
+                    className="group block text-left"
+                  >
+                    <span className="flex items-baseline gap-3">
+                      <span className="font-serif text-[2rem] leading-none tracking-tight text-[#a3413a]">
+                        {pageLabel}
+                      </span>
+                      <span className="font-serif text-[1.05rem] font-bold leading-[1.2] text-[#191412] group-hover:underline">
+                        {item?.title}
+                      </span>
                     </span>
-                  ) : null}
-                </a>
+                    {item?.kicker ? (
+                      <span className="mt-1.5 block font-sans text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[#191412]/55">
+                        {String(item.kicker).toUpperCase()}
+                      </span>
+                    ) : null}
+                  </a>
+                </li>
               );
             })}
-          </div>
+          </ol>
         ) : null}
 
         {/* Folio */}
