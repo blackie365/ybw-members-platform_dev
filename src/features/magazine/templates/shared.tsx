@@ -1860,8 +1860,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   // Continuous column flow: keep the story's paragraphs AND its gallery images
   // in one ordered sequence, then let CSS multi-column (columns-*) flow the text
   // naturally from one column into the next. Images are spread ~evenly through
-  // the text (never clustered), each marked break-inside-avoid so a plate never
-  // gets bisected by a column break.
+  // the text (never clustered); each is rendered as a full-column-width plate
+  // pinned to a column head/bottom in flowItemsWithPlacement below.
   const flowItems: ColumnItem[] = useMemo(() => {
     const texts: ColumnItem[] = bodyBlocks.map((html) => ({ kind: "text", html }));
     if (galleryItems.length === 0) return texts;
@@ -1880,6 +1880,24 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
     }
     return out;
   }, [bodyBlocks, galleryItems]);
+
+  // Full-column-width plates pinned to a column edge. Instead of small images
+  // floated mid-text, each plate spans its full column and lands at the TOP
+  // (break-before-column) or BOTTOM (break-after-column) of a column,
+  // alternating for a balanced newspaper look.
+  const flowItemsWithPlacement = useMemo(() => {
+    let imgIdx = 0;
+    return flowItems.map((item) => {
+      if (item.kind === "img") {
+        const placement = imgIdx % 2 === 0 ? "head" : "bottom";
+        imgIdx++;
+        return { ...item, placement } as ColumnItem & {
+          placement: "head" | "bottom";
+        };
+      }
+      return item;
+    });
+  }, [flowItems]);
 
   return (
     <div
@@ -1902,7 +1920,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             Yorkshire <span className="italic">Business</span>Woman
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
-            A broadsheet for the region&rsquo;s founders &amp; leaders
+            News for the region&rsquo;s entrepreneurs &amp; businesswomen
           </p>
         </div>
         {/* Dateline + printer's graduated rule stack */}
@@ -1911,7 +1929,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             The finest of its kind, printed without apology
           </span>
           <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
-            YBW · No. 12
+            YBW · No. 32
           </span>
         </div>
         <div className="mt-0 h-[2px] w-full bg-[#191412]" />
@@ -1969,13 +1987,19 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {flowItems.length > 0 ? (
+            {flowItemsWithPlacement.length > 0 ? (
               <div className="mt-6 columns-1 gap-6 md:columns-2 lg:columns-3 lg:gap-7 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
-                {flowItems.map((item, i) =>
+                {flowItemsWithPlacement.map((item, i) =>
                   item.kind === "img" ? (
                     <figure
                       key={`flow-img-${i}`}
-                      className="float-left mb-3 mr-4 w-[58%] break-inside-avoid"
+                      className={[
+                        "mb-4 w-full break-inside-avoid",
+                        item.placement === "head" ||
+                        i === flowItemsWithPlacement.length - 1
+                          ? "break-before-column"
+                          : "break-after-column",
+                      ].join(" ")}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -2179,7 +2203,7 @@ export const PageNewspaperCover = ({
             Yorkshire <span className="italic">Business</span>Woman
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
-            A broadsheet for the region&rsquo;s founders &amp; leaders
+            News for the region&rsquo;s entrepreneurs &amp; businesswomen
           </p>
         </div>
         <div className="h-px w-full bg-[#191412]/25" />
