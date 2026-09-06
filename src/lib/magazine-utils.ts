@@ -739,7 +739,7 @@ export function isReaderSchemaCurrent(doc: unknown): boolean {
 
 export type ColumnItem =
   | { kind: 'text'; html: string }
-  | { kind: 'img'; src: string; alt: string };
+  | { kind: 'img'; src: string; alt: string; weight?: number };
 
 // Height weight for a flow item, calibrated to the *rendered* broadsheet
 // measure. Text is weighted by the number of lines it actually occupies at the
@@ -751,9 +751,25 @@ export type ColumnItem =
 // ~184px with its caption and spacing occupies roughly 12-14 text lines.
 const CHARS_PER_LINE = 30;
 const IMAGE_LINES = 14;
+// Reference aspect ratio (w/h) assumed for a plate at the base IMAGE_LINES
+// weight; a portrait keeps its width but renders taller, so it is weighted up,
+// and a wide landscape down.
+const IMAGE_BASE_RATIO = 1.5;
+
+/**
+ * Return the image's weight in "rendered text lines" for its aspect ratio.
+ * Rects that are portrait (tall) relative to a 3/2 landscape render more lines
+ * than the base, ultra-wide ones fewer; clamps to stay within reason.
+ */
+export function estimateImageLines(ratio: number | undefined): number {
+  if (!ratio || !Number.isFinite(ratio) || ratio <= 0) return IMAGE_LINES;
+  return Math.round(
+    Math.min(48, Math.max(8, IMAGE_LINES * (IMAGE_BASE_RATIO / ratio))),
+  );
+}
 
 function estimateColumnItemHeight(item: ColumnItem): number {
-  if (item.kind === 'img') return IMAGE_LINES;
+  if (item.kind === 'img') return item.weight ?? IMAGE_LINES;
   const text = String(item.html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
@@ -902,11 +918,13 @@ export function buildBalancedColumns(
  * top-to-bottom reading order and (b) pin every gallery image to the head or
  * bottom edge of its column instead of floating mid-text.
  *
- * Unlike buildBalancedColumns (which row-distributes items across columns and
- * therefore reorders the story), this cuts the interleaved story flow into
- * columnCount sequential, weight-balanced chunks. Each column's images are then
- * moved to the top (even image) or bottom (odd image) of that column — a
- * weight-neutral move, so column lengths stay even.
+ * Images are assigned to distinct columns spread evenly through the story (so
+ * at most one plate per column while there are no more images than columns —
+ * overflow is stacked only when unavoidable), then text is cut into
+ * weight-balanced sequential chunks that reserve each column's image height.
+ * Every image is placed at its column's TOP (even image) or BOTTOM (odd
+ * image). Callers can set an image's `weight` (see estimateImageLines) so tall
+ * portrait plates count against the column balance by their real height.
  */
 export function buildEdgeBalancedColumns(
   blocks: string[],
@@ -915,8 +933,7 @@ export function buildEdgeBalancedColumns(
 ): ColumnItem[][] {
   const n = Math.max(1, columnCount);
 
-  // 1. Interleave images ~evenly through the chunked text (same distribution
-  //    rule as buildBalancedColumns).
+  // 1. Chunk the body for fine-grained balance.
   const textItems: ColumnItem[] = [];
   for (const block of blocks) {
     for (const html of chunkTextBlock(block)) {
@@ -924,56 +941,86 @@ export function buildEdgeBalancedColumns(
     }
   }
 
+  if (textItems.length === 0) {
+    const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
+    imageItems.forEach((img, i) => cols[Math.min(n - 1, i)].push(img));
+    return cols.filter((col) => col.length > 0);
+  }
+
   const imageOrder = new Map<ColumnItem, number>();
   imageItems.forEach((img, idx) => imageOrder.set(img, idx));
 
-  const flow: ColumnItem[] = [];
-  if (imageItems.length === 0) {
-    flow.push(...textItems);
-  } else if (textItems.length === 0) {
-    flow.push(...imageItems);
-  } else {
-    const textTotal = textItems.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
-    const imageWeight = estimateColumnItemHeight({ kind: 'img', src: '', alt: '' });
-    let consumed = 0;
-    let imgIdx = 0;
-    for (const textItem of textItems) {
-      flow.push(textItem);
-      consumed += estimateColumnItemHeight(textItem);
-      while (imgIdx < imageItems.length) {
-        const want = (textTotal * (imgIdx + 1)) / (imageItems.length + 1);
-        if (consumed < want) break;
-        flow.push(imageItems[imgIdx]);
-        imgIdx++;
+  // 2. Give each image its own column, spread across the page following the
+  //    even-interleave fraction (k+1)/(m+1) of the story. Falls back to the
+  //    nearest free column (preferring the next one), then to the least-loaded
+  //    column when there are more images than columns.
+  const colImages: ColumnItem[][] = Array.from({ length: n }, () => []);
+  if (imageItems.length > 0) {
+    const usedCols = new Set<number>();
+    imageItems.forEach((_, k) => {
+      let ci = Math.min(
+        n - 1,
+        Math.floor(((k + 1) / (imageItems.length + 1)) * n),
+      );
+      if (usedCols.has(ci)) {
+        let best = -1;
+        let bestDist = Infinity;
+        for (let j = 0; j < n; j++) {
+          if (usedCols.has(j)) continue;
+          const d = Math.abs(j - ci);
+          if (d < bestDist) {
+            bestDist = d;
+            best = j;
+          }
+        }
+        if (best !== -1) {
+          ci = best;
+        } else {
+          let lightest = 0;
+          let lightW = Infinity;
+          colImages.forEach((imgs, j) => {
+            const w = imgs.reduce((s, im) => s + estimateColumnItemHeight(im), 0);
+            if (w < lightW) {
+              lightW = w;
+              lightest = j;
+            }
+          });
+          ci = lightest;
+        }
       }
-    }
-    while (imgIdx < imageItems.length) flow.push(imageItems[imgIdx++]);
+      usedCols.add(ci);
+      colImages[ci].push(imageItems[k]);
+    });
   }
 
-  // 2. Sequential balanced split — preserves reading order.
-  const total = flow.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
-  const target = total / n;
+  // 3. Reserving room for each column's image(s), sequentially balance the
+  //    text so reading order is preserved and columns stay even.
+  const capacity = colImages.map((imgs) =>
+    imgs.reduce((s, im) => s + estimateColumnItemHeight(im), 0),
+  );
+  const textTotal = textItems.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
+  const imageTotal = capacity.reduce((a, b) => a + b, 0);
+  const target = (textTotal + imageTotal) / n;
+
   const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
-  const heights = Array.from({ length: n }, () => 0);
+  const used = Array.from({ length: n }, () => 0);
   let ci = 0;
-  for (const item of flow) {
-    const weight = estimateColumnItemHeight(item);
-    if (ci < n - 1 && heights[ci] > 0 && heights[ci] + weight > target) ci++;
-    cols[ci].push(item);
-    heights[ci] += weight;
+  for (const textItem of textItems) {
+    const w = estimateColumnItemHeight(textItem);
+    const room = Math.max(1, target - capacity[ci]);
+    while (ci < n - 1 && used[ci] > 0 && used[ci] + w > room) ci++;
+    cols[ci].push(textItem);
+    used[ci] += w;
   }
-  const used = cols.filter((col) => col.length > 0);
-  if (used.length === 0) return used;
 
-  // 3. Pin images to the head (even) or bottom (odd) of their column.
-  return used.map((col) => {
-    const imgs = col.filter(
-      (it): it is Extract<ColumnItem, { kind: 'img' }> => it.kind === 'img',
-    );
-    if (imgs.length === 0) return col;
-    const texts = col.filter((it) => it.kind === 'text');
-    const headImgs = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 0);
-    const bottomImgs = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 1);
-    return [...headImgs, ...texts, ...bottomImgs];
-  });
+  // 4. Compose: head images, then the column's text, then bottom images.
+  return cols
+    .map((col, j) => {
+      const imgs = colImages[j];
+      if (imgs.length === 0) return col;
+      const head = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 0);
+      const bottom = imgs.filter((img) => (imageOrder.get(img) ?? 0) % 2 === 1);
+      return [...head, ...col, ...bottom];
+    })
+    .filter((col) => col.length > 0);
 }

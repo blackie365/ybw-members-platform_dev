@@ -18,6 +18,7 @@ import {
   isPlaceholderImageUrl,
   filterNonPlaceholderUrls,
   buildEdgeBalancedColumns,
+  estimateImageLines,
 } from "@/lib/magazine-utils";
 import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
@@ -1001,6 +1002,44 @@ function useColumnCount(): number {
   return count;
 }
 
+/**
+ * Measure the natural aspect ratio (w/h) of each image URL once per session.
+ * Returns a src→ratio map so the column balancer can weight portrait plates by
+ * their real rendered height instead of a flat constant. Measurements are
+ * cached by URL, so hot-reloads and re-mounts reuse the first result.
+ */
+function useImageRatios(srcs: string[]): Map<string, number> {
+  const [ratios, setRatios] = useState<Map<string, number>>(new Map());
+  const cacheRef = useRef<Map<string, number>>(new Map());
+  const srcListRef = useRef<string[]>([]);
+  if (srcListRef.current.length === 0 && srcs.length > 0) {
+    srcListRef.current = srcs;
+  }
+  useEffect(() => {
+    if (srcListRef.current.length === 0) return;
+    const pending = new Map<string, HTMLImageElement>();
+    for (const src of srcListRef.current) {
+      if (cacheRef.current.has(src)) continue;
+      const img = new window.Image();
+      pending.set(src, img);
+      img.onload = () => {
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          cacheRef.current.set(src, img.naturalWidth / img.naturalHeight);
+          setRatios(new Map(cacheRef.current));
+        }
+      };
+      img.src = src;
+    }
+    return () => {
+      pending.forEach((img) => {
+        img.onload = null;
+        img.src = "";
+      });
+    };
+  }, []);
+  return ratios;
+}
+
 // ─────────────────────────────────────────────
 // COVER PAGE
 // ─────────────────────────────────────────────
@@ -1845,10 +1884,10 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
 
-  // Balanced body columns + interleaved gallery images. The newspaper spread
-  // should show every image attached to the story (the "add more images"
-  // gallery), not just the hero, and should equalise column length on screen.
-  const galleryItems: ColumnItem[] = useMemo(() => {
+  // Gallery plates for the body columns (everything after the hero), deduped
+  // and with hero skipped. Kept raw so the same list drives both image
+  // measurement and the weighted column items below.
+  const gallerySources: string[] = useMemo(() => {
     const raw = Array.isArray(data.gallery)
       ? data.gallery
       : Array.isArray(data.images)
@@ -1857,7 +1896,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           ? data.additionalImages
           : [];
     const seen = new Set<string>();
-    const out: ColumnItem[] = [];
+    const out: string[] = [];
     for (const item of raw) {
       let src = "";
       if (typeof item === "string") src = String(item || "").trim();
@@ -1869,17 +1908,28 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
       if (!fixed || isPlaceholderImageUrl(fixed)) continue;
       if (seen.has(fixed)) continue;
       seen.add(fixed);
-      // Skip the hero plate — it already renders as the opening figure.
       if (featureImage && fixed === fixMagazineImageUrl(featureImage, imageVersion))
         continue;
-      out.push({
-        kind: "img" as const,
-        src: fixed,
-        alt: String(data.title || "Story image"),
-      });
+      out.push(fixed);
     }
     return out;
   }, [data, featureImage, imageVersion]);
+
+  const imageRatios = useImageRatios(gallerySources);
+
+  const galleryItems: ColumnItem[] = useMemo(
+    () =>
+      gallerySources.map((src) => {
+        const ratio = imageRatios.get(src);
+        return {
+          kind: "img" as const,
+          src,
+          alt: String(data.title || "Story image"),
+          ...(ratio === undefined ? {} : { weight: estimateImageLines(ratio) }),
+        };
+      }),
+    [gallerySources, imageRatios, data],
+  );
 
   // Balanced body columns with images pinned to column head/bottom. Instead of
   // racing CSS multi-column balancing with forced column breaks (which produced
