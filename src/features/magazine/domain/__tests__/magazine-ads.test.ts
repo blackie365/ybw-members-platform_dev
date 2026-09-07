@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyMagazineAdsToEdition,
   normalizeMagazineAdRecord,
+  resolveAdFormat,
   sortMagazineAds,
   toCreative,
 } from '../magazine-ads';
@@ -26,10 +27,31 @@ function spreadPage(overrides: Record<string, unknown> = {}) {
   };
 }
 
+describe('resolveAdFormat', () => {
+  it('lets an explicit format win', () => {
+    expect(resolveAdFormat('leaderboard', 'sidebarMpu-123')).toBe('leaderboard');
+    expect(resolveAdFormat('square', 'headerLeaderboard')).toBe('square');
+    expect(resolveAdFormat('mpu', 'headerLeaderboard')).toBe('mpu');
+  });
+
+  it('derives from the site slot name when no explicit format is set', () => {
+    expect(resolveAdFormat(undefined, 'headerLeaderboard')).toBe('leaderboard');
+    expect(resolveAdFormat(undefined, 'ads/headerLeaderboard')).toBe('leaderboard');
+    expect(resolveAdFormat(undefined, 'sidebarMpu-123')).toBe('mpu');
+    expect(resolveAdFormat(undefined, 'midArticle')).toBe('mpu');
+    expect(resolveAdFormat(undefined, 'skyscraper')).toBe('mpu');
+  });
+
+  it('falls back to mpu for unknown ids and empty input', () => {
+    expect(resolveAdFormat(undefined, 'ad-1')).toBe('mpu');
+    expect(resolveAdFormat(undefined, undefined)).toBe('mpu');
+  });
+});
+
 describe('normalizeMagazineAdRecord', () => {
   it('reads image/url/alt/label from the stored record', () => {
     const r = normalizeMagazineAdRecord({ id: 'a', label: 'X', image: 'https://x/i.jpg', url: 'https://x', alt: 'Ad' });
-    expect(r).toEqual({ id: 'a', label: 'X', image: 'https://x/i.jpg', url: 'https://x', alt: 'Ad', enabled: true, position: 0 });
+    expect(r).toEqual({ id: 'a', label: 'X', image: 'https://x/i.jpg', url: 'https://x', alt: 'Ad', enabled: true, position: 0, format: 'mpu' });
   });
 
   it('handles legacy field names (imageUrl/linkUrl/altText)', () => {
@@ -63,13 +85,19 @@ describe('sortMagazineAds', () => {
 });
 
 describe('toCreative', () => {
-  it('maps to the rail creative shape', () => {
+  it('maps to the rail creative shape with a derived format', () => {
     expect(toCreative(CATALOG[0])).toEqual({
       image: 'https://img/qc.jpg',
       url: 'https://qc.example',
       alt: 'Advertisement',
       label: 'Quilter',
+      format: 'mpu',
     });
+  });
+
+  it('derives leaderboard format from a header slot id', () => {
+    const ad = { id: 'headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad' };
+    expect(toCreative(ad).format).toBe('leaderboard');
   });
 });
 
@@ -94,11 +122,32 @@ describe('applyMagazineAdsToEdition', () => {
     expect(next.pages[0]).toEqual({ id: 'p1', template: 'cover', content: {} });
   });
 
-  it('fills a default single slot on quote-rail spreads when the catalog has enabled ads', () => {
+  it('default-fills a quote-rail spread with one slot per catalog creative (header + rail), capped at 2', () => {
     const edition = { id: 'e', pages: [spreadPage()] };
     const next = applyMagazineAdsToEdition(edition, CATALOG) as any;
+    expect(next.pages[0].content.adSlots).toBe(2);
+    expect(next.pages[0].content.ads).toEqual([
+      toCreative(CATALOG[0]),
+      toCreative(CATALOG[1]),
+    ]);
+  });
+
+  it('puts a leaderboard creative first so it lands in the header, plus one rail ad', () => {
+    const lead = { id: 'ads/headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad', enabled: true, position: 0 };
+    const mpu = { ...CATALOG[1], position: 1 };
+    const edition = { id: 'e', pages: [spreadPage()] };
+    const next = applyMagazineAdsToEdition(edition, [lead, mpu]) as any;
+    expect(next.pages[0].content.ads).toEqual([toCreative(lead), toCreative(mpu)]);
+    expect(next.pages[0].content.ads[0].format).toBe('leaderboard');
+    expect(next.pages[0].content.ads[1].format).toBe('mpu');
+  });
+
+  it('default-fills a single header slot when the catalog only has a leaderboard', () => {
+    const lead = { id: 'ads/headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad', enabled: true, position: 0 };
+    const edition = { id: 'e', pages: [spreadPage()] };
+    const next = applyMagazineAdsToEdition(edition, [lead]) as any;
     expect(next.pages[0].content.adSlots).toBe(1);
-    expect(next.pages[0].content.ads).toEqual([toCreative(CATALOG[0])]);
+    expect(next.pages[0].content.ads[0].format).toBe('leaderboard');
   });
 
   it('leaves quote-rail spreads alone when the catalog has no enabled creative', () => {
@@ -120,14 +169,16 @@ describe('applyMagazineAdsToEdition', () => {
     expect(next.pages[0].content.ads).toBeUndefined();
   });
 
-  it('respects an explicit content.ads override verbatim', () => {
-    const explicit = { image: 'https://x/explicit.jpg', url: 'https://x/x', alt: 'X', label: 'X' };
+  it('respects an explicit content.ads override and derives its format', () => {
+    const explicit = { id: 'ads/headerLeaderboard', image: 'https://x/explicit.jpg', url: 'https://x/x', alt: 'X', label: 'X' };
     const edition = {
       id: 'e',
       pages: [spreadPage({ content: { pullQuotes: undefined, ads: [explicit] } })],
     };
     const next = applyMagazineAdsToEdition(edition, CATALOG) as any;
-    expect(next.pages[0].content.ads).toEqual([explicit]);
+    expect(next.pages[0].content.ads).toEqual([
+      { image: 'https://x/explicit.jpg', url: 'https://x/x', alt: 'X', label: 'X', format: 'leaderboard' },
+    ]);
     expect(next.pages[0].content.adSlots).toBe(1);
   });
 

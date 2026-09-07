@@ -9,16 +9,26 @@
  *   - `applyMagazineAdsToEdition`   attach creative to spread pages.
  *
  * Fill precedence for a spread page (feature-left / feature-right / editor-note):
- *   1. explicit `content.ads` array  — trusted verbatim.
+ *   1. explicit `content.ads` array  — trusted verbatim (format normalized).
  *   2. explicit `content.adSlots` number — filled from the catalog (0 = none,
  *      reserved boxes stay visible when the catalog is empty).
- *   3. default: a spread that already has a pull-quote rail gets ONE ad slot
- *      when the catalog has enabled creative. This is the "use the ads you've
- *      set up" behaviour — the Ads-tab / magazine_ads catalog is the on/off
- *      switch, and no per-page config is required to start.
+ *   3. default: a spread that already has a pull-quote rail gets a header
+ *      leaderboard (if any) plus one rail ad (if any) when the catalog has
+ *      enabled creative. This is the "use the ads you've set up" behaviour —
+ *      the Ads-tab / magazine_ads catalog is the on/off switch, and no per-page
+ *      config is required to start.
  *
  * Slots cap at 6 to keep a misconfigured edition from overflowing a rail.
  */
+
+/**
+ * Spread ad format. Mirrors the formats the site-wide Ads system already uses
+ * (see `src/components/magazine/AdSlot.tsx`):
+ *   - `leaderboard` → wide 780×90 banner, rendered in the spread header.
+ *   - `mpu`         → medium rectangle (skyscraper-ish), rendered in the rail.
+ *   - `square`      → square/MPU, also rendered in the rail.
+ */
+export type MagazineAdFormat = 'leaderboard' | 'mpu' | 'square';
 
 export interface MagazineAdRecord {
   id: string;
@@ -28,14 +38,51 @@ export interface MagazineAdRecord {
   alt?: string;
   enabled?: boolean;
   position?: number;
+  format?: MagazineAdFormat;
 }
 
-/** Creative shape consumed by the newspaper spread rail (mirrors AdSlotData). */
+/** Creative shape consumed by the newspaper spread (mirrors AdSlotData). */
 export interface MagazineAdCreative {
   image: string;
   url: string;
   alt: string;
   label: string;
+  format: MagazineAdFormat;
+}
+
+/**
+ * Derive the spread format for an ad record. An explicit `format` wins;
+ * otherwise the site slot name embedded in the record id is used (so the
+ * "format field already exists" in the Ads tab carries over on import):
+ *   - `headerLeaderboard` / `leaderboard` → `leaderboard`
+ *   - `sidebarMpu` / `midArticle` / `mpu` / `skyscraper` → `mpu`
+ * Anything else (or nothing) falls back to `mpu`.
+ */
+export function resolveAdFormat(
+  explicit: unknown,
+  id?: string | null,
+): MagazineAdFormat {
+  const e = String(explicit || '').trim().toLowerCase();
+  if (e === 'leaderboard' || e === 'banner' || e === 'header') return 'leaderboard';
+  if (e === 'square') return 'square';
+  if (e === 'mpu' || e === 'skyscraper' || e === 'sidebar' || e === 'mid-article') {
+    return 'mpu';
+  }
+  if (e) return 'mpu';
+
+  const token = String(id || '').trim().toLowerCase();
+  if (token.includes('headerleaderboard') || token.includes('leaderboard')) {
+    return 'leaderboard';
+  }
+  if (
+    token.includes('sidebarmpu') ||
+    token.includes('midarticle') ||
+    token.includes('skyscraper') ||
+    token.includes('mpu')
+  ) {
+    return 'mpu';
+  }
+  return 'mpu';
 }
 
 const SPREAD_TEMPLATES = new Set([
@@ -51,6 +98,14 @@ function str(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+/** Reorder items so ones passing `predicate` come first, preserving order. */
+function stablePartition<T>(items: T[], predicate: (item: T) => boolean): T[] {
+  const keep: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) (predicate(item) ? keep : rest).push(item);
+  return [...keep, ...rest];
+}
+
 export function normalizeMagazineAdRecord(raw: any): MagazineAdRecord | null {
   if (!raw || typeof raw !== 'object') return null;
   const image = str(raw.image || raw.imageUrl || raw.src);
@@ -63,6 +118,7 @@ export function normalizeMagazineAdRecord(raw: any): MagazineAdRecord | null {
     alt: str(raw.alt || raw.altText) || 'Advertisement',
     enabled: raw.enabled !== false,
     position: typeof raw.position === 'number' ? raw.position : 0,
+    format: resolveAdFormat(raw.format, raw.id),
   };
 }
 
@@ -72,6 +128,7 @@ export function toCreative(record: MagazineAdRecord): MagazineAdCreative {
     url: record.url || '',
     alt: record.alt || '',
     label: record.label || '',
+    format: resolveAdFormat(record.format, record.id),
   };
 }
 
@@ -98,6 +155,7 @@ function normalizeExplicitAds(raw: unknown[]): MagazineAdCreative[] {
       url: str(r.url || r.href || r.linkUrl),
       alt: str(r.alt || r.altText || r.label) || 'Advertisement',
       label: str(r.label || r.name) || 'Advertisement',
+      format: resolveAdFormat(r.format, str(r.id) || str(r.slot)),
     });
   }
   return out;
@@ -147,13 +205,25 @@ export function applyMagazineAdsToEdition(
     let base: MagazineAdCreative[] = [];
     if (explicitAds !== null) base = normalizeExplicitAds(explicitAds as unknown[]);
 
+    // Catalog pool for filling. Leaderboards are ordered first so the default
+    // fill ("one header banner + one rail ad") naturally picks the right
+    // format for each region; relative position order is preserved inside each
+    // format group so admin ordering still matters within a placement.
+    const pool = stablePartition(
+      sortMagazineAds(catalog)
+        .filter((ad) => ad.enabled !== false)
+        .map(toCreative),
+      (ad) => ad.format === 'leaderboard',
+    );
+
     let slotCount: number;
     if (explicitCount !== null) {
       slotCount = Math.max(base.length, explicitCount);
     } else if (explicitAds !== null) {
       slotCount = base.length;
     } else if (pageHasQuoteRail(content) && hasCatalogCreative) {
-      slotCount = 1;
+      // Default spread: one header leaderboard (if any) + one rail ad (if any).
+      slotCount = Math.min(2, pool.length);
     } else {
       return rawPage;
     }
@@ -162,9 +232,6 @@ export function applyMagazineAdsToEdition(
 
     // Fill extra slots (beyond explicit creative) from the catalog; unused
     // capacity shows as reserved placeholders when the catalog is empty.
-    const pool = sortMagazineAds(catalog)
-      .filter((ad) => ad.enabled !== false)
-      .map(toCreative);
     const ads: MagazineAdCreative[] = [];
     for (let i = 0; i < slotCount; i++) {
       if (i < base.length) {
@@ -172,7 +239,7 @@ export function applyMagazineAdsToEdition(
       } else if (pool.length > 0) {
         ads.push(pool[i % pool.length]);
       } else {
-        ads.push({ image: '', url: '', alt: 'Advertisement', label: 'Advertisement' });
+        ads.push({ image: '', url: '', alt: 'Advertisement', label: 'Advertisement', format: 'mpu' });
       }
     }
 

@@ -78,6 +78,7 @@ describe('buildClassifiedEntries', () => {
         company: 'Acme Ltd',
         location: 'Leeds',
         website: 'https://acme.example',
+        image: '',
         featured: false,
       },
     ]);
@@ -90,6 +91,25 @@ describe('buildClassifiedEntries', () => {
       member({ clerkId: 'u3', websiteUrl: 'mailto:jane@example.com' }),
     ]);
     expect(entries.map((e) => e.website)).toEqual(['', 'https://ok.example', '']);
+  });
+
+  it('resolves the member image, preferring real uploads over blank gravatars', () => {
+    const entries = buildClassifiedEntries([
+      member({ clerkId: 'u1', image: 'https://storage.googleapis.com/x/u1.jpg' }),
+      member({
+        clerkId: 'u2',
+        profileImage: '',
+        avatarUrl: 'https://gravatar.com/avatar/abc?d=blank',
+      }),
+      member({ clerkId: 'u3', profileImage: 'https://a.example/p3.png' }),
+      member({ clerkId: 'u4' }),
+    ]);
+    expect(entries.map((e) => e.image)).toEqual([
+      'https://storage.googleapis.com/x/u1.jpg',
+      '',
+      'https://a.example/p3.png',
+      '',
+    ]);
   });
 
   it('sorts alphabetically by surname then given name', () => {

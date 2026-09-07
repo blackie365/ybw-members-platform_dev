@@ -15,41 +15,65 @@ function formatSnapshotDate(raw: string): string {
   }
 }
 
-function Entry({ entry }: { entry: ClassifiedEntry }) {
-  const details = [
-    entry.role,
-    entry.company,
-    entry.location,
-  ]
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .join(' · ');
+function initialsFor(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
 
+function Entry({ entry }: { entry: ClassifiedEntry }) {
   return (
-    <li className="break-inside-avoid py-3 border-b border-[#191412]/15">
-      <p className="font-serif text-[0.95rem] font-bold leading-snug text-[#191412]">
-        {entry.name}
-        {entry.featured ? (
-          <span className="ml-1.5 align-middle rounded-[3px] bg-[#a3413a]/10 border border-[#a3413a]/30 px-1 py-px font-sans text-[0.55rem] font-bold uppercase tracking-[0.18em] text-[#a3413a]">
-            Featured
+    <li className="break-inside-avoid border border-[#191412]/15 bg-[#fdfdfb] p-3">
+      <div className="flex gap-3">
+        {entry.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.image}
+            alt={entry.name}
+            className="h-12 w-12 shrink-0 rounded-[2px] border border-[#191412]/10 object-cover grayscale contrast-[1.05]"
+          />
+        ) : (
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[2px] bg-[#191412]/5 font-serif text-[0.85rem] font-bold text-[#191412]/50">
+            {initialsFor(entry.name)}
           </span>
-        ) : null}
-      </p>
-      {details ? (
-        <p className="mt-0.5 font-sans text-[0.74rem] leading-snug text-[#191412]/75">
-          {details}
-        </p>
-      ) : null}
-      {entry.website ? (
-        <a
-          href={entry.website}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="mt-1 inline-block font-sans text-[0.7rem] text-[#a3413a] underline underline-offset-2 hover:opacity-80"
-        >
-          {entry.website.replace(/^https?:\/\//i, '')}
-        </a>
-      ) : null}
+        )}
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 font-serif text-[0.92rem] font-bold leading-tight text-[#191412]">
+            <span className="truncate">{entry.name}</span>
+            {entry.featured ? (
+              <span className="shrink-0 rounded-[3px] bg-[#a3413a]/10 border border-[#a3413a]/30 px-1 py-px font-sans text-[0.5rem] font-bold uppercase tracking-[0.16em] text-[#a3413a]">
+                Featured
+              </span>
+            ) : null}
+          </p>
+          {entry.role ? (
+            <p className="mt-1 truncate font-sans text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-[#a3413a]">
+              {entry.role}
+            </p>
+          ) : null}
+          {entry.company ? (
+            <p className="mt-0.5 truncate font-sans text-[0.74rem] leading-snug text-[#191412]/85">
+              {entry.company}
+            </p>
+          ) : null}
+          {entry.location ? (
+            <p className="truncate font-sans text-[0.7rem] leading-snug text-[#191412]/60">
+              {entry.location}
+            </p>
+          ) : null}
+          {entry.website ? (
+            <a
+              href={entry.website}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-1 inline-block truncate font-sans text-[0.68rem] text-[#a3413a] underline underline-offset-2 hover:opacity-80"
+            >
+              {entry.website.replace(/^https?:\/\//i, '')}
+            </a>
+          ) : null}
+        </div>
+      </div>
     </li>
   );
 }
@@ -135,7 +159,7 @@ export default function ClassifiedsTemplate({
                     </span>
                     <span className="h-px flex-1 bg-[#191412]/20" />
                   </h3>
-                  <ul className="mt-1 columns-1 gap-7 md:columns-2 lg:columns-3">
+                  <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {group.entries.map((entry) => (
                       <Entry key={entry.key} entry={entry} />
                     ))}
