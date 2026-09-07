@@ -933,10 +933,12 @@ export function buildEdgeBalancedColumns(
 ): ColumnItem[][] {
   const n = Math.max(1, columnCount);
 
-  // 1. Chunk the body for fine-grained balance.
+  // 1. Chunk the body for fine-grained balance. 350-char chunks are too coarse
+  //    to even out a short page around full-width plates (one chunk can be a
+  //    third of a column), so pack sentences into smaller ~160-char pieces.
   const textItems: ColumnItem[] = [];
   for (const block of blocks) {
-    for (const html of chunkTextBlock(block)) {
+    for (const html of chunkTextBlock(block, 160, 60)) {
       textItems.push({ kind: 'text', html });
     }
   }
@@ -993,25 +995,52 @@ export function buildEdgeBalancedColumns(
     });
   }
 
-  // 3. Reserving room for each column's image(s), sequentially balance the
-  //    text so reading order is preserved and columns stay even.
+  // 3. Reserving room for each column's image(s), cut the text into sequential
+  //    chunks with each column's boundary set by the ideal cumulative weight
+  //    through that column ((i+1)/n of the page). Because the final boundary is
+  //    exactly the total text weight, no column becomes a dumping ground for
+  //    overflow — each ends up within one text chunk of its ideal share. This
+  //    keeps the natural top-to-bottom reading order.
   const capacity = colImages.map((imgs) =>
     imgs.reduce((s, im) => s + estimateColumnItemHeight(im), 0),
   );
-  const textTotal = textItems.reduce((s, it) => s + estimateColumnItemHeight(it), 0);
-  const imageTotal = capacity.reduce((a, b) => a + b, 0);
-  const target = (textTotal + imageTotal) / n;
+  const weights = textItems.map(estimateColumnItemHeight);
+  const textTotal = weights.reduce((a, b) => a + b, 0);
+  const target = (textTotal + capacity.reduce((a, b) => a + b, 0)) / n;
+
+  // Ideal cumulative TEXT weight just after column i — the equal-share total
+  // through that column minus its reserved image height. A column whose image
+  // already exceeds its share gets no extra quota (clamped so the boundaries
+  // never move backwards).
+  let capPrefix = 0;
+  const textIdeal: number[] = [];
+  let prevIdeal = 0;
+  for (let i = 0; i < n; i++) {
+    capPrefix += capacity[i];
+    const ideal = Math.max(prevIdeal, (i + 1) * target - capPrefix);
+    textIdeal.push(ideal);
+    prevIdeal = ideal;
+  }
+
+  const cumText: number[] = [];
+  {
+    let acc = 0;
+    for (const w of weights) {
+      acc += w;
+      cumText.push(acc);
+    }
+  }
 
   const cols: ColumnItem[][] = Array.from({ length: n }, () => []);
-  const used = Array.from({ length: n }, () => 0);
-  let ci = 0;
-  for (const textItem of textItems) {
-    const w = estimateColumnItemHeight(textItem);
-    const room = Math.max(1, target - capacity[ci]);
-    while (ci < n - 1 && used[ci] > 0 && used[ci] + w > room) ci++;
-    cols[ci].push(textItem);
-    used[ci] += w;
+  let j = 0;
+  for (let i = 0; i < n - 1; i++) {
+    const limit = textIdeal[i];
+    while (j < textItems.length && cumText[j] <= limit) {
+      cols[i].push(textItems[j]);
+      j++;
+    }
   }
+  for (; j < textItems.length; j++) cols[n - 1].push(textItems[j]);
 
   // 4. Compose: head images, then the column's text, then bottom images.
   return cols

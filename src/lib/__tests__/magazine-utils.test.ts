@@ -251,8 +251,10 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     const blocks = Array.from({ length: 18 }, (_, i) => block(i));
     const images = [img('a.jpg'), img('b.jpg')];
     const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    // Total weight = text length + the image's reserved height, so a column
+    // holding a plate is still counted as balanced by its rendered height.
     const w = cols.map((c) =>
-      c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0),
+      c.reduce((s, i) => s + (i.kind === 'img' ? 14 : i.html.length), 0),
     );
     const total = w.reduce((a, b) => a + b, 0);
     for (const len of w) {
@@ -305,6 +307,29 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     const imgCol = imgs[0];
     const i = imgCol.findIndex((it) => it.kind === 'img');
     expect(i === 0 || i === imgCol.length - 1).toBe(true);
+  });
+
+  it('never lets the final column become a dumping ground (regression: 2x last column)', () => {
+    // Enough text to overflow a strict forward-only greedy split; the last
+    // column must not end up dramatically longer than the others.
+    const blocks = Array.from({ length: 30 }, (_, i) => block(i));
+    const images = [
+      img('a.jpg'),
+      img('b.jpg'),
+      img('c.jpg'),
+      img('d.jpg'),
+      img('e.jpg'),
+    ];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    const w = cols.map((c) =>
+      c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0),
+    );
+    const total = w.reduce((a, b) => a + b, 0);
+    const share = total > 0 ? w.map((len) => len / total) : [];
+    const lastShare = share[share.length - 1] ?? 0;
+    // Strictly less than half the page — the reported bug put ~2/3 in last col.
+    expect(lastShare).toBeLessThan(0.5);
+    expect(Math.max(...share) - Math.min(...share)).toBeLessThan(0.35);
   });
 });
 
