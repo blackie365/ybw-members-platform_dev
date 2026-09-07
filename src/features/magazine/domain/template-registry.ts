@@ -190,6 +190,8 @@ const featureEntry: TemplateRegistryEntry = {
       logo: String(c.logoImage || c.partnerLogo || c.logo || ""),
       gallery,
       stats: [],
+      ads: Array.isArray(c.ads) ? (c.ads as any[]) : [],
+      adSlots: Number(c.adSlots) > 0 ? Number(c.adSlots) : 0,
     };
   },
 };
@@ -209,6 +211,8 @@ const editorNoteEntry: TemplateRegistryEntry = {
       image: main,
       gallery: pickGallery(c),
       pullQuotes: Array.isArray(c.pullQuotes) ? (c.pullQuotes as any[]) : [],
+      ads: Array.isArray(c.ads) ? (c.ads as any[]) : [],
+      adSlots: Number(c.adSlots) > 0 ? Number(c.adSlots) : 0,
     };
     delete viewModel.items;
     if (Array.isArray((c as any).items)) {
@@ -242,6 +246,22 @@ const adEntry: TemplateRegistryEntry = {
     };
     delete (viewModel as any).items;
     return viewModel;
+  },
+};
+
+const classifiedsEntry: TemplateRegistryEntry = {
+  render: null as any,
+  buildViewModel: (page) => {
+    const c = (page.content || {}) as CRecord;
+    const entries = Array.isArray(c.entries) ? (c.entries as unknown[]) : [];
+    return {
+      title: String(c.title || c.headline || "Classifieds"),
+      kicker: String(c.kicker || c.section || "Business Directory"),
+      intro: String(c.intro || c.standfirst || ""),
+      entries,
+      count: entries.length,
+      generatedAt: String(c.generatedAt || ""),
+    };
   },
 };
 
@@ -280,6 +300,7 @@ const REGISTRY: Record<string, TemplateRegistryEntry> = {
   "editor-note": editorNoteEntry,
   ad: adEntry,
   "full-page-ad": adEntry,
+  classifieds: classifiedsEntry,
   "back-cover": backCoverEntry,
 };
 
@@ -315,6 +336,8 @@ export function loadTemplateRenderers() {
   const EditorNoteTemplate =
     require("../templates/editor-note/renderer").default;
   const AdTemplate = require("../templates/ad/renderer").default;
+  const ClassifiedsTemplate =
+    require("../templates/classifieds/renderer").default;
   const BackCoverTemplate = require("../templates/back-cover/renderer").default;
 
   // Override the render function on each entry
@@ -325,5 +348,6 @@ export function loadTemplateRenderers() {
   featureEntry.render = FeatureTemplate;
   editorNoteEntry.render = EditorNoteTemplate;
   adEntry.render = AdTemplate;
+  classifiedsEntry.render = ClassifiedsTemplate;
   backCoverEntry.render = BackCoverTemplate;
 }

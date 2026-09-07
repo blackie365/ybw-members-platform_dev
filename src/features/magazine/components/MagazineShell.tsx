@@ -230,7 +230,9 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
         /\b(advertisement|advert|ad page|ad\b|sponsor|sponsored by)\b/.test(`${title} ${body.slice(0, 200)}`) &&
         !hasItems;
       let effectiveTemplate: ReaderPage["template"] = page.template;
-      if (template === "editor-note" || looksLikeEditorial) {
+      if (template === "classifieds") {
+        effectiveTemplate = "classifieds";
+      } else if (template === "editor-note" || looksLikeEditorial) {
         effectiveTemplate = "editor-note";
       } else if (template === "contents" && looksLikeEditorial && !hasItems) {
         effectiveTemplate = "editor-note";

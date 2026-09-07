@@ -13,6 +13,7 @@ import {
   Link2,
   Star,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -52,6 +53,7 @@ function SourceBadge({ source }: { source: UnifiedEditionRow["source"] }) {
 export default function AdminMagazinePage() {
   const [editions, setEditions] = useState<UnifiedEditionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [baking, setBaking] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSource, setFilterSource] = useState<"all" | UnifiedEditionRow["source"]>("all");
   const router = useRouter();
@@ -123,6 +125,31 @@ export default function AdminMagazinePage() {
       toast.error(res.error || "Failed");
     }
   };
+
+  async function handleBakeClassifieds() {
+    if (!liveIssue) return;
+    setBaking(true);
+    try {
+      const editionId = liveIssue.linkedReaderEditionId ?? undefined;
+      const res = await fetch("/api/magazine/classifieds", {
+        method: "POST",
+        headers: editionId ? { "Content-Type": "application/json" } : undefined,
+        body: editionId ? JSON.stringify({ editionId }) : undefined,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        toast.success(
+          `Classifieds baked into the reader (${json.count ?? "unknown"} members). The reader refreshes on its next load.`,
+        );
+      } else {
+        toast.error(json.reason || `Bake failed (${res.status})`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Bake failed");
+    } finally {
+      setBaking(false);
+    }
+  }
 
   useEffect(() => {
     if (!deleteParam) {
@@ -271,6 +298,19 @@ export default function AdminMagazinePage() {
                         </a>
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      disabled={baking}
+                      onClick={handleBakeClassifieds}
+                      className="gap-2"
+                    >
+                      {baking ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Users className="h-4 w-4" />
+                      )}
+                      Bake Classifieds
+                    </Button>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
