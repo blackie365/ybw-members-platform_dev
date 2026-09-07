@@ -32,6 +32,7 @@ import {
   setFeaturedFlipbookIssueAction,
 } from "@/app/actions/magazineActions";
 import type { UnifiedEditionRow } from "@/app/actions/magazineActions";
+import MagazineAdsManager from "@/features/magazine/components/MagazineAdsManager";
 
 function SourceBadge({ source }: { source: UnifiedEditionRow["source"] }) {
   if (source === "magazine_issue") {
@@ -343,6 +344,8 @@ export default function AdminMagazinePage() {
             </Card>
           </section>
         )}
+
+        <MagazineAdsManager />
 
         <section className="space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b pb-4">
