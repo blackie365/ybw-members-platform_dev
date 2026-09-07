@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeMagazinePageContent, buildBalancedColumns, buildEdgeBalancedColumns, chunkTextBlock } from '../magazine-utils';
+import { normalizeMagazinePageContent, buildBalancedColumns, buildEdgeBalancedColumns, chunkTextBlock, estimateImageLines } from '../magazine-utils';
 import type { ColumnItem } from '../magazine-utils';
 
 describe('normalizeMagazinePageContent — text/body + intro/standfirst alias merge', () => {
@@ -251,8 +251,10 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     const blocks = Array.from({ length: 18 }, (_, i) => block(i));
     const images = [img('a.jpg'), img('b.jpg')];
     const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    // Total weight = text length + the image's reserved height, so a column
+    // holding a plate is still counted as balanced by its rendered height.
     const w = cols.map((c) =>
-      c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0),
+      c.reduce((s, i) => s + (i.kind === 'img' ? 14 : i.html.length), 0),
     );
     const total = w.reduce((a, b) => a + b, 0);
     for (const len of w) {
@@ -265,5 +267,88 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     const cols = buildEdgeBalancedColumns([block(1), block(2)], [], 1);
     expect(cols).toHaveLength(1);
     expect(cols[0].length).toBe(2);
+  });
+
+  it('gives every image its own column and pins each plate to head/bottom', () => {
+    const blocks = Array.from({ length: 12 }, (_, i) => block(i));
+    const images = [img('a.jpg'), img('b.jpg'), img('c.jpg')];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    expect(cols).toHaveLength(3);
+    const perCol = cols.map((c) => c.filter((i) => i.kind === 'img').length);
+    expect(perCol).toEqual([1, 1, 1]);
+    for (const col of cols) {
+      col.forEach((item, idx) => {
+        if (item.kind === 'img') {
+          expect(idx === 0 || idx === col.length - 1).toBe(true);
+        }
+      });
+    }
+  });
+
+  it('stacks images only when they outnumber the columns', () => {
+    const blocks = Array.from({ length: 12 }, (_, i) => block(i));
+    const images = [img('a.jpg'), img('b.jpg'), img('c.jpg'), img('d.jpg')];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    // Three columns, four plates: at least one column must hold two images.
+    const perCol = cols.map((c) => c.filter((i) => i.kind === 'img').length);
+    expect(perCol.filter((n) => n === 0).length).toBe(0);
+    expect(perCol.filter((n) => n >= 2).length).toBe(1);
+  });
+
+  it('weights portrait plates higher so their column reserves more space', () => {
+    const cols = buildEdgeBalancedColumns(
+      [block(1), block(1), block(1)],
+      [{ kind: 'img', src: 'portrait.jpg', alt: '', weight: 32 }],
+      2,
+    );
+    // The plate sits in exactly one column and its image is at the edge.
+    const imgs = cols.filter((c) => c.some((i) => i.kind === 'img'));
+    expect(imgs).toHaveLength(1);
+    const imgCol = imgs[0];
+    const i = imgCol.findIndex((it) => it.kind === 'img');
+    expect(i === 0 || i === imgCol.length - 1).toBe(true);
+  });
+
+  it('never lets the final column become a dumping ground (regression: 2x last column)', () => {
+    // Enough text to overflow a strict forward-only greedy split; the last
+    // column must not end up dramatically longer than the others.
+    const blocks = Array.from({ length: 30 }, (_, i) => block(i));
+    const images = [
+      img('a.jpg'),
+      img('b.jpg'),
+      img('c.jpg'),
+      img('d.jpg'),
+      img('e.jpg'),
+    ];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    const w = cols.map((c) =>
+      c.reduce((s, i) => s + (i.kind === 'text' ? i.html.length : 0), 0),
+    );
+    const total = w.reduce((a, b) => a + b, 0);
+    const share = total > 0 ? w.map((len) => len / total) : [];
+    const lastShare = share[share.length - 1] ?? 0;
+    // Strictly less than half the page — the reported bug put ~2/3 in last col.
+    expect(lastShare).toBeLessThan(0.5);
+    expect(Math.max(...share) - Math.min(...share)).toBeLessThan(0.35);
+  });
+});
+
+describe('estimateImageLines — weight a plate by its real aspect ratio', () => {
+  it('uses the base weight for a 3/2 landscape and for missing ratios', () => {
+    expect(estimateImageLines(1.5)).toBe(14);
+    expect(estimateImageLines(undefined)).toBe(14);
+    expect(estimateImageLines(0)).toBe(14);
+    expect(estimateImageLines(Number.NaN)).toBe(14);
+  });
+
+  it('weights tall portraits up and wide panoramas down', () => {
+    expect(estimateImageLines(1)).toBe(21); // square renders taller than 3/2
+    expect(estimateImageLines(2 / 3)).toBeGreaterThan(21);
+    expect(estimateImageLines(3)).toBeLessThan(14);
+  });
+
+  it('clamps to a sane range', () => {
+    expect(estimateImageLines(0.05)).toBeLessThanOrEqual(48);
+    expect(estimateImageLines(40)).toBeGreaterThanOrEqual(8);
   });
 });
