@@ -1868,14 +1868,17 @@ function PageContinuation({ data }: any) {
 
 // ─────────────────────────────────────────────
 // AD SLOTS — printable placeholder rails for the broadsheet spread.
-// Consumers pass `data.ads` (array of {image,url,alt,label}) for real sold
-// creative, or `data.adSlots` (count) to reserve empty placeholder boxes.
+// Consumers pass `data.ads` (array of {image,url,alt,label,format}) for real
+// sold creative, or `data.adSlots` (count) to reserve empty placeholder boxes.
+// Leaderboard-format ads render as a full-width header banner; everything else
+// renders in the side rail. Mirrors the site Ads formats (leaderboard/MPU).
 // ─────────────────────────────────────────────
 export interface AdSlotData {
   image: string;
   url: string;
   alt: string;
   label: string;
+  format?: 'leaderboard' | 'mpu' | 'square';
 }
 
 export function resolveAdSlots(data: any): AdSlotData[] {
@@ -1886,16 +1889,22 @@ export function resolveAdSlots(data: any): AdSlotData[] {
     url: String(ad?.url || ad?.href || ad?.linkUrl || "").trim(),
     alt: String(ad?.alt || ad?.label || "").trim(),
     label: String(ad?.label || ad?.name || "").trim(),
+    format: String(ad?.format || "").trim() as AdSlotData["format"],
   }));
   // Pad up to the reserved count (caps at 6 so a misconfigured edition
   // can't blow up into an unbounded wall of placeholders).
   for (let i = out.length; i < Math.min(Math.max(count, out.length), 6); i++) {
-    out.push({ image: "", url: "", alt: "", label: "" });
+    out.push({ image: "", url: "", alt: "", label: "", format: "mpu" });
   }
   return out;
 }
 
+function isLeaderboardFormat(ad: AdSlotData): boolean {
+  return String(ad.format || "").toLowerCase() === "leaderboard";
+}
+
 export function AdSlot({ ad, index, slots }: { ad: AdSlotData; index: number; slots: number }) {
+  const leaderboard = isLeaderboardFormat(ad);
   return (
     <figure className="break-inside-avoid border border-[#191412]/30 bg-[#f5f1ea]">
       <figcaption className="flex items-center justify-between gap-2 border-b border-[#191412]/15 px-3 py-1.5">
@@ -1913,20 +1922,71 @@ export function AdSlot({ ad, index, slots }: { ad: AdSlotData; index: number; sl
             <img
               src={ad.image}
               alt={ad.alt || ad.label || "Advertisement"}
-              className="w-full object-cover"
+              className={`w-full ${leaderboard ? "object-contain" : "object-contain"}`}
             />
           </a>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ad.image} alt={ad.alt || ad.label || "Advertisement"} className="w-full object-cover" />
+          <img src={ad.image} alt={ad.alt || ad.label || "Advertisement"} className={`w-full ${leaderboard ? "object-contain" : "object-contain"}`} />
         )
       ) : (
-        <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+        <div className={`flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-6 text-center ${leaderboard ? "min-h-[90px]" : ""}`}>
           <span className="font-serif text-[0.95rem] italic leading-snug text-[#191412]/60">
             {ad.label || "Your advertisement here"}
           </span>
           <span className="font-sans text-[0.55rem] uppercase tracking-[0.26em] text-[#191412]/45">
             Reserved
+          </span>
+        </div>
+      )}
+    </figure>
+  );
+}
+
+/**
+ * Full-width header banner ad for the broadsheet spread. Rendered between the
+ * masthead rule stack and the kicker, sized to the leaderboard 780×90 format
+ * (scaled to fit), with the creative shown at natural aspect ratio (contain,
+ * never cropped).
+ */
+export function HeaderAdBanner({ ad }: { ad: AdSlotData }) {
+  return (
+    <figure className="my-6 border border-[#191412]/30 bg-[#f5f1ea]">
+      <figcaption className="flex items-center justify-between gap-2 border-b border-[#191412]/15 px-3 py-1.5">
+        <span className="font-sans text-[0.55rem] font-semibold uppercase tracking-[0.28em] text-[#191412]/55">
+          Advertisement
+        </span>
+        <span className="font-sans text-[0.5rem] uppercase tracking-[0.2em] text-[#191412]/40">
+          Leaderboard
+        </span>
+      </figcaption>
+      {ad.image ? (
+        <div className="flex w-full items-center justify-center bg-[#f5f1ea]">
+          {ad.url ? (
+            <a href={ad.url} target="_blank" rel="noreferrer noopener">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ad.image}
+                alt={ad.alt || ad.label || "Advertisement"}
+                className="mx-auto max-h-[140px] w-auto max-w-full object-contain"
+              />
+            </a>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ad.image}
+              alt={ad.alt || ad.label || "Advertisement"}
+              className="mx-auto max-h-[140px] w-auto max-w-full object-contain"
+            />
+          )}
+        </div>
+      ) : (
+        <div className="flex aspect-[780/90] flex-col items-center justify-center gap-1 px-4 text-center">
+          <span className="font-serif text-[0.9rem] italic leading-snug text-[#191412]/60">
+            {ad.label || "Your advertisement here"}
+          </span>
+          <span className="font-sans text-[0.55rem] uppercase tracking-[0.26em] text-[#191412]/45">
+            Leaderboard · Reserved
           </span>
         </div>
       )}
@@ -1952,6 +2012,9 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
   const adSlots = resolveAdSlots(data);
+  // Leaderboard-format ads go in the header band; MPU/square ads in the rail.
+  const headerAds = adSlots.filter(isLeaderboardFormat);
+  const railAds = adSlots.filter((ad) => !isLeaderboardFormat(ad));
 
   // Gallery plates for the body columns (everything after the hero), deduped
   // and with hero skipped. Kept raw so the same list drives both image
@@ -2048,6 +2111,9 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
         <div className="h-px w-full bg-[#191412]/70" />
         <div className="h-[3px] w-full bg-[#191412]" />
 
+        {/* Header leaderboard ad (full-width banner below the rule stack) */}
+        {headerAds.length > 0 && <HeaderAdBanner ad={headerAds[0]} />}
+
         {/* Kicker + byline */}
         <div className="flex flex-col gap-2 pt-10 sm:flex-row sm:items-end sm:justify-between">
           <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
@@ -2088,7 +2154,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
         ) : null}
 
         {/* Lead + pull-quote/ad rail (rail only when quotes or ad slots exist) */}
-        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || adSlots.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
+        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || railAds.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
           <article>
             {leadHtml ? (
               <SafeText
@@ -2142,7 +2208,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </article>
 
           {/* Pull-quote / ad rail (sibling column on lg when either present) */}
-          {pullQuotes.length > 0 || adSlots.length > 0 ? (
+          {pullQuotes.length > 0 || railAds.length > 0 ? (
             <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)]">
               {pullQuotes.length > 0 && (
                 <>
@@ -2169,7 +2235,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                   )}
                 </>
               )}
-              {adSlots.length > 0 && (
+              {railAds.length > 0 && (
                 <>
                   {pullQuotes.length === 0 && (
                     <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
@@ -2177,8 +2243,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                     </span>
                   )}
                   <div className={`flex flex-col gap-4 ${pullQuotes.length > 0 ? "mt-7 border-t border-[#191412]/25 pt-4" : ""}`}>
-                    {adSlots.map((ad, i) => (
-                      <AdSlot key={`ad-${i}`} ad={ad} index={i} slots={adSlots.length} />
+                    {railAds.map((ad, i) => (
+                      <AdSlot key={`ad-${i}`} ad={ad} index={i} slots={railAds.length} />
                     ))}
                   </div>
                 </>

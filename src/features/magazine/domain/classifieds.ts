@@ -20,6 +20,8 @@ export interface ClassifiedEntry {
   location: string;
   /** Safe public website, only when it is an absolute http(s) URL. */
   website: string;
+  /** Public profile photo (storage URLs preferred over blank gravatars). */
+  image: string;
   featured: boolean;
 }
 
@@ -47,6 +49,10 @@ export type ClassifiedSourceMember = Record<string, unknown> & {
   city?: string;
   websiteUrl?: string;
   website?: string;
+  image?: string;
+  avatarUrl?: string;
+  profileImage?: string;
+  profileImageSource?: string;
   membershipTier?: string;
   tier?: string;
   isFeatured?: boolean;
@@ -92,6 +98,21 @@ function resolveWebsite(profile: ClassifiedSourceMember): string {
 }
 
 /**
+ * Resolve the best public profile photo, mirroring the directory's preference
+ * of storage-hosted uploads over (often blank) gravatar fallbacks.
+ */
+function resolveImage(profile: ClassifiedSourceMember): string {
+  const candidates = [profile.image, profile.avatarUrl, profile.profileImage, profile.profileImageSource];
+  const urls = candidates.filter((url): url is string => {
+    return typeof url === 'string' && /^https?:\/\//i.test(url.trim());
+  });
+  const isBlankGravatar = (url: string) => url.includes('gravatar.com/avatar') && url.includes('d=blank');
+  const real = urls.find((url) => !isBlankGravatar(url));
+  // Blank gravatars are placeholders, not photos — don't ship them.
+  return real ? real.trim() : '';
+}
+
+/**
  * Convert member profiles into the frozen classifieds rows.
  *
  * Eligibility: active member AND (featured OR on a paid tier) AND has a name.
@@ -115,6 +136,7 @@ export function buildClassifiedEntries(members: ClassifiedSourceMember[]): Class
       company: asString(member.company) || asString(member.companyName),
       location: asString(member.location) || asString(member.city),
       website: resolveWebsite(member),
+      image: resolveImage(member),
       featured: member.isFeatured === true,
     });
   }
