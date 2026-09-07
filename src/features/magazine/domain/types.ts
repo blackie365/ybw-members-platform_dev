@@ -6,6 +6,7 @@ export type ReaderPageTemplate =
   | "feature-full"
   | "editor-note"
   | "ad"
+  | "classifieds"
   | "back-cover";
 
 export interface ReaderPageContent {

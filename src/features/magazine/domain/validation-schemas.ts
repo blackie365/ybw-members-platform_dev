@@ -21,6 +21,7 @@ const READER_TEMPLATE_TYPES = [
   'feature-full',
   'editor-note',
   'ad',
+  'classifieds',
   'back-cover',
 ] as const;
 

@@ -1866,6 +1866,74 @@ function PageContinuation({ data }: any) {
   );
 }
 
+// ─────────────────────────────────────────────
+// AD SLOTS — printable placeholder rails for the broadsheet spread.
+// Consumers pass `data.ads` (array of {image,url,alt,label}) for real sold
+// creative, or `data.adSlots` (count) to reserve empty placeholder boxes.
+// ─────────────────────────────────────────────
+export interface AdSlotData {
+  image: string;
+  url: string;
+  alt: string;
+  label: string;
+}
+
+export function resolveAdSlots(data: any): AdSlotData[] {
+  const raw = Array.isArray(data?.ads) ? (data.ads as any[]) : [];
+  const count = Math.max(0, Number(data?.adSlots) || 0);
+  const out: AdSlotData[] = raw.map((ad) => ({
+    image: String(ad?.image || ad?.imageUrl || ad?.src || "").trim(),
+    url: String(ad?.url || ad?.href || ad?.linkUrl || "").trim(),
+    alt: String(ad?.alt || ad?.label || "").trim(),
+    label: String(ad?.label || ad?.name || "").trim(),
+  }));
+  // Pad up to the reserved count (caps at 6 so a misconfigured edition
+  // can't blow up into an unbounded wall of placeholders).
+  for (let i = out.length; i < Math.min(Math.max(count, out.length), 6); i++) {
+    out.push({ image: "", url: "", alt: "", label: "" });
+  }
+  return out;
+}
+
+export function AdSlot({ ad, index, slots }: { ad: AdSlotData; index: number; slots: number }) {
+  return (
+    <figure className="break-inside-avoid border border-[#191412]/30 bg-[#f5f1ea]">
+      <figcaption className="flex items-center justify-between gap-2 border-b border-[#191412]/15 px-3 py-1.5">
+        <span className="font-sans text-[0.55rem] font-semibold uppercase tracking-[0.28em] text-[#191412]/55">
+          Advertisement
+        </span>
+        <span className="font-sans text-[0.5rem] uppercase tracking-[0.2em] text-[#191412]/40">
+          Slot {index + 1} of {slots}
+        </span>
+      </figcaption>
+      {ad.image ? (
+        ad.url ? (
+          <a href={ad.url} target="_blank" rel="noreferrer noopener">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={ad.image}
+              alt={ad.alt || ad.label || "Advertisement"}
+              className="w-full object-cover"
+            />
+          </a>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ad.image} alt={ad.alt || ad.label || "Advertisement"} className="w-full object-cover" />
+        )
+      ) : (
+        <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+          <span className="font-serif text-[0.95rem] italic leading-snug text-[#191412]/60">
+            {ad.label || "Your advertisement here"}
+          </span>
+          <span className="font-sans text-[0.55rem] uppercase tracking-[0.26em] text-[#191412]/45">
+            Reserved
+          </span>
+        </div>
+      )}
+    </figure>
+  );
+}
+
 export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: any) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -1883,6 +1951,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   });
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
+  const adSlots = resolveAdSlots(data);
 
   // Gallery plates for the body columns (everything after the hero), deduped
   // and with hero skipped. Kept raw so the same list drives both image
@@ -2018,8 +2087,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </figure>
         ) : null}
 
-        {/* Lead + pull-quote rail (rail only when quotes exist) */}
-        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
+        {/* Lead + pull-quote/ad rail (rail only when quotes or ad slots exist) */}
+        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || adSlots.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
           <article>
             {leadHtml ? (
               <SafeText
@@ -2072,32 +2141,50 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             ) : null}
           </article>
 
-          {/* Pull-quote rail (sibling column on lg when quotes present) */}
-          {pullQuotes.length > 0 && (
-            <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)] lg:pl-10">
-              <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
-                In this feature
-              </span>
-              <figure>
-                <span
-                  aria-hidden="true"
-                  className="block font-serif text-[3rem] leading-none text-[#191412]/25"
-                >
-                  &ldquo;
-                </span>
-                <blockquote className="-mt-6 font-serif text-[1.25rem] italic leading-[1.35] text-[#191412] lg:text-[1.35rem]">
-                  {pullQuotes[0]}
-                </blockquote>
-              </figure>
-              {pullQuotes.length > 1 && (
-                <figure className="mt-7 border-t border-[#191412]/25 pt-4">
-                  <blockquote className="font-serif text-[1.05rem] leading-[1.5] italic text-[#191412]/80">
-                    {pullQuotes[1]}
-                  </blockquote>
-                </figure>
+          {/* Pull-quote / ad rail (sibling column on lg when either present) */}
+          {pullQuotes.length > 0 || adSlots.length > 0 ? (
+            <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)]">
+              {pullQuotes.length > 0 && (
+                <>
+                  <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+                    In this feature
+                  </span>
+                  <figure>
+                    <span
+                      aria-hidden="true"
+                      className="block font-serif text-[3rem] leading-none text-[#191412]/25"
+                    >
+                      &ldquo;
+                    </span>
+                    <blockquote className="-mt-6 font-serif text-[1.25rem] italic leading-[1.35] text-[#191412] lg:text-[1.35rem]">
+                      {pullQuotes[0]}
+                    </blockquote>
+                  </figure>
+                  {pullQuotes.length > 1 && (
+                    <figure className="mt-7 border-t border-[#191412]/25 pt-4">
+                      <blockquote className="font-serif text-[1.05rem] leading-[1.5] italic text-[#191412]/80">
+                        {pullQuotes[1]}
+                      </blockquote>
+                    </figure>
+                  )}
+                </>
+              )}
+              {adSlots.length > 0 && (
+                <>
+                  {pullQuotes.length === 0 && (
+                    <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+                      Advertising
+                    </span>
+                  )}
+                  <div className={`flex flex-col gap-4 ${pullQuotes.length > 0 ? "mt-7 border-t border-[#191412]/25 pt-4" : ""}`}>
+                    {adSlots.map((ad, i) => (
+                      <AdSlot key={`ad-${i}`} ad={ad} index={i} slots={adSlots.length} />
+                    ))}
+                  </div>
+                </>
               )}
             </aside>
-          )}
+          ) : null}
         </div>
 
         {/* Stats band */}
