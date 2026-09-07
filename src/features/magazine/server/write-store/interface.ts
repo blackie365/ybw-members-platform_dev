@@ -1,5 +1,6 @@
 import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
+import { MagazineAdRecord } from '@/features/magazine/domain/magazine-ads';
 
 /**
  * IDML draft shape persisted to magazine_idml_drafts (mirrors the Firestore
@@ -78,4 +79,7 @@ export interface MagazineWriteStore {
 
   /** Delete an IDML draft (deleteIdmlDraft). */
   deleteIdmlDraft(draftId: string): Promise<void>;
+
+  /** Replace the magazine ad catalog (upsertMagazineAds). */
+  upsertMagazineAds(ads: MagazineAdRecord[]): Promise<void>;
 }

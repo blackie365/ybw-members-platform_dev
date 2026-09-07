@@ -1,5 +1,5 @@
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { normalizeStoryLibraryItem, normalizeStoryLibraryImageFields } from '@/lib/magazine-utils';
 
 export function safeRevalidatePath(path: string) {
@@ -7,6 +7,14 @@ export function safeRevalidatePath(path: string) {
     revalidatePath(path);
   } catch (error) {
     console.warn(`safeRevalidatePath failed for ${path}:`, error);
+  }
+}
+
+export function safeRevalidateTag(tag: string) {
+  try {
+    revalidateTag(tag);
+  } catch (error) {
+    console.warn(`safeRevalidateTag failed for ${tag}:`, error);
   }
 }
 

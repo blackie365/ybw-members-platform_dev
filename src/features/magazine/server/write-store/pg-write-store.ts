@@ -1,5 +1,6 @@
 import { MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
+import { MagazineAdRecord } from '@/features/magazine/domain/magazine-ads';
 import { MagazineWriteStore, IdmlDraftRecord } from './interface';
 import { getMagazinePgPool } from '../read-store/pg-client';
 import { initMagazinePgSchema, toPgDate } from '../read-store/pg-schema';
@@ -283,6 +284,40 @@ export class PgMagazineWriteStore implements MagazineWriteStore {
   async deleteIdmlDraft(draftId: string): Promise<void> {
     const pool = await this.pool();
     await pool.query('DELETE FROM magazine_idml_drafts WHERE id = $1', [draftId]);
+  }
+
+  async upsertMagazineAds(ads: MagazineAdRecord[]): Promise<void> {
+    const pool = await this.pool();
+    const resolved: Array<{ id: string; position: number; data: MagazineAdRecord }> = [];
+    const seen = new Set<string>();
+    for (const raw of Array.isArray(ads) ? ads : []) {
+      const id = String(raw?.id || '').trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const record = { ...raw, id };
+      resolved.push({
+        id,
+        position: typeof raw.position === 'number' ? raw.position : 0,
+        data: record,
+      });
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM magazine_ads');
+      for (const { id, position, data } of resolved) {
+        await client.query(
+          `INSERT INTO magazine_ads (id, position, data) VALUES ($1,$2,$3::jsonb)`,
+          [id, position, JSON.stringify(data)],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   private pageId(page: MagazinePage & { id: number | string }): string {
