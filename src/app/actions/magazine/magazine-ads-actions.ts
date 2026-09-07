@@ -1,3 +1,5 @@
+'use server';
+
 import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import {
