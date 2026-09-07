@@ -1,5 +1,6 @@
 import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
+import { MagazineAdRecord } from '@/features/magazine/domain/magazine-ads';
 
 /**
  * MagazineReadStore — the storage seam for the PUBLIC magazine read layer.
@@ -45,4 +46,7 @@ export interface MagazineReadStore {
 
   /** A single IDML draft by id, else null. */
   getIdmlDraft(draftId: string): Promise<any | null>;
+
+  /** Magazine ad catalog ordered by position (newspaper spread rails). */
+  listMagazineAds(): Promise<MagazineAdRecord[]>;
 }

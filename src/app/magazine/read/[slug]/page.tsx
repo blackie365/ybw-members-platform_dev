@@ -5,6 +5,8 @@ import MagazineShell from '@/features/magazine/components/MagazineShell';
 import MagazineReaderSkeleton from '@/components/magazine/MagazineReaderSkeleton';
 import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
+import type { ReaderEdition } from '@/features/magazine/domain/types';
+import type { MagazineAdRecord } from '@/features/magazine/domain/magazine-ads';
 
 export const revalidate = 60;
 export const dynamicParams = true;
@@ -44,15 +46,27 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function MagazineReadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const edition = await getMagazineReadStore().getReaderEditionBySlug(slug);
+  const store = getMagazineReadStore();
+  const edition = await store.getReaderEditionBySlug(slug);
 
   if (!edition) {
     redirect('/new-edition');
   }
 
+  // Fill newspaper-spread ad slots from the Postgres magazine_ads catalog.
+  // Explicit per-page `content.ads` / `content.adSlots` still win; default
+  // rolls unlock a single slot on quote-rail spreads when ads are enabled.
+  const catalog = await store.listMagazineAds().catch(() => [] as MagazineAdRecord[]);
+  const patchedEdition = catalog.length
+    ? (await import('@/features/magazine/domain/magazine-ads')).applyMagazineAdsToEdition(
+        edition,
+        catalog,
+      )
+    : edition;
+
   return (
     <Suspense fallback={<MagazineReaderSkeleton />}>
-      <MagazineShell edition={edition} editionSlug={slug} />
+      <MagazineShell edition={(patchedEdition as ReaderEdition) ?? edition} editionSlug={slug} />
     </Suspense>
   );
 }

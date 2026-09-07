@@ -1,5 +1,6 @@
 import { MagazineIssue, MagazinePage, StoryLibraryItem } from '@/components/admin/magazine-builder/types';
 import { ReaderEdition } from '@/features/magazine/domain/types';
+import { MagazineAdRecord } from '@/features/magazine/domain/magazine-ads';
 import { MagazineReadStore } from './interface';
 import { getMagazinePgPool } from './pg-client';
 import { initMagazinePgSchema } from './pg-schema';
@@ -204,6 +205,20 @@ export class PgMagazineReadStore implements MagazineReadStore {
     } catch (err) {
       console.warn(`[PgMagazineReadStore] getIdmlDraft(${draftId}) failed:`, err);
       return null;
+    }
+  }
+
+  async listMagazineAds(): Promise<MagazineAdRecord[]> {
+    if (!(await this.ready())) return [];
+    try {
+      const pool = getMagazinePgPool()!;
+      const { rows } = await pool.query(
+        'SELECT data FROM magazine_ads ORDER BY position ASC, id ASC',
+      );
+      return rows.map((r) => r.data as MagazineAdRecord);
+    } catch (err) {
+      console.warn('[PgMagazineReadStore] listMagazineAds failed:', err);
+      return [];
     }
   }
 }
