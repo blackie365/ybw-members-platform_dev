@@ -16,10 +16,10 @@ function formatSnapshotDate(raw: string): string {
 }
 
 /**
- * Dense newspaper-style classified listing, mirroring classic broadsheet
- * ads: UPPERCASE bold "headline" (the member name) followed by its copy
- * (role, company, location) and a phonebook-style website tail. A small
- * black-and-white thumbnail leads the line when a real photo exists.
+ * Card-style listing mirroring the featured-spotlight box: photo on top,
+ * then name / role / company / location / website stacked in the middle so
+ * every entry reads the same way. `break-all` on the link keeps long URLs
+ * inside the card instead of spilling out of the column.
  */
 function AdItem({ entry }: { entry: ClassifiedEntry }) {
   const detail = [entry.role, entry.company, entry.location]
@@ -28,36 +28,38 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
     .join(', ');
 
   return (
-    <li className="mb-2 break-inside-avoid text-[13.5px] leading-[1.35]">
-      {entry.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={entry.image}
-          alt=""
-          className="mr-1.5 inline-block h-6 w-6 rounded-[2px] border border-[#191412]/15 object-cover align-middle grayscale contrast-[1.05]"
-        />
-      ) : null}
-      <strong className="font-serif text-[13.5px] font-bold uppercase tracking-[0.01em]">
-        {entry.name}
-      </strong>
-      {entry.featured ? (
-        <span className="ml-1 rounded-[2px] bg-[#a3413a] px-1 py-px align-middle font-sans text-[0.5rem] font-bold uppercase tracking-[0.14em] text-[#fdfdfb]">
-          Featured
-        </span>
-      ) : null}
-      {detail ? (
-        <span className="text-[#191412]/90"> — {detail}</span>
-      ) : null}
-      {entry.website ? (
-        <a
-          href={entry.website}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="ml-1 text-[#a3413a] underline underline-offset-2 hover:opacity-80"
-        >
-          {entry.website.replace(/^https?:\/\//i, '')}
-        </a>
-      ) : null}
+    <li className="mb-3 break-inside-avoid">
+      <div className="border border-dashed border-[#191412] bg-[#fdfdfb] p-2.5 text-center text-[12.5px] leading-snug">
+        {entry.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.image}
+            alt={entry.name}
+            className="mx-auto mb-1.5 h-11 w-11 rounded-[2px] border border-[#191412]/15 object-cover grayscale contrast-[1.05]"
+          />
+        ) : null}
+        <strong className="block font-serif text-[13px] font-bold uppercase tracking-[0.01em]">
+          {entry.name}
+        </strong>
+        {entry.featured ? (
+          <span className="mx-auto mt-1 block w-fit rounded-[2px] bg-[#a3413a] px-1 py-px font-sans text-[0.5rem] font-bold uppercase tracking-[0.14em] text-[#fdfdfb]">
+            Featured
+          </span>
+        ) : null}
+        {detail ? (
+          <p className="mt-0.5 text-[#191412]/90">{detail}</p>
+        ) : null}
+        {entry.website ? (
+          <a
+            href={entry.website}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-0.5 inline-block max-w-full break-all text-[#a3413a] underline underline-offset-2 hover:opacity-80"
+          >
+            {entry.website.replace(/^https?:\/\//i, '')}
+          </a>
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -96,68 +98,62 @@ export default function ClassifiedsTemplate({
     <div className="min-h-full w-full bg-[#fdfdfb] text-[#191412]">
       <div className="mx-auto max-w-6xl px-3 py-6 sm:px-6">
         <div className="border border-[#191412] bg-[#fdfdfb]">
-          {/* Region banner */}
-          <header className="border-b-2 border-[#191412] bg-[#191412] px-4 py-2.5 text-center text-[#fdfdfb]">
-            <h2 className="font-serif text-[clamp(20px,3vw,32px)] font-normal tracking-wide">
-              Yorkshire BusinessWoman &middot; {kicker}
-            </h2>
+          {/* Masthead — mirror of PageNewspaperSpread: hairline band,
+              wordmark, tagline, dateline bar and printer's rule stack. */}
+          <header className="flex items-center justify-between gap-4 px-4 pb-2 pt-4">
+            <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+              {kicker || "Business Directory"}
+            </span>
+            <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+              Yorkshire BusinessWoman
+            </span>
           </header>
+          <div className="h-px w-full bg-[#191412]/25" />
+          <div className="px-4 py-3 text-center">
+            <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
+              Yorkshire <span className="italic">Business</span>Woman
+            </h1>
+            <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
+              {intro || "The region&rsquo;s member directory"}
+            </p>
+          </div>
+          <div className="flex flex-col items-center justify-between gap-1 border-b border-t border-[#191412] px-4 py-1.5 sm:flex-row">
+            <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
+              {total} paid &amp; featured members listed
+            </span>
+            <span className="font-sans text-[0.65rem] uppercase tracking-[0.2em] text-[#191412]/60">
+              {snapshotDate || "Directory snapshot"}
+            </span>
+          </div>
+          <div className="h-[2px] w-full bg-[#191412]" />
+          <div className="h-px w-full bg-[#191412]/70" />
+          <div className="h-[3px] w-full bg-[#191412]" />
 
-          {/* Masthead: count box / giant title / snapshot box */}
-          <section className="grid grid-cols-1 items-center gap-4 border-b-[3px] border-double border-[#191412] px-4 py-5 md:grid-cols-[180px_minmax(0,1fr)_220px]">
-            <div>
-              <div className="text-[19px] font-bold leading-tight">
-                The Business
-                <br />
-                Directory
-              </div>
-              <div className="mt-2 border border-[#191412] bg-[#191412] px-3 py-2 text-center text-[#fdfdfb]">
-                <span className="block text-[22px] font-bold leading-none tracking-wide">
-                  {total}
-                </span>
-                <span className="font-sans text-[0.62rem] uppercase tracking-[0.16em]">
-                  paid &amp; featured members
-                </span>
-              </div>
-              <p className="mt-2 text-center font-sans text-[0.68rem] uppercase tracking-[0.16em] text-[#191412]/55">
-                Frozen at publication
-              </p>
-            </div>
-
-            <div className="text-center">
-              <h1 className="font-serif text-[clamp(52px,11vw,150px)] font-black leading-[0.85] tracking-[-0.04em]">
-                {title}
-              </h1>
-            </div>
-
-            <div>
-              <h4 className="border-y border-[#191412] px-2 py-1 text-right font-sans text-[0.72rem] font-bold uppercase tracking-[0.16em]">
-                Directory Snapshot
-              </h4>
-              <div className="mt-2 border border-[#191412] px-3 py-2 text-right">
-                <div className="text-[15px] font-bold">{total} listings</div>
-                {intro ? (
-                  <div className="mt-1 text-[12px] leading-snug text-[#191412]/70">
-                    {intro}
-                  </div>
-                ) : null}
-              </div>
-              {snapshotDate ? (
-                <p className="mt-2 text-right font-sans text-[0.68rem] uppercase tracking-[0.16em] text-[#191412]/55">
-                  {snapshotDate}
-                </p>
-              ) : null}
-            </div>
-          </section>
+          {/* Section kicker + headline */}
+          <div className="flex flex-col gap-2 px-4 pt-8 sm:flex-row sm:items-end sm:justify-between">
+            <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+              {kicker || "Business Directory"}
+            </span>
+            <span className="font-sans text-[0.7rem] text-[#191412]/70">
+              {featured.length === 0
+                ? "A–Z member directory"
+                : `${featured.length} featured listing${featured.length === 1 ? "" : "s"}`}
+            </span>
+          </div>
+          <div className="mx-4 mt-4 max-w-3xl border-b border-[#191412] pb-3">
+            <h2 className="font-serif text-[clamp(1.9rem,6vw,3.7rem)] font-bold leading-[0.98] tracking-tight text-[#191412]">
+              {title}
+            </h2>
+          </div>
 
           {/* Section tabs (A–Z bands) */}
-          <nav className="grid grid-cols-3 gap-2.5 border-b-2 border-[#191412] px-4 py-2.5" aria-label="Classified sections">
+          <nav className="grid grid-cols-3 gap-2.5 px-4 py-4" aria-label="Classified sections">
             {tabRanges.length > 0 ? (
               tabRanges.map((range) => (
                 <a
                   key={range.from}
                   href={`#classified-${range.letters[0]}`}
-                  className="rounded-t-md border-b-2 border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(15px,2vw,24px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb] transition-colors hover:bg-[#a3413a]"
+                  className="border border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(15px,2vw,22px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb] transition-colors hover:bg-[#a3413a]"
                 >
                   {range.letters.length === 1
                     ? range.letters[0]
@@ -166,13 +162,13 @@ export default function ClassifiedsTemplate({
               ))
             ) : (
               <>
-                <span className="rounded-t-md border-b-2 border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(15px,2vw,20px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
+                <span className="border border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(14px,2vw,19px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
                   Paid Members
                 </span>
-                <span className="rounded-t-md border-b-2 border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(15px,2vw,20px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
+                <span className="border border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(14px,2vw,19px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
                   Featured
                 </span>
-                <span className="rounded-t-md border-b-2 border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(15px,2vw,20px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
+                <span className="border border-[#191412] bg-[#191412] px-3 py-2 text-center font-sans text-[clamp(14px,2vw,19px)] font-extrabold uppercase tracking-[0.1em] text-[#fdfdfb]">
                   Snapshot
                 </span>
               </>
