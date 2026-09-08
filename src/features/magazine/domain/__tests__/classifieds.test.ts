@@ -80,9 +80,67 @@ describe('buildClassifiedEntries', () => {
         location: 'Leeds',
         website: 'https://acme.example',
         image: '',
+        bio: '',
+        tags: [],
+        links: { linkedin: '', instagram: '', twitter: '' },
         featured: false,
       },
     ]);
+  });
+
+  it('falls back to the headline when no role or jobTitle is set', () => {
+    const entries = buildClassifiedEntries([
+      member({ clerkId: 'u1', role: '', jobTitle: '', headline: 'Director of Coppergate Clinic in York' }),
+      member({ clerkId: 'u2', jobTitle: 'Managing Director', headline: 'Ignored headline' }),
+    ]);
+    expect(entries.map((e) => e.role)).toEqual([
+      'Director of Coppergate Clinic in York',
+      'Managing Director',
+    ]);
+  });
+
+  it('carries a collapsed, capped bio preview', () => {
+    const long = `${'word '.repeat(60)}end`;
+    const entries = buildClassifiedEntries([
+      member({ clerkId: 'u1', bio: 'Line one.\n\nLine two.   ' }),
+      member({ clerkId: 'u2', bio: long }),
+    ]);
+    expect(entries[0].bio).toBe('Line one. Line two.');
+    expect(entries[1].bio.length).toBeLessThanOrEqual(221);
+    expect(entries[1].bio.endsWith('…')).toBe(true);
+  });
+
+  it('derives expertise tags from services, industry sector and tags, deduped and capped', () => {
+    const entries = buildClassifiedEntries([
+      member({
+        clerkId: 'u1',
+        services: ['Marketing', 'PR'],
+        industrySector: 'PR',
+        tags: ['Marketing', 'Leadership', 'Coaching'],
+      }),
+      member({ clerkId: 'u2', industrySector: 'Finance' }),
+    ]);
+    expect(entries[0].tags).toEqual(['Marketing', 'PR', 'Leadership']);
+    expect(entries[1].tags).toEqual(['Finance']);
+  });
+
+  it('carries social links only when they are absolute http(s) URLs', () => {
+    const entries = buildClassifiedEntries([
+      member({
+        clerkId: 'u1',
+        linkedinUrl: 'https://www.linkedin.com/in/jane',
+        instagram: 'https://instagram.com/jane',
+        twitterUrl: 'not-a-url',
+        linkedin: 'https://linkedin.example/dup',
+      }),
+      member({ clerkId: 'u2' }),
+    ]);
+    expect(entries[0].links).toEqual({
+      linkedin: 'https://www.linkedin.com/in/jane',
+      instagram: 'https://instagram.com/jane',
+      twitter: '',
+    });
+    expect(entries[1].links).toEqual({ linkedin: '', instagram: '', twitter: '' });
   });
 
   it('omits the website unless it is an absolute http(s) URL', () => {
