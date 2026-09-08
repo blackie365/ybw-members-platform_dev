@@ -1,9 +1,13 @@
 import { getMagazinePgPool } from '@/features/magazine/server/read-store/pg-client';
+import { config as dotenvConfig } from 'dotenv';
+import { resolve } from 'node:path';
+
+dotenvConfig({ path: resolve(process.cwd(), '.env.local'), override: false });
 
 /**
- * Diagnostic v2: confirm the maintenance script's Postgres is the same
- * database the app serves, inspect the target edition row, and reveal the
- * app's env source via the systemd unit.
+ * Diagnostic v3: load .env.local exactly like bake-classifieds.ts, confirm the
+ * maintenance script's Postgres is the same database the app serves, inspect
+ * the target edition row, and reveal the app's env source via the systemd unit.
  */
 
 function host(v: string | undefined): string {
@@ -84,6 +88,29 @@ async function main() {
   }
 
   console.log('=== systemd unit env source ===');
+  await appEnvSource();
+}
+
+async function appEnvSource() {
+  console.log('=== .env.local on server ===');
+  try {
+    const { execSync } = await import('node:child_process');
+    const ls = execSync('ls -la /srv/ybw-frontend/.env.local', { encoding: 'utf8', timeout: 10000 });
+    console.log('exists:', ls.trim().split('\n')[0]);
+    const matching = execSync(
+      `grep -E '^DATABASE_URL=' /srv/ybw-frontend/.env.local | sed -E 's#(://[^:/@]+):[^@]+@#\\1:***@#'`,
+      { encoding: 'utf8', timeout: 10000 },
+    );
+    console.log(matching.trim());
+    const unit = execSync('systemctl cat ybw-frontend.service 2>/dev/null || true', {
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    console.log('--- systemd unit snippet ---');
+    console.log(unit.replace(/\s+/g, ' ').replace(/password=\\S*/gi, 'password=***').slice(0, 1200));
+  } catch (err) {
+    console.log('(env probe failed:', (err as Error).message.split('\n')[0], ')');
+  }
 }
 
 main().catch((err) => {
