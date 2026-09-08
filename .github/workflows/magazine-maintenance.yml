@@ -3,8 +3,13 @@ name: Magazine Maintenance (manual)
 on:
   workflow_dispatch:
     inputs:
+      script:
+        description: 'Repo-relative script path to run (pnpm exec tsx, as www-data in the app dir)'
+        required: false
+        default: 'scripts/magazine-set-feature-image.ts'
+        type: string
       script_args:
-        description: 'Args for scripts/magazine-set-feature-image.ts'
+        description: 'Args passed to the script (space-separated)'
         required: false
         default: '--dry-run'
         type: string
@@ -36,17 +41,19 @@ jobs:
           ls -ld "$APPDIR"
           sudo -n true || { echo "sudo requires password - maintenance needs nopasswd sudo like deploy"; exit 1; }
 
-      - name: Run magazine-set-feature-image.ts as www-data (prod .env.local)
+      - name: Run maintenance script as www-data (prod .env.local)
         env:
+          SCRIPT: ${{ github.event.inputs.script }}
           ARGS: ${{ github.event.inputs.script_args }}
         run: |
           set -euo pipefail
+          SCRIPT="${SCRIPT:-scripts/magazine-set-feature-image.ts}"
           ARGS="${ARGS:---dry-run}"
-          echo "Running: tsx scripts/magazine-set-feature-image.ts ${ARGS}"
-          # The script itself calls dotenv.config('.env.local'), so we must NOT
+          echo "Running: tsx ${SCRIPT} ${ARGS}"
+          # The scripts call dotenv.config('.env.local'), so we must NOT
           # bash-source the file (dotenv lines are not always valid shell).
           set -f
-          sudo -u www-data -H bash -lc 'cd /srv/ybw-frontend && CI=true pnpm exec tsx scripts/magazine-set-feature-image.ts "$@"' _ ${ARGS}
+          sudo -u www-data -H bash -lc 'cd /srv/ybw-frontend && CI=true pnpm exec tsx "$0" "$@"' "$SCRIPT" ${ARGS}
           set +f
 
       - name: Report
