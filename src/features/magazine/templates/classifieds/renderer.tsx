@@ -1,5 +1,5 @@
 import type { TemplateRenderProps } from '../../domain/template-registry';
-import { groupClassifiedEntries } from '../../domain/classifieds';
+import { groupClassifiedEntries, initialsFor } from '../../domain/classifieds';
 import type { ClassifiedEntry } from '../../domain/classifieds';
 
 function formatSnapshotDate(raw: string): string {
@@ -13,6 +13,41 @@ function formatSnapshotDate(raw: string): string {
   } catch {
     return raw;
   }
+}
+
+/**
+ * Uniform portrait tile for every card: the member's photo when one exists,
+ * otherwise a paper-and-ink monogram that reads like a placeholder woodcut —
+ * same size, border and grayscale treatment either way so photo and non-photo
+ * listings line up identically down the column.
+ */
+function PortraitTile({
+  name,
+  image,
+  className,
+}: {
+  name: string;
+  image: string;
+  className: string;
+}) {
+  if (image) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={image}
+        alt={name}
+        className={`object-cover grayscale contrast-[1.05] ${className}`}
+      />
+    );
+  }
+  return (
+    <div
+      aria-hidden
+      className={`flex items-center justify-center border border-[#191412]/30 bg-gradient-to-br from-[#ece7dc] to-[#d6cfc2] font-serif font-bold text-[#191412]/70 ${className}`}
+    >
+      {initialsFor(name) || '\u2014'}
+    </div>
+  );
 }
 
 /**
@@ -30,14 +65,11 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
   return (
     <li className="mb-3 break-inside-avoid">
       <div className="border border-dashed border-[#191412] bg-[#fdfdfb] p-2.5 text-center text-[12.5px] leading-snug">
-        {entry.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={entry.image}
-            alt={entry.name}
-            className="mx-auto mb-1.5 h-11 w-11 rounded-[2px] border border-[#191412]/15 object-cover grayscale contrast-[1.05]"
-          />
-        ) : null}
+        <PortraitTile
+          name={entry.name}
+          image={entry.image}
+          className="mx-auto mb-1.5 h-11 w-11 rounded-[2px] border border-[#191412]/15 text-[15px]"
+        />
         <strong className="block font-serif text-[13px] font-bold uppercase tracking-[0.01em]">
           {entry.name}
         </strong>
@@ -130,17 +162,17 @@ export default function ClassifiedsTemplate({
           <div className="h-[3px] w-full bg-[#191412]" />
 
           {/* Section kicker + headline */}
-          <div className="flex flex-col gap-2 px-4 pt-8 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2 px-4 pt-8 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
             <span className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
               {kicker || "Business Directory"}
             </span>
-            <span className="font-sans text-[0.7rem] text-[#191412]/70">
+            <span className="text-center font-sans text-[0.7rem] text-[#191412]/70">
               {featured.length === 0
                 ? "A–Z member directory"
                 : `${featured.length} featured listing${featured.length === 1 ? "" : "s"}`}
             </span>
           </div>
-          <div className="mx-4 mt-4 max-w-3xl border-b border-[#191412] pb-3">
+          <div className="mx-auto mt-4 w-full max-w-4xl border-b border-[#191412] pb-3 text-center">
             <h2 className="font-serif text-[clamp(1.9rem,6vw,3.7rem)] font-bold leading-[0.98] tracking-tight text-[#191412]">
               {title}
             </h2>
@@ -252,14 +284,11 @@ export default function ClassifiedsTemplate({
                 </div>
                 {featured[0] ? (
                   <div className="my-2 border border-dashed border-[#191412] bg-[#fdfdfb] p-3 text-center text-[13px]">
-                    {featured[0].image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={featured[0].image}
-                        alt={featured[0].name}
-                        className="mx-auto mb-2 h-16 w-16 rounded-[2px] border border-[#191412]/15 object-cover grayscale contrast-[1.05]"
-                      />
-                    ) : null}
+                    <PortraitTile
+                      name={featured[0].name}
+                      image={featured[0].image}
+                      className="mx-auto mb-2 h-16 w-16 rounded-[2px] border border-[#191412]/15 text-[22px]"
+                    />
                     <strong className="font-serif text-[15px] font-bold uppercase tracking-[0.01em]">
                       {featured[0].name}
                     </strong>

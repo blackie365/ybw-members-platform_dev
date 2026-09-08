@@ -73,6 +73,22 @@ function profileIsActive(profile: ClassifiedSourceMember): boolean {
   return true;
 }
 
+/**
+ * Derive a short monogram for the fallback avatar shown when a member has no
+ * profile photo: first letter of the first and last words, quietly punting to
+ * the first two letters for single-word names. Non-letter characters are
+ * stripped so "O'Connor" and "J L Loftus" produce clean initials.
+ */
+export function initialsFor(name: string): string {
+  const words = name
+    .split(/\s+/)
+    .map((word) => word.replace(/[^A-Za-z]/g, ''))
+    .filter(Boolean);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0].charAt(0)}${words[words.length - 1].charAt(0)}`.toUpperCase();
+}
+
 export function isPaidOrFeaturedMember(profile: ClassifiedSourceMember): boolean {
   if (profile.isFeatured === true) return true;
   const tier = asString(profile.tier).toLowerCase() || asString(profile.membershipTier).toLowerCase();

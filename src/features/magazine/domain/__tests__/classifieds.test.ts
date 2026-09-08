@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildClassifiedEntries,
   groupClassifiedEntries,
+  initialsFor,
   isPaidOrFeaturedMember,
   PAID_TIERS,
 } from '../classifieds';
@@ -140,5 +141,24 @@ describe('groupClassifiedEntries', () => {
 
   it('returns [] for empty input', () => {
     expect(groupClassifiedEntries([])).toEqual([]);
+  });
+});
+
+describe('initialsFor', () => {
+  it('takes the first letter of the first and last words', () => {
+    expect(initialsFor('Jane D Smith')).toBe('JS');
+  });
+
+  it('uppercases and strips punctuation', () => {
+    expect(initialsFor("O'Connor Mack")).toBe('OM');
+  });
+
+  it('pads single-word names to two letters', () => {
+    expect(initialsFor('Jetplus')).toBe('JE');
+  });
+
+  it('returns an empty string when there is nothing to derive', () => {
+    expect(initialsFor('')).toBe('');
+    expect(initialsFor('!!!')).toBe('');
   });
 });
