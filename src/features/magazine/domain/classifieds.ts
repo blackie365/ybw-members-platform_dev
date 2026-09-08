@@ -11,6 +11,13 @@
  * and safe to import from client rendering code.
  */
 
+export interface ClassifiedLink {
+  /** Public social/profile links, only when absolute http(s) URLs. */
+  linkedin: string;
+  instagram: string;
+  twitter: string;
+}
+
 export interface ClassifiedEntry {
   /** Stable identity for React keys — the member's Clerk id. */
   key: string;
@@ -22,6 +29,11 @@ export interface ClassifiedEntry {
   website: string;
   /** Public profile photo (storage URLs preferred over blank gravatars). */
   image: string;
+  /** Shortened bio preview (newlines collapsed, hard-capped) for the card's strapline. */
+  bio: string;
+  /** Ticker-style expertise tags: services, then industry, then free tags, deduped. */
+  tags: string[];
+  links: ClassifiedLink;
   featured: boolean;
 }
 
@@ -41,6 +53,7 @@ export type ClassifiedSourceMember = Record<string, unknown> & {
   firstName?: string;
   lastName?: string;
   name?: string;
+  headline?: string;
   companyName?: string;
   company?: string;
   jobTitle?: string;
@@ -53,6 +66,16 @@ export type ClassifiedSourceMember = Record<string, unknown> & {
   avatarUrl?: string;
   profileImage?: string;
   profileImageSource?: string;
+  bio?: string;
+  services?: unknown;
+  tags?: unknown;
+  industrySector?: unknown;
+  linkedinUrl?: string;
+  linkedin?: string;
+  instagramUrl?: string;
+  instagram?: string;
+  twitterUrl?: string;
+  twitter?: string;
   membershipTier?: string;
   tier?: string;
   isFeatured?: boolean;
@@ -114,6 +137,74 @@ function resolveWebsite(profile: ClassifiedSourceMember): string {
 }
 
 /**
+ * Resolve the position line. `headline` (e.g. "Director of Coppergate Clinic in
+ * York") is used as a fallback so members who never filled a role/jobTitle
+ * still read as settled listings rather than bare names.
+ */
+function resolveRole(profile: ClassifiedSourceMember): string {
+  return asString(profile.role) || asString(profile.jobTitle) || asString(profile.headline);
+}
+
+const BIO_MAX = 220;
+
+/**
+ * Shorten the bio for a listing line: collapse every run of whitespace to a
+ * single space (newspaper column rule) and hard-cap the length so the frozen
+ * payload stays lean regardless of how verbose a member profile got.
+ */
+function resolveBio(profile: ClassifiedSourceMember): string {
+  const raw = asString(profile.bio);
+  const collapsed = raw.replace(/\s+/g, ' ').trim();
+  if (!collapsed) return '';
+  if (collapsed.length <= BIO_MAX) return collapsed;
+  return `${collapsed.slice(0, BIO_MAX).trimEnd()}…`;
+}
+
+/**
+ * Expertise tags by precedence: the member's chosen services, then the single
+ * industry sector, then loose expertise tags — deduped and capped at three so
+ * a card never turns into a dense chip wall.
+ */
+function resolveTags(profile: ClassifiedSourceMember): string[] {
+  const collect = (value: unknown): string[] => {
+    if (Array.isArray(value)) return value.map((v) => asString(v)).filter(Boolean);
+    const single = asString(value);
+    return single ? [single] : [];
+  };
+  const merged = [
+    ...collect(profile.services),
+    ...collect(profile.industrySector),
+    ...collect(profile.tags),
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tag of merged) {
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+function resolveLink(profile: ClassifiedSourceMember, fields: (keyof ClassifiedSourceMember)[]): string {
+  for (const field of fields) {
+    const raw = asString(profile[field]);
+    if (raw && /^https?:\/\//i.test(raw)) return raw;
+  }
+  return '';
+}
+
+function resolveLinks(profile: ClassifiedSourceMember): ClassifiedLink {
+  return {
+    linkedin: resolveLink(profile, ['linkedinUrl', 'linkedin']),
+    instagram: resolveLink(profile, ['instagramUrl', 'instagram']),
+    twitter: resolveLink(profile, ['twitterUrl', 'twitter']),
+  };
+}
+
+/**
  * Resolve the best public profile photo, mirroring the directory's preference
  * of storage-hosted uploads over (often blank) gravatar fallbacks.
  */
@@ -148,11 +239,14 @@ export function buildClassifiedEntries(members: ClassifiedSourceMember[]): Class
     out.push({
       key: asString(member.clerkId) || name,
       name,
-      role: asString(member.role) || asString(member.jobTitle),
+      role: resolveRole(member),
       company: asString(member.company) || asString(member.companyName),
       location: asString(member.location) || asString(member.city),
       website: resolveWebsite(member),
       image: resolveImage(member),
+      bio: resolveBio(member),
+      tags: resolveTags(member),
+      links: resolveLinks(member),
       featured: member.isFeatured === true,
     });
   }

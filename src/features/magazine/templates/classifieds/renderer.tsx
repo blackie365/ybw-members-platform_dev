@@ -62,6 +62,14 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
     .filter(Boolean)
     .join(', ');
 
+  const socialLinks = (
+    [
+      ['LinkedIn', entry.links?.linkedin],
+      ['Instagram', entry.links?.instagram],
+      ['Twitter', entry.links?.twitter],
+    ] as const
+  ).filter((pair) => pair[1]) as [string, string][];
+
   return (
     <li className="mb-3 break-inside-avoid">
       <div className="border border-dashed border-[#191412] bg-[#fdfdfb] p-2.5 text-center text-[12.5px] leading-snug">
@@ -81,6 +89,14 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
         {detail ? (
           <p className="mt-0.5 text-[#191412]/90">{detail}</p>
         ) : null}
+        {entry.bio ? (
+          <p className="mt-0.5 line-clamp-2 text-[#191412]/75">{entry.bio}</p>
+        ) : null}
+        {entry.tags && entry.tags.length > 0 ? (
+          <p className="mt-0.5 font-sans text-[9px] font-semibold uppercase tracking-[0.1em] text-[#191412]/50">
+            {entry.tags.join(' · ')}
+          </p>
+        ) : null}
         {entry.website ? (
           <a
             href={entry.website}
@@ -90,6 +106,25 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
           >
             {entry.website.replace(/^https?:\/\//i, '')}
           </a>
+        ) : null}
+        {socialLinks.length > 0 ? (
+          <p className="mt-0.5 text-[#a3413a]">
+            {socialLinks.map(([label, href], index) => (
+              <span key={label}>
+                {index > 0 ? (
+                  <span className="text-[#191412]/30"> · </span>
+                ) : null}
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="underline underline-offset-2 hover:opacity-80"
+                >
+                  {label}
+                </a>
+              </span>
+            ))}
+          </p>
         ) : null}
       </div>
     </li>
@@ -301,6 +336,14 @@ export default function ClassifiedsTemplate({
                     {featured[0].location ? (
                       <p className="text-[#191412]/75">{featured[0].location}</p>
                     ) : null}
+                    {featured[0].bio ? (
+                      <p className="mt-1 line-clamp-3 text-[#191412]/75">{featured[0].bio}</p>
+                    ) : null}
+                    {featured[0].tags && featured[0].tags.length > 0 ? (
+                      <p className="mt-1 font-sans text-[9px] font-semibold uppercase tracking-[0.1em] text-[#191412]/50">
+                        {featured[0].tags.join(' · ')}
+                      </p>
+                    ) : null}
                     {featured[0].website ? (
                       <a
                         href={featured[0].website}
@@ -310,6 +353,36 @@ export default function ClassifiedsTemplate({
                       >
                         {featured[0].website.replace(/^https?:\/\//i, '')}
                       </a>
+                    ) : null}
+                    {featured[0].links &&
+                    (featured[0].links.linkedin ||
+                      featured[0].links.instagram ||
+                      featured[0].links.twitter) ? (
+                      <p className="mt-1 text-[#a3413a]">
+                        {(
+                          [
+                            ['LinkedIn', featured[0].links.linkedin],
+                            ['Instagram', featured[0].links.instagram],
+                            ['Twitter', featured[0].links.twitter],
+                          ] as const
+                        )
+                          .filter((pair) => pair[1])
+                          .map(([label, href], index, arr) => (
+                            <span key={label}>
+                              {index > 0 ? (
+                                <span className="text-[#191412]/30"> · </span>
+                              ) : null}
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="underline underline-offset-2 hover:opacity-80"
+                              >
+                                {label}
+                              </a>
+                            </span>
+                          ))}
+                      </p>
                     ) : null}
                   </div>
                 ) : (
