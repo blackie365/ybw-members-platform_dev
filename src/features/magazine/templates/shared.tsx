@@ -31,6 +31,30 @@ import {
 import type { StorySummary } from "../domain/template-registry";
 
 // ─────────────────────────────────────────────
+// MASTHEAD LOCKUP
+// ─────────────────────────────────────────────
+
+/**
+ * The brand wordmark used as the reader masthead. Rendered as a single
+ * responsive image (trimmed to its content box, 1863×296 ≈ 6.3:1) so it fits
+ * the nameplate band on every reader page without distorting.
+ */
+export const MagazineMastheadLogo = ({
+  alt = "Yorkshire BusinessWoman",
+  className = "",
+}: {
+  alt?: string;
+  className?: string;
+}) => (
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src="/images/logo-masthead.png"
+    alt={alt}
+    className={`mx-auto h-auto w-full max-w-[560px] select-none ${className}`}
+  />
+);
+
+// ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
 
@@ -2091,8 +2115,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
         </header>
         <div className="h-px w-full bg-[#191412]/25" />
         <div className="py-3 text-center">
-          <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
-            Yorkshire <span className="italic">Business</span>Woman
+          <h1 className="py-1 text-center">
+            <MagazineMastheadLogo />
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
             News for the region&rsquo;s entrepreneurs &amp; businesswomen
@@ -2401,8 +2425,8 @@ export const PageNewspaperCover = ({
         </header>
         <div className="h-px w-full bg-[#191412]/25" />
         <div className="py-3 text-center">
-          <h1 className="font-serif text-[clamp(1.9rem,6.5vw,3.9rem)] leading-none tracking-tight text-[#191412]">
-            Yorkshire <span className="italic">Business</span>Woman
+          <h1 className="py-1 text-center">
+            <MagazineMastheadLogo />
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
             News for the region&rsquo;s entrepreneurs &amp; businesswomen
@@ -2560,8 +2584,8 @@ export const PageNewspaperContents = ({ data, imageVersion = "", editionSlug }: 
         </header>
         <div className="h-px w-full bg-[#191412]/25" />
         <div className="py-3 text-center">
-          <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
-            Yorkshire <span className="italic">Business</span>Woman
+          <h1 className="py-1 text-center">
+            <MagazineMastheadLogo />
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
             In this issue
