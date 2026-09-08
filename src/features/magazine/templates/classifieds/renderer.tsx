@@ -1,6 +1,7 @@
 import type { TemplateRenderProps } from '../../domain/template-registry';
 import { groupClassifiedEntries, initialsFor } from '../../domain/classifieds';
 import type { ClassifiedEntry } from '../../domain/classifieds';
+import { MagazineMastheadLogo } from '../shared';
 
 function formatSnapshotDate(raw: string): string {
   if (!raw) return '';
@@ -176,9 +177,9 @@ export default function ClassifiedsTemplate({
             </span>
           </header>
           <div className="h-px w-full bg-[#191412]/25" />
-          <div className="px-4 py-3 text-center">
-            <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
-              Yorkshire <span className="italic">Business</span>Woman
+          <div className="px-4 py-2 text-center">
+            <h1 className="text-center">
+              <MagazineMastheadLogo />
             </h1>
             <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
               {intro || "The region&rsquo;s member directory"}

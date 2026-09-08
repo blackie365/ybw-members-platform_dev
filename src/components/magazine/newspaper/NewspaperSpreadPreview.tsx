@@ -1,5 +1,7 @@
 "use client";
 
+import { MagazineMastheadLogo } from "@/features/magazine/templates/shared";
+
 /**
  * NEWSPAPER SPREAD — PROtotype (pure Tailwind, classic broadsheet).
  *
@@ -86,8 +88,8 @@ export default function NewspaperSpreadPreview() {
         </header>
         <Hairline />
         <div className="py-3 text-center">
-          <h1 className="font-serif text-[clamp(1.6rem,5.5vw,3.2rem)] leading-none tracking-tight text-[#191412]">
-            Yorkshire <span className="italic">Business</span>Woman
+          <h1 className="text-center">
+            <MagazineMastheadLogo />
           </h1>
           <p className="mt-1.5 font-sans text-[0.6rem] uppercase tracking-[0.34em] text-[#191412]/50 sm:text-[0.65rem]">
             A broadsheet for the region&rsquo;s founders &amp; leaders
