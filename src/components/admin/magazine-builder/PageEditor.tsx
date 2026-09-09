@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage, Star } from 'lucide-react';
+import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage, Star, Plus } from 'lucide-react';
+import { BroadsheetSocialPostCard } from '@/features/magazine/templates/shared';
+import type { BroadsheetSocialPost, BroadsheetSocialPlatform } from '@/features/magazine/domain/types';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -61,8 +63,58 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
   const [highlightsError, setHighlightsError] = useState<string>('');
   const [socialsDraft, setSocialsDraft] = useState<string>('[]');
   const [socialsError, setSocialsError] = useState<string>('');
+  const [socialEmbedsDraft, setSocialEmbedsDraft] = useState<BroadsheetSocialPost[]>([]);
+  const [socialEmbedsError, setSocialEmbedsError] = useState<string>('');
   const [statsDraft, setStatsDraft] = useState<string>('[]');
   const [statsError, setStatsError] = useState<string>('');
+
+  const PLATFORM_OPTIONS: { value: BroadsheetSocialPlatform; label: string }[] = [
+    { value: 'twitter', label: 'X / Twitter' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'tiktok', label: 'TikTok' },
+    { value: 'youtube', label: 'YouTube' },
+  ];
+
+  const dedupeAndNormalizeSocialEmbeds = (rawList: any[]): BroadsheetSocialPost[] => {
+    const seen = new Set<string>();
+    const out: BroadsheetSocialPost[] = [];
+    for (const raw of rawList) {
+      if (!raw || typeof raw !== 'object') continue;
+      const platform = (raw.platform as BroadsheetSocialPlatform) || 'twitter';
+      if (!PLATFORM_OPTIONS.some(p => p.value === platform)) continue;
+      const handle = String(raw.handle || '').trim();
+      const accountName = String(raw.accountName || '').trim();
+      const date = String(raw.date || '').trim();
+      const body = String(raw.body || '').trim();
+      const postUrl = String(raw.postUrl || '').trim();
+      const key = `${platform}|${handle}|${postUrl}|${date}|${body.slice(0, 80)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        platform,
+        handle: handle || accountName || 'ybw',
+        accountName: accountName || handle || 'YBW',
+        date,
+        body,
+        imageUrl: raw.imageUrl ? String(raw.imageUrl).trim() || undefined : undefined,
+        caption: raw.caption ? String(raw.caption).trim() || undefined : undefined,
+        postUrl: postUrl || '#',
+        layout: raw.layout === 'rail' || raw.layout === 'column-half' || raw.layout === 'column-full'
+          ? (raw.layout as 'rail' | 'column-half' | 'column-full')
+          : undefined,
+      });
+    }
+    return out;
+  };
+
+  const syncSocialEmbedsToContent = useCallback((posts: BroadsheetSocialPost[]) => {
+    setSocialEmbedsError('');
+    updateContent('socialEmbeds', posts);
+    updateContent('social', posts);
+    updateContent('socialPosts', posts);
+  }, []);
 
   const stringifyJson = (value: any) => JSON.stringify(value ?? null, null, 2);
 
@@ -283,6 +335,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     setHighlightsError('');
     setSocialsDraft(stringifyJson((loadedContent as any)?.socials || []));
     setSocialsError('');
+    {
+      const rawEmbeds = [
+        (loadedContent as any)?.socialEmbeds ?? [],
+        (loadedContent as any)?.social ?? [],
+        (loadedContent as any)?.socialPosts ?? [],
+      ].flat();
+      const normalized = dedupeAndNormalizeSocialEmbeds(rawEmbeds);
+      setSocialEmbedsDraft(normalized);
+      setSocialEmbedsError('');
+    }
     setStatsDraft(stringifyStats((loadedContent as any)?.stats));
     setStatsError('');
     setPendingType(null);
@@ -851,6 +913,255 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     );
   }
 
+  const SocialEmbedsEditorSection = () => (
+    <div className="space-y-4 pt-4 border-t">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <Label className="text-sm">Social Embeds (Curated Posts)</Label>
+          <p className="text-[10px] text-muted-foreground">
+            Renders as broadsheet newspaper cards. 1–2 posts appear in the right rail; 3+ in a 3-column gallery below.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={readOnly}
+          onClick={() => {
+            if (readOnly) return;
+            const emptyPost: BroadsheetSocialPost = {
+              platform: 'instagram',
+              handle: 'yorkshirebusinesswoman',
+              accountName: 'Yorkshire BusinessWoman',
+              date: '',
+              body: '',
+              postUrl: '',
+              layout: 'rail',
+            };
+            const next = [...socialEmbedsDraft, emptyPost];
+            setSocialEmbedsDraft(next);
+            syncSocialEmbedsToContent(next);
+          }}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Add post
+        </Button>
+      </div>
+
+      {socialEmbedsError ? (
+        <p className="text-[10px] text-destructive">{socialEmbedsError}</p>
+      ) : null}
+
+      <div className="space-y-6">
+        {socialEmbedsDraft.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center">
+            <p className="text-sm text-muted-foreground italic">
+              No social posts yet. Click <span className="font-semibold">Add post</span> above to embed a curated social wire excerpt.
+            </p>
+          </div>
+        ) : (
+          socialEmbedsDraft.map((post, i) => (
+            <div
+              key={`social-edit-${i}`}
+              className="rounded-lg border bg-white p-4"
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+                  Post {i + 1} of {socialEmbedsDraft.length}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                  disabled={readOnly}
+                  onClick={() => {
+                    if (readOnly) return;
+                    const next = socialEmbedsDraft.filter((_, idx) => idx !== i);
+                    setSocialEmbedsDraft(next);
+                    syncSocialEmbedsToContent(next);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Platform</Label>
+                  <Select
+                    value={post.platform}
+                    disabled={readOnly}
+                    onValueChange={(v) => {
+                      if (readOnly) return;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, platform: v as BroadsheetSocialPlatform } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Platform" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PLATFORM_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Handle (without @)</Label>
+                  <Input
+                    value={post.handle}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const v = e.target.value.replace(/^@/, '').trim();
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, handle: v } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Account Name</Label>
+                  <Input
+                    value={post.accountName}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, accountName: e.target.value } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Date</Label>
+                  <Input
+                    placeholder="14 Sep 2026"
+                    value={post.date}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, date: e.target.value } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[11px]">Post URL (external link)</Label>
+                  <Input
+                    placeholder="https://instagram.com/p/..."
+                    value={post.postUrl}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, postUrl: e.target.value } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Layout</Label>
+                  <Select
+                    value={post.layout || 'rail'}
+                    disabled={readOnly}
+                    onValueChange={(v) => {
+                      if (readOnly) return;
+                      const layout = v === 'column-half' || v === 'column-full' ? v as any : 'rail';
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, layout } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Layout" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rail">Rail</SelectItem>
+                      <SelectItem value="column-half">Column Half</SelectItem>
+                      <SelectItem value="column-full">Column Full</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-1.5">
+                <Label className="text-[11px]">Post Body Text</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Write the post body as plain text — raw HTML embeds are not accepted."
+                  value={post.body}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    if (readOnly) return;
+                    const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, body: e.target.value } : p);
+                    setSocialEmbedsDraft(next);
+                    syncSocialEmbedsToContent(next);
+                  }}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Image URL (optional)</Label>
+                  <Input
+                    placeholder="https://..."
+                    value={post.imageUrl || ''}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const v = e.target.value.trim() || undefined;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, imageUrl: v } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px]">Image Caption (optional)</Label>
+                  <Input
+                    placeholder="Photo: ..."
+                    value={post.caption || ''}
+                    disabled={readOnly}
+                    onChange={(e) => {
+                      if (readOnly) return;
+                      const v = e.target.value.trim() || undefined;
+                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, caption: v } : p);
+                      setSocialEmbedsDraft(next);
+                      syncSocialEmbedsToContent(next);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {post.body || post.imageUrl ? (
+                <div className="mt-4 border-t pt-4">
+                  <Label className="text-[11px] block mb-3 text-muted-foreground uppercase tracking-widest">
+                    Live Preview
+                  </Label>
+                  <div className="rounded-lg bg-[#fdfdfb] p-4 border">
+                    <BroadsheetSocialPostCard
+                      post={post}
+                      slot={socialEmbedsDraft.length >= 3 ? 'grid' : 'rail'}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   const renderEditorFields = () => {
     const safeContent: any = content || {};
     
@@ -1176,6 +1487,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                 <p className="text-[10px] text-muted-foreground">Paste JSON array or use one per line: YEARS: 14</p>
               )}
             </div>
+
+            <SocialEmbedsEditorSection />
           </div>
         );
       case 'column':
@@ -1279,6 +1592,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Label>Tips Label</Label>
               <Input value={safeContent.tipsLabel || safeContent.tipsTitle || ''} onChange={(e) => updateContent('tipsLabel', e.target.value)} />
             </div>
+
+            <SocialEmbedsEditorSection />
           </div>
         );
       case 'lifestyle':
@@ -1390,6 +1705,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Label>Editor&apos;s Pick Label</Label>
               <Input value={safeContent.editorsPickLabel || ''} onChange={(e) => updateContent('editorsPickLabel', e.target.value)} />
             </div>
+
+            <SocialEmbedsEditorSection />
           </div>
         );
       case 'spotlight':
@@ -1681,6 +1998,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
       tipsError ||
       highlightsError ||
       socialsError ||
+      socialEmbedsError ||
       statsError
   );
 
@@ -1784,6 +2102,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                   setHighlightsError('');
                   setSocialsDraft(stringifyJson((parsed as any)?.socials || []));
                   setSocialsError('');
+                  {
+                    const rawEmbeds = [
+                      (parsed as any)?.socialEmbeds ?? [],
+                      (parsed as any)?.social ?? [],
+                      (parsed as any)?.socialPosts ?? [],
+                    ].flat();
+                    const normalized = dedupeAndNormalizeSocialEmbeds(rawEmbeds);
+                    setSocialEmbedsDraft(normalized);
+                    setSocialEmbedsError('');
+                  }
                   setStatsDraft(stringifyStats((parsed as any)?.stats));
                   setStatsError('');
                   if (page?.type === 'lifestyle') {

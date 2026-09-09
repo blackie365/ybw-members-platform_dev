@@ -43,6 +43,33 @@ const UrlString = z
   .pipe(z.string().optional());
 
 const EmptyableUrlString = UrlString.default('');
+const PLATFORM_KEYS = [
+  'twitter',
+  'instagram',
+  'facebook',
+  'linkedin',
+  'tiktok',
+  'youtube',
+] as const;
+
+const BroadsheetSocialPostSchema = z
+  .object({
+    platform: z.enum(PLATFORM_KEYS),
+    handle: z.string().trim().min(1, 'Social handle is required (e.g. @yorkshirebusinesswoman)'),
+    accountName: z.string().trim().min(1, 'Account display name is required'),
+    date: z.string().trim().min(1, 'Post date is required (e.g. 14th August 2026)'),
+    body: z.string().trim().min(1, 'Post text is required'),
+    imageUrl: EmptyableUrlString,
+    caption: z.string().trim().optional(),
+    postUrl: UrlString.pipe(z.string().min(1, 'Post URL is required')),
+    layout: z.enum(['rail', 'column-half', 'column-full'] as const).optional(),
+  })
+  .strict()
+  .transform((p) => ({
+    ...p,
+    imageUrl: p.imageUrl || undefined,
+  }));
+
 const ReaderPageContentSchema = z
   .object({
     title: z.string().trim().min(1, 'title is required').max(400),
@@ -91,17 +118,40 @@ const ReaderPageContentSchema = z
     logoImage: EmptyableUrlString,
     logoImages: z.array(z.string().trim()).default([]),
     partnerLogo: EmptyableUrlString,
+    socialEmbeds: z.array(BroadsheetSocialPostSchema).default([]),
+    social: z.array(BroadsheetSocialPostSchema).default([]),
+    socialPosts: z.array(BroadsheetSocialPostSchema).default([]),
   })
   .passthrough()
   .transform((content) => {
     const bodyOut = String(content.body || content.text || '').trim();
     const introOut = String(content.standfirst || content.intro || '').trim();
+    const rawSocial: unknown[] = [
+      Array.isArray(content.socialEmbeds) ? content.socialEmbeds : [],
+      Array.isArray(content.social) ? content.social : [],
+      Array.isArray(content.socialPosts) ? content.socialPosts : [],
+    ].flat();
+    const dedupKey = (p: any) =>
+      `${String(p?.platform || '')}|${String(p?.handle || '')}|${String(p?.postUrl || '')}|${String(p?.date || '')}|${String(p?.body || '').slice(0, 80)}`;
+    const seen = new Set<string>();
+    const socialEmbeds: Array<z.infer<typeof BroadsheetSocialPostSchema>> = [];
+    for (const raw of rawSocial) {
+      const parsed = BroadsheetSocialPostSchema.safeParse(raw);
+      if (!parsed.success) continue;
+      const key = dedupKey(parsed.data);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      socialEmbeds.push(parsed.data);
+    }
     return {
       ...content,
       body: bodyOut,
       text: bodyOut,
       standfirst: introOut,
       intro: introOut,
+      socialEmbeds,
+      social: socialEmbeds,
+      socialPosts: socialEmbeds,
     };
   });
 

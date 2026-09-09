@@ -169,6 +169,37 @@ const featureEntry: TemplateRegistryEntry = {
     const c = (page.content || {}) as CRecord;
     const main = pickFirstImage(c, "");
     const gallery = pickGallery(c);
+    const pickSocial = (): any[] => {
+      const pools: unknown[][] = [
+        Array.isArray(c.socialEmbeds) ? c.socialEmbeds as any[] : [],
+        Array.isArray(c.social) ? c.social as any[] : [],
+        Array.isArray(c.socialPosts) ? c.socialPosts as any[] : [],
+      ];
+      const VALID = new Set(["twitter","instagram","facebook","linkedin","tiktok","youtube"]);
+      const seen = new Set<string>();
+      const out: any[] = [];
+      for (const entry of pools.flat()) {
+        if (!entry || typeof entry !== "object") continue;
+        const e = entry as Record<string, unknown>;
+        const platform = typeof e.platform === "string" ? e.platform.trim().toLowerCase() : "";
+        const handle = typeof e.handle === "string" ? e.handle.trim() : "";
+        const accountName = typeof e.accountName === "string" ? e.accountName.trim() : "";
+        const date = typeof e.date === "string" ? e.date.trim() : "";
+        const body = typeof e.body === "string" ? e.body.trim() : "";
+        const postUrl = typeof e.postUrl === "string" ? e.postUrl.trim() : "";
+        if (!VALID.has(platform) || !handle || !accountName || !date || !body || !postUrl) continue;
+        const imageUrl = typeof e.imageUrl === "string" && e.imageUrl.trim().length > 0 ? firstNonPlaceholderImage([e.imageUrl]) || undefined : undefined;
+        const caption = typeof e.caption === "string" && e.caption.trim().length > 0 ? e.caption.trim() : undefined;
+        const layoutRaw = typeof e.layout === "string" ? e.layout.trim().toLowerCase() : "";
+        const layout = ["rail","column-half","column-full"].includes(layoutRaw) ? layoutRaw : undefined;
+        const key = `${platform}|${handle}|${postUrl}|${date}|${body.slice(0,80)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ platform, handle, accountName, date, body, postUrl, ...(imageUrl?{imageUrl}:{}), ...(caption?{caption}:{}), ...(layout?{layout}:{}) });
+      }
+      return out;
+    };
+    const socialEmbeds = pickSocial();
     return {
       title: String(c.title || c.headline || ""),
       kicker: String(c.kicker || c.section || c.category || "Feature"),
@@ -192,6 +223,7 @@ const featureEntry: TemplateRegistryEntry = {
       stats: [],
       ads: Array.isArray(c.ads) ? (c.ads as any[]) : [],
       adSlots: Number(c.adSlots) > 0 ? Number(c.adSlots) : 0,
+      socialEmbeds,
     };
   },
 };
@@ -201,6 +233,33 @@ const editorNoteEntry: TemplateRegistryEntry = {
   buildViewModel: (page) => {
     const c = (page.content || {}) as CRecord;
     const main = pickFirstImage(c, "");
+    const socialPools: unknown[][] = [
+      Array.isArray(c.socialEmbeds) ? c.socialEmbeds as any[] : [],
+      Array.isArray(c.social) ? c.social as any[] : [],
+      Array.isArray(c.socialPosts) ? c.socialPosts as any[] : [],
+    ];
+    const VALID = new Set(["twitter","instagram","facebook","linkedin","tiktok","youtube"]);
+    const socialSeen = new Set<string>();
+    const socialEmbeds: any[] = [];
+    for (const entry of socialPools.flat()) {
+      if (!entry || typeof entry !== "object") continue;
+      const e = entry as Record<string, unknown>;
+      const platform = typeof e.platform === "string" ? e.platform.trim().toLowerCase() : "";
+      const handle = typeof e.handle === "string" ? e.handle.trim() : "";
+      const accountName = typeof e.accountName === "string" ? e.accountName.trim() : "";
+      const date = typeof e.date === "string" ? e.date.trim() : "";
+      const body = typeof e.body === "string" ? e.body.trim() : "";
+      const postUrl = typeof e.postUrl === "string" ? e.postUrl.trim() : "";
+      if (!VALID.has(platform) || !handle || !accountName || !date || !body || !postUrl) continue;
+      const key = `${platform}|${handle}|${postUrl}|${date}|${body.slice(0,80)}`;
+      if (socialSeen.has(key)) continue;
+      socialSeen.add(key);
+      const imageUrl = typeof e.imageUrl === "string" && e.imageUrl.trim() ? firstNonPlaceholderImage([e.imageUrl]) || undefined : undefined;
+      const caption = typeof e.caption === "string" && e.caption.trim() ? e.caption.trim() : undefined;
+      const layoutRaw = typeof e.layout === "string" ? e.layout.trim().toLowerCase() : "";
+      const layout = ["rail","column-half","column-full"].includes(layoutRaw) ? layoutRaw : undefined;
+      socialEmbeds.push({ platform, handle, accountName, date, body, postUrl, ...(imageUrl?{imageUrl}:{}), ...(caption?{caption}:{}), ...(layout?{layout}:{}) });
+    }
     const viewModel: Record<string, unknown> = {
       title: String(c.title || c.headline || "Editor's Note"),
       author: String(c.author || c.name || c.byline || ""),
@@ -213,6 +272,7 @@ const editorNoteEntry: TemplateRegistryEntry = {
       pullQuotes: Array.isArray(c.pullQuotes) ? (c.pullQuotes as any[]) : [],
       ads: Array.isArray(c.ads) ? (c.ads as any[]) : [],
       adSlots: Number(c.adSlots) > 0 ? Number(c.adSlots) : 0,
+      socialEmbeds,
     };
     delete viewModel.items;
     if (Array.isArray((c as any).items)) {

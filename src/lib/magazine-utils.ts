@@ -405,6 +405,89 @@ export function normalizeMagazinePageContent(contentIn: any): any {
     }
   }
 
+  // 3b) Social embeds — merge socialEmbeds/social/socialPosts aliases,
+  //     validate shape, fix post/image URLs, dedupe. Mirrors how
+  //     intro↔standfirst / text↔body keep both field names in sync.
+  {
+    const SOCIAL_ALIASES = ['socialEmbeds', 'social', 'socialPosts'] as const;
+    const SOCIAL_PLATFORMS = new Set<string>([
+      'twitter',
+      'instagram',
+      'facebook',
+      'linkedin',
+      'tiktok',
+      'youtube',
+    ]);
+    const LAYOUTS = new Set<string>(['rail', 'column-half', 'column-full']);
+    const seed: any[] = [];
+    for (const key of SOCIAL_ALIASES) {
+      const r = (out as any)[key];
+      if (Array.isArray(r)) seed.push(...r);
+    }
+    const seen = new Set<string>();
+    const normalized: any[] = [];
+    for (const entry of seed) {
+      if (!entry || typeof entry !== 'object') continue;
+      const platform =
+        typeof entry.platform === 'string'
+          ? entry.platform.trim().toLowerCase()
+          : '';
+      const handle =
+        typeof entry.handle === 'string' ? entry.handle.trim() : '';
+      const accountName =
+        typeof entry.accountName === 'string' ? entry.accountName.trim() : '';
+      const date =
+        typeof entry.date === 'string' ? entry.date.trim() : '';
+      const body =
+        typeof entry.body === 'string' ? entry.body.trim() : '';
+      const caption =
+        typeof entry.caption === 'string' && entry.caption.trim().length > 0
+          ? entry.caption.trim()
+          : undefined;
+      const layoutRaw =
+        typeof entry.layout === 'string'
+          ? entry.layout.trim().toLowerCase()
+          : '';
+      const layout = LAYOUTS.has(layoutRaw) ? layoutRaw : undefined;
+      if (!SOCIAL_PLATFORMS.has(platform)) continue;
+      if (!handle || !accountName || !date || !body) continue;
+      const postUrlRaw =
+        typeof entry.postUrl === 'string' ? entry.postUrl.trim() : '';
+      const postUrl =
+        postUrlRaw &&
+        (postUrlRaw.startsWith('https://') ||
+          postUrlRaw.startsWith('http://') ||
+          postUrlRaw.startsWith('/'))
+          ? fixMagazineImageUrl(postUrlRaw)
+          : '';
+      if (!postUrl) continue;
+      const imageUrlRaw =
+        typeof entry.imageUrl === 'string' ? entry.imageUrl.trim() : '';
+      const imageUrl = imageUrlRaw ? fixMagazineImageUrl(imageUrlRaw) : '';
+      const dedup = `${platform}|${handle}|${postUrl}|${date}|${body.slice(
+        0,
+        80,
+      )}`;
+      if (seen.has(dedup)) continue;
+      seen.add(dedup);
+      const item: any = {
+        platform,
+        handle,
+        accountName,
+        date,
+        body,
+        postUrl,
+        ...(imageUrl ? { imageUrl } : {}),
+        ...(caption ? { caption } : {}),
+        ...(layout ? { layout } : {}),
+      };
+      normalized.push(item);
+    }
+    (out as any).socialEmbeds = normalized;
+    (out as any).social = normalized;
+    (out as any).socialPosts = normalized;
+  }
+
   // 4) Canonical image fields. Every importer (IDML, Ghost, manual, Story
   //    Library) and every template still reads/writes a different subset of
   //    ~15 aliased image fields (image/featureImage/heroImage/mainImage/
