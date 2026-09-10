@@ -913,254 +913,264 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     );
   }
 
-  const SocialEmbedsEditorSection = () => (
-    <div className="space-y-4 pt-4 border-t">
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-0.5">
-          <Label className="text-sm">Social Embeds (Curated Posts)</Label>
-          <p className="text-[10px] text-muted-foreground">
-            Renders as broadsheet newspaper cards. 1–2 posts appear in the right rail; 3+ in a 3-column gallery below.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={readOnly}
-          onClick={() => {
-            if (readOnly) return;
-            const emptyPost: BroadsheetSocialPost = {
-              platform: 'instagram',
-              handle: 'yorkshirebusinesswoman',
-              accountName: 'Yorkshire BusinessWoman',
-              date: '',
-              body: '',
-              postUrl: '',
-              layout: 'rail',
-            };
-            const next = [...socialEmbedsDraft, emptyPost];
-            setSocialEmbedsDraft(next);
-            syncSocialEmbedsToContent(next);
-          }}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Add post
-        </Button>
+  const SocialEmbedsEditorSection = () => {
+    const SectionKicker = ({ children }: { children: React.ReactNode }) => (
+      <div className="flex items-center gap-2.5">
+        <span aria-hidden className="h-4 w-[3px] shrink-0 bg-[#a3413a]" />
+        <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.28em] text-[#a3413a]">
+          {children}
+        </span>
       </div>
+    );
 
-      {socialEmbedsError ? (
-        <p className="text-[10px] text-destructive">{socialEmbedsError}</p>
-      ) : null}
+    return (
+      <div className="space-y-5 pt-5 border-t">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <Label className="text-sm">Social Embeds (Curated Posts)</Label>
+            <p className="text-[10px] text-muted-foreground max-w-xl">
+              Renders as broadsheet newspaper cards. 1–2 posts appear in the right rail; 3+ in a 3-column gallery before &ldquo;More from this edition&rdquo;.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={readOnly}
+            onClick={() => {
+              if (readOnly) return;
+              const emptyPost: BroadsheetSocialPost = {
+                platform: 'instagram',
+                handle: 'yorkshirebusinesswoman',
+                accountName: 'Yorkshire BusinessWoman',
+                date: '',
+                body: '',
+                postUrl: '',
+                layout: 'rail',
+              };
+              const next = [...socialEmbedsDraft, emptyPost];
+              setSocialEmbedsDraft(next);
+              syncSocialEmbedsToContent(next);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add post
+          </Button>
+        </div>
 
-      <div className="space-y-6">
+        {socialEmbedsError ? (
+          <p className="text-[10px] text-destructive">{socialEmbedsError}</p>
+        ) : null}
+
         {socialEmbedsDraft.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground italic">
-              No social posts yet. Click <span className="font-semibold">Add post</span> above to embed a curated social wire excerpt.
+              No social posts yet. Click <span className="font-semibold">Add post</span> above to embed a curated wire excerpt.
             </p>
           </div>
         ) : (
-          socialEmbedsDraft.map((post, i) => (
-            <div
-              key={`social-edit-${i}`}
-              className="rounded-lg border bg-white p-4"
-            >
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
-                  Post {i + 1} of {socialEmbedsDraft.length}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-muted-foreground hover:text-destructive"
-                  disabled={readOnly}
-                  onClick={() => {
-                    if (readOnly) return;
-                    const next = socialEmbedsDraft.filter((_, idx) => idx !== i);
-                    setSocialEmbedsDraft(next);
-                    syncSocialEmbedsToContent(next);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Platform</Label>
-                  <Select
-                    value={post.platform}
+          <div className="space-y-5">
+            {socialEmbedsDraft.map((post, i) => (
+              <div
+                key={`social-edit-${i}`}
+                className="rounded-xl border bg-background/60 p-5 shadow-[0_1px_0_rgba(25,20,18,0.04)]"
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionKicker>Post {i + 1} · {PLATFORM_OPTIONS.find(p => p.value === post.platform)?.label || 'Social'}</SectionKicker>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-destructive"
                     disabled={readOnly}
-                    onValueChange={(v) => {
+                    onClick={() => {
                       if (readOnly) return;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, platform: v as BroadsheetSocialPlatform } : p);
+                      const next = socialEmbedsDraft.filter((_, idx) => idx !== i);
                       setSocialEmbedsDraft(next);
                       syncSocialEmbedsToContent(next);
                     }}
                   >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Platform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PLATFORM_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Delete
+                  </Button>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Handle (without @)</Label>
-                  <Input
-                    value={post.handle}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const v = e.target.value.replace(/^@/, '').trim();
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, handle: v } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Account Name</Label>
-                  <Input
-                    value={post.accountName}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, accountName: e.target.value } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Date</Label>
-                  <Input
-                    placeholder="14 Sep 2026"
-                    value={post.date}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, date: e.target.value } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
-                </div>
-              </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-[11px]">Post URL (external link)</Label>
-                  <Input
-                    placeholder="https://instagram.com/p/..."
-                    value={post.postUrl}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, postUrl: e.target.value } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
+                {/* ── Group 1: Identity ── */}
+                <div className="space-y-2.5 pb-4 border-b border-border/60">
+                  <SectionKicker>Identity</SectionKicker>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px]">Platform</Label>
+                      <Select
+                        value={post.platform}
+                        disabled={readOnly}
+                        onValueChange={(v) => {
+                          if (readOnly) return;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, platform: v as BroadsheetSocialPlatform } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Platform" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PLATFORM_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px]">Handle (without @)</Label>
+                      <Input
+                        value={post.handle}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const v = e.target.value.replace(/^@/, '').trim();
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, handle: v } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5 lg:col-span-2">
+                      <Label className="text-[11px]">Account Name</Label>
+                      <Input
+                        value={post.accountName}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, accountName: e.target.value } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Layout</Label>
-                  <Select
-                    value={post.layout || 'rail'}
-                    disabled={readOnly}
-                    onValueChange={(v) => {
-                      if (readOnly) return;
-                      const layout = v === 'column-half' || v === 'column-full' ? v as any : 'rail';
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, layout } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Layout" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="rail">Rail</SelectItem>
-                      <SelectItem value="column-half">Column Half</SelectItem>
-                      <SelectItem value="column-full">Column Full</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div className="mt-3 space-y-1.5">
-                <Label className="text-[11px]">Post Body Text</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Write the post body as plain text — raw HTML embeds are not accepted."
-                  value={post.body}
-                  disabled={readOnly}
-                  onChange={(e) => {
-                    if (readOnly) return;
-                    const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, body: e.target.value } : p);
-                    setSocialEmbedsDraft(next);
-                    syncSocialEmbedsToContent(next);
-                  }}
-                />
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Image URL (optional)</Label>
-                  <Input
-                    placeholder="https://..."
-                    value={post.imageUrl || ''}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const v = e.target.value.trim() || undefined;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, imageUrl: v } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
+                {/* ── Group 2: Post details ── */}
+                <div className="space-y-2.5 pt-4 pb-4 border-b border-border/60">
+                  <SectionKicker>Post Details</SectionKicker>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-[11px]">Post URL (external link)</Label>
+                      <Input
+                        placeholder="https://instagram.com/p/..."
+                        value={post.postUrl}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, postUrl: e.target.value } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px]">Date</Label>
+                      <Input
+                        placeholder="14 Sep 2026"
+                        value={post.date}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, date: e.target.value } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px]">Image Caption (optional)</Label>
-                  <Input
-                    placeholder="Photo: ..."
-                    value={post.caption || ''}
-                    disabled={readOnly}
-                    onChange={(e) => {
-                      if (readOnly) return;
-                      const v = e.target.value.trim() || undefined;
-                      const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, caption: v } : p);
-                      setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
-                    }}
-                  />
-                </div>
-              </div>
 
-              {post.body || post.imageUrl ? (
-                <div className="mt-4 border-t pt-4">
-                  <Label className="text-[11px] block mb-3 text-muted-foreground uppercase tracking-widest">
-                    Live Preview
-                  </Label>
-                  <div className="rounded-lg bg-[#fdfdfb] p-4 border">
+                {/* ── Group 3: Body ── */}
+                <div className="space-y-2.5 pt-4 pb-4 border-b border-border/60">
+                  <SectionKicker>Post Body</SectionKicker>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px]">Body Text</Label>
+                    <Textarea
+                      rows={4}
+                      placeholder="Write the post body as plain text — raw HTML embed pastes are not accepted."
+                      value={post.body}
+                      disabled={readOnly}
+                      onChange={(e) => {
+                        if (readOnly) return;
+                        const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, body: e.target.value } : p);
+                        setSocialEmbedsDraft(next);
+                        syncSocialEmbedsToContent(next);
+                      }}
+                      className="min-h-[120px]"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Rendered as justified serif broadsheet columns with the same paragraph defaults used elsewhere in the issue.
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── Group 4: Media ── */}
+                <div className="space-y-2.5 pt-4 pb-5 border-b border-border/60">
+                  <SectionKicker>Media (Optional)</SectionKicker>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-[11px]">Image URL</Label>
+                      <Input
+                        placeholder="https://..."
+                        value={post.imageUrl || ''}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const v = e.target.value.trim() || undefined;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, imageUrl: v } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px]">Image Caption</Label>
+                      <Input
+                        placeholder="Photo: ..."
+                        value={post.caption || ''}
+                        disabled={readOnly}
+                        onChange={(e) => {
+                          if (readOnly) return;
+                          const v = e.target.value.trim() || undefined;
+                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, caption: v } : p);
+                          setSocialEmbedsDraft(next);
+                          syncSocialEmbedsToContent(next);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Live preview (always rendered at bottom) ── */}
+                <div className="pt-5">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <SectionKicker>Live Preview</SectionKicker>
+                    <span className="font-sans text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Slot: {socialEmbedsDraft.length >= 3 ? 'Grid (3-col)' : 'Rail (right column)'}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-[#fdfdfb] p-4 sm:p-6 border shadow-[inset_0_0_0_1px_rgba(25,20,18,0.06)]">
                     <BroadsheetSocialPostCard
                       post={post}
                       slot={socialEmbedsDraft.length >= 3 ? 'grid' : 'rail'}
                     />
                   </div>
                 </div>
-              ) : null}
-            </div>
-          ))
+              </div>
+            ))}
+          </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderEditorFields = () => {
     const safeContent: any = content || {};
