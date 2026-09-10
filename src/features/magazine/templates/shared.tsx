@@ -29,6 +29,7 @@ import {
   normalizeRichTextForCompare,
 } from "./editorialBlocks";
 import type { StorySummary } from "../domain/template-registry";
+import type { BroadsheetSocialPost, BroadsheetSocialPlatform } from "../domain/types";
 
 // ─────────────────────────────────────────────
 // MASTHEAD LOCKUP
@@ -380,6 +381,135 @@ function PullQuoteCard({
         style={{ opacity: variant === "dark" ? 0.5 : 0.35 }}
       />
     </blockquote>
+  );
+}
+
+const PLATFORM_LABEL: Record<BroadsheetSocialPlatform, string> = {
+  twitter: "X / Twitter",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+};
+
+function SocialInitialsMark({ accountName }: { accountName: string }) {
+  const cleaned = accountName.trim() || "Y";
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const first = (words[0]?.[0] ?? "Y").toUpperCase();
+  const second = words.length > 1 ? (words[1]?.[0] ?? "").toUpperCase() : "";
+  const mark = second ? `${first}${second}` : first;
+  return (
+    <div
+      className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#191412]/40 bg-[#fdfdfb]"
+      aria-hidden="true"
+    >
+      <span className="font-serif text-[1.35rem] font-bold leading-none text-[#191412]">
+        {mark}
+      </span>
+    </div>
+  );
+}
+
+export function BroadsheetSocialPostCard({
+  post,
+  slot = "grid",
+  imageVersion = "",
+}: {
+  post: BroadsheetSocialPost;
+  slot?: "rail" | "grid";
+  imageVersion?: string;
+}) {
+  const isRail = slot === "rail";
+  const safeImg = safeImageSrc(post.imageUrl);
+  const bodyHtml = sanitizeHtml(splitPlainTextIntoParagraphs(post.body || "").join("\n"));
+
+  return (
+    <article
+      className={[
+        "relative flex flex-col",
+        isRail ? "" : "h-full",
+      ].join(" ")}
+    >
+      {isRail && (
+        <div
+          className="pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-[#a3413a]"
+          aria-hidden="true"
+        />
+      )}
+      <div className={isRail ? "pl-4" : ""}>
+        <header className="mb-3 flex items-start gap-3">
+          <SocialInitialsMark accountName={post.accountName || post.handle || "Y"} />
+          <div className="min-w-0 flex-1">
+            <span className="block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+              {PLATFORM_LABEL[post.platform] || "Social"}
+            </span>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <p className="truncate font-serif text-[0.98rem] font-bold leading-tight text-[#191412]">
+                {post.accountName || post.handle || ""}
+              </p>
+              {post.handle ? (
+                <span className="font-sans text-[0.72rem] text-[#191412]/50">
+                  @{post.handle.replace(/^@/, "")}
+                </span>
+              ) : null}
+            </div>
+            {post.date ? (
+              <p className="mt-0.5 font-sans text-[0.65rem] uppercase tracking-[0.16em] text-[#191412]/45">
+                {post.date}
+              </p>
+            ) : null}
+          </div>
+        </header>
+
+        {safeImg ? (
+          <figure className="mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fixMagazineImageUrl(safeImg, imageVersion)}
+              alt={post.caption || post.accountName || "Social post image"}
+              className="w-full object-cover"
+            />
+            {post.caption ? (
+              <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug italic text-[#191412]/60">
+                {post.caption}
+              </figcaption>
+            ) : (
+              <div className="mt-1.5 h-px w-full bg-[#191412]/25" />
+            )}
+          </figure>
+        ) : null}
+
+        <SafeText
+          html={bodyHtml}
+          className="magazine-body font-serif text-[0.95rem] leading-[1.52] text-[#191412]/85 [&_p]:mb-3 [&_p:last-child]:mb-0 [&_p]:[text-align:justify] [&_p]:[text-align-last:left]"
+        />
+
+        <footer className="mt-4 flex items-center justify-between border-t border-[#191412]/25 pt-3">
+          <span
+            className="font-serif text-[1.05rem] leading-none text-[#191412]/60"
+            aria-hidden="true"
+          >
+            ◆
+          </span>
+          {post.postUrl ? (
+            <a
+              href={fixMagazineImageUrl(post.postUrl, imageVersion)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-1.5 font-sans text-[0.62rem] font-semibold uppercase tracking-[0.26em] text-[#191412]/75 transition-colors hover:text-[#a3413a]"
+            >
+              Read the post
+              <ExternalLink className="h-3 w-3 stroke-[2]" aria-hidden="true" />
+            </a>
+          ) : (
+            <span className="font-sans text-[0.62rem] uppercase tracking-[0.26em] text-[#191412]/40">
+              Post
+            </span>
+          )}
+        </footer>
+      </div>
+    </article>
   );
 }
 
@@ -2040,6 +2170,42 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   const headerAds = adSlots.filter(isLeaderboardFormat);
   const railAds = adSlots.filter((ad) => !isLeaderboardFormat(ad));
 
+  const rawSocial = [
+    data.socialEmbeds ?? [],
+    data.social ?? [],
+    data.socialPosts ?? [],
+  ].flat();
+  const socialSeen = new Set<string>();
+  const socialEmbeds: BroadsheetSocialPost[] = [];
+  for (const raw of rawSocial) {
+    if (!raw || typeof raw !== "object") continue;
+    const p = raw as Record<string, unknown>;
+    const platform = p.platform as BroadsheetSocialPlatform | undefined;
+    const handle = String(p.handle || "").trim();
+    const postUrl = String(p.postUrl || "").trim();
+    const date = String(p.date || "").trim();
+    const body = String(p.body || "").trim().slice(0, 80);
+    const key = `${platform || ""}|${handle}|${postUrl}|${date}|${body}`;
+    if (socialSeen.has(key)) continue;
+    socialSeen.add(key);
+    if (!platform || !["twitter","instagram","facebook","linkedin","tiktok","youtube"].includes(platform)) continue;
+    const accountName = String(p.accountName || "").trim();
+    const imageUrl = safeImageSrc(p.imageUrl);
+    socialEmbeds.push({
+      platform,
+      handle: handle || accountName || "ybw",
+      accountName: accountName || handle || "YBW",
+      date: date || "",
+      body: String(p.body || "").trim(),
+      imageUrl: imageUrl || undefined,
+      caption: p.caption ? String(p.caption).trim() || undefined : undefined,
+      postUrl: fixMagazineImageUrl(postUrl, imageVersion) || "#",
+      layout: p.layout === "rail" || p.layout === "column-half" || p.layout === "column-full"
+        ? (p.layout as "rail" | "column-half" | "column-full")
+        : undefined,
+    });
+  }
+
   // Gallery plates for the body columns (everything after the hero), deduped
   // and with hero skipped. Kept raw so the same list drives both image
   // measurement and the weighted column items below.
@@ -2177,8 +2343,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </figure>
         ) : null}
 
-        {/* Lead + pull-quote/ad rail (rail only when quotes or ad slots exist) */}
-        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || railAds.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
+        {/* Lead + pull-quote/ad/social rail (rail only when any rail content exists) */}
+        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || railAds.length > 0 || socialEmbeds.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
           <article>
             {leadHtml ? (
               <SafeText
@@ -2231,8 +2397,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             ) : null}
           </article>
 
-          {/* Pull-quote / ad rail (sibling column on lg when either present) */}
-          {pullQuotes.length > 0 || railAds.length > 0 ? (
+          {/* Pull-quote / ad / social rail (sibling column on lg when any present) */}
+          {pullQuotes.length > 0 || railAds.length > 0 || socialEmbeds.length > 0 ? (
             <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)]">
               {pullQuotes.length > 0 && (
                 <>
@@ -2273,6 +2439,25 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                   </div>
                 </>
               )}
+              {socialEmbeds.length > 0 && (
+                <>
+                  {pullQuotes.length === 0 && railAds.length === 0 ? null : (
+                    <div className="mt-7 border-t border-[#191412]/25 pt-4" />
+                  )}
+                  <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+                    {socialEmbeds.length >= 3 && socialEmbeds[0].platform === "instagram"
+                      ? "Readers on Instagram"
+                      : "From our social"}
+                  </span>
+                  <div className="flex flex-col gap-7">
+                    {socialEmbeds.slice(0, 2).map((post, i) => (
+                      <div key={`rail-social-${i}`} className={i > 0 ? "border-t border-[#191412]/25 pt-6" : ""}>
+                        <BroadsheetSocialPostCard post={post} slot="rail" imageVersion={imageVersion} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </aside>
           ) : null}
         </div>
@@ -2296,6 +2481,44 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
               </div>
             ))}
           </div>
+        ) : null}
+
+        {/* Social embed grid (newspaper hairline column separators, 1/2/3 col) */}
+        {socialEmbeds.length >= 3 ? (
+          <section className="mt-14">
+            <div className="flex flex-col items-center gap-3 pb-4">
+              <span className="font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
+                {socialEmbeds[0].platform === "instagram"
+                  ? "Readers on Instagram"
+                  : "From our social"}
+              </span>
+              <div className="flex items-center gap-2 text-[#191412]/60" aria-hidden="true">
+                <span className="font-serif text-[1.05rem] leading-none">◆</span>
+                <span className="font-serif text-[1.05rem] leading-none">◆</span>
+                <span className="font-serif text-[1.05rem] leading-none">◆</span>
+              </div>
+            </div>
+            <div className="h-px w-full bg-[#191412]/60" />
+            <div className="h-[3px] w-full bg-[#191412]" />
+            <div className="grid grid-cols-1 gap-0 md:grid-cols-2 xl:grid-cols-3">
+              {socialEmbeds.slice(0, 9).map((post, i) => (
+                <div
+                  key={`grid-social-${i}`}
+                  className={[
+                    "border-b border-[#191412]/25 bg-[#fdfdfb] px-6 py-7",
+                    i > 0 ? "md:border-l md:border-[#191412]/20" : "",
+                    i >= 2 ? "xl:border-l xl:border-[#191412]/20" : "",
+                    i >= 1 ? "md:border-t md:border-[#191412]/15" : "",
+                    i >= 3 ? "xl:border-t xl:border-[#191412]/15 md:border-t-0" : "",
+                    i >= 2 ? "md:border-t-0" : "",
+                  ].join(" ")}
+                >
+                  <BroadsheetSocialPostCard post={post} slot="grid" imageVersion={imageVersion} />
+                </div>
+              ))}
+            </div>
+            <div className="h-px w-full bg-[#191412]/40" />
+          </section>
         ) : null}
 
         {/* More from this edition — newspaper-style story mixing */}

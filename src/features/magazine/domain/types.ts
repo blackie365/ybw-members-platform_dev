@@ -9,6 +9,26 @@ export type ReaderPageTemplate =
   | "classifieds"
   | "back-cover";
 
+export type BroadsheetSocialPlatform =
+  | "twitter"
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "tiktok"
+  | "youtube";
+
+export interface BroadsheetSocialPost {
+  platform: BroadsheetSocialPlatform;
+  handle: string;
+  accountName: string;
+  date: string;
+  body: string;
+  imageUrl?: string;
+  caption?: string;
+  postUrl: string;
+  layout?: "rail" | "column-half" | "column-full";
+}
+
 export interface ReaderPageContent {
   title: string;
   body: string;
@@ -33,6 +53,9 @@ export interface ReaderPageContent {
   continuationLabel?: string;
   nextIssue?: string;
   snapshotLabel?: string;
+  socialEmbeds?: BroadsheetSocialPost[];
+  social?: BroadsheetSocialPost[];
+  socialPosts?: BroadsheetSocialPost[];
 
   // ---- Canonical image aliases: set by idml-template-mapper for every page
   // so that normalizeImageFields + legacy renderers (which look for any of

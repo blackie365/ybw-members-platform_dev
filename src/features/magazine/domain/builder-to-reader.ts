@@ -244,18 +244,95 @@ export function mapBuilderIssueToReaderEdition(
     const position = idx + 1;
     const printNumber = pagePrintNumberFrom(builderPage, idx);
 
+    const items: ReaderPageContent["items"] = Array.isArray(normalized.items)
+      ? (normalized.items as Array<Record<string, unknown>>)
+          .map((raw: Record<string, unknown>) => ({
+            title: String(raw.title || "").trim(),
+            page: String(raw.page ?? "").trim(),
+          }))
+          .filter((it) => it.title.length > 0 && it.page.length > 0)
+      : [];
+
+    const resolveSocial = (): ReaderPageContent["socialEmbeds"] => {
+      const pools = [
+        Array.isArray((normalized as any).socialEmbeds)
+          ? (normalized as any).socialEmbeds
+          : [],
+        Array.isArray((normalized as any).social) ? (normalized as any).social : [],
+        Array.isArray((normalized as any).socialPosts)
+          ? (normalized as any).socialPosts
+          : [],
+      ].flat();
+      const VALID = new Set([
+        "twitter","instagram","facebook","linkedin","tiktok","youtube",
+      ]);
+      const LAYOUTS = new Set(["rail","column-half","column-full"] as const);
+      type SocialPost = NonNullable<ReaderPageContent["socialEmbeds"]>[number];
+      const out: SocialPost[] = [];
+      const seen = new Set<string>();
+      for (const entry of pools) {
+        if (!entry || typeof entry !== "object") continue;
+        const e = entry as Record<string, unknown>;
+        const platform =
+          typeof e.platform === "string" ? e.platform.trim().toLowerCase() : "";
+        const handle = typeof e.handle === "string" ? e.handle.trim() : "";
+        const accountName =
+          typeof e.accountName === "string" ? e.accountName.trim() : "";
+        const date = typeof e.date === "string" ? e.date.trim() : "";
+        const body = typeof e.body === "string" ? e.body.trim() : "";
+        if (!VALID.has(platform) || !handle || !accountName || !date || !body) continue;
+        const postUrlRaw =
+          typeof e.postUrl === "string" ? e.postUrl.trim() : "";
+        const postUrl =
+          postUrlRaw.startsWith("http") || postUrlRaw.startsWith("/")
+            ? fixMagazineImageUrl(postUrlRaw)
+            : "";
+        if (!postUrl) continue;
+        const imageUrlRaw =
+          typeof e.imageUrl === "string" ? e.imageUrl.trim() : "";
+        const imageUrl = imageUrlRaw
+          ? fixMagazineImageUrl(imageUrlRaw)
+          : undefined;
+        const caption =
+          typeof e.caption === "string" && e.caption.trim().length > 0
+            ? e.caption.trim()
+            : undefined;
+        const layoutRaw =
+          typeof e.layout === "string" ? e.layout.trim().toLowerCase() : "";
+        const layout = LAYOUTS.has(layoutRaw as any)
+          ? (layoutRaw as SocialPost["layout"])
+          : undefined;
+        const key = `${platform}|${handle}|${postUrl}|${date}|${body.slice(0,80)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          platform: platform as SocialPost["platform"],
+          handle,
+          accountName,
+          date,
+          body,
+          postUrl,
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(caption ? { caption } : {}),
+          ...(layout ? { layout } : {}),
+        });
+      }
+      return out.length > 0 ? out : undefined;
+    };
+    const socialEmbeds = resolveSocial();
+
     const baseContent: ReaderPageContent = {
       title,
       body,
       text: body,
       standfirst,
       intro: standfirst,
-      author: String(normalized.author || normalized.byline || '').trim() || undefined,
-      name: String(normalized.name || '').trim() || undefined,
-      kicker: String(normalized.kicker || '').trim() || undefined,
-      quote: String(normalized.quote || '').trim() || undefined,
+      author: String(normalized.author || normalized.byline || "").trim() || undefined,
+      name: String(normalized.name || "").trim() || undefined,
+      kicker: String(normalized.kicker || "").trim() || undefined,
+      quote: String(normalized.quote || "").trim() || undefined,
       pullQuotes: Array.isArray(normalized.pullQuotes)
-        ? normalized.pullQuotes.map((q: unknown) => String(q || '').trim()).filter(Boolean)
+        ? normalized.pullQuotes.map((q: unknown) => String(q || "").trim()).filter(Boolean)
         : undefined,
       imageUrl: hero,
       imageUrls: gallery,
@@ -273,24 +350,20 @@ export function mapBuilderIssueToReaderEdition(
       backgroundImage,
       logoImage,
       logoImages: Array.isArray(normalized.logoImages)
-        ? normalized.logoImages.map((l: unknown) => fixMagazineImageUrl(String(l || ''))).filter(Boolean)
+        ? normalized.logoImages.map((l: unknown) => fixMagazineImageUrl(String(l || ""))).filter(Boolean)
         : logoImage
           ? [logoImage]
           : undefined,
-      partnerLogo: fixMagazineImageUrl(String(normalized.partnerLogo || logoImage || '')) || undefined,
+      partnerLogo: fixMagazineImageUrl(String(normalized.partnerLogo || logoImage || "")) || undefined,
       pdfUrl,
-      ctaLabel: String(normalized.ctaLabel || '').trim() || undefined,
-      ctaHref: String(normalized.ctaHref || '').trim() || undefined,
-      label: String(normalized.label || '').trim() || undefined,
-      mediaLayout: String(normalized.mediaLayout || '').trim() || undefined,
-      items: Array.isArray(normalized.items)
-        ? (normalized.items as Array<Record<string, unknown>>)
-            .map((raw: Record<string, unknown>) => ({
-              title: String(raw.title || '').trim(),
-              page: String(raw.page ?? '').trim(),
-            }))
-            .filter((it) => it.title.length > 0 && it.page.length > 0)
-        : [],
+      ctaLabel: String(normalized.ctaLabel || "").trim() || undefined,
+      ctaHref: String(normalized.ctaHref || "").trim() || undefined,
+      label: String(normalized.label || "").trim() || undefined,
+      mediaLayout: String(normalized.mediaLayout || "").trim() || undefined,
+      items,
+      socialEmbeds,
+      social: socialEmbeds,
+      socialPosts: socialEmbeds,
     };
 
     const id = String(builderPage.sourceRef || builderPage.docId || `page-${position}`);
