@@ -222,8 +222,13 @@ export function applyMagazineAdsToEdition(
     } else if (explicitAds !== null) {
       slotCount = base.length;
     } else if (pageHasQuoteRail(content) && hasCatalogCreative) {
-      // Default spread: one header leaderboard (if any) + one rail ad (if any).
-      slotCount = Math.min(2, pool.length);
+      // Default spread: one inline body ad (float-wrapped, not a full rail
+      // column and not a header leaderboard). Leaderboards from the catalog
+      // are still accepted if set explicitly, but the default one-header +
+      // one-rail layout has been retired because the leaderboard banner was
+      // too small in the narrow spread header and the 340 px side rail ate
+      // the entire right column instead of flowing with editorial text.
+      slotCount = Math.min(1, pool.length);
     } else {
       return rawPage;
     }

@@ -122,27 +122,28 @@ describe('applyMagazineAdsToEdition', () => {
     expect(next.pages[0]).toEqual({ id: 'p1', template: 'cover', content: {} });
   });
 
-  it('default-fills a quote-rail spread with one slot per catalog creative (header + rail), capped at 2', () => {
+  it('default-fills a quote-rail spread with ONE inline body ad (retired layout: no header leaderboard, no side rail), capped at 1 even when catalog has multiple creative', () => {
     const edition = { id: 'e', pages: [spreadPage()] };
     const next = applyMagazineAdsToEdition(edition, CATALOG) as any;
-    expect(next.pages[0].content.adSlots).toBe(2);
+    expect(next.pages[0].content.adSlots).toBe(1);
     expect(next.pages[0].content.ads).toEqual([
       toCreative(CATALOG[0]),
-      toCreative(CATALOG[1]),
     ]);
   });
 
-  it('puts a leaderboard creative first so it lands in the header, plus one rail ad', () => {
+  it('picks the leaderboard first from the catalog for the single inline body slot (leaderboard sizing still available but rendered inline)', () => {
     const lead = { id: 'ads/headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad', enabled: true, position: 0 };
     const mpu = { ...CATALOG[1], position: 1 };
     const edition = { id: 'e', pages: [spreadPage()] };
     const next = applyMagazineAdsToEdition(edition, [lead, mpu]) as any;
-    expect(next.pages[0].content.ads).toEqual([toCreative(lead), toCreative(mpu)]);
+    // With the new inline-only default cap of 1, only the first (leaderboard)
+    // creative from the sorted catalog makes it in — still picks leaderboard
+    // first so explicit leaderboards win the only inline slot.
+    expect(next.pages[0].content.ads).toEqual([toCreative(lead)]);
     expect(next.pages[0].content.ads[0].format).toBe('leaderboard');
-    expect(next.pages[0].content.ads[1].format).toBe('mpu');
   });
 
-  it('default-fills a single header slot when the catalog only has a leaderboard', () => {
+  it('default-fills a single inline body slot when the catalog only has a leaderboard (renders inline, no longer as a header banner)', () => {
     const lead = { id: 'ads/headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad', enabled: true, position: 0 };
     const edition = { id: 'e', pages: [spreadPage()] };
     const next = applyMagazineAdsToEdition(edition, [lead]) as any;
