@@ -2297,7 +2297,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </span>
         </header>
         <div className="h-px w-full bg-[#191412]/25" />
-        <div className="py-3 text-center">
+        <div className="hidden py-3 text-center sm:block">
           <h1 className="py-1 text-center">
             <MagazineMastheadLogo />
           </h1>

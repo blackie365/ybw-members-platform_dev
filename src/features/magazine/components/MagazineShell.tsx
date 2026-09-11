@@ -39,6 +39,16 @@ function humanizeTemplate(template: string): string {
     .join(" ");
 }
 
+function readerSection(template: string): string {
+  const normalized = template.toLowerCase();
+  if (normalized === "cover") return "Start here";
+  if (normalized === "contents") return "In this edition";
+  if (normalized === "editor-note") return "From the editor";
+  if (normalized === "classifieds") return "Directory";
+  if (normalized === "ad" || normalized === "full-page-ad") return "Partners";
+  return "Features";
+}
+
 function formatEditionDate(dateString: string): string {
   try {
     return new Date(dateString).toLocaleDateString("en-GB", {
@@ -579,8 +589,11 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
           </button>
 
           <button
+            type="button"
             className="text-zinc-500 hover:text-white h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
             onClick={() => setIsNavOpen(!isNavOpen)}
+            aria-label="Open edition contents"
+            aria-expanded={isNavOpen}
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -683,25 +696,6 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
           </button>
         </div>
 
-        <div className="mt-3 hidden items-center justify-center gap-2 overflow-x-auto sm:flex">
-          {renderedPages.map((item, i) => {
-            const isActive = currentPage === i;
-            return (
-              <button
-                key={item.page.id}
-                onClick={() => goToPage(i)}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors whitespace-nowrap",
-                  isActive
-                    ? "border-[#a3413a]/40 bg-[#a3413a]/12 text-[#d98f87]"
-                    : "border-white/10 bg-white/[0.03] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200",
-                ].join(" ")}
-              >
-                {i + 1}
-              </button>
-            );
-          })}
-        </div>
       </footer>
 
       <AnimatePresence>
@@ -716,7 +710,7 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
             <div className="mb-10 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.22em] text-[#a3413a]">
-                  Page Navigator
+                  Contents
                 </p>
                 <h3 className="mt-2 text-lg font-serif text-white tracking-wide">
                   {edition.title}
@@ -724,15 +718,32 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
                 <p className="mt-2 text-xs text-zinc-500">{editionDate}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsNavOpen(false)}
                 className="text-zinc-500 hover:text-white h-8 w-8 flex items-center justify-center rounded-md hover:bg-white/5 transition-colors"
+                aria-label="Close edition contents"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <nav className="space-y-1.5">
-              {renderedPages.map((item, i) => {
+            <nav className="space-y-6" aria-label="Edition contents">
+              {Object.entries(
+                renderedPages.reduce<Record<string, Array<{ item: (typeof renderedPages)[number]; index: number }>>>(
+                  (sections, item, index) => {
+                    const section = readerSection(item.effectiveTemplate || item.page.template);
+                    (sections[section] ??= []).push({ item, index });
+                    return sections;
+                  },
+                  {},
+                ),
+              ).map(([section, entries]) => (
+                <section key={section}>
+                  <h4 className="mb-2 border-b border-white/10 pb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#a3413a]">
+                    {section}
+                  </h4>
+                  <div className="space-y-1.5">
+                    {entries.map(({ item, index: i }) => {
                 const isActive = currentPage === i;
                 return (
                   <button
@@ -768,7 +779,10 @@ export default function MagazineShell({ edition, editionSlug }: MagazineShellPro
                     ) : null}
                   </button>
                 );
-              })}
+                    })}
+                  </div>
+                </section>
+              ))}
             </nav>
 
             <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] p-5">

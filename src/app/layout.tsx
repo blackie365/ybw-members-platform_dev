@@ -5,11 +5,8 @@ import { Analytics } from '@vercel/analytics/next';
 import Script from 'next/script';
 import { Providers } from '@/app/providers';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Header } from "@/components/magazine/header";
-import { Footer } from "@/components/magazine/footer";
-import { NewsTicker } from "@/components/magazine/news-ticker";
 import { getPosts } from "@/lib/ghost";
-import { CookieBanner } from "@/components/cookie-banner";
+import { ReaderAwareSiteChrome } from "@/components/magazine/ReaderAwareSiteChrome";
 import './globals.css';
 
 const playfair = Playfair_Display({
@@ -125,15 +122,11 @@ export default async function RootLayout({
             }} />
           
           <Providers>
-            <Header headerAd={headerAd} />
-            <NewsTicker posts={trendingPosts} />
-            <main className="flex-1">
+            <ReaderAwareSiteChrome headerAd={headerAd} trendingPosts={trendingPosts}>
               <ErrorBoundary>
                 {children}
               </ErrorBoundary>
-            </main>
-            <Footer />
-            <CookieBanner />
+            </ReaderAwareSiteChrome>
           </Providers>
           {process.env.NODE_ENV === 'production' && <Analytics />}
           
