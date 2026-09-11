@@ -2166,9 +2166,24 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   const stats = Array.isArray(data.stats) ? data.stats : [];
   const moreStories = Array.isArray(siblings) ? siblings.slice(0, 4) : [];
   const adSlots = resolveAdSlots(data);
-  // Leaderboard-format ads go in the header band; MPU/square ads in the rail.
-  const headerAds = adSlots.filter(isLeaderboardFormat);
-  const railAds = adSlots.filter((ad) => !isLeaderboardFormat(ad));
+  // Page-level ad placement (2026-09-11 redesign):
+  //   * The old full-width HeaderAdBanner (leaderboard, 780×90 max-h-140)
+  //     rendered between the printer's rule stack and the kicker. Users
+  //     reported this was far too small / cramped to read at the narrow
+  //     spread header so we've retired it entirely. If a page explicitly
+  //     passes a leaderboard-formatted ad we still accept the creative
+  //     but render it as the first inline card (same sizing as MPU/square).
+  //   * The old 340 px right-hand rail ("<aside> Advertisement / AdSlot …
+  //     ") ate the entire right column even on pages that only had a single
+  //     MPU. Rail ads now live inside the editorial body as float-wrapped
+  //     cards that the feature text wraps around — identical to how the
+  //     InlineMedia pattern already works for photos. Only pullQuotes and
+  //     social embeds still open the quote/social rail; a page with ads
+  //     alone keeps the full-width 3-column text layout.
+  // Ads alternate left/right float based on page index parity so facing
+  // spreads never double-stack the same side. Consumer pages pass a
+  // data.pagePositionHint when they want to force left/right.
+  const inlineAds = adSlots.slice(0, 2);
 
   const rawSocial = [
     data.socialEmbeds ?? [],
@@ -2209,6 +2224,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   // Gallery plates for the body columns (everything after the hero), deduped
   // and with hero skipped. Kept raw so the same list drives both image
   // measurement and the weighted column items below.
+  const hasRailContent =
+    pullQuotes.length > 0 || socialEmbeds.length > 0;
   const gallerySources: string[] = useMemo(() => {
     const raw = Array.isArray(data.gallery)
       ? data.gallery
@@ -2301,8 +2318,9 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
         <div className="h-px w-full bg-[#191412]/70" />
         <div className="h-[3px] w-full bg-[#191412]" />
 
-        {/* Header leaderboard ad (full-width banner below the rule stack) */}
-        {headerAds.length > 0 && <HeaderAdBanner ad={headerAds[0]} />}
+        {/* (Header leaderboard ad banner retired 2026-09-11 — too small in
+             the narrow spread header. Ads now render inline inside the body
+             text column so editorial copy wraps around them.) */}
 
         {/* Kicker + byline */}
         <div className="flex flex-col gap-2 pt-10 sm:flex-row sm:items-end sm:justify-between">
@@ -2343,8 +2361,8 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
           </figure>
         ) : null}
 
-        {/* Lead + pull-quote/ad/social rail (rail only when any rail content exists) */}
-        <div className={`mt-4 grid grid-cols-1 gap-8 ${pullQuotes.length > 0 || railAds.length > 0 || socialEmbeds.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
+        {/* Lead + pull-quote/social rail (quote/social only; ads moved inline) */}
+        <div className={`mt-4 grid grid-cols-1 gap-8 ${hasRailContent ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]" : ""}`}>
           <article>
             {leadHtml ? (
               <SafeText
@@ -2354,6 +2372,78 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             ) : null}
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
+
+            {/* Inline advertisements — float-wrapped inside editorial text
+                 so copy wraps around instead of a full side rail. Card sizing
+                 and alternating sides mirror the MediaFigure inline/wide
+                 pattern used for feature photos. */}
+            {inlineAds.length > 0 ? (
+              <div className="space-y-0">
+                {inlineAds.map((ad, i) => {
+                  const side = i % 2 === 0 ? "right" : "left";
+                  const isWide = String(ad.format || "").toLowerCase() === "leaderboard";
+                  const outer = isWide
+                    ? "w-full max-w-3xl mx-auto my-7 clear-both"
+                    : side === "left"
+                      ? "float-left mr-7 mb-7 mt-1 w-full sm:w-[54%] lg:w-[44%]"
+                      : "float-right ml-7 mb-7 mt-1 w-full sm:w-[54%] lg:w-[44%]";
+                  const safeImg = String(ad?.image || "").trim();
+                  const hasCreative = safeImg.length > 0;
+                  return (
+                    <figure
+                      key={`inline-ad-${i}`}
+                      className={`${outer} break-inside-avoid rounded-[1.25rem] border border-[#191412]/22 bg-[#f5f1ea] shadow-[0_10px_40px_rgba(25,20,18,0.08)] overflow-hidden`}
+                    >
+                      <figcaption className="flex items-center justify-between gap-2 border-b border-[#191412]/15 px-3.5 py-1.5">
+                        <span className="font-sans text-[0.58rem] font-semibold uppercase tracking-[0.28em] text-[#191412]/55">
+                          Advertisement
+                        </span>
+                        <span className="font-sans text-[0.5rem] uppercase tracking-[0.2em] text-[#191412]/40">
+                          {inlineAds.length > 1 ? `${i + 1} of ${inlineAds.length}` : "Sponsor"}
+                        </span>
+                      </figcaption>
+                      {hasCreative ? (
+                        <div className={isWide ? "w-full flex items-center justify-center p-3 sm:p-4" : "p-3 sm:p-4"}>
+                          {ad.url ? (
+                            <a
+                              href={ad.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="group block w-full"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={safeImg}
+                                alt={ad.alt || ad.label || "Advertisement"}
+                                className={`${isWide ? "mx-auto max-h-[180px] w-auto max-w-full object-contain group-hover:opacity-95 transition-opacity" : "w-full aspect-[4/3] object-contain bg-white/60 rounded-md"}`}
+                                loading="lazy"
+                              />
+                            </a>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={safeImg}
+                              alt={ad.alt || ad.label || "Advertisement"}
+                              className={`${isWide ? "mx-auto max-h-[180px] w-auto max-w-full object-contain" : "w-full aspect-[4/3] object-contain bg-white/60 rounded-md"}`}
+                              loading="lazy"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className={`flex flex-col items-center justify-center gap-2 px-4 py-6 text-center ${isWide ? "min-h-[110px]" : "min-h-[180px]"}`}>
+                          <span className="font-serif text-[0.98rem] italic leading-snug text-[#191412]/60">
+                            {ad.label || "Your advertisement here"}
+                          </span>
+                          <span className="font-sans text-[0.55rem] uppercase tracking-[0.26em] text-[#191412]/45">
+                            Reserved
+                          </span>
+                        </div>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+            ) : null}
 
             {columns.length > 0 ? (
               <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
@@ -2397,8 +2487,9 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             ) : null}
           </article>
 
-          {/* Pull-quote / ad / social rail (sibling column on lg when any present) */}
-          {pullQuotes.length > 0 || railAds.length > 0 || socialEmbeds.length > 0 ? (
+          {/* Pull-quote / social rail (sibling column on lg only when quote
+               or social embeds exist; ads moved inline into the article body) */}
+          {hasRailContent ? (
             <aside className="border-t-[3px] border-[#191412] pt-6 lg:border-t-0 lg:pt-0 lg:pl-10 lg:[border-left:1px_solid_rgba(25,20,18,0.22)]">
               {pullQuotes.length > 0 && (
                 <>
@@ -2425,25 +2516,11 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                   )}
                 </>
               )}
-              {railAds.length > 0 && (
-                <>
-                  {pullQuotes.length === 0 && (
-                    <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
-                      Advertising
-                    </span>
-                  )}
-                  <div className={`flex flex-col gap-4 ${pullQuotes.length > 0 ? "mt-7 border-t border-[#191412]/25 pt-4" : ""}`}>
-                    {railAds.map((ad, i) => (
-                      <AdSlot key={`ad-${i}`} ad={ad} index={i} slots={railAds.length} />
-                    ))}
-                  </div>
-                </>
-              )}
               {socialEmbeds.length > 0 && (
                 <>
-                  {pullQuotes.length === 0 && railAds.length === 0 ? null : (
+                  {pullQuotes.length > 0 ? (
                     <div className="mt-7 border-t border-[#191412]/25 pt-4" />
-                  )}
+                  ) : null}
                   <span className="mb-4 block font-sans text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-[#a3413a]">
                     {socialEmbeds.length >= 3 && socialEmbeds[0].platform === "instagram"
                       ? "Readers on Instagram"
@@ -3444,6 +3521,7 @@ export const PageFeatureRight = ({ data, imageVersion }: any) => {
                 {data.videoUrl ? (
                   <>
                     {featureImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={fixMagazineImageUrl(featureImage, imageVersion)}
                         alt={data.title || data.name || "Feature"}
@@ -3529,6 +3607,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
         className="relative min-h-full overflow-hidden bg-[#0e0b09]"
       >
         {backgroundMedia && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.name}
@@ -3775,6 +3854,7 @@ export const PagePartner = ({ data, imageVersion }: any) => {
         className="relative min-h-full overflow-hidden text-white bg-[#0f0a0d]"
       >
         {backgroundMedia && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.brand || data.title || "Partner"}
@@ -3962,6 +4042,7 @@ export const PagePartner = ({ data, imageVersion }: any) => {
                 {data.videoUrl ? (
                   <>
                     {featureImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={fixMagazineImageUrl(featureImage, imageVersion)}
                         alt={data.brand}
@@ -4044,6 +4125,7 @@ export const PageFeatureFull = ({ data, imageVersion }: any) => {
         className="relative min-h-full overflow-hidden bg-[#0c0a09]"
       >
         {backgroundMedia ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.title || data.name || kicker || "Feature"}
@@ -4162,6 +4244,7 @@ export const PageFeatureFull = ({ data, imageVersion }: any) => {
     >
       {featureImage && (
         <div className="relative w-full h-[46vh] sm:h-[52vh] overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={fixMagazineImageUrl(featureImage, imageVersion)}
             alt={data.title || data.name || kicker || "Feature"}
@@ -4308,6 +4391,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
         className="relative min-h-full overflow-hidden bg-[#0c0a09]"
       >
         {backgroundMedia && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={fixMagazineImageUrl(backgroundMedia, imageVersion)}
             alt={data.title || data.nextIssue || kicker}
@@ -4504,6 +4588,7 @@ export const PageBackCover = ({ data, imageVersion }: any) => {
                 ) : data.videoUrl ? (
                   <>
                     {featureImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={fixMagazineImageUrl(featureImage, imageVersion)}
                         alt={data.title || data.nextIssue || kicker}
