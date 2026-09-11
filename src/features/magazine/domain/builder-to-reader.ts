@@ -240,6 +240,8 @@ export function mapBuilderIssueToReaderEdition(
     );
     const pdfUrlRaw = String(normalized.pdfUrl || '').trim();
     const pdfUrl = pdfUrlRaw ? fixMagazineImageUrl(pdfUrlRaw) : undefined;
+    const videoUrlRaw = String(normalized.videoUrl || '').trim();
+    const videoUrl = videoUrlRaw ? fixMagazineImageUrl(videoUrlRaw) : undefined;
 
     const position = idx + 1;
     const printNumber = pagePrintNumberFrom(builderPage, idx);
@@ -356,6 +358,7 @@ export function mapBuilderIssueToReaderEdition(
           : undefined,
       partnerLogo: fixMagazineImageUrl(String(normalized.partnerLogo || logoImage || "")) || undefined,
       pdfUrl,
+      videoUrl,
       ctaLabel: String(normalized.ctaLabel || "").trim() || undefined,
       ctaHref: String(normalized.ctaHref || "").trim() || undefined,
       label: String(normalized.label || "").trim() || undefined,

@@ -3,8 +3,10 @@ import { auth } from '@clerk/nextjs/server';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { uploadBuffer, getGcsStorage } from '@/features/storage/gcs-storage';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'video/mp4', 'video/webm'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024;
+const VIDEO_TYPES = ['video/mp4', 'video/webm'];
 const SAFE_FOLDER = 'uploads';
 
 export async function POST(req: NextRequest) {
@@ -25,8 +27,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `File type ${file.type} is not allowed` }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File exceeds 10MB size limit' }, { status: 400 });
+    const isVideo = VIDEO_TYPES.includes(file.type);
+    if (file.size > (isVideo ? MAX_VIDEO_SIZE : MAX_FILE_SIZE)) {
+      return NextResponse.json({ error: `File exceeds ${isVideo ? '200MB' : '10MB'} size limit` }, { status: 400 });
     }
 
     if (!getGcsStorage()) {
