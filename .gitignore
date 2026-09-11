@@ -37,6 +37,7 @@ tsconfig.typecheck.tsbuildinfo
 
 # pnpm only
 package-lock.json
+.pnpm-store/
 
 # Trae / IDE caches
 .trae-vercel-home/

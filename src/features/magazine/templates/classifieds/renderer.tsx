@@ -51,6 +51,46 @@ function PortraitTile({
   );
 }
 
+/** Detect sparse entries that have almost no profile data. */
+function isSparseEntry(entry: ClassifiedEntry): boolean {
+  return !entry.bio && !entry.image && !entry.website &&
+    !entry.links?.linkedin && !entry.links?.instagram && !entry.links?.twitter;
+}
+
+/**
+ * Compact one-line listing for members with no photo, bio, or links —
+ * just name and role/company inline so sparse entries don't eat half a
+ * column with whitespace.
+ */
+function CompactAdItem({ entry }: { entry: ClassifiedEntry }) {
+  const detail = [entry.role, entry.company, entry.location]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
+
+  return (
+    <li className="mb-0.5 break-inside-avoid">
+      <div className={`flex items-baseline gap-1.5 border-l-2 px-2 py-0.5 text-[12px] leading-snug ${
+        entry.featured
+          ? 'border-l-[#a3413a] bg-[#a3413a]/[0.04]'
+          : 'border-l-transparent'
+      }`}>
+        <strong className="shrink-0 font-serif text-[11.5px] font-bold uppercase tracking-[0.01em]">
+          {entry.name}
+        </strong>
+        {detail ? (
+          <span className="truncate text-[#191412]/60">{detail}</span>
+        ) : null}
+        {entry.featured ? (
+          <span className="ml-auto shrink-0 rounded-[2px] bg-[#a3413a] px-1 py-px font-sans text-[0.45rem] font-bold uppercase tracking-[0.12em] text-[#fdfdfb]">
+            Featured
+          </span>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 /**
  * Card-style listing mirroring the featured-spotlight box: photo on top,
  * then name / role / company / location / website stacked in the middle so
@@ -71,9 +111,15 @@ function AdItem({ entry }: { entry: ClassifiedEntry }) {
     ] as const
   ).filter((pair) => pair[1]) as [string, string][];
 
+  if (isSparseEntry(entry)) return <CompactAdItem entry={entry} />;
+
   return (
     <li className="mb-3 break-inside-avoid">
-      <div className="border border-dashed border-[#191412] bg-[#fdfdfb] p-2.5 text-center text-[12.5px] leading-snug">
+      <div className={`border bg-[#fdfdfb] p-2.5 text-center text-[12.5px] leading-snug ${
+        entry.featured
+          ? 'border-[#191412] border-l-[3px] border-l-[#a3413a] bg-[#a3413a]/[0.03]'
+          : 'border-dashed border-[#191412]'
+      }`}>
         <PortraitTile
           name={entry.name}
           image={entry.image}
@@ -162,6 +208,18 @@ export default function ClassifiedsTemplate({
 
   const empty = groups.length === 0;
 
+  // Collect unique tags with counts for the sidebar summary.
+  const tagCounts = new Map<string, number>();
+  for (const entry of entries) {
+    for (const tag of entry.tags ?? []) {
+      const key = tag.toLowerCase();
+      tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+    }
+  }
+  const sortedTags = [...tagCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+
   return (
     <div className="min-h-full w-full bg-[#fdfdfb] text-[#191412]">
       <div className="mx-auto max-w-6xl px-3 py-6 sm:px-6">
@@ -246,7 +304,7 @@ export default function ClassifiedsTemplate({
           {/* Main multi-column area */}
           <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[190px_minmax(0,1fr)] xl:grid-cols-[190px_minmax(0,1fr)_230px]">
             {/* Left sidebar: A–Z index + directory info */}
-            <aside className="order-2 lg:order-1" aria-label="A-Z index">
+            <aside className="order-2 lg:order-1 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto" aria-label="A-Z index">
               <section className="border border-[#191412]">
                 <div className="border-b border-[#191412] bg-[#191412] px-2 py-2.5 text-center font-sans text-lg font-extrabold uppercase tracking-[0.08em] text-[#fdfdfb]">
                   A&ndash;Z Index
@@ -280,6 +338,28 @@ export default function ClassifiedsTemplate({
                   </p>
                 </div>
               </section>
+
+              {sortedTags.length > 0 ? (
+                <section className="mt-4 border border-[#191412]">
+                  <div className="border-b border-[#191412] bg-[#191412] px-2 py-2 text-center font-sans text-sm font-extrabold uppercase tracking-[0.14em] text-[#fdfdfb]">
+                    Browse by Category
+                  </div>
+                  <div className="p-2.5 text-[11.5px] leading-snug">
+                    <ul className="list-none p-0 space-y-0.5">
+                      {sortedTags.map(([tag, count]) => (
+                        <li key={tag} className="flex items-baseline justify-between gap-1 border-b border-dotted border-[#191412]/15 py-0.5 last:border-0">
+                          <span className="font-sans text-[10px] font-semibold uppercase tracking-[0.08em] text-[#191412]/70">
+                            {tag}
+                          </span>
+                          <span className="font-sans text-[9px] tabular-nums text-[#191412]/40">
+                            {count}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              ) : null}
             </aside>
 
             {/* Dense newspaper-style content columns */}
