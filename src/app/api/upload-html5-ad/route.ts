@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminStorage } from '@/lib/firebase-admin';
 import { auth } from '@clerk/nextjs/server';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import JSZip from 'jszip';
+import { uploadBuffer, getGcsStorage, getGcsDefaultBucketName, buildPublicStorageUrl } from '@/features/storage/gcs-storage';
 
-const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024;
 const SAFE_FOLDER = 'ads/html5';
 
 function getContentType(filePath: string) {
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    if (!adminStorage) {
+    if (!getGcsStorage()) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
@@ -72,7 +72,10 @@ export async function POST(req: NextRequest) {
     }
 
     const prefix = `${SAFE_FOLDER}/${userId}-${Date.now()}`;
-    const bucket = adminStorage.bucket();
+    const bucketName = getGcsDefaultBucketName();
+    if (!bucketName) {
+      return NextResponse.json({ error: 'Storage bucket not configured' }, { status: 500 });
+    }
 
     let indexPath: string | null = null;
     const normalizedEntries: Array<{ name: string; fullPath: string }> = [];
@@ -101,19 +104,16 @@ export async function POST(req: NextRequest) {
       const entry = zip.files[name];
       if (!entry) return;
       const buffer = Buffer.from(await entry.async('arraybuffer'));
-      const storageFile = bucket.file(fullPath);
-      await storageFile.save(buffer, {
-        metadata: {
-          contentType: getContentType(name),
-        },
+      await uploadBuffer(fullPath, buffer, {
+        contentType: getContentType(name),
+        makePublic: true,
       });
-      await storageFile.makePublic();
     });
 
     await Promise.all(uploads);
 
-    const baseUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURI(prefix)}`;
-    const indexUrlRaw = indexPath ? `https://storage.googleapis.com/${bucket.name}/${encodeURI(indexPath)}` : '';
+    const baseUrl = buildPublicStorageUrl(bucketName, prefix);
+    const indexUrlRaw = indexPath ? buildPublicStorageUrl(bucketName, indexPath) : '';
     const indexUrl = indexUrlRaw ? `${indexUrlRaw}?v=${Date.now()}` : '';
 
     if (!indexUrl) {

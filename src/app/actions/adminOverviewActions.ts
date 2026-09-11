@@ -1,35 +1,30 @@
 'use server';
 
-import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { getMemberStore } from '@/features/members/server';
 import { getGhostMembers } from '@/lib/ghost-admin';
+import { getMagazinePgPool } from '@/features/magazine/server/read-store/pg-client';
+import { getPgEventStore } from '@/features/events/server/pg-events-store';
+import { getPgMessageThreadStore } from '@/features/messaging/server/pg-messages-store';
 
 export async function getAdminOverviewStats() {
   try {
     await checkAdmin();
-    
-    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
+
+    const pgPool = getMagazinePgPool();
+    if (!pgPool) {
+      throw new Error('Postgres pool not initialized');
+    }
 
     // Fetch stats
-    const [allMembers, eventsSnap, messagesSnap] = await Promise.all([
+    const [allMembers, totalEvents, upcomingEvents, totalMessages] = await Promise.all([
       getMemberStore().getAll(),
-      adminDb.collection('events').get(),
-      adminDb.collection('messageThreads').get()
+      getPgEventStore().countAll(),
+      getPgEventStore().countUpcoming(),
+      getPgMessageThreadStore().countAll(),
     ]);
 
     const totalMembers = allMembers.filter((m) => m.userInactive !== true).length;
-    const totalEvents = eventsSnap.size;
-    const totalMessages = messagesSnap.size;
-
-    let upcomingEvents = 0;
-    const now = new Date();
-    eventsSnap.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.startDate && new Date(data.startDate) >= now) {
-        upcomingEvents++;
-      }
-    });
 
     // Fetch Ghost stats
     let ghostMembers = 0;

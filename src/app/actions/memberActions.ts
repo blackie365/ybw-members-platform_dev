@@ -1,10 +1,11 @@
 'use server';
 
-import { adminDb } from "@/lib/firebase-admin";
 import { addGhostMember, getGhostMembers } from "@/lib/ghost-admin";
 import { getMemberStore } from "@/features/members/server";
 import { revalidatePath } from "next/cache";
 import { checkAdmin } from "@/lib/server/auth-utils";
+import { getMagazinePgPool } from "@/features/magazine/server/read-store/pg-client";
+import { getPgEventStore } from "@/features/events/server/pg-events-store";
 import Stripe from "stripe";
 
 export async function getMembersAction() {
@@ -96,7 +97,7 @@ export async function getMemberProfileAction(uid: string) {
 export async function getAnalyticsData() {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    if (!getMagazinePgPool()) throw new Error("Database not initialized");
 
     const all = await getMemberStore().getAll();
     const totalMembers = all.filter((d: any) => !d.userInactive).length;
@@ -122,8 +123,7 @@ export async function getAnalyticsData() {
       console.error("Failed to fetch Beehiiv stats:", e);
     }
 
-    const eventsSnapshot = await adminDb.collection('events').get();
-    const totalEvents = eventsSnapshot.size;
+    const totalEvents = await getPgEventStore().countAll();
 
     const tierCounts: Record<string, number> = {};
     all.forEach((data: any) => {

@@ -1,5 +1,5 @@
-import { adminDb } from './firebase-admin';
 import Parser from 'rss-parser';
+import { getMarketInsightStore } from '@/features/shared-ops/server/shared-ops-pg-store';
 
 export interface MarketInsightPoint {
   summary: string;
@@ -20,7 +20,7 @@ const parser = new Parser();
 const SOURCES = [
   { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml' },
   { name: 'Sky News Business', url: 'https://news.sky.com/feeds/rss/business.xml' },
-  { name: 'Guardian Economy', url: 'https://www.theguardian.com/business/economics/rss' },
+  { name: 'Guardian Economy', url: 'https://www.theguardian.com/business/economy/rss' },
 ];
 
 export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
@@ -61,14 +61,7 @@ export async function getLatestMarketInsight(): Promise<MarketInsight | null> {
 
 export async function saveMarketInsight(insight: Omit<MarketInsight, 'id'>): Promise<MarketInsight> {
   try {
-    if (!adminDb) {
-      throw new Error('Database not initialized');
-    }
-    const docRef = await adminDb.collection('marketInsights').add(insight);
-    return {
-      id: docRef.id,
-      ...insight
-    };
+    return await getMarketInsightStore().save(insight);
   } catch (error) {
     console.error('Error saving market insight:', error);
     throw error;

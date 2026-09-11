@@ -35,8 +35,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import { normalizeImageUrl, normalizeStoryLibraryImageFields } from '@/lib/magazine-utils';
 import {
   DeployStalenessBanner,
@@ -384,45 +382,22 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       if (!file || file.size <= 0) throw new Error('Please select a valid .idml file');
 
       const MAX_INLINE_BASE64_BYTES = 1.5 * 1024 * 1024; // 1.5 MB — under Next/Vercel server action 4MB body limit
-      const useStorageUpload = storage && file.size > MAX_INLINE_BASE64_BYTES;
+      const useStorageUpload = file.size > MAX_INLINE_BASE64_BYTES;
 
       let res: any;
       if (useStorageUpload) {
-        // LARGE FILE: upload to Firebase Storage first, import via storagePath.
-        // Identical to the working "old stored-IDML route" (ManualImporter handleImportFromStoredPath):
-        // admin SDK bucket.file().download() with service-account creds bypasses security rules
-        // and there is no huge server action request body to hit the Next size limit (which was
-        // the actual cause of "Unexpected response was received" → Sync failed toast).
-        toast.info('Uploading IDML to Storage for processing… (large file)', { id: toastId });
-        const filePath = `magazine-import/${file.name}`;
-        const storageRef = ref(storage, filePath);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-        await new Promise<void>((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-              toast.info(`Uploading: ${pct}%`, { id: toastId });
-            },
-            (error) => reject(error),
-            () => resolve(),
-          );
-        });
-
-        toast.info('Extracting stories from Storage IDML… (this can take 30–60s for a full issue)', { id: toastId });
-
-        // Derive gs:// URL from getDownloadURL so we use the exact working stored-IDML transport.
-        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-        const match = downloadUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
-        const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
-        const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
-        const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
-        if (!bucketName || !objectPath) {
-          throw new Error('Failed to derive storage path for uploaded IDML');
+        toast.info('Uploading IDML to storage for processing… (large file)', { id: toastId });
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await fetch('/api/upload/idml', { method: 'POST', body: fd });
+        const uploadJson = await uploadRes.json();
+        if (!uploadRes.ok || !uploadJson?.success) {
+          throw new Error(uploadJson?.error || 'IDML upload failed');
         }
-        const storagePath = `gs://${bucketName}/${objectPath}`;
+        const storagePath = String(uploadJson.data.gsUrl);
 
-        // Call the working storage-path API route (same as the old ManualImporter stored-path route).
+        toast.info('Extracting stories from storage IDML… (this can take 30–60s for a full issue)', { id: toastId });
+
         const apiRes = await fetch('/api/admin/magazine/story-library/import-idml', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -434,7 +409,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         });
         res = await apiRes.json();
       } else {
-        // SMALL FILE: inline base64 via server action (legacy path, still fine for <1.5MB).
         toast.info('Extracting stories from IDML…', { id: toastId });
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();

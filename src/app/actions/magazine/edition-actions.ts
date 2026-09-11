@@ -1,11 +1,15 @@
-import { adminDb } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { MagazineIssueSchema, safeParseMagazine } from '@/features/magazine/domain/validation-schemas';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 import { fixMagazineImageUrl } from '@/lib/magazine-utils';
+import { getMagazinePgPool } from '@/features/magazine/server/read-store/pg-client';
 import { safeRevalidatePath } from './_helpers';
 import { syncBuilderToReaderEditionAction } from './reader-edition-actions';
+
+function assertPgReady(): void {
+  if (!getMagazinePgPool()) throw new Error('Database not initialized');
+}
 
 /**
  * getPosts() in lib/ghost.ts deliberately swallows every fetch/network
@@ -99,7 +103,7 @@ export async function getMagazineIssuesAction() {
 export async function updateMagazineIssueAction(issueId: string, data: any) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    assertPgReady();
 
     const { id: _ignoredId, ...rest } = data ?? {};
     const { getMagazineReadStore } = await import('@/features/magazine/server/read-store');
@@ -157,7 +161,7 @@ export async function updateMagazineIssueAction(issueId: string, data: any) {
 export async function setLatestMagazineIssueAction(issueId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    assertPgReady();
 
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().setLatestIssue(issueId);
@@ -175,7 +179,7 @@ export async function setLatestMagazineIssueAction(issueId: string) {
 export async function setFeaturedFlipbookIssueAction(issueId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    assertPgReady();
 
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().setFeaturedFlipbookIssue(issueId);
@@ -191,7 +195,7 @@ export async function setFeaturedFlipbookIssueAction(issueId: string) {
 export async function createMagazineIssueAction(data: any) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    assertPgReady();
 
     const { id: _ignoredId, ...rest } = data ?? {};
     const slug = deriveIssueSlug({
@@ -234,7 +238,7 @@ export async function createMagazineIssueAction(data: any) {
 export async function deleteMagazineIssueAction(issueId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    assertPgReady();
 
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().deleteIssue(issueId);

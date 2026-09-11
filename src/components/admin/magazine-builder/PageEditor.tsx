@@ -39,6 +39,23 @@ interface PageEditorProps {
 
 export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: forcedReadOnly }: PageEditorProps) {
   const readOnly = Boolean(forcedReadOnly) || Boolean(page?.readOnly);
+
+  const PLATFORM_OPTIONS: { value: BroadsheetSocialPlatform; label: string }[] = [
+    { value: 'twitter', label: 'X / Twitter' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'tiktok', label: 'TikTok' },
+    { value: 'youtube', label: 'YouTube' },
+  ];
+
+  const socialDraftIdRef = useRef(0);
+  const nextSocialDraftId = () => {
+    socialDraftIdRef.current += 1;
+    return `sp-${Date.now().toString(36)}-${socialDraftIdRef.current.toString(36)}`;
+  };
+  type SocialDraftPost = BroadsheetSocialPost & { _id: string };
+
   const [content, _setContent] = useState<any>({});
   const setContent: typeof _setContent = (updater: any) => {
     if (readOnly) return;
@@ -63,23 +80,14 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
   const [highlightsError, setHighlightsError] = useState<string>('');
   const [socialsDraft, setSocialsDraft] = useState<string>('[]');
   const [socialsError, setSocialsError] = useState<string>('');
-  const [socialEmbedsDraft, setSocialEmbedsDraft] = useState<BroadsheetSocialPost[]>([]);
+  const [socialEmbedsDraft, setSocialEmbedsDraft] = useState<SocialDraftPost[]>([]);
   const [socialEmbedsError, setSocialEmbedsError] = useState<string>('');
   const [statsDraft, setStatsDraft] = useState<string>('[]');
   const [statsError, setStatsError] = useState<string>('');
 
-  const PLATFORM_OPTIONS: { value: BroadsheetSocialPlatform; label: string }[] = [
-    { value: 'twitter', label: 'X / Twitter' },
-    { value: 'instagram', label: 'Instagram' },
-    { value: 'facebook', label: 'Facebook' },
-    { value: 'linkedin', label: 'LinkedIn' },
-    { value: 'tiktok', label: 'TikTok' },
-    { value: 'youtube', label: 'YouTube' },
-  ];
-
-  const dedupeAndNormalizeSocialEmbeds = (rawList: any[]): BroadsheetSocialPost[] => {
+  const dedupeAndNormalizeSocialEmbeds = (rawList: any[]): SocialDraftPost[] => {
     const seen = new Set<string>();
-    const out: BroadsheetSocialPost[] = [];
+    const out: SocialDraftPost[] = [];
     for (const raw of rawList) {
       if (!raw || typeof raw !== 'object') continue;
       const platform = (raw.platform as BroadsheetSocialPlatform) || 'twitter';
@@ -92,7 +100,12 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
       const key = `${platform}|${handle}|${postUrl}|${date}|${body.slice(0, 80)}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      const existingId =
+        raw && typeof (raw as any)._id === 'string' && (raw as any)._id.length > 0
+          ? (raw as any)._id
+          : nextSocialDraftId();
       out.push({
+        _id: existingId,
         platform,
         handle: handle || accountName || 'ybw',
         accountName: accountName || handle || 'YBW',
@@ -109,11 +122,15 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     return out;
   };
 
-  const syncSocialEmbedsToContent = useCallback((posts: BroadsheetSocialPost[]) => {
+  const flushSocialEmbedsToContent = useCallback((posts: SocialDraftPost[]) => {
     setSocialEmbedsError('');
-    updateContent('socialEmbeds', posts);
-    updateContent('social', posts);
-    updateContent('socialPosts', posts);
+    const clean: BroadsheetSocialPost[] = posts.map(({ _id, ...rest }) => rest as BroadsheetSocialPost);
+    setContent((prev: any) => ({
+      ...prev,
+      socialEmbeds: clean,
+      social: clean,
+      socialPosts: clean,
+    }));
   }, []);
 
   const stringifyJson = (value: any) => JSON.stringify(value ?? null, null, 2);
@@ -923,6 +940,16 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
       </div>
     );
 
+    const updateDraftPost = (
+      idx: number,
+      patch: Partial<SocialDraftPost>,
+    ): SocialDraftPost[] =>
+      socialEmbedsDraft.map((p, i) => (i === idx ? { ...p, ...patch } : p));
+
+    const blurFlush = () => {
+      flushSocialEmbedsToContent(socialEmbedsDraft);
+    };
+
     return (
       <div className="space-y-5 pt-5 border-t">
         <div className="flex items-start justify-between gap-4">
@@ -939,7 +966,8 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
             disabled={readOnly}
             onClick={() => {
               if (readOnly) return;
-              const emptyPost: BroadsheetSocialPost = {
+              const emptyPost: SocialDraftPost = {
+                _id: nextSocialDraftId(),
                 platform: 'instagram',
                 handle: 'yorkshirebusinesswoman',
                 accountName: 'Yorkshire BusinessWoman',
@@ -950,7 +978,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               };
               const next = [...socialEmbedsDraft, emptyPost];
               setSocialEmbedsDraft(next);
-              syncSocialEmbedsToContent(next);
+              flushSocialEmbedsToContent(next);
             }}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -972,7 +1000,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
           <div className="space-y-5">
             {socialEmbedsDraft.map((post, i) => (
               <div
-                key={`social-edit-${i}`}
+                key={post._id}
                 className="rounded-xl border bg-background/60 p-5 shadow-[0_1px_0_rgba(25,20,18,0.04)]"
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
@@ -985,9 +1013,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                     disabled={readOnly}
                     onClick={() => {
                       if (readOnly) return;
-                      const next = socialEmbedsDraft.filter((_, idx) => idx !== i);
+                      const next = socialEmbedsDraft.filter((p) => p._id !== post._id);
                       setSocialEmbedsDraft(next);
-                      syncSocialEmbedsToContent(next);
+                      flushSocialEmbedsToContent(next);
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1.5" />
@@ -1006,9 +1034,11 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         disabled={readOnly}
                         onValueChange={(v) => {
                           if (readOnly) return;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, platform: v as BroadsheetSocialPlatform } : p);
+                          const next = updateDraftPost(i, { platform: v as BroadsheetSocialPlatform });
                           setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                        }}
+                        onOpenChange={(open) => {
+                          if (!open) blurFlush();
                         }}
                       >
                         <SelectTrigger className="h-9">
@@ -1031,10 +1061,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         onChange={(e) => {
                           if (readOnly) return;
                           const v = e.target.value.replace(/^@/, '').trim();
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, handle: v } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { handle: v }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                     <div className="space-y-1.5 lg:col-span-2">
@@ -1044,10 +1073,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         disabled={readOnly}
                         onChange={(e) => {
                           if (readOnly) return;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, accountName: e.target.value } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { accountName: e.target.value }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                   </div>
@@ -1065,10 +1093,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         disabled={readOnly}
                         onChange={(e) => {
                           if (readOnly) return;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, postUrl: e.target.value } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { postUrl: e.target.value }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1079,10 +1106,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         disabled={readOnly}
                         onChange={(e) => {
                           if (readOnly) return;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, date: e.target.value } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { date: e.target.value }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                   </div>
@@ -1100,10 +1126,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                       disabled={readOnly}
                       onChange={(e) => {
                         if (readOnly) return;
-                        const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, body: e.target.value } : p);
-                        setSocialEmbedsDraft(next);
-                        syncSocialEmbedsToContent(next);
+                        setSocialEmbedsDraft(updateDraftPost(i, { body: e.target.value }));
                       }}
+                      onBlur={blurFlush}
                       className="min-h-[120px]"
                     />
                     <p className="text-[10px] text-muted-foreground">
@@ -1125,10 +1150,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         onChange={(e) => {
                           if (readOnly) return;
                           const v = e.target.value.trim() || undefined;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, imageUrl: v } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { imageUrl: v }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1140,10 +1164,9 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                         onChange={(e) => {
                           if (readOnly) return;
                           const v = e.target.value.trim() || undefined;
-                          const next = socialEmbedsDraft.map((p, idx) => idx === i ? { ...p, caption: v } : p);
-                          setSocialEmbedsDraft(next);
-                          syncSocialEmbedsToContent(next);
+                          setSocialEmbedsDraft(updateDraftPost(i, { caption: v }));
                         }}
+                        onBlur={blurFlush}
                       />
                     </div>
                   </div>
@@ -2047,7 +2070,13 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
             <Button
               onClick={() => {
                 if (readOnly) return;
-                const next = normalizeMagazinePageContent(content);
+                flushSocialEmbedsToContent(socialEmbedsDraft);
+                const next = normalizeMagazinePageContent({
+                  ...content,
+                  socialEmbeds: socialEmbedsDraft.map(({ _id, ...rest }) => rest),
+                  social: socialEmbedsDraft.map(({ _id, ...rest }) => rest),
+                  socialPosts: socialEmbedsDraft.map(({ _id, ...rest }) => rest),
+                });
                 const nextKey = stableContentKey(next);
                 if (lastSyncedContentJsonRef.current !== nextKey) {
                   lastSyncedContentJsonRef.current = nextKey;

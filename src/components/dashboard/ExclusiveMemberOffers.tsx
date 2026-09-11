@@ -1,19 +1,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { adminDb } from '@/lib/firebase-admin';
+import { getOfferRequestStore } from '@/features/offers/server/offer-request-store';
 
 export async function ExclusiveMemberOffers() {
   let offers: any[] = [];
   try {
-    if (!adminDb) return null;
-    
-    // Fetch top 3 active offers
-    const snapshot = await adminDb.collection('offer_requests')
-      .where('status', '==', 'active')
-      .limit(3)
-      .get();
-      
-    offers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const rows = await getOfferRequestStore().list({
+      status: 'active',
+      orderCreatedDesc: true,
+      limit: 3,
+    });
+
+    offers = rows.map(row => ({
+      id: row.id,
+      ...(row.data ?? {}),
+    }));
   } catch (err) {
     console.error('Error fetching dashboard offers:', err);
     return null;

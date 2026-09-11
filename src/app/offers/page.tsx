@@ -1,8 +1,8 @@
 import { getPosts } from '@/lib/ghost';
-import { adminDb } from '@/lib/firebase-admin';
 import MemberOffersClient from '@/app/dashboard/offers/MemberOffersClient';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { getOfferRequestStore } from '@/features/offers/server/offer-request-store';
 
 export const revalidate = 3600;
 
@@ -18,31 +18,29 @@ export const metadata: Metadata = {
 
 async function getAllActiveOffers() {
   try {
-    if (!adminDb) return [];
-    
-    // 1. Fetch ALL ACTIVE offers from Firestore
-    const snapshot = await adminDb?.collection('offer_requests')?.where('status', '==', 'active')?.get();
-    
-    const firestoreOffers = snapshot?.docs?.map(doc => {
-      const data = doc?.data();
-      return {
-        id: doc?.id,
-        title: data?.title || 'Untitled Offer',
-        feature_image: data?.imageUrl || null,
-        slug: data?.link ? '' : `internal-${doc?.id}`, 
-        excerpt: data?.description || '',
-        primary_author: { name: data?.userName || 'Member' },
-        isFirestoreOffer: true,
-        link: data?.link || '',
-        isMembersOnly: data?.isMembersOnly ?? true,
-        published_at: data?.createdAt || new Date()?.toISOString(),
-        status: data?.status
-      };
+    const rows = await getOfferRequestStore().list({
+      status: 'active',
+      orderCreatedDesc: true,
     });
 
-    return firestoreOffers;
+    return rows.map(row => {
+      const d = row.data ?? {};
+      return {
+        id: row.id,
+        title: typeof d.title === 'string' && d.title ? d.title : 'Untitled Offer',
+        feature_image: typeof d.imageUrl === 'string' && d.imageUrl ? d.imageUrl : null,
+        slug: typeof d.link === 'string' && d.link ? '' : `internal-${row.id}`,
+        excerpt: typeof d.description === 'string' ? d.description : '',
+        primary_author: { name: typeof d.userName === 'string' && d.userName ? d.userName : 'Member' },
+        isFirestoreOffer: true,
+        link: typeof d.link === 'string' ? d.link : '',
+        isMembersOnly: typeof d.isMembersOnly === 'boolean' ? d.isMembersOnly : row.isMembersOnly ?? true,
+        published_at: row.createdAt ?? typeof d.createdAt === 'string' ? d.createdAt : new Date().toISOString(),
+        status: typeof d.status === 'string' ? d.status : row.status,
+      };
+    });
   } catch (error) {
-    console.error('Error fetching all active Firestore offers:', error);
+    console.error('Error fetching all active offers:', error);
     return [];
   }
 }

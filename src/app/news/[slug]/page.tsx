@@ -11,7 +11,6 @@ import { EventRSVP } from '@/components/EventRSVP';
 import { ArrowLeft, Facebook, Linkedin, Lock, Mail, Twitter } from 'lucide-react';
 import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
-import { adminDb } from '@/lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -169,10 +168,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   let adsConfig: any = {};
   try {
-    if (adminDb) {
-      const doc = await adminDb.collection('system').doc('ads').get();
-      if (doc.exists) adsConfig = doc.data() || {};
-    }
+    const { getSystemSettingData } = await import('@/features/system/server/system-store');
+    adsConfig = await getSystemSettingData('system:ads');
   } catch (e) {}
 
   const midArticleAd = pickAdFromSlotConfig(adsConfig?.midArticle);

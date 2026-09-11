@@ -1,5 +1,11 @@
-import { adminStorage } from '@/lib/firebase-admin';
 import type { StoryLibraryItem } from '@/components/admin/magazine-builder/types';
+import {
+  uploadBuffer,
+  downloadBuffer,
+  getGcsBucket,
+  getGcsStorage,
+  buildPublicStorageUrl as gcsBuildPublicStorageUrl,
+} from '@/features/storage/gcs-storage';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
@@ -104,16 +110,20 @@ function isFirebaseStorageUrl(url: string): { bucket?: string; objectPath?: stri
 }
 
 async function downloadIdmlBufferFromStoragePath(storagePath: string): Promise<{ buffer: Buffer; bucketName: string; objectPath: string }> {
-  if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+  if (!getGcsStorage()) throw new Error('GCS Storage not configured');
 
-  const { bucketName, objectPath } = parseGoogleStoragePath(storagePath);
+  const parsed = parseGoogleStoragePath(storagePath);
+  const { bucketName, objectPath } = parsed as { bucketName?: string; objectPath: string };
   if (!objectPath) throw new Error('Storage path has no object');
 
-  const bucket = bucketName ? adminStorage.bucket(bucketName) : adminStorage.bucket();
-  const [buffer] = await bucket.file(objectPath).download();
-  if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: gs://${bucketName || bucket.name}/${objectPath}`);
+  const bucket = getGcsBucket(bucketName);
+  if (!bucket) throw new Error('GCS bucket not available');
+  const resolvedBucketName = bucketName || bucket.name;
 
-  return { buffer, bucketName: bucketName || bucket.name, objectPath };
+  const buffer = await downloadBuffer(objectPath, bucketName);
+  if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: gs://${resolvedBucketName}/${objectPath}`);
+
+  return { buffer, bucketName: resolvedBucketName, objectPath };
 }
 
 function inferStoryLibraryDefaults(input: {
@@ -165,9 +175,11 @@ function inferStoryLibraryDefaults(input: {
 async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdml>>, fileName: string) {
   const imageUrls: Record<string, string> = {};
 
-  if (parsed.images.length === 0 || !adminStorage) return imageUrls;
+  if (parsed.images.length === 0 || !getGcsStorage()) return imageUrls;
 
-  const bucket = adminStorage.bucket();
+  const bucket = getGcsBucket();
+  if (!bucket) return imageUrls;
+  const bucketName = bucket.name;
   const BATCH_SIZE = 10;
 
   for (let i = 0; i < parsed.images.length; i += BATCH_SIZE) {
@@ -175,16 +187,14 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
     const results = await Promise.all(
       batch.map(async (img) => {
         const filePath = `magazine-import/${fileName}/${img.fileName}`;
-        const storageFile = bucket.file(filePath);
-
-        await storageFile.save(img.data, {
-          metadata: { contentType: img.mimeType },
+        const uploaded = await uploadBuffer(filePath, img.data, {
+          contentType: img.mimeType,
+          makePublic: true,
         });
-        await storageFile.makePublic();
 
         return {
           fileName: img.fileName,
-          url: buildPublicStorageUrl(bucket.name, filePath),
+          url: uploaded.publicUrl || buildPublicStorageUrl(bucketName, filePath),
         };
       }),
     );
@@ -248,9 +258,13 @@ async function uploadStoryLibraryArticleImages(
 ) {
   const imageUrls: Record<string, string> = {};
 
-  if (parsed.images.length === 0 || !adminStorage || storyLibrary.length === 0) {
+  if (parsed.images.length === 0 || !getGcsStorage() || storyLibrary.length === 0) {
     return imageUrls;
   }
+
+  const bucket = getGcsBucket();
+  if (!bucket) return imageUrls;
+  const bucketName = bucket.name;
 
   const imagesByFileName = new Map(
     parsed.images.map((img) => [img.fileName, img] as const),
@@ -279,23 +293,20 @@ async function uploadStoryLibraryArticleImages(
     return imageUrls;
   }
 
-  const bucket = adminStorage.bucket();
   const uploadResults = await Promise.all(
     requestedFileNames.map(async (requestedFileName) => {
       const parsedImage = imagesByFileName.get(requestedFileName);
       if (!parsedImage) return null;
 
       const filePath = `magazine-import/${fileName}/story-library/${parsedImage.fileName}`;
-      const storageFile = bucket.file(filePath);
-
-      await storageFile.save(parsedImage.data, {
-        metadata: { contentType: parsedImage.mimeType },
+      const uploaded = await uploadBuffer(filePath, parsedImage.data, {
+        contentType: parsedImage.mimeType,
+        makePublic: true,
       });
-      await storageFile.makePublic();
 
       return {
         fileName: parsedImage.fileName,
-        url: buildPublicStorageUrl(bucket.name, filePath),
+        url: uploaded.publicUrl || buildPublicStorageUrl(bucketName, filePath),
       };
     }),
   );
@@ -801,7 +812,7 @@ export async function importIdmlAction(idmlBase64: string, fileName: string) {
 export async function importIdmlFromStoragePathForPublishAction(storagePath: string, fileName?: string) {
   try {
     await checkAdmin();
-    if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+    if (!getGcsStorage()) throw new Error('GCS Storage not configured');
 
     const { buffer, objectPath } = await downloadIdmlBufferFromStoragePath(storagePath);
     const resolvedFileName =
@@ -829,7 +840,7 @@ export async function importIdmlFromUrlAction(fileUrl: string, fileName: string)
     // Storage REST API when security rules require request.auth != null.
     const firebaseInfo = isFirebaseStorageUrl(fileUrl);
     if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
-      if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+      if (!getGcsStorage()) throw new Error('GCS Storage not configured');
       const gs = firebaseInfo.bucket && firebaseInfo.objectPath
         ? `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`
         : '';
@@ -906,7 +917,7 @@ export async function importIdmlToStoryLibraryFromUrlAction(issueId: string, fil
 
     const firebaseInfo = isFirebaseStorageUrl(fileUrl);
     if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
-      if (!adminStorage) throw new Error('Firebase Admin Storage not configured');
+      if (!getGcsStorage()) throw new Error('GCS Storage not configured');
       const gs = `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`;
       const downloaded = await downloadIdmlBufferFromStoragePath(gs);
       buffer = downloaded.buffer;
@@ -944,7 +955,7 @@ export async function importIdmlToStoryLibraryFromStoragePathAction(
 ) {
   try {
     await checkAdmin();
-    if (!adminStorage) {
+    if (!getGcsStorage()) {
       throw new Error('Storage not initialized');
     }
 
@@ -1093,8 +1104,8 @@ export async function uploadIdmlFileToStorageAction(idmlBase64: string, fileName
   try {
     await checkAdmin();
 
-    if (!adminStorage) {
-      throw new Error('Firebase Admin Storage not configured');
+    if (!getGcsStorage()) {
+      throw new Error('GCS Storage not configured');
     }
 
     if (!idmlBase64 || typeof idmlBase64 !== 'string') {
@@ -1113,22 +1124,17 @@ export async function uploadIdmlFileToStorageAction(idmlBase64: string, fileName
     const timestamp = Date.now().toString();
     const objectName = `magazine-import/${timestamp}-${sanitizedName}`;
 
-    const bucket = adminStorage.bucket();
-    const bucketName = bucket.name;
-    const storageFile = bucket.file(objectName);
-
-    await storageFile.save(buffer, {
+    const uploaded = await uploadBuffer(objectName, buffer, {
       contentType: 'application/octet-stream',
+      makePublic: true,
       metadata: {
-        contentType: 'application/octet-stream',
-        metadata: {
-          fileName: sanitizedName,
-          uploadedAt: new Date().toISOString(),
-          fileSizeBytes: String(buffer.length),
-        },
+        fileName: sanitizedName,
+        uploadedAt: new Date().toISOString(),
+        fileSizeBytes: String(buffer.length),
       },
     });
 
+    const bucketName = uploaded.bucketName;
     const gsUrl = `gs://${bucketName}/${objectName}`;
     const encodedPath = encodeURIComponent(objectName);
     const httpsUrl =
