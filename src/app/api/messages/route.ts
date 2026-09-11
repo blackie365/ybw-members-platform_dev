@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { MessageThread, generateThreadId } from '@/lib/messages';
+import {
+  getPgMessageStore,
+  getPgMessageThreadStore,
+} from '@/features/messaging/server/pg-messages-store';
 
 // GET /api/messages - Get all message threads for a user
 export async function GET(request: NextRequest) {
   try {
-    if (!adminDb) {
-      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
-    }
-
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
@@ -16,17 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    const snapshot = await adminDb
-      .collection('messageThreads')
-      .where('participants', 'array-contains', userId)
-      .orderBy('updatedAt', 'desc')
-      .limit(50)
-      .get();
-
-    const threads: MessageThread[] = [];
-    snapshot.forEach((doc) => {
-      threads.push({ id: doc.id, ...doc.data() } as MessageThread);
-    });
+    const threads: MessageThread[] = await getPgMessageThreadStore().listForUser(userId, 50);
 
     return NextResponse.json({ threads });
   } catch (error) {
@@ -41,10 +30,6 @@ export async function GET(request: NextRequest) {
 // POST /api/messages - Create a new message thread or get existing one
 export async function POST(request: NextRequest) {
   try {
-    if (!adminDb) {
-      return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
-    }
-
     const body = await request.json();
     const { senderId, senderName, senderImage, senderSlug, recipientId, recipientName, recipientImage, recipientSlug, message } = body;
 
@@ -55,15 +40,13 @@ export async function POST(request: NextRequest) {
     const threadId = generateThreadId(senderId, recipientId);
     const now = new Date().toISOString();
 
-    // Check if thread already exists
-    const existingThread = await adminDb.collection('messageThreads').doc(threadId).get();
+    const threadStore = getPgMessageThreadStore();
+    const existing = await threadStore.get(threadId);
 
     let thread: MessageThread;
-
-    if (existingThread.exists) {
-      thread = { id: existingThread.id, ...existingThread.data() } as MessageThread;
+    if (existing) {
+      thread = existing;
     } else {
-      // Create new thread
       const threadData: Omit<MessageThread, 'id'> = {
         participants: [senderId, recipientId],
         participantDetails: {
@@ -85,14 +68,17 @@ export async function POST(request: NextRequest) {
         createdAt: now,
         updatedAt: now,
       };
-
-      await adminDb.collection('messageThreads').doc(threadId).set(threadData);
-      thread = { id: threadId, ...threadData };
+      thread = await threadStore.upsert(threadId, threadData, {
+        merge: false,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
     // If a message was provided, add it to the thread
     if (message && message.trim()) {
-      const messageData = {
+      const messageStore = getPgMessageStore();
+      await messageStore.create({
         threadId,
         senderId,
         senderName: senderName || 'Unknown',
@@ -100,20 +86,19 @@ export async function POST(request: NextRequest) {
         content: message.trim(),
         read: false,
         createdAt: now,
-      };
-
-      await adminDb.collection('messages').add(messageData);
+      });
 
       // Update thread with last message
-      await adminDb.collection('messageThreads').doc(threadId).update({
-        lastMessage: {
-          content: message.trim().substring(0, 100),
-          senderId,
-          createdAt: now,
-        },
-        [`unreadCount.${recipientId}`]: (thread.unreadCount?.[recipientId] || 0) + 1,
-        updatedAt: now,
+      const nextUnreadRecipient = (thread.unreadCount?.[recipientId] || 0) + 1;
+      await threadStore.updateNestedFields(threadId, {
+        'lastMessage.content': message.trim().substring(0, 100),
+        'lastMessage.senderId': senderId,
+        'lastMessage.createdAt': now,
+        [`unreadCount.${recipientId}`]: nextUnreadRecipient,
       });
+
+      const refreshed = await threadStore.get(threadId);
+      if (refreshed) thread = refreshed;
     }
 
     return NextResponse.json({ success: true, thread });

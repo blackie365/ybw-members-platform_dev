@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
+import { getOfferRequestStore } from '@/features/offers/server/offer-request-store';
 
 export async function POST(request: Request) {
   try {
@@ -17,12 +17,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!adminDb) {
-      console.error('[Offers API] Firestore adminDb is not initialized');
-      return NextResponse.json({ error: 'Database configuration error' }, { status: 500 });
-    }
-
-    // Save the offer submission to Firestore
     const docData = {
       title,
       description,
@@ -36,14 +30,14 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    const docRef = await adminDb.collection('offer_requests').add(docData);
+    const created = await getOfferRequestStore().create({ data: docData });
 
     // Revalidate paths
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/offers');
     revalidatePath('/offers');
 
-    return NextResponse.json({ success: true, id: docRef.id });
+    return NextResponse.json({ success: true, id: created.id });
   } catch (error: any) {
     console.error('[Offers API] Error creating offer request:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

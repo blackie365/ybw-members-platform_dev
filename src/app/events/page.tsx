@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { adminDb } from "@/lib/firebase-admin";
 import { Event, EVENT_TYPE_LABELS } from "@/lib/events";
 import EventsPageClient from "./EventsPageClient";
+import { getPgEventStore } from "@/features/events/server/pg-events-store";
 
 export const metadata = {
   title: "Events",
@@ -17,26 +17,11 @@ export const metadata = {
 
 async function getAllEvents() {
   try {
-    if (!adminDb) {
-      console.warn("Firebase Admin not initialized - returning empty events");
-      return [];
-    }
-
-    const upcomingQuery = adminDb
-      .collection("events")
-      .where("status", "==", "published")
-      .orderBy("startDate", "asc");
-
-    const upcomingSnap = await upcomingQuery.limit(100).get();
-    const events: Event[] = [];
-    upcomingSnap.forEach((doc) => {
-      events.push({ id: doc.id, ...doc.data() } as Event);
-    });
-
+    const events: Event[] = await getPgEventStore().listPublishedUpcoming();
     return events;
   } catch (error) {
     console.warn(
-      "Error fetching events (Firebase Admin credentials may not be configured):",
+      "Error fetching events:",
       error instanceof Error ? error.message : error,
     );
     return [];

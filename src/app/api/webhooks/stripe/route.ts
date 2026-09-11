@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { adminDb } from '@/lib/firebase-admin';
 import { sendEmail } from '@/lib/email';
 import { getEventTicketConfirmationEmailTemplate } from '@/lib/email-templates';
-import { addGhostMember, upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
+import { upgradeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendPremiumWelcomeOnce } from '@/lib/member-notifications';
 import { getMemberStore } from '@/features/members/server';
 import type { MemberProfile } from '@/features/members/server/member-store';
 import { config } from '@/lib/config';
+import { getStripeWebhookEventStore } from '@/features/shared-ops/server/shared-ops-pg-store';
+import {
+  getPgEventAttendeeStore,
+  getPgEventTicketStore,
+} from '@/features/events/server/pg-events-store';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
@@ -33,21 +37,16 @@ async function getAdminRecipients(): Promise<string[]> {
 }
 
 /**
- * If a previous attempt claimed an event but crashed before completing (the route
- * returned 500), Stripe retries the same event id ~30s later. The stale reclaim
- * window must be shorter than Stripe's retry interval so the retry can
- * definitely pick up a crashed run. 15s is safely below the ~30s default and
- * well above the ~5s worst-case provisioning time.
+ * Stale-processing reclaim and outcome retention windows (Phase 6c).
+ *
+ * Previously declared as route-level constants; they live in the store class
+ * now (shared-ops-pg-store.ts _internals), because the same parameters need
+ * to travel with the PG claim method so its UPDATE...RETURNING stale window
+ * matches what the dual-write Firestore fallback uses. Retained here as
+ * documentation so the intent is still visible next to the handler:
+ *   - PROCESSING_STALE_MS = 15  s (Stripe retries ~30 s after a 5xx)
+ *   - OUTCOME_TTL_MS      = 7 d (outcome records kept for audit)
  */
-const PROCESSING_STALE_MS = 15 * 1000;
-/**
- * We keep webhook outcome docs for 7 days so support can audit "did Stripe send
- * event X, and what did we do with it?" TTL is stored as a Timestamp field
- * (`expireAt`) so a Firestore TTL policy can auto-delete old records. No TTL
- * policy is required to be set for this code to work — the field simply has
- * no effect until one is created in Firestore console.
- */
-const OUTCOME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function findMemberClerkIdBySubscriptionId(subscriptionId: string): Promise<string | null> {
   if (!subscriptionId) return null;
@@ -123,9 +122,6 @@ export async function POST(req: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: 'Stripe keys missing' }, { status: 500 });
   }
-  if (!adminDb) {
-    return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
-  }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: '2023-10-16' as any,
@@ -146,47 +142,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  let processedRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData> | null = null;
   try {
-    processedRef = adminDb.collection('stripe_webhook_events').doc(event.id);
-    const processedRefNonNull = processedRef;
-    const claimResult = await adminDb.runTransaction(async (tx) => {
-      const snap = await tx.get(processedRefNonNull);
-      const expireAt = new Date(Date.now() + OUTCOME_TTL_MS);
-      if (!snap.exists) {
-        tx.set(processedRefNonNull, {
-          type: event.type,
-          livemode: (event as any).livemode === true,
-          status: 'processing',
-          startedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          expireAt,
-          retryCount: 0,
-        });
-        return 'claim';
-      }
-      const data = snap.data() || {};
-      if (data?.status === 'processed' || data?.status === 'failed_permanent') {
-        return 'duplicate';
-      }
-      // A stale 'processing' claim means the previous attempt crashed before
-      // finishing (the route returned 500), so reclaim instead of skipping.
-      const startedAt = typeof data?.startedAt === 'string' ? Date.parse(data.startedAt) : 0;
-      const stale = !startedAt || Date.now() - startedAt > PROCESSING_STALE_MS;
-      if (stale) {
-        tx.update(processedRefNonNull, {
-          status: 'processing',
-          startedAt: new Date().toISOString(),
-          retryCount: (typeof data?.retryCount === 'number' ? data.retryCount : 0) + 1,
-          expireAt,
-          lastReclaimedAt: new Date().toISOString(),
-        });
-        return 'claim';
-      }
-      return 'duplicate';
+    const store = getStripeWebhookEventStore();
+    const claimResult = await store.claimProcessing({
+      id: event.id,
+      type: event.type,
+      livemode: (event as any).livemode === true,
     });
 
-    if (claimResult === 'duplicate') {
+    if (claimResult.outcome === 'duplicate') {
       return NextResponse.json({ received: true, duplicate: true });
     }
 
@@ -310,15 +274,28 @@ export async function POST(req: Request) {
         const purchasedAt = new Date().toISOString();
         const paymentStatus = session.payment_status;
 
-        await adminDb.collection('event_tickets').add({
-          postId,
-          ...(userId ? { userId } : { guestEmail: ticketEmail.toLowerCase().trim() }),
-          userEmail: ticketEmail,
-          amountPaid,
-          currency,
-          purchasedAt,
+        await getPgEventTicketStore().create({
+          eventSlug: postSlug,
           stripeSessionId,
-          paymentStatus,
+          userId: userId || undefined,
+          email: ticketEmail,
+          amountPaid: typeof amountPaid === 'number' && amountPaid >= 0 ? amountPaid / 100 : 0,
+          currency: currency ?? undefined,
+          purchasedAt,
+          paymentStatus: paymentStatus ?? undefined,
+          ticketQuantity,
+          data: {
+            postId,
+            ...(userId ? { userId } : { guestEmail: ticketEmail.toLowerCase().trim() }),
+            userEmail: ticketEmail,
+            stripeSessionId,
+            amountPaid,
+            currency,
+            purchasedAt,
+            paymentStatus,
+            guestInfo,
+            ticketQuantity,
+          },
         });
 
         // Automatically RSVP (member or guest) to the event
@@ -343,17 +320,24 @@ export async function POST(req: Request) {
               attendeeKey = `guest:${encodeURIComponent(ticketEmail.toLowerCase().trim())}`;
             }
 
-            const attendeeRef = adminDb.collection('events').doc(postSlug).collection('attendees').doc(attendeeKey);
-            await attendeeRef.set({
-              ...(userId ? { uid: userId } : { email: ticketEmail.toLowerCase().trim() }),
+            const emailNorm = ticketEmail.toLowerCase().trim();
+            const attendeeData: Record<string, unknown> = {
+              ...(userId ? { uid: userId } : { email: emailNorm }),
               name: rsvpName,
               image: rsvpImage,
               company: rsvpCompany,
               timestamp: purchasedAt,
               hasTicket: true,
               quantity: ticketQuantity,
-              guestInfo
+              guestInfo,
+            };
+
+            await getPgEventAttendeeStore().upsert(postSlug, attendeeKey, attendeeData, {
+              userId: userId || undefined,
+              email: emailNorm,
+              hasTicket: true,
             });
+
             console.log(`Successfully added attendee to RSVP list for ${postSlug}`);
 
             // Send Event Ticket Confirmation Email to the purchaser
@@ -513,36 +497,24 @@ export async function POST(req: Request) {
       }
     }
 
-    await processedRef!.set(
-      {
-        status: 'processed',
-        processedAt: new Date().toISOString(),
-        expireAt: new Date(Date.now() + OUTCOME_TTL_MS),
-      },
-      { merge: true },
-    );
+    await getStripeWebhookEventStore().markProcessed(event.id);
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Error processing webhook:', error);
     const errorMessage = error?.message || String(error) || 'Unknown error';
     const errorStack = error?.stack ? String(error.stack).slice(0, 4000) : undefined;
     try {
-      if (!processedRef) throw error;
-      const snap = await processedRef!.get();
-      const existing = snap.data() || {};
-      const totalAttempts = (typeof existing?.retryCount === 'number' ? existing.retryCount : 0) + 1;
+      const store = getStripeWebhookEventStore();
+      const existing = await store.get(event.id);
+      const baseRetry = typeof existing?.retryCount === 'number' ? existing.retryCount : 0;
+      const totalAttempts = baseRetry + 1;
       const failedPermanent = totalAttempts >= 5;
-      await processedRef!.set(
-        {
-          status: failedPermanent ? 'failed_permanent' : 'failed_retryable',
-          failedAt: new Date().toISOString(),
-          lastError: errorMessage,
-          lastErrorStack: errorStack,
-          totalAttempts,
-          expireAt: new Date(Date.now() + OUTCOME_TTL_MS),
-        },
-        { merge: true },
-      );
+      await store.markFailed(event.id, {
+        errorMessage,
+        errorStack,
+        permanent: failedPermanent,
+        totalAttempts,
+      });
       if (failedPermanent) {
         const adminRecipients = await getAdminRecipients().catch(() => [config.adminEmail]);
         sendEmail({
@@ -555,13 +527,13 @@ export async function POST(req: Request) {
               <p><strong>Error:</strong></p>
               <pre style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;white-space:pre-wrap;overflow:auto;">${errorMessage}</pre>
               ${errorStack ? `<p><strong>Stack:</strong></p><pre style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;white-space:pre-wrap;overflow:auto;font-size:12px;">${errorStack}</pre>` : ''}
-              <p style="color:#6b7280;font-size:12px;">Check the <code>stripe_webhook_events/${event.id}</code> Firestore document for retry history.</p>
+              <p style="color:#6b7280;font-size:12px;">Check the <code>stripe_webhook_events</code> Postgres table (or <code>stripe_webhook_events/${event.id}</code> Firestore doc during Phase 6c transition) for retry history.</p>
             </div>
           `,
         }).catch((err) => console.error('Failed to send webhook-failure admin alert:', err));
       }
     } catch (writeErr) {
-      console.error('Failed to record webhook failure in Firestore:', writeErr);
+      console.error('Failed to record webhook failure in Postgres/Firestore:', writeErr);
     }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

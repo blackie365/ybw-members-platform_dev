@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
 import { addGhostMember } from '@/lib/ghost-admin';
-import { adminDb } from '@/lib/firebase-admin';
 import { getMemberStore } from '@/features/members/server';
+import { getPgEventInterestStore } from '@/features/events/server/pg-events-store';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
 
@@ -136,62 +136,63 @@ export async function POST(request: Request) {
   let adminEmailResult: { success?: boolean; mock?: boolean; id?: string } | null = null;
 
   try {
-    if (adminDb) {
-      const interestRef = adminDb
-        .collection('eventInterests')
-        .doc(interestRecordId);
-      const existing = await interestRef.get();
-      const createdAt = new Date().toISOString();
-      const baseData = {
-        email,
-        emailLower: email,
-        firstName,
-        source,
+    const existing = await getPgEventInterestStore().get(interestRecordId);
+    const createdAt = new Date().toISOString();
+    const baseData = {
+      email,
+      emailLower: email,
+      firstName,
+      source,
+      eventId,
+      eventTitle,
+      eventDateLabel,
+      eventLocation,
+      newsletterOptIn,
+      consent,
+    };
+
+    await getPgEventInterestStore().upsert(
+      {
+        id: interestRecordId,
         eventId,
-        eventTitle,
-        eventDateLabel,
-        eventLocation,
-        newsletterOptIn,
-        consent,
+        email,
+        firstName,
+        createdAt,
+        data: baseData,
+      },
+      { merge: true },
+    );
+    interestCreated = !existing.exists;
+
+    // Mirror to member profile ONLY if an actual member record already exists
+    // for this email. We deliberately do NOT promote a pure event interest or
+    // newsletter checkbox into a brand-new "free tier member" — that conflates
+    // "someone who wants event updates / the newsletter" with "someone who
+    // created a YBW account". Real members come through /sign-up, Ghost auth
+    // webhooks (api/revalidate/ghost), or Stripe.
+    // We still append the eventId + newsletter flags onto the existing member
+    // profile so the admin record stays consistent when someone is already an
+    // account-holding member.
+    const existingMember = await getMemberStore().getMemberByEmail(email);
+
+    if (existingMember) {
+      await getMemberStore().patch(existingMember.clerkId, {
+        firstName: firstName || existingMember.firstName || '',
+        isNewsletterRecipient:
+          newsletterOptIn || existingMember.isNewsletterRecipient === true,
+        newsletterSubscribed:
+          newsletterOptIn || existingMember.newsletterSubscribed === true,
+        eventInterests: Array.from(
+          new Set([
+            ...((existingMember.eventInterests as string[]) || []),
+            eventId,
+          ]),
+        ),
         updatedAt: createdAt,
-      };
-      if (!existing.exists) {
-        await interestRef.set({ ...baseData, createdAt }, { merge: true });
-        interestCreated = true;
-      } else {
-        await interestRef.update(baseData);
-      }
-
-      // Mirror to newMemberCollection ONLY if an actual member record already
-      // exists for this email. We deliberately do NOT promote a pure event
-      // interest or newsletter checkbox into a brand-new "free tier member" —
-      // that conflates "someone who wants event updates / the newsletter"
-      // with "someone who created a YBW account". Real members come through
-      // /sign-up, Ghost auth webhooks (api/revalidate/ghost), or Stripe.
-      // We still append the eventId + newsletter flags onto the existing
-      // member profile so the admin record stays consistent when someone is
-      // already an account-holding member.
-      const existingMember = await getMemberStore().getMemberByEmail(email);
-
-      if (existingMember) {
-        await getMemberStore().patch(existingMember.clerkId, {
-          firstName: firstName || existingMember.firstName || '',
-          isNewsletterRecipient:
-            newsletterOptIn || existingMember.isNewsletterRecipient === true,
-          newsletterSubscribed:
-            newsletterOptIn || existingMember.newsletterSubscribed === true,
-          eventInterests: Array.from(
-            new Set([
-              ...((existingMember.eventInterests as string[]) || []),
-              eventId,
-            ]),
-          ),
-          updatedAt: createdAt,
-        });
-      }
+      });
     }
   } catch (error: any) {
-    console.warn('[API/Events/Interest] Firestore sync skipped:', error?.message || error);
+    console.warn('[API/Events/Interest] Event interest record failed:', error?.message || error);
   }
 
   // 2) Beehiiv sync (newsletter opt-in or always with event custom fields)

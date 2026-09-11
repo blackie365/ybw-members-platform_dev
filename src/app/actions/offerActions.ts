@@ -1,24 +1,22 @@
 'use server';
 
-import { adminDb } from "@/lib/firebase-admin";
 import { revalidatePath } from "next/cache";
 import { checkAdmin } from "@/lib/server/auth-utils";
+import { sendEmail } from "@/lib/email";
+import { getOfferRequestStore } from "@/features/offers/server/offer-request-store";
 
 export async function getFirestoreOffersAction() {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getOfferRequestStore();
+    const rows = await store.list({ orderCreatedDesc: true });
 
-    const snapshot = await adminDb.collection('offer_requests')
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    const offers = snapshot.docs.map(doc => {
-      const data = doc.data();
+    const offers = rows.map(row => {
+      const d = row.data ?? {};
       return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt || new Date().toISOString()
+        id: row.id,
+        ...d,
+        createdAt: row.createdAt ?? d.createdAt ?? new Date().toISOString(),
       };
     });
 
@@ -32,12 +30,7 @@ export async function getFirestoreOffersAction() {
 export async function updateOfferStatusAction(offerId: string, status: 'active' | 'pending' | 'expired') {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
-
-    await adminDb.collection('offer_requests').doc(offerId).update({
-      status,
-      updatedAt: new Date().toISOString()
-    });
+    await getOfferRequestStore().patch(offerId, { status, updatedAt: new Date().toISOString() });
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/offers');
@@ -61,12 +54,7 @@ export async function deactivateOfferAction(offerId: string) {
 export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly: boolean) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
-
-    await adminDb.collection('offer_requests').doc(offerId).update({
-      isMembersOnly,
-      updatedAt: new Date().toISOString()
-    });
+    await getOfferRequestStore().patch(offerId, { isMembersOnly, updatedAt: new Date().toISOString() });
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/offers');
@@ -82,9 +70,7 @@ export async function toggleOfferVisibilityAction(offerId: string, isMembersOnly
 export async function deleteOfferAction(offerId: string) {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error("Database not initialized");
-
-    await adminDb.collection('offer_requests').doc(offerId).delete();
+    await getOfferRequestStore().delete(offerId);
 
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/offers');
@@ -97,18 +83,19 @@ export async function deleteOfferAction(offerId: string) {
   }
 }
 
-import { sendEmail } from "@/lib/email";
-
 export async function claimOfferAction(offerId: string, claimerEmail: string, claimerName: string = "A interested person") {
   try {
-    if (!adminDb) throw new Error("Database not initialized");
+    const store = getOfferRequestStore();
+    const offer = await store.get(offerId);
+    if (!offer) throw new Error("Offer not found");
 
-    const offerDoc = await adminDb.collection('offer_requests').doc(offerId).get();
-    if (!offerDoc.exists) throw new Error("Offer not found");
-
-    const offerData = offerDoc.data();
-    const offererEmail = offerData?.userEmail;
-    const offerTitle = offerData?.title;
+    const offerData = offer.data ?? {};
+    const offererEmail =
+      typeof offerData.userEmail === 'string'
+        ? offerData.userEmail
+        : undefined;
+    const offerTitle =
+      typeof offerData.title === 'string' ? offerData.title : 'Untitled Offer';
 
     if (!offererEmail) throw new Error("Offerer email not found");
 

@@ -1,49 +1,38 @@
 import { getPosts } from '@/lib/ghost';
 import MemberOffersClient from './MemberOffersClient';
-import { adminDb } from '@/lib/firebase-admin';
+import { getOfferRequestStore } from '@/features/offers/server/offer-request-store';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function getFirestoreOffers() {
   try {
-    if (!adminDb) {
-      console.warn('adminDb not initialized in DashboardOffers');
-      return [];
-    }
-    
-    console.log('Fetching Firestore offers...');
-    const offersRef = adminDb?.collection('offer_requests');
-    // Fetch everything and filter in JS to be safe against status case sensitivity
-    const snapshot = await offersRef?.get();
-    
-    console.log(`Found ${snapshot?.size} total offers in Firestore`);
-    
-    const activeOffers = snapshot?.docs?.map(doc => {
-        const data = doc?.data();
+    const rows = await getOfferRequestStore().list({ orderCreatedDesc: true });
+
+    const activeOffers = rows.map(row => {
+        const data = row.data ?? {};
         const mapped = {
-          id: doc?.id,
-          title: data?.title || 'Untitled Offer',
-          feature_image: data?.imageUrl || null,
-          slug: data?.link ? '' : `internal-${doc?.id}`, 
-          excerpt: data?.description || '',
-          primary_author: { name: data?.userName || 'Member' },
+          id: row.id,
+          title: typeof data.title === 'string' && data.title ? data.title : 'Untitled Offer',
+          feature_image: typeof data.imageUrl === 'string' && data.imageUrl ? data.imageUrl : null,
+          slug: typeof data.link === 'string' && data.link ? '' : `internal-${row.id}`,
+          excerpt: typeof data.description === 'string' ? data.description : '',
+          primary_author: { name: typeof data.userName === 'string' && data.userName ? data.userName : 'Member' },
           isFirestoreOffer: true,
-          link: data?.link || '',
-          isMembersOnly: data?.isMembersOnly ?? true,
-          published_at: data?.createdAt || new Date()?.toISOString(),
-          status: data?.status // Explicitly include for filtering
+          link: typeof data.link === 'string' ? data.link : '',
+          isMembersOnly: typeof data.isMembersOnly === 'boolean' ? data.isMembersOnly : row.isMembersOnly ?? true,
+          published_at: row.createdAt ?? typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
+          status: typeof data.status === 'string' ? data.status : row.status,
         };
         return mapped;
       })?.filter(offer => {
         // In the dashboard, we show all active offers (both public and members-only)
         return offer?.status === 'active';
       });
-    
-    console.log(`Returning ${activeOffers?.length} active Firestore offers`);
+
     return activeOffers;
   } catch (error) {
-    console.error('Error fetching Firestore offers:', error);
+    console.error('Error fetching dashboard offers:', error);
     return [];
   }
 }

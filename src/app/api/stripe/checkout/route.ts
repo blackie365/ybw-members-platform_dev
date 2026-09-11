@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { adminDb } from '@/lib/firebase-admin';
 import { getMemberStore } from '@/features/members/server';
+import {
+  getPgEventAttendeeStore,
+  getPgEventTicketStore,
+} from '@/features/events/server/pg-events-store';
 
 export async function POST(request: Request) {
   try {
@@ -127,10 +130,6 @@ export async function POST(request: Request) {
 
     // Handle FREE tickets (no Stripe required)
     if (unitAmount === 0) {
-      if (!adminDb) {
-        return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
-      }
-
       // Try to look up a richer profile when a Clerk user exists; otherwise use
       // the display name/email from the request body.
       let attendeeName = displayName;
@@ -158,19 +157,46 @@ export async function POST(request: Request) {
         attendeeKey = `guest:${emailKey}`;
       }
 
-      const eventDocRef = adminDb.collection('events').doc(postSlug);
-      const attendeeRef = eventDocRef.collection('attendees').doc(attendeeKey);
-      
-      await attendeeRef.set({
+      const ticketQty = parseInt(quantity) || 1;
+      const emailNorm = userEmail.toLowerCase().trim();
+      const nowIso = new Date().toISOString();
+
+      const attendeeData: Record<string, unknown> = {
         uid: attendeeUid || undefined,
-        email: userEmail.toLowerCase().trim(),
+        email: emailNorm,
         name: attendeeName,
         image: attendeeImage,
         company: attendeeCompany,
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         ticketType: 'free',
-        quantity: parseInt(quantity) || 1,
-        guestInfo: guestInfo || ''
+        quantity: ticketQty,
+        guestInfo: guestInfo || '',
+      };
+
+      await getPgEventAttendeeStore().upsert(postSlug, attendeeKey, attendeeData, {
+        userId: attendeeUid || undefined,
+        email: emailNorm,
+        hasTicket: true,
+      });
+
+      await getPgEventTicketStore().create({
+        eventSlug: postSlug,
+        userId: attendeeUid || undefined,
+        email: emailNorm,
+        amountPaid: 0,
+        currency: 'GBP',
+        purchasedAt: nowIso,
+        paymentStatus: 'paid_free',
+        ticketQuantity: ticketQty,
+        data: {
+          ticketType: 'free',
+          guestInfo: guestInfo || '',
+          customerFirstName: customerFirstName || (profileData?.firstName as string) || '',
+          postId,
+          postTitle,
+          quantity: ticketQty,
+          attendeeName,
+        },
       });
 
       // Instead of returning a URL to redirect to, just return a success flag

@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { useEffect } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import { Image as ImageIcon, ClipboardPaste, Loader2, CheckCircle2, FileDown, Eye, BookOpen, AlertTriangle, Info, Lightbulb, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -658,26 +656,21 @@ export function ManualImporter({
       if (ext === 'idml') {
         setIdmlFileName(file.name);
         const canSaveDirectly = Boolean(issueId && issueId !== 'new' && onSaveStoryLibrary);
+        const MAX_INLINE_BASE64_BYTES = 1.5 * 1024 * 1024;
+        const useStorageUpload = canSaveDirectly && file.size > MAX_INLINE_BASE64_BYTES;
         let res: any;
 
-        if (canSaveDirectly && storage) {
-          toast.info('Uploading file to Firebase Storage...', { id: 'upload-progress' });
+        if (useStorageUpload) {
+          toast.info('Uploading IDML to storage… (large file)', { id: 'upload-progress' });
 
-          const filePath = `magazine-import/${file.name}`;
-          const storageRef = ref(storage, filePath);
-          const uploadTask = uploadBytesResumable(storageRef, file);
-
-          await new Promise<void>((resolve, reject) => {
-            uploadTask.on(
-              'state_changed',
-              (snapshot) => {
-                const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                toast.info(`Uploading: ${pct}%`, { id: 'upload-progress' });
-              },
-              (error) => reject(error),
-              () => resolve(),
-            );
-          });
+          const fd = new FormData();
+          fd.append('file', file);
+          const uploadRes = await fetch('/api/upload/idml', { method: 'POST', body: fd });
+          const uploadJson = await uploadRes.json();
+          if (!uploadRes.ok || !uploadJson?.success) {
+            throw new Error(uploadJson?.error || 'IDML upload failed');
+          }
+          const storagePath = String(uploadJson.data.path);
 
           toast.info('Importing Story Library from stored IDML...', { id: 'upload-progress' });
           const response = await fetch('/api/admin/magazine/story-library/import-idml', {
@@ -687,7 +680,7 @@ export function ManualImporter({
             },
             body: JSON.stringify({
               issueId: String(issueId),
-              storagePath: filePath,
+              storagePath,
               fileName: file.name,
             }),
           });
@@ -775,11 +768,6 @@ export function ManualImporter({
       return;
     }
 
-    if (!storage) {
-      toast.error('Firebase Storage not configured');
-      return;
-    }
-
     setIsServerIdmlParsing(true);
     setServerIdmlFileName(file.name);
     setShowServerIdmlPreview(false);
@@ -788,61 +776,33 @@ export function ManualImporter({
     setServerIdmlStats(null);
 
     try {
-      toast.info('Uploading file to Firebase Storage...');
+      toast.info('Uploading IDML to storage…', { id: 'upload-progress' });
 
-      const filePath = `magazine-import/${file.name}`;
-      const storageRef = ref(storage, filePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      const fileUrl: string = await new Promise((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-            toast.info(`Uploading: ${pct}%`, { id: 'upload-progress' });
-          },
-          (error) => reject(error),
-          async () => {
-            const url = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(url);
-          },
-        );
-      });
-
-      let resolvedGsUrl: string | null = null;
-      try {
-        const match = fileUrl.match(/\/v0\/b\/([^/]+)\/o\/([^?]+)/);
-        const bucketName = match?.[1] || (storage.app?.options?.storageBucket as string) || '';
-        const objectPathEncoded = match?.[2] || encodeURIComponent(filePath);
-        const objectPath = decodeURIComponent(objectPathEncoded).replace(/\+/g, ' ');
-        if (bucketName && objectPath) {
-          resolvedGsUrl = `gs://${bucketName}/${objectPath}`;
-          setLastIdmlStorageUpload({
-            gsUrl: resolvedGsUrl,
-            httpsUrl: fileUrl,
-            path: objectPath,
-            fileName: file.name,
-            sizeBytes: file.size,
-          });
-          setStoredIdmlPath(resolvedGsUrl);
-        }
-      } catch (parseErr) {
-        console.warn('[IDML] Failed to derive Storage URL for stored-path field:', parseErr);
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploadRes = await fetch('/api/upload/idml', { method: 'POST', body: fd });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok || !uploadJson?.success) {
+        throw new Error(uploadJson?.error || 'IDML upload failed');
       }
+
+      const resolvedGsUrl: string = String(uploadJson.data.gsUrl);
+      const resolvedHttpsUrl: string = String(uploadJson.data.httpsUrl);
+      const resolvedPath: string = String(uploadJson.data.path);
+
+      setLastIdmlStorageUpload({
+        gsUrl: resolvedGsUrl,
+        httpsUrl: resolvedHttpsUrl,
+        path: resolvedPath,
+        fileName: file.name,
+        sizeBytes: file.size,
+      });
+      setStoredIdmlPath(resolvedGsUrl);
 
       toast.info('Parsing IDML on server...', { id: 'upload-progress' });
 
-      // CRITICAL FIX: use the gs:// storage path → admin SDK download route,
-      // NOT the Firebase Storage public URL + uncredentialed server fetch.
-      // The URL fetch fails (400/403) because server actions have no Firebase
-      // Auth / Storage rule context, but admin SDK bypasses rules entirely —
-      // this is why the "old upload route" (stored-path import) always worked.
       let result: any;
-      if (resolvedGsUrl) {
-        result = await importIdmlFromStoragePathForPublishAction(resolvedGsUrl, file.name);
-      } else {
-        result = await importIdmlFromUrlAction(fileUrl, file.name);
-      }
+      result = await importIdmlFromStoragePathForPublishAction(resolvedGsUrl, file.name);
 
       if (!result.success) {
         toast.error(result.error || 'Failed to parse IDML', { id: 'upload-progress' });

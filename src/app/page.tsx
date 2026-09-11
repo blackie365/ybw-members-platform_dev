@@ -11,7 +11,6 @@ import { TestimonialsSection } from "@/components/magazine/testimonials-section"
 import { MagazineExperience } from "@/components/magazine/magazine-experience";
 import { getPosts, getTags } from "@/lib/ghost";
 import { getMemberStore } from "@/features/members/server";
-import { adminDb } from "@/lib/firebase-admin";
 import Link from "next/link";
 
 // Homepage - Yorkshire BusinessWoman Magazine
@@ -149,11 +148,10 @@ export default async function MagazinePage() {
   try {
     const getFeaturedHomepageEventSlug = async (): Promise<string | null> => {
       try {
-        if (!adminDb) return null;
-        const doc = await adminDb.collection('settings').doc('featured-homepage-event').get();
-        if (!doc.exists) return null;
-        const d = doc.data() as { slug?: unknown } | undefined;
-        return typeof d?.slug === 'string' && d.slug.trim() ? d.slug.trim() : null;
+        const { getSystemStore } = await import('@/features/system/server/system-store');
+        const rec = await getSystemStore().get('settings:featured-homepage-event');
+        const slug = rec?.data?.slug;
+        return typeof slug === 'string' && slug.trim() ? slug.trim() : null;
       } catch (e) {
         console.error("Home page failed to read featured-homepage-event:", e);
         return null;

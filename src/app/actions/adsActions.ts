@@ -1,7 +1,7 @@
 'use server';
 
-import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
+import { getSystemStore } from '@/features/system/server/system-store';
 
 type AdItem = {
   id: string;
@@ -72,10 +72,9 @@ function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
 export async function getAdsConfigAction(): Promise<{ success: true; data: AdsConfig } | { success: false; error: string }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
-
-    const doc = await adminDb.collection('system').doc('ads').get();
-    const data = (doc.exists ? (doc.data() as any) : {}) || {};
+    const store = getSystemStore();
+    const record = await store.get('system:ads');
+    const data = record?.data ?? {};
 
     return {
       success: true,
@@ -96,7 +95,7 @@ export async function updateAdSlotAction(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     await checkAdmin();
-    if (!adminDb) throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
+    const store = getSystemStore();
 
     const payload: AdSlotConfig = {
       enabled: input.enabled !== false,
@@ -108,12 +107,13 @@ export async function updateAdSlotAction(
       updatedAt: new Date().toISOString(),
     };
 
-    await adminDb.collection('system').doc('ads').set(
-      {
-        [slot]: payload,
-      },
-      { merge: true }
-    );
+    const existing = (await store.get('system:ads'))?.data ?? {};
+    const merged: Record<string, unknown> = {
+      ...(existing && typeof existing === 'object' ? existing : {}),
+      [slot]: payload as unknown as Record<string, unknown>,
+    };
+
+    await store.set('system:ads', merged, { merge: true });
 
     return { success: true };
   } catch (error: any) {

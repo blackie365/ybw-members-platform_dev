@@ -95,14 +95,9 @@ export default async function RootLayout({
 
   let headerAd: any | undefined;
   try {
-    const { adminDb } = await import("@/lib/firebase-admin");
-    if (adminDb) {
-      const doc = await adminDb.collection('system').doc('ads').get();
-      if (doc.exists) {
-        const data = doc.data() as any;
-        if (data?.headerLeaderboard) headerAd = data.headerLeaderboard;
-      }
-    }    
+    const { getSystemSettingData } = await import('@/features/system/server/system-store');
+    const adsConfig = await getSystemSettingData('system:ads');
+    if (adsConfig?.headerLeaderboard) headerAd = adsConfig.headerLeaderboard;
   } catch (e) {}
 
   return (

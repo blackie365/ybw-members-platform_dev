@@ -1,6 +1,5 @@
 'use server';
 
-import { adminDb, adminDbInit } from '@/lib/firebase-admin';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import {
   MagazineAdRecord,
@@ -8,6 +7,7 @@ import {
   sortMagazineAds,
 } from '@/features/magazine/domain/magazine-ads';
 import { safeRevalidatePath, safeRevalidateTag } from './_helpers';
+import { getSystemStore } from '@/features/system/server/system-store';
 
 export async function getMagazineAdsAction(): Promise<
   { success: true; data: MagazineAdRecord[] } | { success: false; error: string }
@@ -44,22 +44,19 @@ export async function saveMagazineAdsAction(
 }
 
 /**
- * Pull enabled ad slots from the Firestore `system/ads` config (the site-wide
- * Ads tab) into the Postgres magazine ad catalog. This is the "use the ads
- * you've already set up" import — the Quilter Cheviot headerLeaderboard lands
- * in the reader with one click.
+ * Pull enabled ad slots from the site-wide Ads config (stored as the
+ * `system:ads` system setting — Postgres first, with Firestore fallback
+ * during Phase 6a transition) into the Postgres magazine ad catalog.
+ * This is the "use the ads you've already set up" import — the Quilter
+ * Cheviot headerLeaderboard lands in the reader with one click.
  */
 export async function importSiteAdsToMagazineAction(): Promise<
   { success: true; data: MagazineAdRecord[] } | { success: false; error: string }
 > {
   try {
     await checkAdmin();
-    if (!adminDb) {
-      throw new Error(adminDbInit?.error ? `Database not initialized: ${adminDbInit.error}` : 'Database not initialized');
-    }
-
-    const doc = await adminDb.collection('system').doc('ads').get();
-    const data = (doc.exists ? (doc.data() as any) : {}) || {};
+    const store = getSystemStore();
+    const data = (await store.get('system:ads'))?.data ?? {};
     const slots: Array<{ slot: string; cfg: any }> = (['headerLeaderboard', 'sidebarMpu', 'midArticle'] as const)
       .map((slot) => ({ slot, cfg: data?.[slot] }))
       .filter(({ cfg }) => cfg && typeof cfg === 'object');
