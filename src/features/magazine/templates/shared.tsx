@@ -2172,11 +2172,11 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   //     reported this was far too small / cramped to read at the narrow
   //     spread header so we've retired it entirely. If a page explicitly
   //     passes a leaderboard-formatted ad we still accept the creative
-  //     but render it as the first inline card (same sizing as MPU/square).
+  //     but render it inline (same sizing as MPU/square).
   //   * The old 340 px right-hand rail ("<aside> Advertisement / AdSlot …
   //     ") ate the entire right column even on pages that only had a single
   //     MPU. Rail ads now live inside the editorial body as float-wrapped
-  //     cards that the feature text wraps around — identical to how the
+  //     figures that the feature text wraps around — identical to how the
   //     InlineMedia pattern already works for photos. Only pullQuotes and
   //     social embeds still open the quote/social rail; a page with ads
   //     alone keeps the full-width 3-column text layout.
@@ -2374,63 +2374,55 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
             {/* Inline advertisements — float-wrapped inside editorial text
-                 so copy wraps around instead of a full side rail. Card sizing
-                 and alternating sides mirror the MediaFigure inline/wide
-                 pattern used for feature photos. */}
+                 exactly like a feature photo: plain figure, no card chrome,
+                 same column widths/margins as the inline images so editorial
+                 copy flows around and the columns keep their width. */}
             {inlineAds.length > 0 ? (
               <div className="space-y-0">
                 {inlineAds.map((ad, i) => {
                   const side = i % 2 === 0 ? "right" : "left";
                   const isWide = String(ad.format || "").toLowerCase() === "leaderboard";
                   const outer = isWide
-                    ? "w-full max-w-3xl mx-auto my-7 clear-both"
+                    ? "w-full max-w-4xl mx-auto mb-8 mt-4 clear-both"
                     : side === "left"
-                      ? "float-left mr-7 mb-7 mt-1 w-full sm:w-[54%] lg:w-[44%]"
-                      : "float-right ml-7 mb-7 mt-1 w-full sm:w-[54%] lg:w-[44%]";
+                      ? "w-full md:w-1/2 lg:w-5/12 md:float-left md:mr-8 md:mb-6 md:mt-2"
+                      : "w-full md:w-1/2 lg:w-5/12 md:float-right md:ml-8 md:mb-6 md:mt-2";
                   const safeImg = String(ad?.image || "").trim();
                   const hasCreative = safeImg.length > 0;
                   return (
                     <figure
                       key={`inline-ad-${i}`}
-                      className={`${outer} break-inside-avoid rounded-[1.25rem] border border-[#191412]/22 bg-[#f5f1ea] shadow-[0_10px_40px_rgba(25,20,18,0.08)] overflow-hidden`}
+                      className={`${outer} break-inside-avoid`}
                     >
-                      <figcaption className="flex items-center justify-between gap-2 border-b border-[#191412]/15 px-3.5 py-1.5">
-                        <span className="font-sans text-[0.58rem] font-semibold uppercase tracking-[0.28em] text-[#191412]/55">
-                          Advertisement
-                        </span>
-                        <span className="font-sans text-[0.5rem] uppercase tracking-[0.2em] text-[#191412]/40">
-                          {inlineAds.length > 1 ? `${i + 1} of ${inlineAds.length}` : "Sponsor"}
-                        </span>
-                      </figcaption>
                       {hasCreative ? (
-                        <div className={isWide ? "w-full flex items-center justify-center p-3 sm:p-4" : "p-3 sm:p-4"}>
-                          {ad.url ? (
-                            <a
-                              href={ad.url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="group block w-full"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={safeImg}
-                                alt={ad.alt || ad.label || "Advertisement"}
-                                className={`${isWide ? "mx-auto max-h-[180px] w-auto max-w-full object-contain group-hover:opacity-95 transition-opacity" : "w-full aspect-[4/3] object-contain bg-white/60 rounded-md"}`}
-                                loading="lazy"
-                              />
-                            </a>
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
+                        ad.url ? (
+                          <a
+                            href={ad.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="group block w-full"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={safeImg}
                               alt={ad.alt || ad.label || "Advertisement"}
-                              className={`${isWide ? "mx-auto max-h-[180px] w-auto max-w-full object-contain" : "w-full aspect-[4/3] object-contain bg-white/60 rounded-md"}`}
+                              className="w-full object-contain group-hover:opacity-95 transition-opacity"
                               loading="lazy"
                             />
-                          )}
-                        </div>
+                          </a>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={safeImg}
+                            alt={ad.alt || ad.label || "Advertisement"}
+                            className="w-full object-contain"
+                            loading="lazy"
+                          />
+                        )
                       ) : (
-                        <div className={`flex flex-col items-center justify-center gap-2 px-4 py-6 text-center ${isWide ? "min-h-[110px]" : "min-h-[180px]"}`}>
+                        <div
+                          className={`flex flex-col items-center justify-center gap-2 border border-dashed border-[#191412]/25 px-4 py-6 text-center ${isWide ? "min-h-[110px]" : "min-h-[180px]"}`}
+                        >
                           <span className="font-serif text-[0.98rem] italic leading-snug text-[#191412]/60">
                             {ad.label || "Your advertisement here"}
                           </span>
@@ -2439,6 +2431,9 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                           </span>
                         </div>
                       )}
+                      <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                        {ad.label || "Advertisement"}
+                      </figcaption>
                     </figure>
                   );
                 })}
