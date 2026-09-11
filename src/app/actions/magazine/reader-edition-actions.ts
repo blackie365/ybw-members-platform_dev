@@ -14,7 +14,7 @@ import {
   getReaderEditionByIssueId,
   CURRENT_READER_SCHEMA_VERSION,
 } from '@/features/magazine/server/simple-reader';
-import { mapBuilderIssueToReaderEdition } from '@/features/magazine/domain/builder-to-reader';
+import { mapBuilderIssueToReaderEdition, mergeClassifiedsIntoPages } from '@/features/magazine/domain/builder-to-reader';
 import { normalizeMagazinePageContent } from '@/lib/magazine-utils';
 import { getMagazineReadStore } from '@/features/magazine/server/read-store';
 import { safeRevalidatePath, persistStoryLibraryForIssue } from './_helpers';
@@ -164,28 +164,10 @@ export async function syncBuilderToReaderEditionAction(
       existingClassifieds = null;
     }
     if (existingClassifieds) {
-      const nextPages = [...validated.pages];
-      const existingIdx = nextPages.findIndex(
-        (p) => String(p.template || '').trim().toLowerCase() === 'classifieds',
+      const nextPages = mergeClassifiedsIntoPages(
+        validated.pages as ReaderPage[],
+        existingClassifieds,
       );
-      if (existingIdx >= 0) {
-        nextPages[existingIdx] = {
-          ...(existingClassifieds as (typeof nextPages)[number]),
-          position: nextPages[existingIdx].position,
-        };
-      } else {
-        const backIdx = nextPages.findIndex(
-          (p) => String(p.template || '').trim().toLowerCase() === 'back-cover',
-        );
-        const classified = {
-          ...(existingClassifieds as (typeof nextPages)[number]),
-          position: 0,
-        };
-        nextPages.splice(backIdx >= 0 ? backIdx : nextPages.length, 0, classified);
-        nextPages.forEach((p, i) => {
-          p.position = i + 1;
-        });
-      }
       validated.pages = nextPages as any;
       validated.pageCount = nextPages.length;
     }

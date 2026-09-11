@@ -414,6 +414,53 @@ export function mapBuilderIssueToReaderEdition(
 
 export const IDML_PAGINATION_THRESHOLD = 15;
 
+/**
+ * Carry a frozen classifieds page across a rebuild.
+ *
+ * The classifieds page is baked into a reader edition independently of the
+ * builder pages, so a sync that rebuilds the edition purely from builder rows
+ * must re-insert an existing baked page. It replaces the fitting slot in order
+ * of preference:
+ *   1. an existing page with the `classifieds` template,
+ *   2. a placeholder page titled "Classifieds" (builder feature-full page),
+ *   3. otherwise splice ahead of the back cover (or at the end).
+ * Positions are renumbered 1..N so the reader sort stays stable and the
+ * rebuild is idempotent (no duplicate classifieds pages).
+ */
+export function mergeClassifiedsIntoPages(
+  pages: ReaderPage[],
+  existingClassifieds: ReaderPage,
+): ReaderPage[] {
+  const nextPages = [...pages];
+  const bakedIdx = nextPages.findIndex(
+    (p) => String(p.template || '').trim().toLowerCase() === 'classifieds',
+  );
+  const placeholderIdx = nextPages.findIndex(
+    (p) =>
+      String(p.template || '').trim().toLowerCase() !== 'classifieds' &&
+      String(p.content?.title || '').trim().toLowerCase() === 'classifieds',
+  );
+  const existingIdx = bakedIdx >= 0 ? bakedIdx : placeholderIdx;
+  if (existingIdx >= 0) {
+    nextPages[existingIdx] = {
+      ...existingClassifieds,
+      position: nextPages[existingIdx].position,
+    };
+  } else {
+    const backIdx = nextPages.findIndex(
+      (p) => String(p.template || '').trim().toLowerCase() === 'back-cover',
+    );
+    nextPages.splice(backIdx >= 0 ? backIdx : nextPages.length, 0, {
+      ...existingClassifieds,
+      position: 0,
+    });
+    nextPages.forEach((p, i) => {
+      p.position = i + 1;
+    });
+  }
+  return nextPages;
+}
+
 export type MergePagesMode = 'builder' | 'reader';
 
 export interface MergedPageAnnotations {
