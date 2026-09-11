@@ -143,6 +143,53 @@ export async function syncBuilderToReaderEditionAction(
     }
     const validated = parseResult.data;
 
+    // Preserve the frozen Classifieds snapshot across rebuilds. The classifieds
+    // page is baked into a reader edition independently of the builder pages
+    // (see bake-classifieds.ts), so a sync that rebuilds the edition purely from
+    // builder rows must carry an existing classifieds page forward; otherwise any
+    // builder save silently drops the baked business directory.
+    let existingClassifieds: ReaderPage | null = null;
+    try {
+      const currentId = String(issueDoc.readerEditionId || '');
+      if (currentId) {
+        const currentEdition = await getReaderEditionById(currentId);
+        existingClassifieds =
+          (Array.isArray(currentEdition?.pages) &&
+            (currentEdition.pages as ReaderPage[]).find(
+              (p) => String(p.template || '').trim().toLowerCase() === 'classifieds',
+            )) ||
+          null;
+      }
+    } catch {
+      existingClassifieds = null;
+    }
+    if (existingClassifieds) {
+      const nextPages = [...validated.pages];
+      const existingIdx = nextPages.findIndex(
+        (p) => String(p.template || '').trim().toLowerCase() === 'classifieds',
+      );
+      if (existingIdx >= 0) {
+        nextPages[existingIdx] = {
+          ...(existingClassifieds as (typeof nextPages)[number]),
+          position: nextPages[existingIdx].position,
+        };
+      } else {
+        const backIdx = nextPages.findIndex(
+          (p) => String(p.template || '').trim().toLowerCase() === 'back-cover',
+        );
+        const classified = {
+          ...(existingClassifieds as (typeof nextPages)[number]),
+          position: 0,
+        };
+        nextPages.splice(backIdx >= 0 ? backIdx : nextPages.length, 0, classified);
+        nextPages.forEach((p, i) => {
+          p.position = i + 1;
+        });
+      }
+      validated.pages = nextPages as any;
+      validated.pageCount = nextPages.length;
+    }
+
     const tDiag = Date.now();
     await upsertReaderEdition(validated as ReaderEdition);
     console.log(`[SAVEDIAG] ${new Date().toISOString()} sync upsertReaderEdition ${validated.pages?.length ?? 0} pages in ${Date.now() - tDiag}ms`);
