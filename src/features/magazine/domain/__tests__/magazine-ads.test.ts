@@ -131,16 +131,15 @@ describe('applyMagazineAdsToEdition', () => {
     ]);
   });
 
-  it('picks the leaderboard first from the catalog for the single inline body slot (leaderboard sizing still available but rendered inline)', () => {
+  it('prefers the MPU/skyscraper creative for the single inline body slot, keeping the leaderboard as a fallback', () => {
     const lead = { id: 'ads/headerLeaderboard', label: 'QC', image: 'https://img/qc.jpg', url: 'https://qc.example', alt: 'Ad', enabled: true, position: 0 };
     const mpu = { ...CATALOG[1], position: 1 };
     const edition = { id: 'e', pages: [spreadPage()] };
     const next = applyMagazineAdsToEdition(edition, [lead, mpu]) as any;
-    // With the new inline-only default cap of 1, only the first (leaderboard)
-    // creative from the sorted catalog makes it in — still picks leaderboard
-    // first so explicit leaderboards win the only inline slot.
-    expect(next.pages[0].content.ads).toEqual([toCreative(lead)]);
-    expect(next.pages[0].content.ads[0].format).toBe('leaderboard');
+    // The inline body slot takes the non-leaderboard (rail-sized) creative
+    // first; the 780x90 leaderboard is not rendered full-width in the body.
+    expect(next.pages[0].content.ads).toEqual([toCreative(mpu)]);
+    expect(next.pages[0].content.ads[0].format).toBe('mpu');
   });
 
   it('default-fills a single inline body slot when the catalog only has a leaderboard (renders inline, no longer as a header banner)', () => {

@@ -12,8 +12,8 @@
  *   1. explicit `content.ads` array  — trusted verbatim (format normalized).
  *   2. explicit `content.adSlots` number — filled from the catalog (0 = none,
  *      reserved boxes stay visible when the catalog is empty).
- *   3. default: a spread that already has a pull-quote rail gets a header
- *      leaderboard (if any) plus one rail ad (if any) when the catalog has
+ *   3. default: a spread that already has a pull-quote rail gets one inline
+ *      body ad (skyscraper/MPU creative preferred) when the catalog has
  *      enabled creative. This is the "use the ads you've set up" behaviour —
  *      the Ads-tab / magazine_ads catalog is the on/off switch, and no per-page
  *      config is required to start.
@@ -205,15 +205,17 @@ export function applyMagazineAdsToEdition(
     let base: MagazineAdCreative[] = [];
     if (explicitAds !== null) base = normalizeExplicitAds(explicitAds as unknown[]);
 
-    // Catalog pool for filling. Leaderboards are ordered first so the default
-    // fill ("one header banner + one rail ad") naturally picks the right
-    // format for each region; relative position order is preserved inside each
-    // format group so admin ordering still matters within a placement.
+    // Catalog pool for filling. Non-leaderboards (MPU / skyscraper) are ordered
+    // first so the default inline body fill picks the rail-sized creative; the
+    // wide 780x90 leaderboard is only used as a fallback (it plain-renders
+    // full-width in the body, not in the spread header). Relative position
+    // order is preserved inside each format group so admin ordering still
+    // matters within a placement.
     const pool = stablePartition(
       sortMagazineAds(catalog)
         .filter((ad) => ad.enabled !== false)
         .map(toCreative),
-      (ad) => ad.format === 'leaderboard',
+      (ad) => ad.format !== 'leaderboard',
     );
 
     let slotCount: number;
