@@ -2175,14 +2175,12 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   //     but render it inline (same sizing as MPU/square).
   //   * The old 340 px right-hand rail ("<aside> Advertisement / AdSlot …
   //     ") ate the entire right column even on pages that only had a single
-  //     MPU. Rail ads now live inside the editorial body as float-wrapped
-  //     figures that the feature text wraps around — identical to how the
-  //     InlineMedia pattern already works for photos. Only pullQuotes and
-  //     social embeds still open the quote/social rail; a page with ads
-  //     alone keeps the full-width 3-column text layout.
-  // Ads alternate left/right float based on page index parity so facing
-  // spreads never double-stack the same side. Consumer pages pass a
-  // data.pagePositionHint when they want to force left/right.
+  //     MPU. Rail ads now ride inside the body columns as full-column-width
+  //     figures fed to buildEdgeBalancedColumns — exactly like gallery photos,
+  //     so the column grid keeps its width (a page-level float squeezed the
+  //     columns below it). Only pullQuotes and social embeds still open the
+  //     quote/social rail; a page with ads alone keeps the full-width 3-column
+  //     text layout, with the ad pinned into one of the columns.
   const inlineAds = adSlots.slice(0, 2);
 
   const rawSocial = [
@@ -2270,6 +2268,30 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
     [gallerySources, imageRatios, data],
   );
 
+  // Ad creative rides inside the body columns exactly like a gallery photo
+  // (full column width, same caption treatment), so the column grid keeps its
+  // width instead of being squeezed by a page-level float. Weighted by the
+  // ad's own aspect ratio so the balancer reserves the right column height.
+  const adColumnItems: ColumnItem[] = useMemo(
+    () =>
+      inlineAds
+        .filter((ad) => ad && String(ad.image || "").trim())
+        .map((ad) => {
+          const format = String(ad.format || "").toLowerCase();
+          const ratio =
+            format === "leaderboard" ? 8.5 : format === "square" ? 1 : 1.2;
+          return {
+            kind: "ad" as const,
+            image: String(ad.image),
+            url: String(ad.url || ""),
+            alt: String(ad.alt || ad.label || "Advertisement"),
+            label: String(ad.label || "Advertisement"),
+            weight: estimateImageLines(ratio),
+          };
+        }),
+    [inlineAds],
+  );
+
   // Balanced body columns with images pinned to column head/bottom. Instead of
   // racing CSS multi-column balancing with forced column breaks (which produced
   // uneven columns), the body is cut into weighted, reading-order-preserving
@@ -2278,8 +2300,12 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   const columnCount = useColumnCount();
   const columns: ColumnItem[][] = useMemo(() => {
     if (columnCount === 0) return [];
-    return buildEdgeBalancedColumns(bodyBlocks, galleryItems, columnCount);
-  }, [bodyBlocks, galleryItems, columnCount]);
+    return buildEdgeBalancedColumns(
+      bodyBlocks,
+      [...galleryItems, ...adColumnItems],
+      columnCount,
+    );
+  }, [bodyBlocks, galleryItems, adColumnItems, columnCount]);
 
   return (
     <div
@@ -2373,28 +2399,18 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {/* Inline advertisements — float-wrapped inside editorial text
-                 exactly like a feature photo: plain figure, no card chrome,
-                 same column widths/margins as the inline images so editorial
-                 copy flows around and the columns keep their width. */}
-            {inlineAds.length > 0 ? (
-              <div className="space-y-0">
+            {/* Ad creative now lives inside the body columns (see
+                 adColumnItems above), pinned like a gallery photo so the
+                 column grid keeps its width. Pages with no columnar body fall
+                 back to a full-width, non-floating figure so ads never
+                 disappear. */}
+            {inlineAds.length > 0 && columns.length === 0 ? (
+              <div className="mt-6 flex flex-col gap-6">
                 {inlineAds.map((ad, i) => {
-                  const side = i % 2 === 0 ? "right" : "left";
-                  const isWide = String(ad.format || "").toLowerCase() === "leaderboard";
-                  const outer = isWide
-                    ? "w-full max-w-4xl mx-auto mb-8 mt-4 clear-both"
-                    : side === "left"
-                      ? "w-full md:w-1/2 lg:w-5/12 md:float-left md:mr-8 md:mb-6 md:mt-2"
-                      : "w-full md:w-1/2 lg:w-5/12 md:float-right md:ml-8 md:mb-6 md:mt-2";
                   const safeImg = String(ad?.image || "").trim();
-                  const hasCreative = safeImg.length > 0;
                   return (
-                    <figure
-                      key={`inline-ad-${i}`}
-                      className={`${outer} break-inside-avoid`}
-                    >
-                      {hasCreative ? (
+                    <figure key={`inline-ad-${i}`} className="w-full">
+                      {safeImg ? (
                         ad.url ? (
                           <a
                             href={ad.url}
@@ -2420,9 +2436,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                           />
                         )
                       ) : (
-                        <div
-                          className={`flex flex-col items-center justify-center gap-2 border border-dashed border-[#191412]/25 px-4 py-6 text-center ${isWide ? "min-h-[110px]" : "min-h-[180px]"}`}
-                        >
+                        <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 border border-dashed border-[#191412]/25 px-4 py-6 text-center">
                           <span className="font-serif text-[0.98rem] italic leading-snug text-[#191412]/60">
                             {ad.label || "Your advertisement here"}
                           </span>
@@ -2466,6 +2480,39 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                           />
                           <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
                             {title}
+                          </figcaption>
+                        </figure>
+                      ) : item.kind === "ad" ? (
+                        <figure
+                          key={`flow-ad-${colIdx}-${i}`}
+                          className="mb-4 w-full"
+                        >
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="group block w-full"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={item.image}
+                                alt={item.alt}
+                                className="w-full object-contain group-hover:opacity-95 transition-opacity"
+                                loading="lazy"
+                              />
+                            </a>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.image}
+                              alt={item.alt}
+                              className="w-full object-contain"
+                              loading="lazy"
+                            />
+                          )}
+                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                            {item.label || "Advertisement"}
                           </figcaption>
                         </figure>
                       ) : (

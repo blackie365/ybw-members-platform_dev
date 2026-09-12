@@ -822,7 +822,15 @@ export function isReaderSchemaCurrent(doc: unknown): boolean {
 
 export type ColumnItem =
   | { kind: 'text'; html: string }
-  | { kind: 'img'; src: string; alt: string; weight?: number };
+  | { kind: 'img'; src: string; alt: string; weight?: number }
+  | {
+      kind: 'ad';
+      image: string;
+      url: string;
+      alt: string;
+      label: string;
+      weight?: number;
+    };
 
 // Height weight for a flow item, calibrated to the *rendered* broadsheet
 // measure. Text is weighted by the number of lines it actually occupies at the
@@ -852,7 +860,9 @@ export function estimateImageLines(ratio: number | undefined): number {
 }
 
 function estimateColumnItemHeight(item: ColumnItem): number {
-  if (item.kind === 'img') return item.weight ?? IMAGE_LINES;
+  if (item.kind === 'img' || item.kind === 'ad') {
+    return item.weight ?? IMAGE_LINES;
+  }
   const text = String(item.html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')

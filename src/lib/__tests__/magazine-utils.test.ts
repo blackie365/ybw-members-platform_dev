@@ -254,7 +254,10 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     // Total weight = text length + the image's reserved height, so a column
     // holding a plate is still counted as balanced by its rendered height.
     const w = cols.map((c) =>
-      c.reduce((s, i) => s + (i.kind === 'img' ? 14 : i.html.length), 0),
+      c.reduce(
+        (s, i) => s + (i.kind === 'img' || i.kind === 'ad' ? 14 : i.html.length),
+        0,
+      ),
     );
     const total = w.reduce((a, b) => a + b, 0);
     for (const len of w) {
