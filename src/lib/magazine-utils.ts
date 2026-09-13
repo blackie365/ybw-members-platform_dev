@@ -1135,6 +1135,31 @@ export function buildEdgeBalancedColumns(
   }
   for (; j < textItems.length; j++) cols[n - 1].push(textItems[j]);
 
+  // 5. Newspaper convention: if the last column is the tallest, move text
+  //    from its end backward to earlier columns (preserving reading order)
+  //    so the final column is the shortest, not the longest.
+  const colHeights = cols.map((col) =>
+    col.reduce((s, item) => s + estimateColumnItemHeight(item), 0),
+  );
+  const avgHeight = colHeights.reduce((a, b) => a + b, 0) / n;
+  if (colHeights[n - 1] > avgHeight * 1.1) {
+    for (let i = n - 1; i > 0 && colHeights[n - 1] > avgHeight; i--) {
+      // Move the last text item from column i to column i-1 if it's text
+      // (don't move pinned images). Stop when last column is near average.
+      while (
+        cols[i].length > 0 &&
+        colHeights[n - 1] > avgHeight &&
+        colHeights[i - 1] < avgHeight * 1.05
+      ) {
+        const candidate = cols[i][cols[i].length - 1];
+        if (candidate.kind !== 'text') break;
+        cols[i - 1].push(cols[i].pop()!);
+        colHeights[i] -= estimateColumnItemHeight(candidate);
+        colHeights[i - 1] += estimateColumnItemHeight(candidate);
+      }
+    }
+  }
+
   // 4. Compose: head images, then the column's text, then bottom images.
   return cols
     .map((col, j) => {
