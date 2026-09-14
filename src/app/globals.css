@@ -139,9 +139,14 @@
  * utility override. Sized for tight, natural broadsheet serif columns. */
 .magazine-body p {
   margin-block-start: 0 !important;
-  margin-block-end: 0.85rem !important;
+  margin-block-end: 1.45em !important;
+  /* exactly one clear line between paragraphs, matching the body line-height */
+  margin-block-end: 1lh !important;
   /* allow a long paragraph to continue across columns (true column flow) */
   break-inside: auto !important;
+}
+.magazine-body p + p {
+  margin-block-start: 0 !important;
 }
 .magazine-body figure {
   break-inside: avoid;

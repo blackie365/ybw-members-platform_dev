@@ -482,7 +482,7 @@ export function BroadsheetSocialPostCard({
 
         <SafeText
           html={bodyHtml}
-          className="magazine-body font-serif text-[0.95rem] leading-[1.52] text-[#191412]/85 [&_p]:mb-3 [&_p:last-child]:mb-0 [&_p]:[text-align:left]"
+          className="magazine-body font-serif text-[0.95rem] leading-[1.52] text-[#191412]/85 [&_p]:[text-align:left]"
         />
 
         <footer className="mt-4 flex items-center justify-between border-t border-[#191412]/25 pt-3">
@@ -1063,11 +1063,11 @@ function getFeatureTypography(weightInput: unknown) {
         introClassName:
           "font-serif text-base leading-relaxed text-[#3d2b1f]/82 font-medium [&_p]:mb-2",
         bodyLightClassName:
-          "font-serif text-base leading-[1.82] text-[#3d2b1f]/80 [&_p]:mb-4",
+          "magazine-body font-serif text-base leading-[1.82] text-[#3d2b1f]/80",
         bodyDarkClassName:
-          "font-serif text-[1.05rem] text-white/92 leading-[1.82] [&_p]:mb-4 [&_p:last-child]:mb-0",
+          "magazine-body font-serif text-[1.05rem] text-white/92 leading-[1.82]",
         continuationBodyClassName:
-          "font-serif text-[#3d2b1f]/82 leading-[1.9] text-[1.1rem] [&_p]:mb-6",
+          "magazine-body font-serif text-[#3d2b1f]/82 leading-[1.9] text-[1.1rem]",
       };
     case 3:
       return {
@@ -1077,11 +1077,11 @@ function getFeatureTypography(weightInput: unknown) {
         introClassName:
           "font-serif text-[0.95rem] leading-relaxed text-[#3d2b1f]/78 font-medium [&_p]:mb-2",
         bodyLightClassName:
-          "font-serif text-[0.95rem] leading-[1.72] text-[#3d2b1f]/74 [&_p]:mb-3",
+          "magazine-body font-serif text-[0.95rem] leading-[1.72] text-[#3d2b1f]/74",
         bodyDarkClassName:
-          "font-serif text-[0.98rem] text-white/84 leading-[1.74] [&_p]:mb-4 [&_p:last-child]:mb-0",
+          "magazine-body font-serif text-[0.98rem] text-white/84 leading-[1.74]",
         continuationBodyClassName:
-          "font-serif text-[#3d2b1f]/78 leading-[1.78] text-[1rem] [&_p]:mb-5",
+          "magazine-body font-serif text-[#3d2b1f]/78 leading-[1.78] text-[1rem]",
       };
     case 4:
       return {
@@ -1091,11 +1091,11 @@ function getFeatureTypography(weightInput: unknown) {
         introClassName:
           "font-serif text-[0.9rem] leading-relaxed text-[#3d2b1f]/74 font-medium [&_p]:mb-2",
         bodyLightClassName:
-          "font-serif text-[0.92rem] leading-[1.68] text-[#3d2b1f]/72 [&_p]:mb-3",
+          "magazine-body font-serif text-[0.92rem] leading-[1.68] text-[#3d2b1f]/72",
         bodyDarkClassName:
-          "font-serif text-[0.95rem] text-white/80 leading-[1.7] [&_p]:mb-4 [&_p:last-child]:mb-0",
+          "magazine-body font-serif text-[0.95rem] text-white/80 leading-[1.7]",
         continuationBodyClassName:
-          "font-serif text-[#3d2b1f]/74 leading-[1.72] text-[0.98rem] [&_p]:mb-5",
+          "magazine-body font-serif text-[#3d2b1f]/74 leading-[1.72] text-[0.98rem]",
       };
     case 2:
     default:
@@ -1106,11 +1106,11 @@ function getFeatureTypography(weightInput: unknown) {
         introClassName:
           "font-serif text-sm leading-relaxed text-[#3d2b1f]/80 font-medium [&_p]:mb-2",
         bodyLightClassName:
-          "font-serif text-sm leading-relaxed text-[#3d2b1f]/75 [&_p]:mb-3",
+          "magazine-body font-serif text-sm leading-relaxed text-[#3d2b1f]/75",
         bodyDarkClassName:
-          "font-serif text-white/90 leading-relaxed [&_p]:mb-3 [&_p:last-child]:mb-0",
+          "magazine-body font-serif text-white/90 leading-relaxed",
         continuationBodyClassName:
-          "font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem] [&_p]:mb-5",
+          "magazine-body font-serif text-[#3d2b1f]/80 leading-[1.85] text-[1.05rem]",
       };
   }
 }
@@ -2519,7 +2519,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                         <SafeText
                           key={`flow-t-${colIdx}-${i}`}
                           html={item.html}
-                          className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:left] [&_p]:[hyphens:auto]"
+                          className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
                         />
                       ),
                     )}
@@ -3726,7 +3726,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
                 <div className="mt-8">
                   <SafeText
                     html={data.bio}
-                    className="font-serif text-white leading-relaxed text-sm [&_p]:mb-4 [&_p]:text-white [&_p:last-child]:mb-0"
+                    className="magazine-body font-serif text-white leading-relaxed text-sm [&_p]:text-white"
                   />
                 </div>
               )}
@@ -3832,7 +3832,7 @@ export const PageSpotlight = ({ data, imageVersion }: any) => {
             <div className="scroll-reveal scroll-reveal-delay-2">
               <SafeText
                 html={data.bio}
-                className="font-serif text-white/75 leading-relaxed text-sm [&_p]:mb-4 [&_p:last-child]:mb-0"
+                className="magazine-body font-serif text-white/75 leading-relaxed text-sm"
               />
             </div>
           )}
