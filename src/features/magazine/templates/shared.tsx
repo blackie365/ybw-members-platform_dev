@@ -2466,63 +2466,92 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                         : "",
                     ].join(" ")}
                   >
-                    {col.map((item, i) =>
-                      item.kind === "img" ? (
-                        <figure
-                          key={`flow-img-${colIdx}-${i}`}
-                          className="mb-4 w-full"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={item.src}
-                            alt={item.alt}
-                            className="w-full object-cover"
-                          />
-                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                            {title}
-                          </figcaption>
-                        </figure>
-                      ) : item.kind === "ad" ? (
-                        <figure
-                          key={`flow-ad-${colIdx}-${i}`}
-                          className="mb-4 w-full"
-                        >
-                          {item.url ? (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              className="group block w-full"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={item.image}
-                                alt={item.alt}
-                                className="w-full object-contain group-hover:opacity-95 transition-opacity"
-                                loading="lazy"
-                              />
-                            </a>
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.image}
-                              alt={item.alt}
-                              className="w-full object-contain"
-                              loading="lazy"
-                            />
-                          )}
-                          <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                            {item.label || "Advertisement"}
-                          </figcaption>
-                        </figure>
-                      ) : (
-                        <SafeText
-                          key={`flow-t-${colIdx}-${i}`}
-                          html={item.html}
-                          className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
-                        />
-                      ),
-                    )}
+                    {(() => {
+                      // One div per column for the text run (a single SafeText
+                      // wrapping successive paragraph chunks), figures kept in
+                      // place, so the DOM isn't one div per paragraph.
+                      let html = "";
+                      let textActive = false;
+                      const nodes: React.ReactNode[] = [];
+                      col.forEach((item, i) => {
+                        if (item.kind === "text") {
+                          html += item.html;
+                          textActive = true;
+                          return;
+                        }
+                        if (textActive) {
+                          nodes.push(
+                            <SafeText
+                              key={`flow-t-${colIdx}-${i}`}
+                              html={html}
+                              className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
+                            />,
+                          );
+                          html = "";
+                          textActive = false;
+                        }
+                        nodes.push(
+                          <figure
+                            key={`flow-img-${colIdx}-${i}`}
+                            className="mb-4 w-full"
+                          >
+                            {item.kind === "img" ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={item.src}
+                                  alt={item.alt}
+                                  className="w-full object-cover"
+                                />
+                                <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                                  {title}
+                                </figcaption>
+                              </>
+                            ) : (
+                              <>
+                                {item.url ? (
+                                  <a
+                                    href={item.url}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="group block w-full"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={item.image}
+                                      alt={item.alt}
+                                      className="w-full object-contain group-hover:opacity-95 transition-opacity"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                ) : (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={item.image}
+                                    alt={item.alt}
+                                    className="w-full object-contain"
+                                    loading="lazy"
+                                  />
+                                )}
+                                <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                                  {item.label || "Advertisement"}
+                                </figcaption>
+                              </>
+                            )}
+                          </figure>,
+                        );
+                      });
+                      if (textActive) {
+                        nodes.push(
+                          <SafeText
+                            key={`flow-t-${colIdx}-end`}
+                            html={html}
+                            className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
+                          />,
+                        );
+                      }
+                      return nodes;
+                    })()}
                   </div>
                 ))}
               </div>
