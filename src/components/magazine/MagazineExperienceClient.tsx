@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Eye, X, Layers, Palette, Sparkles, Monitor, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
+import { fixMagazineImageUrl } from "@/lib/magazine-utils";
 import { MagazineExperienceSkeleton } from "./MagazineExperienceSkeleton";
 
 interface IssueForExperienceWidget {
@@ -119,7 +120,7 @@ export function MagazineExperienceClient({ latestIssue }: MagazineExperienceClie
               <div className="relative z-10 aspect-[3/4] max-w-[380px] mx-auto overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.7)] ring-1 ring-white/[0.08]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`${latestIssue.coverImage}${imageVersion ? `?v=${imageVersion}` : ''}`}
+                  src={fixMagazineImageUrl(latestIssue.coverImage, imageVersion)}
                   alt={latestIssue.title}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
