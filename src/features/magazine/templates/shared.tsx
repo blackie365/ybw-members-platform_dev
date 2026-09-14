@@ -17,10 +17,7 @@ import {
   fixMagazineImageUrl,
   isPlaceholderImageUrl,
   filterNonPlaceholderUrls,
-  buildEdgeBalancedColumns,
-  estimateImageLines,
 } from "@/lib/magazine-utils";
-import type { ColumnItem } from "@/lib/magazine-utils";
 import { sanitizeHtml } from "@/lib/utils";
 import {
   getHtmlBlocks,
@@ -1137,63 +1134,6 @@ export function useScrollReveal(
   }, [ref, options]);
 }
 
-/**
- * Number of broadsheet body columns at the current viewport width, mirroring
- * the breakpoints the multicol layout used: 1 base, 2 at md (768px), 3 at lg
- * (1024px). Returns 0 until mounted so the first render can skip the columns.
- */
-function useColumnCount(): number {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    const compute = () => {
-      const width = window.innerWidth;
-      setCount(width >= 1024 ? 3 : width >= 768 ? 2 : 1);
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
-  return count;
-}
-
-/**
- * Measure the natural aspect ratio (w/h) of each image URL once per session.
- * Returns a src→ratio map so the column balancer can weight portrait plates by
- * their real rendered height instead of a flat constant. Measurements are
- * cached by URL, so hot-reloads and re-mounts reuse the first result.
- */
-function useImageRatios(srcs: string[]): Map<string, number> {
-  const [ratios, setRatios] = useState<Map<string, number>>(new Map());
-  const cacheRef = useRef<Map<string, number>>(new Map());
-  const srcListRef = useRef<string[]>([]);
-  if (srcListRef.current.length === 0 && srcs.length > 0) {
-    srcListRef.current = srcs;
-  }
-  useEffect(() => {
-    if (srcListRef.current.length === 0) return;
-    const pending = new Map<string, HTMLImageElement>();
-    for (const src of srcListRef.current) {
-      if (cacheRef.current.has(src)) continue;
-      const img = new window.Image();
-      pending.set(src, img);
-      img.onload = () => {
-        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          cacheRef.current.set(src, img.naturalWidth / img.naturalHeight);
-          setRatios(new Map(cacheRef.current));
-        }
-      };
-      img.src = src;
-    }
-    return () => {
-      pending.forEach((img) => {
-        img.onload = null;
-        img.src = "";
-      });
-    };
-  }, []);
-  return ratios;
-}
-
 // ─────────────────────────────────────────────
 // COVER PAGE
 // ─────────────────────────────────────────────
@@ -2175,12 +2115,11 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   //     but render it inline (same sizing as MPU/square).
   //   * The old 340 px right-hand rail ("<aside> Advertisement / AdSlot …
   //     ") ate the entire right column even on pages that only had a single
-  //     MPU. Rail ads now ride inside the body columns as full-column-width
-  //     figures fed to buildEdgeBalancedColumns — exactly like gallery photos,
-  //     so the column grid keeps its width (a page-level float squeezed the
-  //     columns below it). Only pullQuotes and social embeds still open the
-  //     quote/social rail; a page with ads alone keeps the full-width 3-column
-  //     text layout, with the ad pinned into one of the columns.
+  //     MPU. Rail ads now ride inside the multicol body as full-column-width
+  //     figures interleaved with the text — exactly like gallery photos — so
+  //     the column grid keeps its width. Only pullQuotes and social embeds
+  //     still open the quote/social rail; a page with ads alone keeps the
+  //     full-width 3-column text layout, with the ad inside the flow.
   const inlineAds = adSlots.slice(0, 2);
 
   const rawSocial = [
@@ -2220,8 +2159,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
   }
 
   // Gallery plates for the body columns (everything after the hero), deduped
-  // and with hero skipped. Kept raw so the same list drives both image
-  // measurement and the weighted column items below.
+  // and with hero skipped.
   const hasRailContent =
     pullQuotes.length > 0 || socialEmbeds.length > 0;
   const gallerySources: string[] = useMemo(() => {
@@ -2252,60 +2190,59 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
     return out;
   }, [data, featureImage, imageVersion]);
 
-  const imageRatios = useImageRatios(gallerySources);
-
-  const galleryItems: ColumnItem[] = useMemo(
-    () =>
-      gallerySources.map((src) => {
-        const ratio = imageRatios.get(src);
-        return {
-          kind: "img" as const,
-          src,
-          alt: String(data.title || "Story image"),
-          ...(ratio === undefined ? {} : { weight: estimateImageLines(ratio) }),
-        };
-      }),
-    [gallerySources, imageRatios, data],
-  );
-
-  // Ad creative rides inside the body columns exactly like a gallery photo
-  // (full column width, same caption treatment), so the column grid keeps its
-  // width instead of being squeezed by a page-level float. Weighted by the
-  // ad's own aspect ratio so the balancer reserves the right column height.
-  const adColumnItems: ColumnItem[] = useMemo(
-    () =>
-      inlineAds
+  // The body set in native CSS multicol: text blocks flow in reading order with
+  // figures (gallery images + inline ads) interleaved roughly evenly, so the
+  // browser balances the columns itself (no JS height estimator). Every figure
+  // gets break-inside-avoid and spans the full column width.
+  const flowItems = useMemo(() => {
+    const figures: Array<
+      | { kind: "img"; src: string; alt: string }
+      | {
+          kind: "ad";
+          image: string;
+          url: string;
+          alt: string;
+          label: string;
+        }
+    > = [
+      ...gallerySources.map((src) => ({
+        kind: "img" as const,
+        src,
+        alt: String(data.title || "Story image"),
+      })),
+      ...inlineAds
         .filter((ad) => ad && String(ad.image || "").trim())
-        .map((ad) => {
-          const format = String(ad.format || "").toLowerCase();
-          const ratio =
-            format === "leaderboard" ? 8.5 : format === "square" ? 1 : 1.2;
-          return {
-            kind: "ad" as const,
-            image: String(ad.image),
-            url: String(ad.url || ""),
-            alt: String(ad.alt || ad.label || "Advertisement"),
-            label: String(ad.label || "Advertisement"),
-            weight: estimateImageLines(ratio),
-          };
-        }),
-    [inlineAds],
-  );
-
-  // Balanced body columns with images pinned to column head/bottom. Instead of
-  // racing CSS multi-column balancing with forced column breaks (which produced
-  // uneven columns), the body is cut into weighted, reading-order-preserving
-  // columns; every gallery image spans its full column width and sits at the
-  // column's top or bottom edge.
-  const columnCount = useColumnCount();
-  const columns: ColumnItem[][] = useMemo(() => {
-    if (columnCount === 0) return [];
-    return buildEdgeBalancedColumns(
-      bodyBlocks,
-      [...galleryItems, ...adColumnItems],
-      columnCount,
-    );
-  }, [bodyBlocks, galleryItems, adColumnItems, columnCount]);
+        .map((ad) => ({
+          kind: "ad" as const,
+          image: String(ad.image),
+          url: String(ad.url || ""),
+          alt: String(ad.alt || ad.label || "Advertisement"),
+          label: String(ad.label || "Advertisement"),
+        })),
+    ];
+    if (bodyBlocks.length === 0) {
+      return figures.map((figure) => ({ kind: "figure" as const, figure }));
+    }
+    if (figures.length === 0) {
+      return bodyBlocks.map((html) => ({ kind: "text" as const, html }));
+    }
+    // Interleave figure i before text block ~i·(total/figures+1) so plates sit
+    // at even thirds/halves of the article instead of clustering at the end.
+    const out: Array<{ kind: "figure"; figure: (typeof figures)[number] } | { kind: "text"; html: string }> = [];
+    let f = 0;
+    for (let i = 0; i < bodyBlocks.length; i++) {
+      while (f < figures.length && i >= Math.floor(((f + 1) * bodyBlocks.length) / (figures.length + 1))) {
+        out.push({ kind: "figure", figure: figures[f] });
+        f += 1;
+      }
+      out.push({ kind: "text", html: bodyBlocks[i] });
+    }
+    while (f < figures.length) {
+      out.push({ kind: "figure", figure: figures[f] });
+      f += 1;
+    }
+    return out;
+  }, [bodyBlocks, gallerySources, inlineAds, data]);
 
   return (
     <div
@@ -2399,161 +2336,88 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
 
             <div className="my-7 h-px w-full bg-[#191412]/25" />
 
-            {/* Ad creative now lives inside the body columns (see
-                 adColumnItems above), pinned like a gallery photo so the
-                 column grid keeps its width. Pages with no columnar body fall
-                 back to a full-width, non-floating figure so ads never
-                 disappear. */}
-            {inlineAds.length > 0 && columns.length === 0 ? (
-              <div className="mt-6 flex flex-col gap-6">
-                {inlineAds.map((ad, i) => {
-                  const safeImg = String(ad?.image || "").trim();
-                  return (
-                    <figure key={`inline-ad-${i}`} className="w-full">
-                      {safeImg ? (
-                        ad.url ? (
-                          <a
-                            href={ad.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="group block w-full"
-                          >
+            {/* Body set in native CSS multi-columns — the browser balances the
+                 columns itself and paragraphs overflow naturally across column
+                 boundaries. Figures (gallery plates + ad creative) interleave
+                 through the flow at even intervals and are kept whole with
+                 break-inside-avoid, spanning the full column width. */}
+            {flowItems.length > 0 ? (
+              <div className="mt-6 columns-1 gap-10 md:columns-2 lg:columns-3 md:[column-rule:1px_solid_rgba(25,20,18,0.18)]">
+                {(() => {
+                  const nodes: React.ReactNode[] = [];
+                  let html = "";
+                  const flush = () => {
+                    if (!html) return;
+                    nodes.push(
+                      <SafeText
+                        key={`flow-t-${nodes.length}`}
+                        html={html}
+                        className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left] [&_figure]:break-inside-avoid"
+                      />,
+                    );
+                    html = "";
+                  };
+                  flowItems.forEach((item, i) => {
+                    if (item.kind === "text") {
+                      html += item.html;
+                      return;
+                    }
+                    flush();
+                    const fig = item.figure;
+                    nodes.push(
+                      <figure
+                        key={`flow-fig-${i}`}
+                        className="mb-5 w-full break-inside-avoid"
+                      >
+                        {fig.kind === "img" ? (
+                          <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={safeImg}
-                              alt={ad.alt || ad.label || "Advertisement"}
-                              className="w-full object-contain group-hover:opacity-95 transition-opacity"
-                              loading="lazy"
+                              src={fig.src}
+                              alt={fig.alt}
+                              className="w-full object-cover"
                             />
-                          </a>
+                            <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                              {title}
+                            </figcaption>
+                          </>
                         ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={safeImg}
-                            alt={ad.alt || ad.label || "Advertisement"}
-                            className="w-full object-contain"
-                            loading="lazy"
-                          />
-                        )
-                      ) : (
-                        <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 border border-dashed border-[#191412]/25 px-4 py-6 text-center">
-                          <span className="font-serif text-[0.98rem] italic leading-snug text-[#191412]/60">
-                            {ad.label || "Your advertisement here"}
-                          </span>
-                          <span className="font-sans text-[0.55rem] uppercase tracking-[0.26em] text-[#191412]/45">
-                            Reserved
-                          </span>
-                        </div>
-                      )}
-                      <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                        {ad.label || "Advertisement"}
-                      </figcaption>
-                    </figure>
-                  );
-                })}
-              </div>
-            ) : null}
-
-            {columns.length > 0 ? (
-              <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start md:gap-7">
-                {columns.map((col, colIdx) => (
-                  <div
-                    key={`col-${colIdx}`}
-                    className={[
-                      "min-w-0 flex-1",
-                      colIdx > 0
-                        ? "md:border-l md:border-[#191412]/20 md:pl-7"
-                        : "",
-                    ].join(" ")}
-                  >
-                    {(() => {
-                      // One div per column for the text run (a single SafeText
-                      // wrapping successive paragraph chunks), figures kept in
-                      // place, so the DOM isn't one div per paragraph.
-                      let html = "";
-                      let textActive = false;
-                      const nodes: React.ReactNode[] = [];
-                      col.forEach((item, i) => {
-                        if (item.kind === "text") {
-                          html += item.html;
-                          textActive = true;
-                          return;
-                        }
-                        if (textActive) {
-                          nodes.push(
-                            <SafeText
-                              key={`flow-t-${colIdx}-${i}`}
-                              html={html}
-                              className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
-                            />,
-                          );
-                          html = "";
-                          textActive = false;
-                        }
-                        nodes.push(
-                          <figure
-                            key={`flow-img-${colIdx}-${i}`}
-                            className="mb-4 w-full"
-                          >
-                            {item.kind === "img" ? (
-                              <>
+                          <>
+                            {fig.url ? (
+                              <a
+                                href={fig.url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="group block w-full"
+                              >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                  src={item.src}
-                                  alt={item.alt}
-                                  className="w-full object-cover"
+                                  src={fig.image}
+                                  alt={fig.alt}
+                                  className="w-full object-contain group-hover:opacity-95 transition-opacity"
+                                  loading="lazy"
                                 />
-                                <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                                  {title}
-                                </figcaption>
-                              </>
+                              </a>
                             ) : (
-                              <>
-                                {item.url ? (
-                                  <a
-                                    href={item.url}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="group block w-full"
-                                  >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={item.image}
-                                      alt={item.alt}
-                                      className="w-full object-contain group-hover:opacity-95 transition-opacity"
-                                      loading="lazy"
-                                    />
-                                  </a>
-                                ) : (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={item.image}
-                                    alt={item.alt}
-                                    className="w-full object-contain"
-                                    loading="lazy"
-                                  />
-                                )}
-                                <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
-                                  {item.label || "Advertisement"}
-                                </figcaption>
-                              </>
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={fig.image}
+                                alt={fig.alt}
+                                className="w-full object-contain"
+                                loading="lazy"
+                              />
                             )}
-                          </figure>,
-                        );
-                      });
-                      if (textActive) {
-                        nodes.push(
-                          <SafeText
-                            key={`flow-t-${colIdx}-end`}
-                            html={html}
-                            className="magazine-body font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:[text-align:left]"
-                          />,
-                        );
-                      }
-                      return nodes;
-                    })()}
-                  </div>
-                ))}
+                            <figcaption className="mt-1.5 border-b border-[#191412]/30 pb-1.5 font-sans text-[0.68rem] leading-snug text-[#191412]/60">
+                              {fig.label || "Advertisement"}
+                            </figcaption>
+                          </>
+                        )}
+                      </figure>,
+                    );
+                  });
+                  flush();
+                  return nodes;
+                })()}
               </div>
             ) : null}
           </article>
