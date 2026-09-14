@@ -482,7 +482,7 @@ export function BroadsheetSocialPostCard({
 
         <SafeText
           html={bodyHtml}
-          className="magazine-body font-serif text-[0.95rem] leading-[1.52] text-[#191412]/85 [&_p]:mb-3 [&_p:last-child]:mb-0 [&_p]:[text-align:justify] [&_p]:[text-align-last:left]"
+          className="magazine-body font-serif text-[0.95rem] leading-[1.52] text-[#191412]/85 [&_p]:mb-3 [&_p:last-child]:mb-0 [&_p]:[text-align:left]"
         />
 
         <footer className="mt-4 flex items-center justify-between border-t border-[#191412]/25 pt-3">
@@ -2519,7 +2519,7 @@ export const PageNewspaperSpread = ({ data, imageVersion = "", siblings = [] }: 
                         <SafeText
                           key={`flow-t-${colIdx}-${i}`}
                           html={item.html}
-                          className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:justify] [&_p]:[text-align-last:left] [&_p]:[hyphens:auto]"
+                          className="magazine-body mb-4 font-serif text-[0.98rem] leading-[1.45] tracking-[-0.01em] text-[#191412]/88 [&_p]:font-serif [&_p]:tracking-[-0.01em] [&_p]:mb-4 [&_p]:[text-align:left] [&_p]:[hyphens:auto]"
                         />
                       ),
                     )}
