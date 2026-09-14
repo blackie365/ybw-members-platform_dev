@@ -334,6 +334,53 @@ describe('buildEdgeBalancedColumns — ordered columns with images at head/botto
     expect(lastShare).toBeLessThan(0.5);
     expect(Math.max(...share) - Math.min(...share)).toBeLessThan(0.35);
   });
+
+  it('keeps the last column NO taller than any column before it (user rule)', () => {
+    // Heavier text in the back half of the story previously overflowed into
+    // the final column. We weight columns the same way the balancer does —
+    // text as ceil(chars/30)+1.2 rendered lines plus 14 lines per pinned
+    // plate/ad — so the opening columns are even and the last is the shortest.
+    for (const count of [6, 12, 24, 48]) {
+      const blocks = Array.from({ length: count }, (_, i) => block(i));
+      const cols = buildEdgeBalancedColumns(blocks, [], 3);
+      const lines = (c: ColumnItem[], withImgs = false): number =>
+        c.reduce(
+          (s, i) =>
+            s +
+            (i.kind === 'img' || i.kind === 'ad'
+              ? 14
+              : Math.ceil((i.html || '').replace(/<[^>]+>/g, '').length / 30) + 1.2),
+          0,
+        );
+      const w = cols.map((c) => lines(c, true));
+      expect(cols.length).toBe(3);
+      // Last column is the shortest (strictly <= every column before it).
+      const last = w[w.length - 1];
+      for (const other of w.slice(0, -1)) {
+        expect(last).toBeLessThanOrEqual(other);
+      }
+      // The opening columns come out near-equal (within a chunk of each other).
+      const open = w.slice(0, -1);
+      expect(Math.max(...open) - Math.min(...open)).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('keeps reading order intact even when the last column must shed weight', () => {
+    // A portrait plate in an early column eats a lot of line budget, forcing
+    // the text to cluster toward the back — the classic case that scrambles
+    // into a jumbled last column. The flat text scan must still read 0..N.
+    const blocks = Array.from({ length: 24 }, (_, i) => block(i));
+    const images: ColumnItem[] = [
+      { kind: 'img', src: 'big-portrait.jpg', alt: '', weight: 32 },
+      { kind: 'img', src: 'landscape.jpg', alt: '' },
+    ];
+    const cols = buildEdgeBalancedColumns(blocks, images, 3);
+    const order = cols
+      .flat()
+      .filter((i) => i.kind === 'text')
+      .map((i) => Number((i as any).html.match(/paragraph number (\d+)/)?.[1] ?? -1));
+    expect(order).toEqual(Array.from({ length: 24 }, (_, i) => i));
+  });
 });
 
 describe('estimateImageLines — weight a plate by its real aspect ratio', () => {

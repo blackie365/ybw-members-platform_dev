@@ -1135,29 +1135,76 @@ export function buildEdgeBalancedColumns(
   }
   for (; j < textItems.length; j++) cols[n - 1].push(textItems[j]);
 
-  // 5. Newspaper convention: if the last column is the tallest, move text
-  //    from its end backward to earlier columns (preserving reading order)
-  //    so the final column is the shortest, not the longest.
-  const colHeights = cols.map((col) =>
-    col.reduce((s, item) => s + estimateColumnItemHeight(item), 0),
-  );
-  const avgHeight = colHeights.reduce((a, b) => a + b, 0) / n;
-  if (colHeights[n - 1] > avgHeight * 1.1) {
-    for (let i = n - 1; i > 0 && colHeights[n - 1] > avgHeight; i--) {
-      // Move the last text item from column i to column i-1 if it's text
-      // (don't move pinned images). Stop when last column is near average.
-      while (
-        cols[i].length > 0 &&
-        colHeights[n - 1] > avgHeight &&
-        colHeights[i - 1] < avgHeight * 1.05
-      ) {
-        const candidate = cols[i][cols[i].length - 1];
-        if (candidate.kind !== 'text') break;
-        cols[i - 1].push(cols[i].pop()!);
-        colHeights[i] -= estimateColumnItemHeight(candidate);
-        colHeights[i - 1] += estimateColumnItemHeight(candidate);
+  // 5. Newspaper convention: from left to right the opening columns should be
+  //    as even as possible and the LAST column must never be taller than any
+  //    column before it. Columns currently hold only text (images are pinned
+  //    in step 4), so a column's rendered height is its text weight plus the
+  //    height reserved for its images/ads — rebalancing must use that total.
+  //
+  //    Only two transfers preserve column-major reading flow, so those are the
+  //    only ones allowed:
+  //      - move the FIRST chunk of column j to the END of column j-1, and
+  //      - move the LAST chunk of column j-1 to the START of column j.
+  //    Each shifts a chunk across one boundary where it is adjacent in flow,
+  //    so the text never reads out of order (the earlier tail-moving version
+  //    broke this — it scrambled an article's ending into the middle).
+  const trackHeights = (): number[] =>
+    cols.map((col, j) =>
+      col.reduce((s, item) => s + estimateColumnItemHeight(item), 0) +
+        capacity[j],
+    );
+
+  // Skip a transfer if it would empty a column that holds no pinned image,
+  // otherwise the final `filter` would drop it and shrink the grid.
+  const canEmpty = (j: number): boolean => colImages[j].length > 0;
+
+  const moveFirstToEnd = (j: number): boolean => {
+    if (j < 1 || cols[j].length === 0) return false;
+    if (cols[j].length === 1 && !canEmpty(j)) return false;
+    cols[j - 1].push(cols[j].shift()!);
+    return true;
+  };
+
+  const moveLastToStart = (j: number): boolean => {
+    if (j < 1 || cols[j - 1].length === 0) return false;
+    if (cols[j - 1].length === 1 && !canEmpty(j - 1)) return false;
+    cols[j].unshift(cols[j - 1].pop()!);
+    return true;
+  };
+
+  // Equalise the opening columns (0..n-2) among themselves via a left-to-right
+  // sweep of adjacent pairs, repeated until stable.
+  const equaliseOpening = (): void => {
+    if (n < 3) return;
+    for (let pass = 0; pass < 8; pass++) {
+      let moved = false;
+      for (let i = 0; i < n - 2; i++) {
+        const h = trackHeights();
+        const diff = h[i + 1] - h[i];
+        if (Math.abs(diff) <= 1) continue;
+        if (diff > 0) moved = moveFirstToEnd(i + 1) || moved;
+        else moved = moveLastToStart(i + 1) || moved;
       }
+      if (!moved) break;
     }
+  };
+
+  // Strictly cap the last column: while it is taller than the tallest opening
+  // column, hand its first chunk across the boundary to its left neighbour.
+  // Re-equalising the opening columns can shrink its absorber, so alternate
+  // the two until stable (bounded — each pass only crosses one chunk).
+  if (n >= 2) {
+    let guard = 0;
+    while (guard++ < 20) {
+      equaliseOpening();
+      if (cols[n - 1].length === 0) break;
+      const h = trackHeights();
+      const openMax = Math.max(...h.slice(0, n - 1));
+      if (h[n - 1] <= openMax) break;
+      if (cols[n - 1].length === 1 && !canEmpty(n - 1)) break;
+      cols[n - 2].push(cols[n - 1].shift()!);
+    }
+    equaliseOpening();
   }
 
   // 4. Compose: head images, then the column's text, then bottom images.
