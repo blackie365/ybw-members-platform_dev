@@ -1,6 +1,5 @@
 'use server';
 
-import { getGhostMembers } from "@/lib/ghost-admin";
 import { getMemberStore } from "@/features/members/server";
 import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
@@ -12,7 +11,6 @@ import { isBeehiivConfigured } from "@/lib/beehiiv";
 type RecipientCountBreakdown = {
   newsletter: number;
   registered: number;
-  ghost: number;
   total: number;
   unique: number;
   beehiivEnabled: boolean;
@@ -24,7 +22,6 @@ export async function getNewsletterRecipientStatsAction(): Promise<{ success: bo
     const breakdown: RecipientCountBreakdown = {
       newsletter: 0,
       registered: 0,
-      ghost: 0,
       total: 0,
       unique: 0,
       beehiivEnabled: isBeehiivConfigured(),
@@ -50,17 +47,8 @@ export async function getNewsletterRecipientStatsAction(): Promise<{ success: bo
       if (!seen.has(e)) seen.add(e);
     });
 
-    const ghostMembers = await getGhostMembers({ limit: 'all' }).catch(() => null);
-    if (Array.isArray(ghostMembers)) {
-      ghostMembers.forEach((m: any) => {
-        const e = typeof m?.email === 'string' ? m.email.trim().toLowerCase() : null;
-        if (!e) return;
-        breakdown.ghost += 1;
-        if (!seen.has(e)) seen.add(e);
-      });
-    }
     breakdown.unique = seen.size;
-    breakdown.total = breakdown.newsletter + breakdown.registered + breakdown.ghost;
+    breakdown.total = breakdown.newsletter + breakdown.registered;
     return { success: true, stats: breakdown };
   } catch (error: any) {
     console.error("Error in getNewsletterRecipientStatsAction:", error);
