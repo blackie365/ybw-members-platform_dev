@@ -47,7 +47,6 @@ const fonts = {
 
 export function DailyNewsEmail({
   stories,
-  recipientName,
   editorNote,
   date = new Date(),
   hideFooter = false
@@ -174,9 +173,7 @@ export function DailyNewsEmail({
                                   lineHeight: 1.2
                                 }}>
                                 
-                                {recipientName ?
-                                `Good morning, ${recipientName}.` :
-                                "Good morning."}
+                                Hello there!
                               </h1>
                               <p
                                 style={{
@@ -845,7 +842,7 @@ export function DailyNewsEmail({
  * Use this for sending via email service
  */
 export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
-  const { stories, recipientName, editorNote, date = new Date() } = props;
+  const { stories, editorNote, date = new Date() } = props;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://yorkshirebusinesswoman.co.uk";
   const formattedDate = format(date, "EEEE, MMMM d, yyyy");
   const featuredStory = stories[0];
@@ -927,7 +924,7 @@ export function generateDailyNewsEmailHtml(props: DailyNewsEmailProps): string {
                 <tr>
                   <td align="center">
               <p style="font-family: ${fonts.sans}; font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: ${colors.secondary}; margin: 0 0 16px 0;">${formattedDate}</p>
-              <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.2;">${recipientName ? `Good morning, ${recipientName}.` : "Good morning."}</p>
+              <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0 0 16px 0; line-height: 1.2;">Hello there!</p>
               <p style="font-family: ${fonts.sans}; font-size: 11px; color: ${colors.secondary}; margin: 0; line-height: 1.6;">Here are this week's top stories from across Yorkshire.</p>
             </td>
                 </tr>

@@ -5,6 +5,7 @@ import { getMemberStore } from "@/features/members/server";
 import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
+import { sendWeeklyNewsletter, NEWSLETTER_DEFAULT_SUBJECT } from "@/lib/newsletter-send";
 import { checkAdmin } from "@/lib/server/auth-utils";
 import { isBeehiivConfigured } from "@/lib/beehiiv";
 
@@ -119,7 +120,7 @@ export async function previewNewsletterAction(editorNote?: string) {
       limit: 5, 
       order: 'published_at DESC' 
     });
-    const html = await getDailyNewsletterTemplate(posts, "Subscriber", editorNote);
+    const html = await getDailyNewsletterTemplate(posts, undefined, editorNote);
     return { success: true, html };
   } catch (error) {
     console.error("Error in previewNewsletterAction:", error);
@@ -130,66 +131,10 @@ export async function previewNewsletterAction(editorNote?: string) {
 export async function sendBulkNewsletterAction(editorNote?: string, subject?: string) {
   try {
     await checkAdmin();
-
-    const posts = await getPosts({ 
-      limit: 5, 
-      order: 'published_at DESC' 
-    });
-    
-    const seen = new Set<string>();
-    const pushUnique = (raw: unknown) => {
-      if (typeof raw !== 'string') return;
-      const e = raw.trim().toLowerCase();
-      if (!e || !e.includes('@')) return;
-      seen.add(e);
-    };
-
-    // Union: (a) explicit newsletter recipients (includes popup/inline)
-    //        (b) registered active members
-    const allMembers = await getMemberStore().getAll();
-    allMembers.forEach((m: any) => {
-      if (m.isNewsletterRecipient === true || m.userInactive !== true) {
-        pushUnique(m.email);
-      }
-    });
-
-    // Also merge in Ghost members so the weekly Resend send matches what admins
-    // expect when Beehiiv is disabled on Vercel production (env vars missing).
-    try {
-      const ghostMembers = await getGhostMembers({ limit: 'all' });
-      if (Array.isArray(ghostMembers)) {
-        ghostMembers.forEach((m: any) => pushUnique(m?.email));
-      }
-    } catch (err) {
-      console.warn('[sendBulkNewsletterAction] Ghost member sync skipped:', err instanceof Error ? err.message : err);
-    }
-
-    const emails = Array.from(seen);
-    if (emails.length === 0) {
-      return { success: false, error: "No newsletter recipients found" };
-    }
-
-    const batchSize = 40;
-    let successCount = 0;
-
-    for (let i = 0; i < emails.length; i += batchSize) {
-      const batch = emails.slice(i, i + batchSize);
-      const html = await getDailyNewsletterTemplate(posts, "Member", editorNote);
-      
-      await sendEmail({
-        to: "newsletter@yorkshirebusinesswoman.co.uk",
-        bcc: batch,
-        subject: subject || "Your Weekly Briefing | Yorkshire Businesswoman",
-        html
-      });
-      
-      successCount += batch.length;
-    }
-
-    return { success: true, count: successCount, unique: emails.length };
+    return await sendWeeklyNewsletter({ editorNote, subject });
   } catch (error: any) {
     console.error("Error in sendBulkNewsletterAction:", error);
-    return { success: false, error: error.message };
+    return { success: false, count: 0, unique: 0, batches: 0, error: error.message };
   }
 }
 
@@ -204,11 +149,11 @@ export async function sendTestNewsletterAction(email: string, editorNote?: strin
       limit: 5, 
       order: 'published_at DESC' 
     });
-    const html = await getDailyNewsletterTemplate(posts, "Test Subscriber", editorNote);
+    const html = await getDailyNewsletterTemplate(posts, undefined, editorNote);
     
     await sendEmail({
       to: email,
-      subject: `[TEST] ${subject || "Your Weekly Briefing | Yorkshire Businesswoman"}`,
+      subject: `[TEST] ${subject || NEWSLETTER_DEFAULT_SUBJECT}`,
       html
     });
 
