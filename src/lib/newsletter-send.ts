@@ -2,7 +2,6 @@ import { getMemberStore } from "@/features/members/server";
 import { getPosts } from "@/lib/ghost";
 import { getDailyNewsletterTemplate } from "@/lib/email-templates";
 import { sendEmail } from "@/lib/email";
-import { getGhostMembers } from "@/lib/ghost-admin";
 
 export const NEWSLETTER_BATCH_SIZE = 40;
 export const NEWSLETTER_DEFAULT_SUBJECT = "Your Weekly Briefing | Yorkshire Businesswoman";
@@ -17,10 +16,11 @@ export interface WeeklyNewsletterSendResult {
 }
 
 /**
- * Build the newsletter recipient list: the union of
- *   (a) explicit newsletter recipients (popup/inline sign-ups)
- *   (b) registered active members
- * plus Ghost CMS members, all deduplicated by email.
+ * Build the newsletter recipient list from the member store only:
+ *   (a) explicit newsletter recipients (homepage popup / inline sign-ups)
+ *   (b) registered, active members
+ * All deduplicated by email. Ghost CMS members are intentionally excluded —
+ * the weekly send is scoped to platform members + popup sign-ups.
  */
 export async function collectNewsletterRecipients(): Promise<string[]> {
   const seen = new Set<string>();
@@ -37,17 +37,6 @@ export async function collectNewsletterRecipients(): Promise<string[]> {
       pushUnique(m.email);
     }
   });
-
-  // Merge in Ghost members so the weekly send matches what admins expect when
-  // Beehiiv is disabled on the VPS deploy (env vars missing there).
-  try {
-    const ghostMembers = await getGhostMembers({ limit: "all" });
-    if (Array.isArray(ghostMembers)) {
-      ghostMembers.forEach((m: any) => pushUnique(m?.email));
-    }
-  } catch (err) {
-    console.warn("[collectNewsletterRecipients] Ghost member sync skipped:", err instanceof Error ? err.message : err);
-  }
 
   return Array.from(seen);
 }

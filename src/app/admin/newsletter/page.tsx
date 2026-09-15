@@ -12,7 +12,6 @@ import { toast } from "sonner";
 type NewsletterRecipientStats = {
   newsletter: number;
   registered: number;
-  ghost: number;
   total: number;
   unique: number;
   beehiivEnabled: boolean;
@@ -192,12 +191,8 @@ export default function NewsletterAdminPage() {
                     <span className="font-medium tabular-nums">{stats.newsletter}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Registered YBW members</span>
+                    <span className="text-muted-foreground">Registered active members</span>
                     <span className="font-medium tabular-nums">{stats.registered}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Ghost members (CMS)</span>
-                    <span className="font-medium tabular-nums">{stats.ghost}</span>
                   </div>
                   <div className="border-t pt-3 mt-3 flex items-center justify-between">
                     <span className="font-semibold">Unique recipients</span>
@@ -206,7 +201,7 @@ export default function NewsletterAdminPage() {
                   <p className="text-xs text-muted-foreground pt-1">
                     {stats.beehiivEnabled
                       ? "Beehiiv sync enabled on this deploy."
-                      : "Beehiiv is not configured on this deploy; this Resend send covers newsletter-only, registered, and Ghost list."}
+                      : "Beehiiv is not configured on this deploy; this Resend send covers newsletter sign-ups and registered members."}
                   </p>
                 </>
               ) : (
@@ -254,7 +249,7 @@ export default function NewsletterAdminPage() {
             <CardContent className="text-xs space-y-2 text-muted-foreground leading-relaxed">
               <p>1. The newsletter automatically pulls the <strong>latest 5 stories</strong> from your Ghost magazine.</p>
               <p>2. Add an optional <strong>Editor&apos;s Note</strong> to personalize the message.</p>
-              <p>3. <strong>Verify the live recipient count</strong> above — it includes newsletter popup sign-ups, registered members, and Ghost CMS members, deduplicated.</p>
+              <p>3. <strong>Verify the live recipient count</strong> above — it includes homepage popup sign-ups and registered active members, deduplicated.</p>
               <p>4. Use <strong>&quot;Send to N Recipients&quot;</strong> to deliver via Resend immediately in batches of 40.</p>
               <p>5. Or <strong>&quot;Copy HTML&quot;</strong> if you prefer to use Beehiiv&apos;s dashboard manually.</p>
             </CardContent>
