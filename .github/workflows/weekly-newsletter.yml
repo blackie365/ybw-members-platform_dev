@@ -2,8 +2,9 @@ name: Weekly Newsletter Email
 
 on:
   schedule:
-    # Wednesday 11:00 GMT (UTC)
-    - cron: "0 11 * * 3"
+    # Wednesday 11:11 GMT (UTC) — offset from :00 to avoid the well-documented
+    # GitHub Actions schedule delay at the top of the hour.
+    - cron: "11 11 * * 3"
   workflow_dispatch:
 
 concurrency:
