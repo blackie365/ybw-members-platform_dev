@@ -128,7 +128,7 @@ function buildContentsItemsFromPages(pages: MagazinePage[]) {
   const seenRows = new Set<string>();
 
   return sortedPages.flatMap((page) => {
-    if (page.type === 'cover' || page.type === 'contents' || page.type === 'full-page-ad' || page.type === 'back-cover') {
+    if (page.type === 'cover' || page.type === 'contents' || page.type === 'full-page-ad' || page.type === 'ads' || page.type === 'back-cover') {
       return [];
     }
 
@@ -1264,6 +1264,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           storyId: story.id,
         };
       }
+      case 'ads': {
+        const storyPdf = normalizeImageUrl(story?.pdfUrl || (story as any)?.pdf || '');
+        return {
+          title: storyTitle || 'Advertisement',
+          ...commonImageFields,
+          backgroundImage: storyImage,
+          pdfUrl: storyPdf,
+          alt: storyTitle || 'Advertisement',
+          sourceRef: story.sourceRef,
+          storyId: story.id,
+        };
+      }
       default:
         return {
           title: storyTitle,
@@ -2351,6 +2363,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           offer: '20% Off for YBW Members' 
         };
       case 'full-page-ad':
+        return {
+          title: 'Advertisement',
+          label: 'Advertisement',
+          image: '',
+          backgroundImage: '',
+          videoUrl: '',
+          linkUrl: '',
+          alt: '',
+        };
+      case 'ads':
         return {
           title: 'Advertisement',
           label: 'Advertisement',

@@ -6,7 +6,8 @@ import {
   User,
   Heart,
   Share2,
-  List
+  List,
+  Megaphone
 } from 'lucide-react';
 
 export const PAGE_TYPES = [
@@ -21,6 +22,7 @@ export const PAGE_TYPES = [
   { id: 'spotlight', label: 'Member Spotlight', icon: User },
   { id: 'partner', label: 'Partner Feature', icon: Star },
   { id: 'full-page-ad', label: 'Full Page Ad', icon: ImageIcon },
+  { id: 'ads', label: 'Ads', icon: Megaphone },
   { id: 'back-cover', label: 'Back Cover', icon: Share2 },
 ];
 

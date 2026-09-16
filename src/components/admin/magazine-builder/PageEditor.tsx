@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage, Star, Plus } from 'lucide-react';
+import { Save, Loader2, Edit2, Bold, Italic, Type, Palette, Upload, ImagePlus, X, Trash2, FileImage, Star, Plus, Mail } from 'lucide-react';
 import { BroadsheetSocialPostCard } from '@/features/magazine/templates/shared';
 import type { BroadsheetSocialPost, BroadsheetSocialPlatform } from '@/features/magazine/domain/types';
 import { Button } from '@/components/ui/button';
@@ -915,6 +915,20 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
         title="Link"
       >
         <span className="text-[10px] font-bold">LINK</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          const email = window.prompt('Email address');
+          if (!email) return;
+          insertTextAtCursor(field, `<a href="mailto:${email}">`, '</a>');
+        }}
+        title="Mailto link"
+      >
+        <Mail className="h-4 w-4" />
       </Button>
     </div>
   );
@@ -1873,6 +1887,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
           </div>
         );
       case 'full-page-ad':
+      case 'ads':
         return (
           <div className="space-y-4">
             <div className="rounded-xl border border-[#a3413a]/25 bg-gradient-to-br from-[#a3413a]/5 via-amber-50/40 to-transparent p-4 space-y-2">
