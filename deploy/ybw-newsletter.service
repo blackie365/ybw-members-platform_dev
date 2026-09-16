@@ -1,0 +1,24 @@
+# YBW weekly newsletter — systemd oneshot that mirrors the GitHub Actions
+# schedule trigger (https://github.com/blackie365/ybw-members-platform_dev
+# .github/workflows/weekly-newsletter.yml) from the VPS itself.
+#
+# The same dedupe-protected endpoint is used, so whoever lands first in a
+# given ISO week sends; any later arrivals (GitHub cron, this timer, a manual
+# admin send) are ignored. Exactly one broadcast per week, guaranteed by the
+# VPS even if the GitHub scheduler drops the event.
+#
+# CRON_SECRET is loaded from /etc/ybw-newsletter.env (written by the deploy
+# workflow from the GitHub Actions secret, mode 0600).
+[Unit]
+Description=Send YBW weekly newsletter (VPS fallback for the GitHub cron)
+After=network-online.target ybw-frontend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ybw-newsletter.env
+ExecStart=/usr/bin/curl -fsS -o /tmp/ybw-newsletter-response.json -w "HTTP %%{http_code}\n" -X POST -H "Authorization: Bearer ${CRON_SECRET}" -H "Content-Type: application/json" --data "{}" http://127.0.0.1:3003/api/cron/daily-newsletter
+# curl -f makes HTTP >= 400 a nonzero exit so a failed send fails the unit.
+
+[Install]
+WantedBy=multi-user.target
