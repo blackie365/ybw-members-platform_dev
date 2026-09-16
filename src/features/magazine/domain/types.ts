@@ -6,6 +6,7 @@ export type ReaderPageTemplate =
   | "feature-full"
   | "editor-note"
   | "ad"
+  | "ads"
   | "classifieds"
   | "back-cover";
 

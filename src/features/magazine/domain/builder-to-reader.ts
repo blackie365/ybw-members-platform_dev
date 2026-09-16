@@ -66,6 +66,7 @@ export const BUILDER_TYPE_TO_READER_TEMPLATE: Record<string, ReaderPageTemplate>
   spotlight: 'feature-full',
   partner: 'feature-full',
   'full-page-ad': 'ad',
+  ads: 'ads',
   'back-cover': 'back-cover',
   ad: 'ad',
 };
@@ -360,7 +361,7 @@ export function mapBuilderIssueToReaderEdition(
       pdfUrl,
       videoUrl,
       ctaLabel: String(normalized.ctaLabel || "").trim() || undefined,
-      ctaHref: String(normalized.ctaHref || "").trim() || undefined,
+      ctaHref: String(normalized.ctaHref || normalized.linkUrl || "").trim() || undefined,
       label: String(normalized.label || "").trim() || undefined,
       mediaLayout: String(normalized.mediaLayout || "").trim() || undefined,
       items,

@@ -1510,6 +1510,147 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
 };
 
 // ─────────────────────────────────────────────
+// ADS (paper style) — full-page advert for the newspaper reader.
+// Primary creative is a PNG; an optional muted autoplay video (videoUrl)
+// replaces the static background. Rendered on the paper stock (#fdfdfb) with
+// the ink text (#191412) used across the newspaper spreads.
+// ─────────────────────────────────────────────
+export const PageAds = ({ data, imageVersion = "" }: any) => {
+  const image = safeImageSrc(data?.image || data?.featureImage || "");
+  const resolvedImage = image ? fixMagazineImageUrl(image, imageVersion) : "";
+  const backgroundImage = safeImageSrc(data?.backgroundImage || "");
+  const resolvedBg = backgroundImage
+    ? fixMagazineImageUrl(backgroundImage, imageVersion)
+    : "";
+  const videoUrl = String(data?.videoUrl || "").trim();
+  const label = String(data?.label || "Advertisement").trim();
+  const alt = String(data?.alt || label || "Advertisement").trim();
+  const rawHref = String(data?.linkUrl || "").trim();
+  const href = rawHref
+    ? rawHref.startsWith("https://") || rawHref.startsWith("http://")
+      ? rawHref
+      : `https://${rawHref}`
+    : "";
+  const logo = String(data?.logo || data?.logoImage || "").trim();
+  const resolvedVideo = videoUrl
+    ? fixMagazineImageUrl(videoUrl, imageVersion)
+    : "";
+  const looksLikePdf = (url: string | undefined | null) =>
+    /\.pdf(\?|$)/i.test(String(url || "").split("?")[0] || "");
+  const hasCreative = resolvedImage && !looksLikePdf(resolvedImage);
+
+  return (
+    <div className="relative flex min-h-full w-full flex-col bg-[#fdfdfb] text-[#191412]">
+      {/* Plate header — hairline band + centered label, matching the
+          newspaper masthead collar */}
+      <div className="px-6 pt-6 sm:px-10 sm:pt-8">
+        <header className="flex items-center justify-between gap-4 pb-2">
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            Advertisement
+          </span>
+          <span className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.18em] text-[#191412]/55 sm:text-[0.68rem]">
+            {label}
+          </span>
+        </header>
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="mt-2 flex items-center gap-4">
+          <div className="h-1 w-1 shrink-0 rotate-45 bg-[#a3413a]" />
+          <div className="h-px flex-1 bg-[#191412]/15" />
+        </div>
+      </div>
+
+      {/* Creative stage — video fills behind, PNG contained on top */}
+      <div className="relative flex-1 overflow-hidden">
+        {resolvedVideo && !looksLikePdf(resolvedVideo) ? (
+          <video
+            src={resolvedVideo}
+            poster={resolvedBg || resolvedImage || undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 h-full w-full bg-[#fdfdfb] object-cover"
+          />
+        ) : resolvedBg && !looksLikePdf(resolvedBg) ? (
+          <Image
+            src={resolvedBg}
+            alt=""
+            fill
+            sizes="100vw"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            className="object-cover"
+          />
+        ) : null}
+
+        {hasCreative ? (
+          <a
+            href={href || undefined}
+            target={href ? "_blank" : undefined}
+            rel={href ? "noreferrer noopener" : undefined}
+            className="absolute inset-0 z-[1] flex items-center justify-center"
+          >
+            <Image
+              src={resolvedImage}
+              alt={alt}
+              fill
+              sizes="100vw"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              className="p-6 sm:p-10 lg:p-12 object-contain"
+              style={{ padding: "clamp(1rem, 5vw, 4rem)" }}
+            />
+          </a>
+        ) : !resolvedVideo ? (
+          <div className="absolute inset-0 flex items-center justify-center p-10">
+            <div className="w-full max-w-2xl border border-dashed border-[#191412]/25 p-10 text-center">
+              <p className="font-serif text-2xl font-bold text-[#191412]/60 sm:text-3xl">
+                {label || "Advertisement"}
+              </p>
+              <p className="mt-3 font-sans text-[0.62rem] uppercase tracking-[0.28em] text-[#191412]/45">
+                Upload a PNG creative or set a video background URL
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Plate footer — hairline + tiny caps, optional click-through + logo */}
+      <div className="px-6 pb-5 pt-3 sm:px-10 sm:pb-6">
+        <div className="h-px w-full bg-[#191412]/25" />
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <span className="font-sans text-[0.58rem] font-medium uppercase tracking-[0.22em] text-[#191412]/50">
+            Yorkshire BusinessWoman · Advertisement
+          </span>
+          {logo ? (
+            <Image
+              src={fixMagazineImageUrl(logo, imageVersion)}
+              alt="Sponsor logo"
+              width={256}
+              height={64}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              className="mx-auto h-auto max-h-10 w-auto object-contain"
+            />
+          ) : null}
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex shrink-0 items-center gap-1 font-sans text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[#a3413a] hover:text-[#bb4f46]"
+            >
+              Visit
+              <ArrowRight className="h-3 w-3" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // EDITORIAL PAGE (Editor's Letter)
 // ─────────────────────────────────────────────
 export const PageEditorial = ({ data, imageVersion }: any) => {

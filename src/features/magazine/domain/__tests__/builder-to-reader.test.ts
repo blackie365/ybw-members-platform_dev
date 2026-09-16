@@ -62,6 +62,31 @@ describe('mapBuilderIssueToReaderEdition', () => {
 
     expect(edition.pages[0].content.videoUrl).toBeUndefined();
   });
+
+  it('maps an ads builder page to the ads reader template and carries ad fields', () => {
+    const edition = mapBuilderIssueToReaderEdition(builderIssue(), [
+      builderPage({
+        type: 'ads',
+        content: {
+          title: 'Advertisement',
+          label: 'Advertisement',
+          image: 'https://example.com/ad.png',
+          backgroundImage: 'https://example.com/bg.jpg',
+          videoUrl: 'https://example.com/ad.mp4',
+          linkUrl: 'https://advertiser.example',
+        },
+      }),
+    ]);
+
+    expect(edition.pages[0].template).toBe('ads');
+    expect(edition.pages[0].content.backgroundImage).toBe(
+      'https://example.com/bg.jpg',
+    );
+    expect(edition.pages[0].content.videoUrl).toBe('https://example.com/ad.mp4');
+    expect(edition.pages[0].content.ctaHref).toBe(
+      'https://advertiser.example',
+    );
+  });
 });
 
 function readerPage(overrides: Record<string, unknown> = {}): ReaderPage {

@@ -309,6 +309,30 @@ const adEntry: TemplateRegistryEntry = {
   },
 };
 
+// Paper-style full-page advert for the new newspaper reader ("Ads" page type).
+// Carries the PNG creative, a video background (autoplay, muted), click-through
+// link and label through to the renderer untouched.
+const adsEntry: TemplateRegistryEntry = {
+  render: null as any,
+  buildViewModel: (page) => {
+    const c = (page.content || {}) as CRecord;
+    const main = pickFirstImage(c, "");
+    const viewModel = {
+      image: main,
+      featureImage: main,
+      backgroundImage: String(c.backgroundImage || ""),
+      videoUrl: String(c.videoUrl || ""),
+      label: String(c.label || c.brand || c.sponsor || "Advertisement"),
+      alt: String(c.alt || c.title || c.headline || "Advertisement"),
+      linkUrl: String(c.linkUrl || c.ctaHref || c.url || ""),
+      logo: String(c.logoImage || c.partnerLogo || c.logo || ""),
+      title: String(c.title || c.headline || "Advertisement"),
+    };
+    delete (viewModel as any).items;
+    return viewModel;
+  },
+};
+
 const classifiedsEntry: TemplateRegistryEntry = {
   render: null as any,
   buildViewModel: (page) => {
@@ -359,6 +383,7 @@ const REGISTRY: Record<string, TemplateRegistryEntry> = {
   "feature-full": featureEntry,
   "editor-note": editorNoteEntry,
   ad: adEntry,
+  ads: adsEntry,
   "full-page-ad": adEntry,
   classifieds: classifiedsEntry,
   "back-cover": backCoverEntry,
@@ -396,6 +421,7 @@ export function loadTemplateRenderers() {
   const EditorNoteTemplate =
     require("../templates/editor-note/renderer").default;
   const AdTemplate = require("../templates/ad/renderer").default;
+  const AdsTemplate = require("../templates/ads/renderer").default;
   const ClassifiedsTemplate =
     require("../templates/classifieds/renderer").default;
   const BackCoverTemplate = require("../templates/back-cover/renderer").default;
@@ -408,6 +434,7 @@ export function loadTemplateRenderers() {
   featureEntry.render = FeatureTemplate;
   editorNoteEntry.render = EditorNoteTemplate;
   adEntry.render = AdTemplate;
+  adsEntry.render = AdsTemplate;
   classifiedsEntry.render = ClassifiedsTemplate;
   backCoverEntry.render = BackCoverTemplate;
 }
