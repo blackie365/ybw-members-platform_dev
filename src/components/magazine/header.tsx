@@ -106,14 +106,23 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
     return eligibleRotationItems[rotationBucket % eligibleRotationItems.length];
   }, [eligibleRotationItems, rotationBucket, rotationEnabled]);
 
+  // When a rotation item is active it is authoritative — don't fall through
+  // to the slot-level or env fallbacks (empty strings are intentional here to
+  // suppress the default ad for e.g. image-only creatives).
   const headerAdImageUrl = headerAdEnabled
-    ? rotatedItem?.imageUrl || headerAd?.imageUrl || envHeaderAdImageUrl
+    ? rotatedItem
+      ? (rotatedItem.imageUrl || undefined)
+      : (headerAd?.imageUrl || envHeaderAdImageUrl)
     : undefined;
   const headerAdIframeUrl = headerAdEnabled
-    ? rotatedItem?.iframeUrl || headerAd?.iframeUrl || envHeaderAdIframeUrl
+    ? rotatedItem
+      ? (rotatedItem.iframeUrl || undefined)
+      : (headerAd?.iframeUrl || envHeaderAdIframeUrl)
     : undefined;
   const headerAdLinkUrl = headerAdEnabled
-    ? rotatedItem?.linkUrl || headerAd?.linkUrl || envHeaderAdLinkUrl
+    ? rotatedItem
+      ? (rotatedItem.linkUrl || undefined)
+      : (headerAd?.linkUrl || envHeaderAdLinkUrl)
     : undefined;
   const headerAdAltText = rotatedItem?.altText || headerAd?.altText || envHeaderAdAltText;
 
