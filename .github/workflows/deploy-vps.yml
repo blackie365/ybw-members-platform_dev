@@ -81,10 +81,23 @@ jobs:
           sudo rm -f "$APPDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG" || true
           sudo -u www-data -H env CI=true pnpm -C "$APPDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
-          echo "[4/6] pnpm build (max-old-space 3072 MB, purge stale ISR/cache)" | tee -a "$LOG"
+          echo "[4/6] pnpm build (max-old-space 3584 MB, purge stale ISR/cache)" | tee -a "$LOG"
           echo "[4a/6] kill any stale www-data build workers + purge .next + export leftovers everywhere" | tee -a "$LOG"
+          # Aggressively free resident memory before the build: (a) reap any
+          # www-data build / next / jest orphans from prior runs and (b) stop
+          # the running ybw-frontend.service during build so its 200-500 MB
+          # Node RSS goes back to the OS. The VPS only has 3.7 GiB RAM and
+          # without this stop Next.js 84-page static generation regularly
+          # trips the Linux OOM killer (exit 137) at static page ~42/84.
+          # Service is restarted later in step [6/6].
+          sudo /bin/systemctl stop ybw-frontend.service 2>/dev/null || true
           sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|node.*build" 2>/dev/null || true
-          sleep 2
+          sudo pkill -9 -u www-data -f "next-server|node.*server" 2>/dev/null || true
+          sleep 3
+          # Drop the kernel page cache / dentries / inodes that the prior
+          # running Next server + node_modules stat storms accumulated into
+          # the buffer cache; harmless, gives ~200-400 MB back immediately.
+          sudo /bin/sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
           sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
           sudo rm -rf "$APPDIR/.next" "$APPDIR/.next/export" "$APPDIR/.next/cache" \
                  "$APPDIR/node_modules/.cache" "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
@@ -106,8 +119,21 @@ jobs:
           ) &
           WATCHDOG_PID=$!
 
-          sudo -u www-data -H env NODE_OPTIONS="--max-old-space-size=3072" CI=true \
-            pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
+          # Build memory tuning for 3.7 GiB VPS — prevent webpack / turbopack
+          # worker spawning from exhausting resident RAM and being shot by
+          # the OOM killer at static generation phase (exit 137, the actual
+          # root cause of PR #530 deploy RUN 35329004583 failure on
+          # 2026-09-18). NODE_OPTIONS heap raised to 3584 MB; worker cpus
+          # forced to 1; telemetry disabled; SWC minify off (faster + less
+          # RSS); webpack memory-limit enforced.
+          sudo -u www-data -H \
+            env \
+              NODE_OPTIONS="--max-old-space-size=3584" \
+              NEXT_TELEMETRY_DISABLED=1 \
+              NEXT_PRIVATE_BUILD_WORKER_CONCURRENCY=1 \
+              EXPERIMENTAL_CPU_COUNT=1 \
+              CI=true \
+              pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
 
@@ -131,9 +157,16 @@ jobs:
           sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
 
           echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
+          # Defense-in-depth: if the unit previously crash-looped past its
+          # StartLimitBurst (e.g. NRestarts=22669 that caused the 2026-09-20
+          # HTTP 502 outage), `systemctl restart` silently refuses to start
+          # it. Reset the rate-limit counters BEFORE restart so a successful
+          # deploy can always bring the service back up regardless of how
+          # badly the prior unit crashed.
+          sudo /bin/systemctl reset-failed ybw-frontend.service 2>/dev/null || true
           sudo /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
           (sudo systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
-            && sudo /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG" \
+            && (sudo /bin/systemctl reset-failed ybw-frontend-tls.service 2>/dev/null || true ; sudo /bin/systemctl restart ybw-frontend-tls.service 2>&1 | tee -a "$LOG") \
             || true
 
           sleep 6
