@@ -185,11 +185,24 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
         : null;
     const existingRotationItems =
       existingRotationObj && Array.isArray(existingRotationObj.items)
-        ? (existingRotationObj.items as unknown[])
+        ? (existingRotationObj.items as Array<Record<string, unknown>>)
         : [];
 
+    function existingRotationIsValid(items: Array<Record<string, unknown>>): boolean {
+      if (items.length < 2) return false;
+      const qcItem = items.find((it) => it.id === 'qc00922-780x90-html5-v1');
+      const cedarItem = items.find((it) => it.id === 'cedar-court-legacy-header');
+      if (!qcItem || !cedarItem) return false;
+      const qcIframeOk = Boolean(qcItem.iframeUrl) && String(qcItem.iframeUrl).trim().length > 0;
+      const cedarImgOk = Boolean(cedarItem.imageUrl) && String(cedarItem.imageUrl).trim().length > 0;
+      const cedarIframeEmpty = !String(cedarItem.iframeUrl || '').trim();
+      const qcEnabled = qcItem.enabled !== false;
+      const cedarEnabled = cedarItem.enabled !== false;
+      return qcIframeOk && cedarImgOk && cedarIframeEmpty && qcEnabled && cedarEnabled;
+    }
+
     const headerNeedsLegacyUpgrade =
-      !!existingHeader && existingRotationItems.length < 2;
+      !!existingHeader && !existingRotationIsValid(existingRotationItems);
 
     if (dataIsEmpty || headerNeedsLegacyUpgrade) {
       const effectiveImageUrl = existingHeader
