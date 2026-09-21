@@ -180,15 +180,52 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
     const shouldSeedHeaderRotation = dataIsEmpty || !!existingHeader;
 
     if (shouldSeedHeaderRotation) {
-      const effectiveImageUrl = existingHeader
-        ? String((existingHeader.imageUrl as string) ?? envImageUrl ?? '')
-        : envImageUrl;
-      const effectiveLinkUrl = existingHeader
-        ? String((existingHeader.linkUrl as string) ?? envLinkUrl ?? '')
-        : envLinkUrl;
-      const effectiveAltText = existingHeader
-        ? String((existingHeader.altText as string) ?? envAltText ?? 'Advertisement')
-        : envAltText;
+      const existingHeaderImageUrl =
+        existingHeader && typeof existingHeader.imageUrl === 'string' ? existingHeader.imageUrl : '';
+      const legacySavedRotation =
+        existingHeader &&
+        existingHeader.rotation &&
+        typeof (existingHeader.rotation as Record<string, unknown>) === 'object' &&
+        Array.isArray((existingHeader.rotation as Record<string, unknown>).items)
+          ? ((existingHeader.rotation as Record<string, unknown>).items as Array<unknown>)
+          : [];
+      const nestedCedarImage = legacySavedRotation
+        .map((it) =>
+          it && typeof it === 'object' && !Array.isArray(it)
+            ? String((it as Record<string, unknown>).imageUrl ?? '').trim()
+            : '',
+        )
+        .find((s) => s && s.length > 0);
+      const nestedCedarLink = legacySavedRotation
+        .map((it) =>
+          it && typeof it === 'object' && !Array.isArray(it)
+            ? String((it as Record<string, unknown>).linkUrl ?? '').trim()
+            : '',
+        )
+        .find((s) => s && s.length > 0);
+      const nestedCedarAlt = legacySavedRotation
+        .map((it) =>
+          it && typeof it === 'object' && !Array.isArray(it)
+            ? String((it as Record<string, unknown>).altText ?? '').trim()
+            : '',
+        )
+        .find((s) => s && s.length > 0);
+      const effectiveImageUrl =
+        nestedCedarImage ||
+        (existingHeaderImageUrl.trim().length > 0 ? existingHeaderImageUrl.trim() : envImageUrl) ||
+        'https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg';
+      const effectiveLinkUrl =
+        nestedCedarLink ||
+        (existingHeader && typeof existingHeader.linkUrl === 'string' && existingHeader.linkUrl.trim().length > 0
+          ? existingHeader.linkUrl.trim()
+          : envLinkUrl) ||
+        'https://cedarcourthotels.co.uk/';
+      const effectiveAltText =
+        nestedCedarAlt ||
+        (existingHeader && typeof existingHeader.altText === 'string' && existingHeader.altText.trim().length > 0 && existingHeader.altText !== 'Advertisement'
+          ? existingHeader.altText.trim()
+          : envAltText) ||
+        'Cedar Court Hotels';
 
       const rotationItems = buildHeaderRotationItems(
         effectiveImageUrl,
