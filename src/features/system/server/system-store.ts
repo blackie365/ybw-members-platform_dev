@@ -123,57 +123,120 @@ export function getSystemStore(): PgSystemStore {
   return _singleton;
 }
 
+const QC00922_LEADERBOARD_IFRAME_URL =
+  '/ad-creatives/qc00922/HTML5%20-%20Version%201/QC00922%20-%20780x90px%20-%20HTML5_v1.html';
+
+function buildHeaderRotationItems(
+  legacyImageUrl: string,
+  legacyIframeUrl: string,
+  legacyLinkUrl: string,
+  legacyAltText: string,
+) {
+  const cedarCourtLegacyItem = {
+    id: 'cedar-court-legacy-header',
+    enabled: true,
+    imageUrl: legacyImageUrl,
+    iframeUrl: legacyIframeUrl,
+    linkUrl: legacyLinkUrl,
+    altText: legacyAltText,
+  };
+
+  const qc00922Html5Item = {
+    id: 'qc00922-780x90-html5-v1',
+    enabled: true,
+    imageUrl: '',
+    iframeUrl: QC00922_LEADERBOARD_IFRAME_URL,
+    linkUrl: legacyLinkUrl,
+    altText: 'QC00922 Advertisement',
+  };
+
+  const hasCedarCourt =
+    Boolean(cedarCourtLegacyItem.imageUrl) || Boolean(cedarCourtLegacyItem.iframeUrl);
+  const rotationItems = [];
+  if (hasCedarCourt) rotationItems.push(cedarCourtLegacyItem);
+  rotationItems.push(qc00922Html5Item);
+
+  if (rotationItems.length < 2) return null;
+  return rotationItems;
+}
+
 export async function getSystemSettingData(key: string): Promise<Record<string, unknown>> {
   const rec = await getSystemStore().get(key);
-  const data = rec?.data ?? {};
+  const data = (rec?.data && typeof rec.data === 'object'
+    ? (rec.data as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
 
-  if (key === 'system:ads' && (!data || Object.keys(data).length === 0)) {
+  if (key === 'system:ads') {
     const envImageUrl = process.env.NEXT_PUBLIC_HEADER_AD_IMAGE_URL || '';
     const envIframeUrl = process.env.NEXT_PUBLIC_HEADER_AD_IFRAME_URL || '';
     const envLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL || '';
     const envAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || 'Advertisement';
 
-    const cedarCourtLegacyItem = {
-      id: 'cedar-court-legacy-header',
-      enabled: true,
-      imageUrl: envImageUrl,
-      iframeUrl: envIframeUrl,
-      linkUrl: envLinkUrl,
-      altText: envAltText,
-    };
+    const dataIsEmpty = Object.keys(data).length === 0;
 
-    const qc00922Html5Item = {
-      id: 'qc00922-780x90-html5-v1',
-      enabled: true,
-      imageUrl: '',
-      iframeUrl:
-        '/ad-creatives/qc00922/HTML5%20-%20Version%201/QC00922%20-%20780x90px%20-%20HTML5_v1.html',
-      linkUrl: envLinkUrl,
-      altText: 'QC00922 Advertisement',
-    };
+    const existingHeader =
+      !dataIsEmpty && data.headerLeaderboard && typeof data.headerLeaderboard === 'object'
+        ? (data.headerLeaderboard as Record<string, unknown>)
+        : null;
 
-    const hasCedarCourt =
-      Boolean(cedarCourtLegacyItem.imageUrl) || Boolean(cedarCourtLegacyItem.iframeUrl);
-    const rotationItems = [];
-    if (hasCedarCourt) rotationItems.push(cedarCourtLegacyItem);
-    rotationItems.push(qc00922Html5Item);
+    const existingRotationObj =
+      existingHeader &&
+      existingHeader.rotation &&
+      typeof (existingHeader.rotation as Record<string, unknown>) === 'object'
+        ? (existingHeader.rotation as Record<string, unknown>)
+        : null;
+    const existingRotationItems =
+      existingRotationObj && Array.isArray(existingRotationObj.items)
+        ? (existingRotationObj.items as unknown[])
+        : [];
 
-    if (rotationItems.length >= 2) {
-      return {
-        headerLeaderboard: {
-          enabled: true,
-          imageUrl: envImageUrl,
-          iframeUrl: envIframeUrl,
-          linkUrl: envLinkUrl,
-          altText: envAltText,
+    const headerNeedsLegacyUpgrade =
+      !!existingHeader && existingRotationItems.length < 2;
+
+    if (dataIsEmpty || headerNeedsLegacyUpgrade) {
+      const effectiveImageUrl = existingHeader
+        ? String((existingHeader.imageUrl as string) ?? envImageUrl ?? '')
+        : envImageUrl;
+      const effectiveIframeUrl = existingHeader
+        ? String((existingHeader.iframeUrl as string) ?? envIframeUrl ?? '')
+        : envIframeUrl;
+      const effectiveLinkUrl = existingHeader
+        ? String((existingHeader.linkUrl as string) ?? envLinkUrl ?? '')
+        : envLinkUrl;
+      const effectiveAltText = existingHeader
+        ? String((existingHeader.altText as string) ?? envAltText ?? 'Advertisement')
+        : envAltText;
+
+      const rotationItems = buildHeaderRotationItems(
+        effectiveImageUrl,
+        effectiveIframeUrl,
+        effectiveLinkUrl,
+        effectiveAltText,
+      );
+      if (rotationItems) {
+        const headerEnabled =
+          existingHeader && typeof existingHeader.enabled === 'boolean'
+            ? existingHeader.enabled
+            : true;
+        const upgradedHeader = {
+          ...(existingHeader || {}),
+          enabled: headerEnabled,
+          imageUrl: effectiveImageUrl,
+          iframeUrl: effectiveIframeUrl,
+          linkUrl: effectiveLinkUrl,
+          altText: effectiveAltText,
           rotation: {
             enabled: true,
             intervalSeconds: 30,
             items: rotationItems,
           },
-          updatedAt: new Date(0).toISOString(),
-        },
-      };
+          updatedAt: (existingHeader?.updatedAt as string | undefined) ?? new Date(0).toISOString(),
+        };
+        if (dataIsEmpty) {
+          return { headerLeaderboard: upgradedHeader };
+        }
+        return { ...data, headerLeaderboard: upgradedHeader };
+      }
     }
   }
 
