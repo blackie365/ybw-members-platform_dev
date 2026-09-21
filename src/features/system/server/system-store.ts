@@ -125,7 +125,59 @@ export function getSystemStore(): PgSystemStore {
 
 export async function getSystemSettingData(key: string): Promise<Record<string, unknown>> {
   const rec = await getSystemStore().get(key);
-  return rec?.data ?? {};
+  const data = rec?.data ?? {};
+
+  if (key === 'system:ads' && (!data || Object.keys(data).length === 0)) {
+    const envImageUrl = process.env.NEXT_PUBLIC_HEADER_AD_IMAGE_URL || '';
+    const envIframeUrl = process.env.NEXT_PUBLIC_HEADER_AD_IFRAME_URL || '';
+    const envLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL || '';
+    const envAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || 'Advertisement';
+
+    const cedarCourtLegacyItem = {
+      id: 'cedar-court-legacy-header',
+      enabled: true,
+      imageUrl: envImageUrl,
+      iframeUrl: envIframeUrl,
+      linkUrl: envLinkUrl,
+      altText: envAltText,
+    };
+
+    const qc00922Html5Item = {
+      id: 'qc00922-780x90-html5-v1',
+      enabled: true,
+      imageUrl: '',
+      iframeUrl:
+        '/ad-creatives/qc00922/HTML5%20-%20Version%201/QC00922%20-%20780x90px%20-%20HTML5_v1.html',
+      linkUrl: envLinkUrl,
+      altText: 'QC00922 Advertisement',
+    };
+
+    const hasCedarCourt =
+      Boolean(cedarCourtLegacyItem.imageUrl) || Boolean(cedarCourtLegacyItem.iframeUrl);
+    const rotationItems = [];
+    if (hasCedarCourt) rotationItems.push(cedarCourtLegacyItem);
+    rotationItems.push(qc00922Html5Item);
+
+    if (rotationItems.length >= 2) {
+      return {
+        headerLeaderboard: {
+          enabled: true,
+          imageUrl: envImageUrl,
+          iframeUrl: envIframeUrl,
+          linkUrl: envLinkUrl,
+          altText: envAltText,
+          rotation: {
+            enabled: true,
+            intervalSeconds: 30,
+            items: rotationItems,
+          },
+          updatedAt: new Date(0).toISOString(),
+        },
+      };
+    }
+  }
+
+  return data;
 }
 
 export const _internals = {
