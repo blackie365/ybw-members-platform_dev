@@ -145,7 +145,7 @@ function buildHeaderRotationItems(
     enabled: true,
     imageUrl: '',
     iframeUrl: QC00922_LEADERBOARD_IFRAME_URL,
-    linkUrl: legacyLinkUrl,
+    linkUrl: '',
     altText: 'QC00922 Advertisement',
   };
 
