@@ -128,7 +128,6 @@ const QC00922_LEADERBOARD_IFRAME_URL =
 
 function buildHeaderRotationItems(
   legacyImageUrl: string,
-  legacyIframeUrl: string,
   legacyLinkUrl: string,
   legacyAltText: string,
 ) {
@@ -136,7 +135,7 @@ function buildHeaderRotationItems(
     id: 'cedar-court-legacy-header',
     enabled: true,
     imageUrl: legacyImageUrl,
-    iframeUrl: legacyIframeUrl,
+    iframeUrl: '',
     linkUrl: legacyLinkUrl,
     altText: legacyAltText,
   };
@@ -150,8 +149,7 @@ function buildHeaderRotationItems(
     altText: 'QC00922 Advertisement',
   };
 
-  const hasCedarCourt =
-    Boolean(cedarCourtLegacyItem.imageUrl) || Boolean(cedarCourtLegacyItem.iframeUrl);
+  const hasCedarCourt = Boolean(cedarCourtLegacyItem.imageUrl);
   const rotationItems = [];
   if (hasCedarCourt) rotationItems.push(cedarCourtLegacyItem);
   rotationItems.push(qc00922Html5Item);
@@ -197,9 +195,6 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
       const effectiveImageUrl = existingHeader
         ? String((existingHeader.imageUrl as string) ?? envImageUrl ?? '')
         : envImageUrl;
-      const effectiveIframeUrl = existingHeader
-        ? String((existingHeader.iframeUrl as string) ?? envIframeUrl ?? '')
-        : envIframeUrl;
       const effectiveLinkUrl = existingHeader
         ? String((existingHeader.linkUrl as string) ?? envLinkUrl ?? '')
         : envLinkUrl;
@@ -209,7 +204,6 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
 
       const rotationItems = buildHeaderRotationItems(
         effectiveImageUrl,
-        effectiveIframeUrl,
         effectiveLinkUrl,
         effectiveAltText,
       );
@@ -222,7 +216,7 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
           ...(existingHeader || {}),
           enabled: headerEnabled,
           imageUrl: effectiveImageUrl,
-          iframeUrl: effectiveIframeUrl,
+          iframeUrl: envIframeUrl,
           linkUrl: effectiveLinkUrl,
           altText: effectiveAltText,
           rotation: {
