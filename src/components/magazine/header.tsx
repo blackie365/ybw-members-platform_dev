@@ -107,13 +107,19 @@ export function Header({ headerAd }: { headerAd?: HeaderAdConfig }) {
   }, [eligibleRotationItems, rotationBucket, rotationEnabled]);
 
   const headerAdImageUrl = headerAdEnabled
-    ? rotatedItem?.imageUrl || headerAd?.imageUrl || envHeaderAdImageUrl
+    ? rotatedItem
+      ? (rotatedItem.imageUrl || undefined)
+      : (headerAd?.imageUrl || envHeaderAdImageUrl)
     : undefined;
   const headerAdIframeUrl = headerAdEnabled
-    ? rotatedItem?.iframeUrl || headerAd?.iframeUrl || envHeaderAdIframeUrl
+    ? rotatedItem
+      ? (rotatedItem.iframeUrl || undefined)
+      : (headerAd?.iframeUrl || envHeaderAdIframeUrl)
     : undefined;
   const headerAdLinkUrl = headerAdEnabled
-    ? rotatedItem?.linkUrl || headerAd?.linkUrl || envHeaderAdLinkUrl
+    ? rotatedItem
+      ? (rotatedItem.linkUrl || undefined)
+      : (headerAd?.linkUrl || envHeaderAdLinkUrl)
     : undefined;
   const headerAdAltText = rotatedItem?.altText || headerAd?.altText || envHeaderAdAltText;
 
