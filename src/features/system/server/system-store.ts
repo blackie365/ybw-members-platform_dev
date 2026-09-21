@@ -188,21 +188,39 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
         ? (existingRotationObj.items as Array<Record<string, unknown>>)
         : [];
 
-    function existingRotationIsValid(items: Array<Record<string, unknown>>): boolean {
-      if (items.length < 2) return false;
-      const qcItem = items.find((it) => it.id === 'qc00922-780x90-html5-v1');
-      const cedarItem = items.find((it) => it.id === 'cedar-court-legacy-header');
-      if (!qcItem || !cedarItem) return false;
-      const qcIframeOk = Boolean(qcItem.iframeUrl) && String(qcItem.iframeUrl).trim().length > 0;
-      const cedarImgOk = Boolean(cedarItem.imageUrl) && String(cedarItem.imageUrl).trim().length > 0;
-      const cedarIframeEmpty = !String(cedarItem.iframeUrl || '').trim();
-      const qcEnabled = qcItem.enabled !== false;
-      const cedarEnabled = cedarItem.enabled !== false;
-      return qcIframeOk && cedarImgOk && cedarIframeEmpty && qcEnabled && cedarEnabled;
+    function existingRotationIsValid(items: Array<unknown>): boolean {
+      try {
+        if (!Array.isArray(items)) return false;
+        if (items.length < 2) return false;
+        const objItems = items.filter(
+          (it) => it && typeof it === 'object' && !Array.isArray(it),
+        ) as Array<Record<string, unknown>>;
+        if (objItems.length < 2) return false;
+        const qcItem = objItems.find((it) => it && (it as Record<string, unknown>).id === 'qc00922-780x90-html5-v1');
+        const cedarItem = objItems.find((it) => it && (it as Record<string, unknown>).id === 'cedar-court-legacy-header');
+        if (!qcItem || !cedarItem) return false;
+        const qcIframeUrl = String((qcItem as Record<string, unknown>).iframeUrl ?? '').trim();
+        const cedarImgUrl = String((cedarItem as Record<string, unknown>).imageUrl ?? '').trim();
+        const cedarIframeUrl = String((cedarItem as Record<string, unknown>).iframeUrl ?? '').trim();
+        const qcIframeOk = qcIframeUrl.length > 0;
+        const cedarImgOk = cedarImgUrl.length > 0;
+        const cedarIframeEmpty = cedarIframeUrl.length === 0;
+        const qcEnabled = (qcItem as Record<string, unknown>).enabled !== false;
+        const cedarEnabled = (cedarItem as Record<string, unknown>).enabled !== false;
+        return qcIframeOk && cedarImgOk && cedarIframeEmpty && qcEnabled && cedarEnabled;
+      } catch {
+        return false;
+      }
     }
 
-    const headerNeedsLegacyUpgrade =
-      !!existingHeader && !existingRotationIsValid(existingRotationItems);
+    let headerNeedsLegacyUpgrade = false;
+    if (existingHeader) {
+      try {
+        headerNeedsLegacyUpgrade = !existingRotationIsValid(existingRotationItems);
+      } catch {
+        headerNeedsLegacyUpgrade = true;
+      }
+    }
 
     if (dataIsEmpty || headerNeedsLegacyUpgrade) {
       const effectiveImageUrl = existingHeader
