@@ -1,0 +1,82 @@
+name: 1-Shot Inject Ghost Admin Key
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: inject-ghost-admin-key
+  cancel-in-progress: false
+
+jobs:
+  inject:
+    name: Append GHOST_ADMIN_API_KEY to VPS .env.local (1-shot)
+    runs-on: [self-hosted, deploy]
+    timeout-minutes: 5
+
+    env:
+      APPDIR: '/srv/ybw-frontend'
+      KEY_VAR_NAME: 'GHOST_ADMIN_API_KEY'
+
+    steps:
+      - name: Inject key into /srv/ybw-frontend/.env.local (idempotent)
+        env:
+          INJECT_GHOST_ADMIN_API_KEY: ${{ secrets.INJECT_GHOST_ADMIN_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${INJECT_GHOST_ADMIN_API_KEY:-}" ]; then
+            echo "FATAL: secret INJECT_GHOST_ADMIN_API_KEY is empty — nothing to inject."
+            exit 1
+          fi
+
+          ENV_FILE="${APPDIR}/.env.local"
+
+          # Harden permissions first; ensure dir + file exist
+          sudo -n install -o www-data -g www-data -m 0660 "${ENV_FILE}" "${ENV_FILE}" || \
+            sudo -n install -o www-data -g www-data -m 0660 /dev/null "${ENV_FILE}"
+
+          # Idempotent: drop any existing line that starts with KEY_VAR_NAME= before appending
+          sudo -u www-data -H bash -lc '
+            set -euo pipefail
+            KEY_VAR_NAME="${1}"
+            KEY_VALUE="${2}"
+            ENV_FILE="${3}"
+            tmp="$(mktemp)"
+            # grep exits 1 when no matches — tolerate with || true
+            { grep -v "^${KEY_VAR_NAME}=" "${ENV_FILE}" || true; } > "${tmp}"
+            printf "%s=%s\n" "${KEY_VAR_NAME}" "${KEY_VALUE}" >> "${tmp}"
+            # write back atomically; preserve perms
+            cat "${tmp}" > "${ENV_FILE}"
+            rm -f "${tmp}"
+          ' _ "${KEY_VAR_NAME}" "${INJECT_GHOST_ADMIN_API_KEY}" "${ENV_FILE}"
+
+          # Reassure ownership + mode after write
+          sudo -n chown www-data:www-data "${ENV_FILE}"
+          sudo -n chmod 0660 "${ENV_FILE}"
+
+          # Verify presence WITHOUT printing the value (shape only)
+          LINE_COUNT=$(sudo -u www-data -H bash -lc 'grep -c "^${1}=" "${2}"' _ "${KEY_VAR_NAME}" "${ENV_FILE}" || true)
+          LINE_SHAPE=$(sudo -u www-data -H bash -lc '
+            set -euo pipefail
+            line="$(grep "^${1}=" "${2}" | tail -n 1)"
+            val="${line#*=}"
+            id="${val%%:*}"
+            secret="${val#*:}"
+            id_len="${#id}"
+            secret_len="${#secret}"
+            printf "id=%d chars, secret=%d chars\\n" "${id_len}" "${secret_len}"
+          ' _ "${KEY_VAR_NAME}" "${ENV_FILE}")
+
+          echo "GHOST_ADMIN_API_KEY lines in ${ENV_FILE}: ${LINE_COUNT}"
+          echo "Key shape (never printed): ${LINE_SHAPE}"
+          echo "Final ls -la:"
+          ls -la "${ENV_FILE}"
+
+      - name: Smoke-test Ghost admin browse via www-data
+        run: |
+          set -euo pipefail
+          sudo -u www-data -H bash -lc '
+            set -euo pipefail
+            cd /srv/ybw-frontend
+            CI=true pnpm exec tsx scripts/list-ghost-admin-members.ts 2>&1 | tail -15
+          '
