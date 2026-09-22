@@ -40,11 +40,16 @@ dotenvConfig({ path: resolve(process.cwd(), '.env.local'), override: false });
 
 const WRITE_JSON = process.argv.includes('--json');
 
-// Imports below use Next/Webpack tsconfig paths (@/...). tsx resolves these at
-// runtime via tsconfig.json paths + baseUrl, so we import them AFTER dotenv
-// ensures env vars are set for any constructor-time checks in those modules.
 import { getMemberStore } from '@/features/members/server';
-import { getGhostAdmin } from '@/lib/ghost-admin';
+// NOTE: ghost-admin.ts declares "'use server'" at the top, which Next/RSC uses
+// to mark functions for Server Actions bundling. In a plain tsx script that
+// directive is (1) meaningless and (2) breaks CJS/ESM interop badly: the
+// compiled module ends up as `{ default: {...} }` with no named exports.
+// We therefore import @tryghost/admin-api directly here (same SDK, same env
+// resolution logic as ghost-admin.ts) so the audit script works both from
+// the magazine-maintenance workflow runner and from a local shell.
+import GhostAdminAPI from '@tryghost/admin-api';
+import { normalizeBaseUrl } from '@/lib/ghost';
 import fs from 'node:fs';
 
 type MemberDoc = {
@@ -86,6 +91,34 @@ type GhostMember = {
   created_at?: string;
   updated_at?: string;
 };
+
+// Mirrors the init logic in src/lib/ghost-admin.ts (same env chain + SDK),
+// except we keep the factory locally so we don't import a module that starts
+// with "'use server'" (breaks tsx named exports).
+let _ghostCache: any = null;
+function getGhostAdmin(): any | null {
+  if (_ghostCache !== null) return _ghostCache;
+  const key = process.env.GHOST_ADMIN_API_KEY || process.env.GHOST_ADMIN_KEY;
+  if (!key) {
+    console.warn('[ghost] GHOST_ADMIN_API_KEY not configured — skipping Ghost audit section.');
+    _ghostCache = null;
+    return null;
+  }
+  const url = normalizeBaseUrl(
+    (process.env.GHOST_ADMIN_API_URL ||
+      process.env.NEXT_PUBLIC_GHOST_API_URL ||
+      process.env.GHOST_API_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'https://yorkshirebusinesswoman.co.uk') as string,
+  );
+  try {
+    _ghostCache = new GhostAdminAPI({ url, key, version: 'v5.0' });
+  } catch (err: any) {
+    console.error('[ghost] failed to init admin API:', err?.message || err);
+    _ghostCache = null;
+  }
+  return _ghostCache;
+}
 
 const TEMP_EMAIL_PATTERNS: RegExp[] = [
   /tempmail/i,
