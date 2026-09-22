@@ -51,6 +51,7 @@ import { getMemberStore } from '@/features/members/server';
 import GhostAdminAPI from '@tryghost/admin-api';
 import { normalizeBaseUrl } from '@/lib/ghost';
 import fs from 'node:fs';
+import path from "node:path";
 
 type MemberDoc = {
   clerkId?: string;
