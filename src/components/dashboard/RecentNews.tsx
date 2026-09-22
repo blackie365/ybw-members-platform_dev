@@ -13,7 +13,7 @@ export async function RecentNews() {
   return (
     <div className="bg-white border border-border rounded-none p-8 shadow-sm dark:bg-zinc-950">
       <div className="flex justify-between items-center mb-8 border-b border-border pb-4">
-        <h2 className="font-serif text-2xl font-medium text-foreground">Recent News</h2>
+        <h2 className="font-serif text-2xl font-medium text-foreground">Recent Member News</h2>
         <Link href="/news" className="text-[10px] font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors">
           View All
         </Link>
