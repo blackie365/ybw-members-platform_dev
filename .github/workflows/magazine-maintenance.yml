@@ -45,6 +45,10 @@ jobs:
         env:
           SCRIPT: ${{ github.event.inputs.script }}
           ARGS: ${{ github.event.inputs.script_args }}
+          # Passthrough for 1-shot key-inject script: inject-ghost-admin-key-once.ts
+          # reads INJECT_GHOST_ADMIN_API_KEY from env ONLY when present, never
+          # prints it, never passes it on argv. Leave empty for regular scripts.
+          INJECT_GHOST_ADMIN_API_KEY: ${{ secrets.INJECT_GHOST_ADMIN_API_KEY }}
         run: |
           set -euo pipefail
           SCRIPT="${SCRIPT:-scripts/magazine-set-feature-image.ts}"
