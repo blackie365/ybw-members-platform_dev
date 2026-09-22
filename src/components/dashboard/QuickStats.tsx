@@ -4,7 +4,12 @@ import { getTotalMembers } from '@/lib/dashboard';
 export async function QuickStats() {
   const [events, news, totalMembers] = await Promise.all([
     getPosts({ limit: 3, filter: 'tag:events' }),
-    getPosts({ limit: 3, filter: 'tag:news' }),
+    getPosts({
+      limit: 3,
+      order: 'published_at DESC',
+      filter:
+        'tag:members,tag:hash-members,tag:member-submission,tag:hash-member-submission',
+    }),
     getTotalMembers()
   ]);
 

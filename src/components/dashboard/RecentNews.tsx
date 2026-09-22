@@ -4,7 +4,12 @@ import { format } from 'date-fns';
 import { getPosts } from '@/lib/ghost';
 
 export async function RecentNews() {
-  const news = await getPosts({ limit: 3, filter: 'tag:news' });
+  const news = await getPosts({
+    limit: 3,
+    order: 'published_at DESC',
+    filter:
+      'tag:members,tag:hash-members,tag:member-submission,tag:hash-member-submission',
+  });
   return (
     <div className="bg-white border border-border rounded-none p-8 shadow-sm dark:bg-zinc-950">
       <div className="flex justify-between items-center mb-8 border-b border-border pb-4">
