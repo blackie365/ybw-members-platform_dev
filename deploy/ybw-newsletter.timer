@@ -1,0 +1,14 @@
+# Wednesday morning, the VPS-local sender is authoritative. Persistent=true
+# catches up if the machine was off when the trigger would have fired (e.g. a
+# reboot around 11:05). The GitHub Actions cron fires at 11:11 UTC as a backup
+# — both hit the same atomic dedup, so exactly one broadcast goes out per week.
+[Unit]
+Description=YBW weekly newsletter timer (Wed 11:05 UTC)
+
+[Timer]
+OnCalendar=Wed *-*-* 11:05:00 UTC
+Persistent=true
+Unit=ybw-newsletter.service
+
+[Install]
+WantedBy=timers.target
