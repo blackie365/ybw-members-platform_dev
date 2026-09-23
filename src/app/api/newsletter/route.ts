@@ -202,7 +202,7 @@ export async function POST(request: Request) {
         ['newsletter-signup', source ? `source:${source}` : 'source:unknown'].filter(Boolean)
       ));
 
-      const existing = await store.getMemberByEmail(userEmail);
+      const existing = await store.getMemberByEmail(userEmail, { includeInvisible: true });
 
       const memberData: Record<string, unknown> = {
         email,

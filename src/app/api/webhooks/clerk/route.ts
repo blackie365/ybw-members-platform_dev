@@ -118,7 +118,7 @@ export async function POST(req: Request) {
         let adminRecipients: string[] = [config.adminEmail];
         try {
           const emails = new Set<string>();
-          const members = await store.getAll();
+          const members = await store.getAllAdmin();
           for (const m of members) {
             if ((m.role === 'admin' || m.role === 'super_admin' || m.isAdmin === true) && typeof m.email === 'string' && m.email.includes('@')) {
               emails.add(m.email);

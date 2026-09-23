@@ -51,9 +51,9 @@ async function getAdminRecipients(): Promise<string[]> {
 async function findMemberClerkIdBySubscriptionId(subscriptionId: string): Promise<string | null> {
   if (!subscriptionId) return null;
   const store = getMemberStore();
-  const bySub = await store.queryOne({ field: 'subscriptionId', value: subscriptionId });
+  const bySub = await store.queryOne({ field: 'subscriptionId', value: subscriptionId }, { includeInvisible: true });
   if (bySub) return bySub.clerkId;
-  const byLegacy = await store.queryOne({ field: 'stripeSubscriptionId', value: subscriptionId });
+  const byLegacy = await store.queryOne({ field: 'stripeSubscriptionId', value: subscriptionId }, { includeInvisible: true });
   if (byLegacy) return byLegacy.clerkId;
   return null;
 }
@@ -63,7 +63,7 @@ async function findMemberClerkIdForSubscription(sub: Stripe.Subscription): Promi
 
   const userId = typeof sub?.metadata?.userId === 'string' ? sub.metadata.userId : undefined;
   if (userId) {
-    const member = await store.getMemberByClerkId(userId);
+    const member = await store.getMemberByClerkId(userId, { includeInvisible: true });
     if (member) return member.clerkId;
   }
 
@@ -73,7 +73,7 @@ async function findMemberClerkIdForSubscription(sub: Stripe.Subscription): Promi
 
   const customerId = typeof sub?.customer === 'string' ? sub.customer : (sub.customer as any)?.id;
   if (typeof customerId === 'string' && customerId) {
-    const byCustomer = await store.queryOne({ field: 'stripeCustomerId', value: customerId });
+    const byCustomer = await store.queryOne({ field: 'stripeCustomerId', value: customerId }, { includeInvisible: true });
     if (byCustomer) return byCustomer.clerkId;
   }
 
@@ -83,7 +83,7 @@ async function findMemberClerkIdForSubscription(sub: Stripe.Subscription): Promi
 async function demoteMemberToFree(clerkId: string, reason: string) {
   const nowIso = new Date().toISOString();
   const store = getMemberStore();
-  const member = await store.getMemberByClerkId(clerkId);
+  const member = await store.getMemberByClerkId(clerkId, { includeInvisible: true });
   const data = (member as Record<string, unknown>) || {};
   const alreadyCanceled = data?.subscriptionStatus === 'canceled' || data?.membershipTier === 'free';
 
@@ -373,7 +373,7 @@ export async function POST(req: Request) {
         if (customerEmail) {
           const customerEmailLower = String(customerEmail).trim().toLowerCase();
           const store = getMemberStore();
-          const member = await store.getMemberByEmail(customerEmailLower);
+          const member = await store.getMemberByEmail(customerEmailLower, { includeInvisible: true });
           const userData = (member as Record<string, unknown>) || {};
 
           if (member) {

@@ -27,15 +27,36 @@ CREATE TABLE IF NOT EXISTS member_profiles (
   member_slug  TEXT,
   is_featured  BOOLEAN NOT NULL DEFAULT false,
   is_active    BOOLEAN NOT NULL DEFAULT true,
+  visibility   TEXT NOT NULL DEFAULT 'visible',
   role         TEXT,
   created_at   TIMESTAMPTZ,
-  updated_at   TIMESTAMPTZ
+  updated_at   TIMESTAMPTZ,
+  CONSTRAINT chk_member_profiles_visibility CHECK (visibility IN ('visible', 'invisible'))
 );
 CREATE INDEX IF NOT EXISTS idx_member_profiles_email       ON member_profiles (email);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_email_lower ON member_profiles (email_lower);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_slug        ON member_profiles (member_slug);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_created     ON member_profiles (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_featured    ON member_profiles (is_featured) WHERE is_featured = true;
+CREATE INDEX IF NOT EXISTS idx_member_profiles_visibility  ON member_profiles (visibility) WHERE visibility = 'visible';
+
+CREATE TABLE IF NOT EXISTS member_audit_log (
+  id           BIGSERIAL PRIMARY KEY,
+  action       TEXT NOT NULL,
+  target_type  TEXT NOT NULL,
+  target_id    TEXT NOT NULL,
+  email_lower  TEXT,
+  operator     TEXT NOT NULL DEFAULT 'system',
+  visibility_before TEXT,
+  visibility_after  TEXT,
+  fields_changed JSONB,
+  note         TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_member_audit_log_action     ON member_audit_log (action);
+CREATE INDEX IF NOT EXISTS idx_member_audit_log_target     ON member_audit_log (target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_member_audit_log_email      ON member_audit_log (email_lower);
+CREATE INDEX IF NOT EXISTS idx_member_audit_log_created    ON member_audit_log (created_at DESC);
 `;
 
 let schemaReady = false;
