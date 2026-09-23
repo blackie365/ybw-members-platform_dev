@@ -394,7 +394,22 @@ async function getInstagramReport(
   const { instagramBusinessAccountId, instagramAccessToken, accessToken } = getMetaEnv();
   const accountId =
     instagramBusinessAccountId || options.derivedInstagramBusinessAccountId;
-  const instagramToken = instagramAccessToken || accessToken;
+
+  let instagramToken: string | undefined = instagramAccessToken || accessToken;
+
+  // Fallback: if the user has configured a Facebook page token (and optionally
+  // a linked Instagram business account on that page) but no standalone
+  // Instagram / Meta user token, the Facebook page token is valid for the
+  // linked Instagram Graph API endpoints too (instagram_basic, pages_show_list
+  // scopes). Derive one via the existing resolver — it returns the explicit
+  // Facebook page token if one is already set, otherwise tries /me/accounts.
+  if (!instagramToken && accountId) {
+    try {
+      instagramToken = await resolveFacebookPageAccessToken();
+    } catch {
+      instagramToken = undefined;
+    }
+  }
 
   if (!accountId) {
     return {
