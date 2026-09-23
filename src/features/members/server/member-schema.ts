@@ -69,6 +69,23 @@ export async function initMemberPgSchema(): Promise<void> {
       const pool = getMagazinePgPool();
       if (!pool) return;
       await pool.query(SCHEMA_SQL);
+      await pool.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='member_profiles' AND column_name='visibility') THEN
+            ALTER TABLE member_profiles ADD COLUMN visibility TEXT NOT NULL DEFAULT 'visible';
+          END IF;
+        END $$;
+      `);
+      await pool.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_member_profiles_visibility') THEN
+            ALTER TABLE member_profiles ADD CONSTRAINT chk_member_profiles_visibility CHECK (visibility IN ('visible', 'invisible'));
+          END IF;
+        END $$;
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_profiles_visibility ON member_profiles (visibility) WHERE visibility = 'visible'`);
       schemaReady = true;
     })();
   }
