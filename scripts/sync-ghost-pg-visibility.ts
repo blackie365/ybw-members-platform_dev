@@ -261,17 +261,57 @@ async function main() {
     pg_invisible_now: pgMembers.filter((m) => (m.visibility as string) === 'invisible').length,
   };
 
+  const pgRowsToBeInvisible = toHideEmails.reduce(
+    (acc, el) => acc + ((pgByEmailLower.get(el) || []).length),
+    0,
+  );
+  const pgRowsThatRemainVisible = matchingLowers.reduce(
+    (acc, el) => acc + ((pgByEmailLower.get(el) || []).length),
+    0,
+  );
+  const pgDuplicateGroupRowsInVisible = pgRowsThatRemainVisible - matchingLowers.length;
+
   console.log('PLAN SUMMARY');
   console.log('  ghost_total                :', plan.counts.ghost_members_total);
   console.log('  pg_rows_total_all          :', plan.counts.pg_rows_total_all_visibility);
-  console.log('  pg_emails_invisible        :', plan.counts.pg_emails_to_set_invisible, '(PG emails NOT in Ghost → invisible)');
+  console.log('  pg_emails_invisible        :', plan.counts.pg_emails_to_set_invisible, '(distinct PG emails NOT in Ghost → invisible)');
+  console.log('  pg_ROWS_invisible          :', pgRowsToBeInvisible, `(actual rows; ${pgRowsToBeInvisible - plan.counts.pg_emails_to_set_invisible} extra = extra rows in dupe groups among invisible)`);
   console.log('  matching_emails            :', plan.counts.matching_emails_both_sides);
+  console.log('  pg_ROWS_remain_visible     :', pgRowsThatRemainVisible, `(all PG rows whose email is in Ghost — includes ${pgDuplicateGroupRowsInVisible} extra rows from 22 PG dupe groups — visibility kept so admin still sees them)`);
   console.log('  new_ghost_only_rows_insert :', plan.counts.new_rows_to_insert_from_ghost_not_in_pg);
   console.log('  spot_check_size_10pct      :', spotCheck.length, 'emails');
   console.log('  current PG visibility      :', invisibleBeforeCounts);
+  console.log('  project_postapply_visible  :', pgRowsThatRemainVisible + plan.counts.new_rows_to_insert_from_ghost_not_in_pg);
+  console.log('  project_postapply_invisible:', pgRowsToBeInvisible);
+
+  console.log('\n--- SAMPLE: 12 of', toHideEmails.length, 'emails TO BE MARKED INVISIBLE (verify: no paid Stripe members should appear here) ---');
+  const sortedHide = [...toHideEmails].sort();
+  const hideSample = sortedHide.length <= 12 ? sortedHide : pickSpotSample(sortedHide, Math.min(12, sortedHide.length));
+  for (const el of hideSample) {
+    const rows = pgByEmailLower.get(el) || [];
+    const paidStripe = rows.some((r: any) => !!r.stripeCustomerId || !!r.paidMembershipTier || !!r.paypalPayerEmail);
+    const displayNames = rows.map((r: any) => (r.displayName || r.firstName + ' ' + (r.lastName || '')).trim()).filter(Boolean);
+    console.log(
+      `  * ${el}  (rows=${rows.length}  stripe_paid?=${paidStripe ? 'YES — REVIEW!' : 'no'}  name_sample=${JSON.stringify(displayNames.slice(0, 2))})`,
+    );
+  }
+
+  console.log('\n--- 10% deterministic spot-check: matched rows GHOST vs PG BEFORE merge (apply will sync) ---');
+  console.log(
+    '  emailLower                    | ghost.id[-6:] | ghost.name[:24]         | tier[:14]    | stripeId[-4:] | pgRowsCount | ghost.deleted?',
+  );
+  for (const sc of spotCheck) {
+    const tier = (sc.ghost.tier || '-').padEnd(14, ' ').slice(0, 14);
+    const name = (sc.ghost.name || '-').padEnd(24, ' ').slice(0, 24);
+    const stripe = String(sc.ghost.stripeCustomerId || '-').slice(-4).padStart(4, ' ');
+    const gid = String(sc.ghost.id || '').slice(-6).padStart(6, ' ');
+    const del = (sc.ghost_preferred_fields_for_merge.deletedAt ? 'DELETED→inv' : '-');
+    const el = sc.emailLower.padEnd(30, ' ').slice(0, 30);
+    console.log(`  ${el} | ${gid} | ${name} | ${tier} | ${stripe} | ${sc.pgRows.length} | ${del}`);
+  }
 
   if (!APPLY) {
-    console.log('DRY-RUN complete. Re-run with --apply to write (visibility + Ghost-priority upserts + audit rows).');
+    console.log('\nDRY-RUN complete. Re-run with --apply to write (visibility + Ghost-priority upserts + audit rows).');
     process.exit(0);
   }
 
