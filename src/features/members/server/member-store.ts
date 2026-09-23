@@ -381,17 +381,18 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const placeholders = normalized.map((_, i) => `$${i + 1}`).join(',');
+      const matchExpr = `LOWER(TRIM(COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email'), lower(data->>'Email'), lower(data->>'user_email'), lower(data->>'userEmail'), email, '')))`;
       const before = await pool.query(
-        `SELECT clerk_id, visibility, email_lower FROM member_profiles WHERE COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email')) IN (${placeholders})`,
+        `SELECT clerk_id, visibility, ${matchExpr} AS email_match FROM member_profiles WHERE ${matchExpr} IN (${placeholders})`,
         normalized,
       );
       const byId = new Map<string, { vis: MemberVisibility; emailLower?: string }>();
       for (const r of before.rows) {
         const v: MemberVisibility = r.visibility === 'invisible' ? 'invisible' : 'visible';
-        byId.set(String(r.clerk_id), { vis: v, emailLower: r.email_lower ?? undefined });
+        byId.set(String(r.clerk_id), { vis: v, emailLower: (r.email_match as string) ?? undefined });
       }
       const res = await pool.query(
-        `UPDATE member_profiles SET visibility = $1::text, updated_at = NOW() WHERE COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email')) IN (${placeholders})`,
+        `UPDATE member_profiles SET visibility = $1::text, updated_at = NOW() WHERE ${matchExpr} IN (${placeholders})`,
         [visibility, ...normalized],
       );
       const updatedRows = Number(res.rowCount ?? 0);
