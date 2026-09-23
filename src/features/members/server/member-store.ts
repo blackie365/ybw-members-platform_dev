@@ -9,6 +9,8 @@ import { initMemberPgSchema } from './member-schema';
  * derived from Ghost. Legacy billing fields (if copied over during migration)
  * are retained for audit only and must not be used for premium gating.
  */
+export type MemberVisibility = 'visible' | 'invisible';
+
 export type MemberProfile = Record<string, unknown> & {
   clerkId: string;
   email?: string;
@@ -23,6 +25,7 @@ export type MemberProfile = Record<string, unknown> & {
   isAdmin?: boolean;
   isFeatured?: boolean;
   isActive?: boolean;
+  visibility?: MemberVisibility;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -37,21 +40,46 @@ export interface WriteMemberInput {
   profile: Record<string, unknown>;
 }
 
+export interface MemberListOptions {
+  /** If true, also return rows with visibility='invisible'. Defaults to false
+   *  (public-safe: only visible members returned). */
+  includeInvisible?: boolean;
+}
+
+export interface VisibilityChangeResult {
+  updatedRows: number;
+  changedRows: number;
+  auditLogIds: number[];
+}
+
+export interface GhostPriorityMemberInput {
+  /** Join key (required, always lowercased for comparison). */
+  emailLower: string;
+  /** The Clerk-ish id to use for the PG row. Ghost member UUID is acceptable
+   *  (not the same as clerk_id native auth, but acceptable for PG rows that
+   *  originated in Ghost and only exist in PG for the visibility join). */
+  ghostMemberId: string;
+  /** Full profile payload — wins any PG-side conflicts per spec. */
+  profile: Record<string, unknown>;
+  visibility?: MemberVisibility;
+}
+
 /**
  * Member store interface. Implementations read/write member profiles (the
  * directory/profile domain). Paid-state gating is handled separately via Ghost;
  * this store only manages profile data.
  */
 export interface MemberStore {
-  getMemberByClerkId(clerkId: string): Promise<MemberProfile | null>;
-  getMemberByEmail(email: string): Promise<MemberProfile | null>;
-  getMemberBySlug(slug: string): Promise<MemberProfile | null>;
-  queryOne(query: MemberQuery): Promise<MemberProfile | null>;
-  getAllActive(): Promise<MemberProfile[]>;
-  getAll(): Promise<MemberProfile[]>;
-  getFeatured(limit?: number): Promise<MemberProfile[]>;
-  getRecent(limit?: number): Promise<MemberProfile[]>;
-  countActive(): Promise<number>;
+  getMemberByClerkId(clerkId: string, opts?: MemberListOptions): Promise<MemberProfile | null>;
+  getMemberByEmail(email: string, opts?: MemberListOptions): Promise<MemberProfile | null>;
+  getMemberBySlug(slug: string, opts?: MemberListOptions): Promise<MemberProfile | null>;
+  queryOne(query: MemberQuery, opts?: MemberListOptions): Promise<MemberProfile | null>;
+  getAllActive(opts?: MemberListOptions): Promise<MemberProfile[]>;
+  getAll(opts?: MemberListOptions): Promise<MemberProfile[]>;
+  getAllAdmin(): Promise<MemberProfile[]>;
+  getFeatured(limit?: number, opts?: MemberListOptions): Promise<MemberProfile[]>;
+  getRecent(limit?: number, opts?: MemberListOptions): Promise<MemberProfile[]>;
+  countActive(opts?: MemberListOptions): Promise<number>;
   upsert(input: WriteMemberInput): Promise<void>;
   patch(clerkId: string, patch: Record<string, unknown>): Promise<void>;
   setFeatured(clerkId: string, featured: boolean): Promise<void>;
@@ -68,13 +96,36 @@ export interface MemberStore {
   setFlags(clerkId: string, flags: Record<string, string>): Promise<void>;
   /** Remove top-level fields from the member's data blob (atomic). */
   removeFields(clerkId: string, fields: string[]): Promise<void>;
+  setEmailsVisibility(emailLowers: string[], visibility: MemberVisibility, operator?: string): Promise<VisibilityChangeResult>;
+  upsertGhostPriority(input: GhostPriorityMemberInput, operator?: string): Promise<{ changed: boolean; upsertedRow: boolean; auditLogId: number | null }>;
+  writeAuditLog(entry: {
+    action: string;
+    targetType: string;
+    targetId: string;
+    emailLower?: string;
+    visibilityBefore?: MemberVisibility;
+    visibilityAfter?: MemberVisibility;
+    fieldsChanged?: Record<string, unknown>;
+    note?: string;
+    operator?: string;
+  }): Promise<number>;
   health(): Promise<boolean>;
 }
 
-function toMember(row: { data: unknown; clerk_id?: string } | undefined): MemberProfile | null {
+function toMember(
+  row: { data: unknown; clerk_id?: string; visibility?: unknown } | undefined,
+): MemberProfile | null {
   if (!row) return null;
   const data = (row.data as Record<string, unknown>) ?? {};
-  return { ...data, clerkId: (row.clerk_id || (data.clerkId as string)) as string } as MemberProfile;
+  const vis =
+    row.visibility === 'invisible' || row.visibility === 'visible'
+      ? (row.visibility as MemberVisibility)
+      : ((data.visibility as MemberVisibility) ?? 'visible');
+  return {
+    ...data,
+    clerkId: (row.clerk_id || (data.clerkId as string)) as string,
+    visibility: vis,
+  } as MemberProfile;
 }
 
 function extract(row: Record<string, unknown>, field: string): unknown {
@@ -116,11 +167,55 @@ export class PgMemberStore implements MemberStore {
     return this.ready();
   }
 
-  async getMemberByClerkId(clerkId: string): Promise<MemberProfile | null> {
+  private visFilter(opts?: MemberListOptions): string {
+    return opts?.includeInvisible ? '' : " AND visibility = 'visible'";
+  }
+
+  async writeAuditLog(entry: {
+    action: string;
+    targetType: string;
+    targetId: string;
+    emailLower?: string;
+    visibilityBefore?: MemberVisibility;
+    visibilityAfter?: MemberVisibility;
+    fieldsChanged?: Record<string, unknown>;
+    note?: string;
+    operator?: string;
+  }): Promise<number> {
+    if (!(await this.ready())) return -1;
+    try {
+      const pool = getMagazinePgPool()!;
+      const { rows } = await pool.query(
+        `INSERT INTO member_audit_log (action, target_type, target_id, email_lower, operator, visibility_before, visibility_after, fields_changed, note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         RETURNING id`,
+        [
+          entry.action,
+          entry.targetType,
+          entry.targetId,
+          entry.emailLower?.toLowerCase() ?? null,
+          entry.operator || 'system',
+          entry.visibilityBefore ?? null,
+          entry.visibilityAfter ?? null,
+          entry.fieldsChanged ? JSON.stringify(entry.fieldsChanged) : null,
+          entry.note ?? null,
+        ],
+      );
+      return Number(rows[0]?.id) || 0;
+    } catch (err) {
+      console.warn('[PgMemberStore] writeAuditLog failed:', err);
+      return -1;
+    }
+  }
+
+  async getMemberByClerkId(clerkId: string, opts?: MemberListOptions): Promise<MemberProfile | null> {
     if (!(await this.ready())) return null;
     try {
       const pool = getMagazinePgPool()!;
-      const { rows } = await pool.query('SELECT clerk_id, data FROM member_profiles WHERE clerk_id = $1', [clerkId]);
+      const { rows } = await pool.query(
+        `SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1${this.visFilter(opts)}`,
+        [clerkId],
+      );
       return toMember(rows[0]);
     } catch (err) {
       console.warn(`[PgMemberStore] getMemberByClerkId(${clerkId}) failed:`, err);
@@ -128,14 +223,14 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getMemberByEmail(email: string): Promise<MemberProfile | null> {
+  async getMemberByEmail(email: string, opts?: MemberListOptions): Promise<MemberProfile | null> {
     if (!(await this.ready())) return null;
     const lower = String(email || '').trim().toLowerCase();
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE (email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1)${this.visFilter(opts)}
          ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
          LIMIT 1`,
         [lower],
@@ -147,13 +242,13 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getMemberBySlug(slug: string): Promise<MemberProfile | null> {
+  async getMemberBySlug(slug: string, opts?: MemberListOptions): Promise<MemberProfile | null> {
     if (!(await this.ready())) return null;
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1)${this.visFilter(opts)}
          LIMIT 1`,
         [slug],
       );
@@ -164,14 +259,14 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async queryOne(query: MemberQuery): Promise<MemberProfile | null> {
+  async queryOne(query: MemberQuery, opts?: MemberListOptions): Promise<MemberProfile | null> {
     if (!(await this.ready())) return null;
     const param = valueToParam(query.value);
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE data->>'${query.field.replace(/[^a-zA-Z0-9_]/g, '')}' = $1
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE data->>'${sanitizeField(query.field)}' = $1${this.visFilter(opts)}
          LIMIT 1`,
         [param],
       );
@@ -182,13 +277,13 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getAllActive(): Promise<MemberProfile[]> {
+  async getAllActive(opts?: MemberListOptions): Promise<MemberProfile[]> {
     if (!(await this.ready())) return [];
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE is_active = true
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE is_active = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST`,
       );
       return rows.map((r) => toMember(r) as MemberProfile);
@@ -198,12 +293,14 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getAll(): Promise<MemberProfile[]> {
+  async getAll(opts?: MemberListOptions): Promise<MemberProfile[]> {
     if (!(await this.ready())) return [];
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        'SELECT clerk_id, data FROM member_profiles ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST',
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE 1=1${this.visFilter(opts)}
+         ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST`,
       );
       return rows.map((r) => toMember(r) as MemberProfile);
     } catch (err) {
@@ -212,13 +309,17 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getFeatured(limit = 1): Promise<MemberProfile[]> {
+  async getAllAdmin(): Promise<MemberProfile[]> {
+    return this.getAll({ includeInvisible: true });
+  }
+
+  async getFeatured(limit = 1, opts?: MemberListOptions): Promise<MemberProfile[]> {
     if (!(await this.ready())) return [];
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE is_featured = true
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE is_featured = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,
         [limit],
@@ -230,13 +331,13 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async getRecent(limit = 50): Promise<MemberProfile[]> {
+  async getRecent(limit = 50, opts?: MemberListOptions): Promise<MemberProfile[]> {
     if (!(await this.ready())) return [];
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data FROM member_profiles
-         WHERE is_active = true
+        `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE is_active = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,
         [limit],
@@ -248,15 +349,160 @@ export class PgMemberStore implements MemberStore {
     }
   }
 
-  async countActive(): Promise<number> {
+  async countActive(opts?: MemberListOptions): Promise<number> {
     if (!(await this.ready())) return 0;
     try {
       const pool = getMagazinePgPool()!;
-      const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM member_profiles WHERE is_active = true');
+      const { rows } = await pool.query(
+        `SELECT COUNT(*)::int AS n FROM member_profiles WHERE is_active = true${this.visFilter(opts)}`,
+      );
       return rows[0]?.n ?? 0;
     } catch (err) {
       console.warn('[PgMemberStore] countActive failed:', err);
       return 0;
+    }
+  }
+
+  async setEmailsVisibility(
+    emailLowers: string[],
+    visibility: MemberVisibility,
+    operator: string = 'system',
+  ): Promise<VisibilityChangeResult> {
+    if (!(await this.ready())) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    if (!emailLowers?.length) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    const normalized = Array.from(
+      new Set(
+      emailLowers
+        .map((e) => String(e ?? ''))
+        .filter(Boolean)
+        .map((e) => e.toLowerCase()),
+    ));
+    if (!normalized.length) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    try {
+      const pool = getMagazinePgPool()!;
+      const placeholders = normalized.map((_, i) => `$${i + 1}`).join(',');
+      const before = await pool.query(
+        `SELECT clerk_id, visibility, email_lower FROM member_profiles WHERE COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email')) IN (${placeholders})`,
+        normalized,
+      );
+      const byId = new Map<string, { vis: MemberVisibility; emailLower?: string }>();
+      for (const r of before.rows) {
+        const v: MemberVisibility = r.visibility === 'invisible' ? 'invisible' : 'visible';
+        byId.set(String(r.clerk_id), { vis: v, emailLower: r.email_lower ?? undefined });
+      }
+      const res = await pool.query(
+        `UPDATE member_profiles SET visibility = $1::text, updated_at = NOW() WHERE COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email')) IN (${placeholders})`,
+        [visibility, ...normalized],
+      );
+      const updatedRows = Number(res.rowCount ?? 0);
+      const auditLogIds: number[] = [];
+      let changed = 0;
+      for (const [clerkId, info] of byId.entries()) {
+        const afterVis = visibility;
+        const beforeVis = info.vis as MemberVisibility;
+        if (beforeVis !== afterVis) {
+          changed++;
+          const lid = await this.writeAuditLog({
+            action: visibility === 'invisible' ? 'visibility.hide' : 'visibility.show',
+            targetType: 'member_profiles',
+            targetId: clerkId,
+            emailLower: info.emailLower,
+            visibilityBefore: beforeVis,
+            visibilityAfter: afterVis,
+            note: visibility === 'invisible'
+              ? 'email not present in Ghost CMS authoritative list → set invisible (no DELETE performed; original data retained)'
+              : 're-added email now matches Ghost CMS list → visibility=visible',
+            operator,
+          });
+          if (lid > 0) auditLogIds.push(lid);
+        }
+      }
+      return { updatedRows, changedRows: changed, auditLogIds };
+    } catch (err) {
+      console.warn('[PgMemberStore] setEmailsVisibility failed:', err);
+      return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    }
+  }
+
+  async upsertGhostPriority(
+    input: GhostPriorityMemberInput,
+    operator: string = 'system',
+  ): Promise<{ changed: boolean; upsertedRow: boolean; auditLogId: number | null }> {
+    if (!(await this.ready())) return { changed: false, upsertedRow: false, auditLogId: null };
+    const emailLower = String(input.emailLower || '').toLowerCase();
+    if (!emailLower) return { changed: false, upsertedRow: false, auditLogId: null };
+    const profile: Record<string, unknown> = {
+      ...(input.profile || {}),
+      emailLower,
+      visibility: input.visibility ?? 'visible',
+    };
+    const clerkId = String(input.ghostMemberId || (profile.clerkId as string) || `ghost-${emailLower}`);
+    const email = (profile.email as string) || undefined;
+    const memberSlug = (profile.memberSlug as string) || (profile.slug as string) || undefined;
+    const isFeatured = !!profile.isFeatured;
+    const isActive = profile.isActive === false ? false : profile.userInactive === true ? false : true;
+    const visibility: MemberVisibility = (input.visibility as MemberVisibility) ?? 'visible';
+    const role = (profile.role as string) || undefined;
+    const createdAt = profile.createdAt ? new Date(String(profile.createdAt)).toISOString() : null;
+    const updatedAt = profile.updatedAt ? new Date(String(profile.updatedAt)).toISOString() : null;
+    try {
+      const pool = getMagazinePgPool()!;
+      const prior = await pool.query(
+        `SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1`,
+        [clerkId],
+      );
+      const fieldsChanged: Record<string, unknown> = {};
+      const before = prior.rows[0];
+      const beforeData = before?.data ? (before.data as Record<string, unknown>) : null;
+      const beforeVisibility = (before?.visibility as MemberVisibility) ?? 'visible';
+      await pool.query(
+        `INSERT INTO member_profiles (clerk_id, data, email, email_lower, member_slug, is_featured, is_active, visibility, role, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (clerk_id) DO UPDATE SET
+           data = EXCLUDED.data,
+           email = EXCLUDED.email,
+           email_lower = EXCLUDED.email_lower,
+           member_slug = EXCLUDED.member_slug,
+           is_featured = EXCLUDED.is_featured,
+           is_active = EXCLUDED.is_active,
+           visibility = EXCLUDED.visibility,
+           role = EXCLUDED.role,
+           created_at = COALESCE(member_profiles.created_at, EXCLUDED.created_at),
+           updated_at = COALESCE(EXCLUDED.updated_at, member_profiles.updated_at)`,
+        [clerkId, JSON.stringify(profile), email, emailLower, memberSlug, isFeatured, isActive, visibility, role, createdAt, updatedAt],
+      );
+      const upsertedRow = !before;
+      if (beforeData) {
+        for (const [k, v] of Object.entries(profile)) {
+          const existing = beforeData[k];
+          if (JSON.stringify(existing) !== JSON.stringify(v)) {
+            fieldsChanged[k] = { before: existing ?? null, after: v ?? null };
+          }
+        }
+      }
+      const visibilityChanged = !!before && beforeVisibility !== visibility;
+      if (visibilityChanged) fieldsChanged['_visibility'] = { before: beforeVisibility, after: visibility };
+      const changed = Object.keys(fieldsChanged).length > 0;
+      let auditLogId: number | null = null;
+      if (upsertedRow || changed) {
+        auditLogId = await this.writeAuditLog({
+          action: upsertedRow ? 'merge.upsert_ghost_new' : 'merge.upsert_ghost_priority',
+          targetType: 'member_profiles',
+          targetId: clerkId,
+          emailLower,
+          visibilityBefore: before ? beforeVisibility : undefined,
+          visibilityAfter: visibility,
+          fieldsChanged,
+          note: upsertedRow
+            ? 'Ghost authoritative member row inserted into PG (Ghost-priority first sync)'
+            : 'PG member row merged from Ghost authoritative side; Ghost wins all field conflicts per rule set',
+          operator,
+        });
+      }
+      return { changed, upsertedRow, auditLogId };
+    } catch (err) {
+      console.warn(`[PgMemberStore] upsertGhostPriority(${emailLower}) failed:`, err);
+      return { changed: false, upsertedRow: false, auditLogId: null };
     }
   }
 
@@ -268,14 +514,15 @@ export class PgMemberStore implements MemberStore {
     const memberSlug = (profile.memberSlug as string) || (profile.slug as string) || undefined;
     const isFeatured = !!profile.isFeatured;
     const isActive = profile.isActive === false ? false : profile.userInactive === true ? false : true;
+    const visibility = (profile.visibility as MemberVisibility) ?? 'visible';
     const role = (profile.role as string) || undefined;
     const createdAt = profile.createdAt ? new Date(String(profile.createdAt)).toISOString() : null;
     const updatedAt = profile.updatedAt ? new Date(String(profile.updatedAt)).toISOString() : null;
     try {
       const pool = getMagazinePgPool()!;
       await pool.query(
-        `INSERT INTO member_profiles (clerk_id, data, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `INSERT INTO member_profiles (clerk_id, data, email, email_lower, member_slug, is_featured, is_active, visibility, role, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (clerk_id) DO UPDATE SET
            data = EXCLUDED.data,
            email = EXCLUDED.email,
@@ -283,10 +530,11 @@ export class PgMemberStore implements MemberStore {
            member_slug = EXCLUDED.member_slug,
            is_featured = EXCLUDED.is_featured,
            is_active = EXCLUDED.is_active,
+           visibility = EXCLUDED.visibility,
            role = EXCLUDED.role,
            created_at = COALESCE(member_profiles.created_at, EXCLUDED.created_at),
            updated_at = COALESCE(EXCLUDED.updated_at, member_profiles.updated_at)`,
-        [clerkId, JSON.stringify(profile), email, emailLower, memberSlug, isFeatured, isActive, role, createdAt, updatedAt],
+        [clerkId, JSON.stringify(profile), email, emailLower, memberSlug, isFeatured, isActive, visibility, role, createdAt, updatedAt],
       );
     } catch (err) {
       console.warn(`[PgMemberStore] upsert(${clerkId}) failed:`, err);
@@ -297,9 +545,15 @@ export class PgMemberStore implements MemberStore {
     if (!(await this.ready())) return;
     try {
       const pool = getMagazinePgPool()!;
-      const { rows } = await pool.query('SELECT data FROM member_profiles WHERE clerk_id = $1', [clerkId]);
+      const { rows } = await pool.query('SELECT data, visibility FROM member_profiles WHERE clerk_id = $1', [clerkId]);
       const existing = rows[0] ? ((rows[0].data as Record<string, unknown>) ?? {}) : {};
       const merged = { ...existing, ...patch, clerkId };
+      const visibility =
+        patch.visibility === 'invisible' || patch.visibility === 'visible'
+          ? (patch.visibility as MemberVisibility)
+          : ((rows[0]?.visibility as MemberVisibility) ?? 'visible');
+      const visibilityWrite =
+        patch.visibility === 'invisible' || patch.visibility === 'visible' ? visibility : null;
       await pool.query(
         `UPDATE member_profiles
          SET data = $2,
@@ -308,8 +562,9 @@ export class PgMemberStore implements MemberStore {
              member_slug = COALESCE($5, member_slug),
              is_featured = COALESCE($6, is_featured),
              is_active = COALESCE($7, is_active),
-             role = COALESCE($8, role),
-             updated_at = COALESCE($9, updated_at)
+             visibility = COALESCE($8::text, visibility),
+             role = COALESCE($9, role),
+             updated_at = COALESCE($10, updated_at)
          WHERE clerk_id = $1`,
         [
           clerkId,
@@ -319,6 +574,7 @@ export class PgMemberStore implements MemberStore {
           (patch.memberSlug as string) || (patch.slug as string) || (existing.memberSlug as string) || null,
           patch.isFeatured !== undefined ? !!patch.isFeatured : null,
           patch.isActive !== undefined ? !!patch.isActive : null,
+          visibilityWrite,
           (patch.role as string) || (existing.role as string) || null,
           patch.updatedAt ? new Date(String(patch.updatedAt)).toISOString() : new Date().toISOString(),
         ],

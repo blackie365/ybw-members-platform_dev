@@ -18,7 +18,7 @@ export async function getAdminOverviewStats() {
 
     // Fetch stats
     const [allMembers, totalEvents, upcomingEvents, totalMessages] = await Promise.all([
-      getMemberStore().getAll(),
+      getMemberStore().getAllAdmin(),
       getPgEventStore().countAll(),
       getPgEventStore().countUpcoming(),
       getPgMessageThreadStore().countAll(),

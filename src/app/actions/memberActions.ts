@@ -13,7 +13,7 @@ export async function getMembersAction() {
     await checkAdmin();
     const store = getMemberStore();
 
-    const all = await store.getAll();
+    const all = await store.getAllAdmin();
 
     const members = all
       .filter((m: any) => m.userInactive !== true)
@@ -40,7 +40,7 @@ export async function toggleFeaturedStatus(memberId: string, status: boolean) {
     const store = getMemberStore();
 
     if (status) {
-      const currentlyFeatured = await store.getFeatured();
+      const currentlyFeatured = await store.getFeatured(999, { includeInvisible: true });
       for (const member of currentlyFeatured) {
         if (member.clerkId !== memberId) {
           await store.setFeatured(member.clerkId, false);

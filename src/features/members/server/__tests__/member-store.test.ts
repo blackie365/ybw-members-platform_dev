@@ -19,13 +19,13 @@ const store = () => new PgMemberStore();
 
 describe('PgMemberStore — lookups', () => {
   it('getMemberByClerkId maps row to MemberProfile with clerkId injected', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: { displayName: 'Ada', email: 'a@x.com' } }] });
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: { displayName: 'Ada', email: 'a@x.com' }, visibility: 'visible' }] });
     const out = await store().getMemberByClerkId('u1');
     expect(fakePool.query).toHaveBeenCalledWith(
-      'SELECT clerk_id, data FROM member_profiles WHERE clerk_id = $1',
+      "SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1 AND visibility = 'visible'",
       ['u1'],
     );
-    expect(out).toEqual({ displayName: 'Ada', email: 'a@x.com', clerkId: 'u1' });
+    expect(out).toEqual({ displayName: 'Ada', email: 'a@x.com', clerkId: 'u1', visibility: 'visible' });
   });
 
   it('lookups return null when no row matches', async () => {
@@ -34,34 +34,34 @@ describe('PgMemberStore — lookups', () => {
   });
 
   it('getMemberByEmail normalises to lowercase and matches email_lower / emailLower / email', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u2', data: { email: 'a@x.com' } }] });
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u2', data: { email: 'a@x.com' }, visibility: 'visible' }] });
     const out = await store().getMemberByEmail('  A@X.COM ');
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data FROM member_profiles
-         WHERE email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1
+      `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE (email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1) AND visibility = 'visible'
          ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
          LIMIT 1`,
       ['a@x.com'],
     );
-    expect(out).toEqual({ email: 'a@x.com', clerkId: 'u2' });
+    expect(out).toEqual({ email: 'a@x.com', clerkId: 'u2', visibility: 'visible' });
   });
 
   it('getMemberBySlug matches member_slug / memberSlug / slug / id', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u3', data: { memberSlug: 'ada' } }] });
-    expect(await store().getMemberBySlug('ada')).toEqual({ memberSlug: 'ada', clerkId: 'u3' });
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u3', data: { memberSlug: 'ada' }, visibility: 'visible' }] });
+    expect(await store().getMemberBySlug('ada')).toEqual({ memberSlug: 'ada', clerkId: 'u3', visibility: 'visible' });
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data FROM member_profiles
-         WHERE member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1
+      `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1) AND visibility = 'visible'
          LIMIT 1`,
       ['ada'],
     );
   });
 
   it('queryOne sanitises the field name and compares data->>field', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u4', data: { industry: 'Tech' } }] });
-    expect(await store().queryOne({ field: 'industry', value: 'Tech' })).toEqual({ industry: 'Tech', clerkId: 'u4' });
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u4', data: { industry: 'Tech' }, visibility: 'visible' }] });
+    expect(await store().queryOne({ field: 'industry', value: 'Tech' })).toEqual({ industry: 'Tech', clerkId: 'u4', visibility: 'visible' });
     expect(fakePool.query).toHaveBeenCalledWith(
-      "SELECT clerk_id, data FROM member_profiles\n         WHERE data->>'industry' = $1\n         LIMIT 1",
+      "SELECT clerk_id, data, visibility FROM member_profiles\n         WHERE data->>'industry' = $1 AND visibility = 'visible'\n         LIMIT 1",
       ['Tech'],
     );
   });
@@ -71,27 +71,27 @@ describe('PgMemberStore — collections & counts', () => {
   it('getAllActive filters is_active and orders by created_at desc, injecting clerkId', async () => {
     fakePool.query.mockResolvedValue({
       rows: [
-        { clerk_id: 'u1', data: { displayName: 'A' } },
-        { clerk_id: 'u2', data: { displayName: 'B' } },
+        { clerk_id: 'u1', data: { displayName: 'A' }, visibility: 'visible' },
+        { clerk_id: 'u2', data: { displayName: 'B' }, visibility: 'visible' },
       ],
     });
     expect(await store().getAllActive()).toEqual([
-      { displayName: 'A', clerkId: 'u1' },
-      { displayName: 'B', clerkId: 'u2' },
+      { displayName: 'A', clerkId: 'u1', visibility: 'visible' },
+      { displayName: 'B', clerkId: 'u2', visibility: 'visible' },
     ]);
   });
 
   it('getAll returns all rows mapped to MemberProfile', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: { email: 'a@x.com' } }] });
-    expect(await store().getAll()).toEqual([{ email: 'a@x.com', clerkId: 'u1' }]);
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: { email: 'a@x.com' }, visibility: 'visible' }] });
+    expect(await store().getAll()).toEqual([{ email: 'a@x.com', clerkId: 'u1', visibility: 'visible' }]);
   });
 
   it('getFeatured passes limit and filters is_featured', async () => {
-    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: {} }] });
-    expect(await store().getFeatured(3)).toEqual([{ clerkId: 'u1' }]);
+    fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: {}, visibility: 'visible' }] });
+    expect(await store().getFeatured(3)).toEqual([{ clerkId: 'u1', visibility: 'visible' }]);
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data FROM member_profiles
-         WHERE is_featured = true
+      `SELECT clerk_id, data, visibility FROM member_profiles
+         WHERE is_featured = true AND visibility = 'visible'
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,
       [3],
@@ -142,6 +142,7 @@ describe('PgMemberStore — writes', () => {
         'ada',
         true,
         true,
+        'visible',
         'member',
         '2024-01-01T00:00:00.000Z',
         '2024-01-02T00:00:00.000Z',
@@ -155,11 +156,12 @@ describe('PgMemberStore — writes', () => {
     const params = fakePool.query.mock.calls[0][1];
     expect(params[3]).toBe('b@x.com');
     expect(params[6]).toBe(false);
+    expect(params[7]).toBe('visible');
   });
 
   it('patch merges existing data with the patch and injects clerkId', async () => {
     fakePool.query
-      .mockResolvedValueOnce({ rows: [{ data: { displayName: 'Ada', email: 'a@x.com' } }] })
+      .mockResolvedValueOnce({ rows: [{ data: { displayName: 'Ada', email: 'a@x.com' }, visibility: 'visible' }] })
       .mockResolvedValueOnce({ rows: [] });
     await store().patch('u1', { status: 'active', updatedAt: '2024-02-02T00:00:00.000Z' });
     expect(fakePool.query.mock.calls[1][1][1]).toBe(

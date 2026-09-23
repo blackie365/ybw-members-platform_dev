@@ -108,12 +108,12 @@ export async function checkAdmin() {
     const store = getMemberStore();
     let byId = false;
     let byEmail = false;
-    const byIdProfile = await store.getMemberByClerkId(userId);
+    const byIdProfile = await store.getMemberByClerkId(userId, { includeInvisible: true });
     if (byIdProfile) {
       byId = isAdminField(byIdProfile?.isAdmin) || isAdminField(byIdProfile?.role);
     }
     if (!byId && userEmail) {
-      const byEmailProfile = await store.getMemberByEmail(userEmail);
+      const byEmailProfile = await store.getMemberByEmail(userEmail, { includeInvisible: true });
       if (byEmailProfile) {
         byEmail = isAdminField(byEmailProfile?.isAdmin) || isAdminField(byEmailProfile?.role);
       }

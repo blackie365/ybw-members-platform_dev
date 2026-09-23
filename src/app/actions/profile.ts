@@ -53,7 +53,7 @@ export async function getProfile(uid: string) {
     await validateUserOrAdmin(uid);
 
     const store = getMemberStore();
-    let data = await store.getMemberByClerkId(uid);
+    let data = await store.getMemberByClerkId(uid, { includeInvisible: true });
 
     if (!data) {
       const clerkUser = await currentUser();
@@ -75,7 +75,7 @@ export async function getProfile(uid: string) {
         const avatarUrl = clerkUser?.imageUrl || '';
 
         // Existing profile by email? Merge its persisted fields under the Clerk id.
-        const existing = await store.getMemberByEmail(email);
+        const existing = await store.getMemberByEmail(email, { includeInvisible: true });
 
         await store.upsert({
           clerkId: uid,
@@ -141,7 +141,7 @@ export async function reconcilePostCheckout(uid: string) {
     await validateUserOrAdmin(uid);
 
     const store = getMemberStore();
-    let member = await store.getMemberByClerkId(uid);
+    let member = await store.getMemberByClerkId(uid, { includeInvisible: true });
     if (!member) return { success: true, updated: false };
 
     const data = (member as Record<string, unknown>) || {};
@@ -196,7 +196,7 @@ export async function reconcilePostCheckout(uid: string) {
       }
     }
 
-    const refreshed = (await store.getMemberByClerkId(uid)) || {};
+    const refreshed = (await store.getMemberByClerkId(uid, { includeInvisible: true })) || {};
     const paid = isPaidSignal(refreshed);
 
     if (paid && email) {
