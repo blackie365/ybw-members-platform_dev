@@ -47,16 +47,17 @@ async function getAllGhostMembers(): Promise<GhostMember[]> {
   let page = 1;
   const limit = 100;
   while (true) {
-    const pageRes = (await admin.members.browse({
+    const resp: any = await admin.members.browse({
       page,
       limit,
       order: 'created_at DESC',
-    })) as { data?: GhostMember[]; meta?: { pages?: number; total?: number } };
-    const rows = Array.isArray((pageRes as any)?.data) ? (pageRes as any).data : Array.isArray(pageRes) ? pageRes : [];
+    });
+    const rows = (resp as any).members || (Array.isArray(resp) ? resp : []);
+    if (rows.length === 0) break;
     out.push(...rows);
-    const metaPages = (pageRes as any)?.meta?.pages;
-    if (!metaPages || page >= Number(metaPages) || rows.length < 1) break;
-    page = page + 1;
+    const meta = (resp as any).meta?.pagination;
+    if (!meta || !meta.pages || page >= Number(meta.pages)) break;
+    page += 1;
   }
   return out;
 }
