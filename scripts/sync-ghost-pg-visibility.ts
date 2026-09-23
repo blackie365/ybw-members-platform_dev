@@ -284,15 +284,45 @@ async function main() {
   console.log('  project_postapply_visible  :', pgRowsThatRemainVisible + plan.counts.new_rows_to_insert_from_ghost_not_in_pg);
   console.log('  project_postapply_invisible:', pgRowsToBeInvisible);
 
-  console.log('\n--- SAMPLE: 12 of', toHideEmails.length, 'emails TO BE MARKED INVISIBLE (verify: no paid Stripe members should appear here) ---');
+  console.log('\n--- COMPLETE LIST:', toHideEmails.length, 'emails TO BE MARKED INVISIBLE (all 89) — verify: no paid Stripe should appear here ---');
   const sortedHide = [...toHideEmails].sort();
-  const hideSample = sortedHide.length <= 12 ? sortedHide : pickSpotSample(sortedHide, Math.min(12, sortedHide.length));
-  for (const el of hideSample) {
+  const toHideWithPaid: {
+    emailLower: string;
+    rowCount: number;
+    paid: boolean;
+    stripeCustomerIdLast4: string | null;
+    paidMembershipTier: string | null;
+    nameSample: string[];
+  }[] = [];
+  for (const el of sortedHide) {
     const rows = pgByEmailLower.get(el) || [];
-    const paidStripe = rows.some((r: any) => !!r.stripeCustomerId || !!r.paidMembershipTier || !!r.paypalPayerEmail);
-    const displayNames = rows.map((r: any) => (r.displayName || r.firstName + ' ' + (r.lastName || '')).trim()).filter(Boolean);
+    const paid = rows.some(
+      (r: any) => !!r.stripeCustomerId || !!r.paidMembershipTier || !!r.paypalPayerEmail,
+    );
+    const anyRow = rows[0] as any;
+    toHideWithPaid.push({
+      emailLower: el,
+      rowCount: rows.length,
+      paid,
+      stripeCustomerIdLast4: anyRow?.stripeCustomerId ? String(anyRow.stripeCustomerId).slice(-4) : null,
+      paidMembershipTier: anyRow?.paidMembershipTier || null,
+      nameSample: rows
+        .map((r: any) => (r.displayName || r.firstName + ' ' + (r.lastName || '')).trim())
+        .filter(Boolean)
+        .slice(0, 2),
+    });
+  }
+  const totalPaidInHide = toHideWithPaid.filter((r) => r.paid).length;
+  console.log(
+    `  (Total PAID candidates in to-hide = ${totalPaidInHide}. These MUST be reviewed: we NEVER hide paying members absent explicit user confirmation.)`,
+  );
+  for (const r of toHideWithPaid) {
+    const flag = r.paid ? '  PAID!' : '        ';
+    const stripe = r.stripeCustomerIdLast4 ? ` stripe[..${r.stripeCustomerIdLast4}]` : '';
+    const tier = r.paidMembershipTier ? ` tier=${r.paidMembershipTier}` : '';
+    const nm = r.nameSample.length ? ` name=${JSON.stringify(r.nameSample)}` : '';
     console.log(
-      `  * ${el}  (rows=${rows.length}  stripe_paid?=${paidStripe ? 'YES — REVIEW!' : 'no'}  name_sample=${JSON.stringify(displayNames.slice(0, 2))})`,
+      `  ${flag}  ${r.emailLower.padEnd(46, ' ').slice(0, 46)}  rows=${r.rowCount}${stripe}${tier}${nm}`,
     );
   }
 
@@ -305,12 +335,17 @@ async function main() {
     const name = (sc.ghost.name || '-').padEnd(24, ' ').slice(0, 24);
     const stripe = String(sc.ghost.stripeCustomerId || '-').slice(-4).padStart(4, ' ');
     const gid = String(sc.ghost.id || '').slice(-6).padStart(6, ' ');
-    const del = (sc.ghost_preferred_fields_for_merge.deletedAt ? 'DELETED→inv' : '-');
+    const del = sc.ghost_preferred_fields_for_merge.deletedAt ? 'DELETED→inv' : '-';
     const el = sc.emailLower.padEnd(30, ' ').slice(0, 30);
     console.log(`  ${el} | ${gid} | ${name} | ${tier} | ${stripe} | ${sc.pgRows.length} | ${del}`);
   }
 
   if (!APPLY) {
+    if (totalPaidInHide > 0) {
+      console.log(
+        `\n⚠️  DRY-RUN REVIEW BLOCKER: ${totalPaidInHide} to-hide emails carry a Stripe/PayPal/membership tier flag. These emails must be confirmed by the user BEFORE --apply. Sync will ONLY proceed with --apply after explicit user approval.`,
+      );
+    }
     console.log('\nDRY-RUN complete. Re-run with --apply to write (visibility + Ghost-priority upserts + audit rows).');
     process.exit(0);
   }
