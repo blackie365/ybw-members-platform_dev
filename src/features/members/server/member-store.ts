@@ -97,6 +97,7 @@ export interface MemberStore {
   /** Remove top-level fields from the member's data blob (atomic). */
   removeFields(clerkId: string, fields: string[]): Promise<void>;
   setEmailsVisibility(emailLowers: string[], visibility: MemberVisibility, operator?: string): Promise<VisibilityChangeResult>;
+  setClerkIdsVisibility(clerkIds: string[], visibility: MemberVisibility, operator?: string): Promise<VisibilityChangeResult>;
   upsertGhostPriority(input: GhostPriorityMemberInput, operator?: string): Promise<{ changed: boolean; upsertedRow: boolean; auditLogId: number | null }>;
   writeAuditLog(entry: {
     action: string;
@@ -422,6 +423,63 @@ export class PgMemberStore implements MemberStore {
       return { updatedRows, changedRows: changed, auditLogIds };
     } catch (err) {
       console.warn('[PgMemberStore] setEmailsVisibility failed:', err);
+      return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    }
+  }
+
+  async setClerkIdsVisibility(
+    clerkIds: string[],
+    visibility: MemberVisibility,
+    operator: string = 'maintenance-runner',
+  ): Promise<VisibilityChangeResult> {
+    if (!(await this.ready())) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    if (!clerkIds?.length) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    const normalized = Array.from(new Set(clerkIds.map((c) => String(c ?? '')).filter(Boolean)));
+    if (!normalized.length) return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
+    try {
+      const pool = getMagazinePgPool()!;
+      const selectPlaceholders = normalized.map((_, i) => `$${i + 1}`).join(',');
+      const updatePlaceholders = normalized.map((_, i) => `$${i + 2}`).join(',');
+      const matchExpr = `LOWER(TRIM(COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email'), lower(data->>'Email'), lower(data->>'user_email'), lower(data->>'userEmail'), email, '')))`;
+      const before = await pool.query(
+        `SELECT clerk_id, visibility, ${matchExpr} AS email_match FROM member_profiles WHERE clerk_id IN (${selectPlaceholders})`,
+        normalized,
+      );
+      const byId = new Map<string, { vis: MemberVisibility; emailLower?: string }>();
+      for (const r of before.rows) {
+        const v: MemberVisibility = r.visibility === 'invisible' ? 'invisible' : 'visible';
+        byId.set(String(r.clerk_id), { vis: v, emailLower: (r.email_match as string) ?? undefined });
+      }
+      const res = await pool.query(
+        `UPDATE member_profiles SET visibility = $1::text, updated_at = NOW() WHERE clerk_id IN (${updatePlaceholders})`,
+        [visibility, ...normalized],
+      );
+      const updatedRows = Number(res.rowCount ?? 0);
+      const auditLogIds: number[] = [];
+      let changed = 0;
+      for (const [clerkId, info] of byId.entries()) {
+        const afterVis = visibility;
+        const beforeVis = info.vis as MemberVisibility;
+        if (beforeVis !== afterVis) {
+          changed++;
+          const lid = await this.writeAuditLog({
+            action: visibility === 'invisible' ? 'visibility.hide' : 'visibility.show',
+            targetType: 'member_profiles',
+            targetId: clerkId,
+            emailLower: info.emailLower,
+            visibilityBefore: beforeVis,
+            visibilityAfter: afterVis,
+            note: visibility === 'invisible'
+              ? 'duplicate email group loser → set invisible (dedupe; original row retained, no DELETE)'
+              : 'duplicate email loser re-shown visibility=visible',
+            operator,
+          });
+          if (lid > 0) auditLogIds.push(lid);
+        }
+      }
+      return { updatedRows, changedRows: changed, auditLogIds };
+    } catch (err) {
+      console.warn('[PgMemberStore] setClerkIdsVisibility failed:', err);
       return { updatedRows: 0, changedRows: 0, auditLogIds: [] };
     }
   }

@@ -183,6 +183,30 @@ describe('PgMemberStore — writes', () => {
     await store().remove('u1');
     expect(fakePool.query).toHaveBeenCalledWith('DELETE FROM member_profiles WHERE clerk_id = $1', ['u1']);
   });
+
+  it('setClerkIdsVisibility uses clerk_id IN list + separate SELECT/UPDATE placeholder numbering, returns changed count', async () => {
+    fakePool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { clerk_id: 'u1', visibility: 'visible', email_match: 'a@x.com' },
+          { clerk_id: 'u2', visibility: 'visible', email_match: 'b@x.com' },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 2, rows: [] })
+      .mockResolvedValue({ rows: [{ id: 11 }] });
+    const res = await (store() as any).setClerkIdsVisibility(['u1', 'u2'], 'invisible', 'op-test');
+    const selectSql = (fakePool.query.mock.calls[0][0] as string);
+    const selectParams = fakePool.query.mock.calls[0][1];
+    expect(selectSql).toContain('WHERE clerk_id IN ($1,$2)');
+    expect(selectParams).toEqual(['u1', 'u2']);
+    const updateSql = (fakePool.query.mock.calls[1][0] as string);
+    const updateParams = fakePool.query.mock.calls[1][1];
+    expect(updateSql).toContain('SET visibility = $1::text');
+    expect(updateSql).toContain('WHERE clerk_id IN ($2,$3)');
+    expect(updateParams).toEqual(['invisible', 'u1', 'u2']);
+    expect(res.changedRows).toBe(2);
+    expect(res.auditLogIds.length).toBe(2);
+  });
 });
 
 describe('PgMemberStore — atomic claims & flags', () => {
