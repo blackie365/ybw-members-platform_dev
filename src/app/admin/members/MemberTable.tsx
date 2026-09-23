@@ -22,9 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Mail, UserCog, MoreHorizontal } from "lucide-react";
+import { Mail, UserCog, MoreHorizontal, EyeOff } from "lucide-react";
 
 export interface Member {
   id: string
@@ -42,6 +43,7 @@ export interface Member {
   isFeatured?: boolean
   createdAt: string
   updatedAt?: string
+  visibility?: 'visible' | 'invisible'
 }
 
 interface MemberTableProps {
@@ -81,19 +83,28 @@ export function MemberTable({
           {members.map((member) => {
             const fullName = member.displayName || `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown Member"
             const initial = (member.firstName?.[0] || member.displayName?.[0] || "?").toUpperCase()
+            const isInvisible = member.visibility === "invisible"
 
             return (
-              <TableRow key={member.id}>
+              <TableRow key={member.id} className={isInvisible ? "opacity-60 bg-slate-50/60" : ""}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
+                    <Avatar className={`h-9 w-9 ${isInvisible ? "grayscale" : ""}`}>
                       <AvatarImage src={member.avatarUrl || member.profileImage} alt={fullName} />
                       <AvatarFallback className="bg-accent/10 text-accent text-sm">
                         {initial}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">{fullName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{fullName}</p>
+                        {isInvisible && (
+                          <Badge variant="outline" className="h-5 text-[10px] px-1.5 py-0 border-slate-300 text-slate-500 bg-slate-100">
+                            <EyeOff className="h-3 w-3 mr-1" />
+                            Invisible
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">{member.email}</p>
                     </div>
                   </div>

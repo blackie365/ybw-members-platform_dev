@@ -8,12 +8,15 @@ import { getMagazinePgPool } from "@/features/magazine/server/read-store/pg-clie
 import { getPgEventStore } from "@/features/events/server/pg-events-store";
 import Stripe from "stripe";
 
-export async function getMembersAction() {
+export async function getMembersAction(opts?: { includeInvisible?: boolean }) {
   try {
     await checkAdmin();
     const store = getMemberStore();
 
-    const all = await store.getAllAdmin();
+    const includeInvisible = opts?.includeInvisible === true;
+    const all = includeInvisible
+      ? await store.getAllAdmin()
+      : await store.getAll();
 
     const members = all
       .filter((m: any) => m.userInactive !== true)
@@ -27,7 +30,10 @@ export async function getMembersAction() {
         ...doc,
       }));
 
-    return { success: true, data: members };
+    return {
+      success: true,
+      data: members,
+    };
   } catch (error: any) {
     console.error("Error in getMembersAction:", error);
     return { success: false, error: error.message };
