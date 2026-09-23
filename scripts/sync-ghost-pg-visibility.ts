@@ -11,6 +11,7 @@ import { normalizeBaseUrl } from '@/lib/ghost';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getMemberStore, type MemberProfile, type GhostPriorityMemberInput } from '@/features/members/server';
+import { closeMagazinePgPool } from '@/features/magazine/server/read-store/pg-client';
 
 type GhostMember = {
   id: string;
@@ -414,10 +415,19 @@ async function main() {
     }
   }
   console.log(`\nSPOT CHECK FINAL: PASS=${pass} FAIL=${fail}`);
-  if (fail > 0) process.exit(1);
+  if (fail > 0) {
+    await closeMagazinePgPool();
+    process.exit(1);
+  }
+  await closeMagazinePgPool();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error('ghost-pg-visibility-sync FATAL:', err);
+  try {
+    await closeMagazinePgPool();
+  } catch {
+    /* swallow close errors */
+  }
   process.exit(1);
 });
