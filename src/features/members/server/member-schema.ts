@@ -27,18 +27,15 @@ CREATE TABLE IF NOT EXISTS member_profiles (
   member_slug  TEXT,
   is_featured  BOOLEAN NOT NULL DEFAULT false,
   is_active    BOOLEAN NOT NULL DEFAULT true,
-  visibility   TEXT NOT NULL DEFAULT 'visible',
   role         TEXT,
   created_at   TIMESTAMPTZ,
-  updated_at   TIMESTAMPTZ,
-  CONSTRAINT chk_member_profiles_visibility CHECK (visibility IN ('visible', 'invisible'))
+  updated_at   TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_member_profiles_email       ON member_profiles (email);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_email_lower ON member_profiles (email_lower);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_slug        ON member_profiles (member_slug);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_created     ON member_profiles (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_member_profiles_featured    ON member_profiles (is_featured) WHERE is_featured = true;
-CREATE INDEX IF NOT EXISTS idx_member_profiles_visibility  ON member_profiles (visibility) WHERE visibility = 'visible';
 
 CREATE TABLE IF NOT EXISTS member_audit_log (
   id           BIGSERIAL PRIMARY KEY,
@@ -68,24 +65,40 @@ export async function initMemberPgSchema(): Promise<void> {
     schemaPromise = (async () => {
       const pool = getMagazinePgPool();
       if (!pool) return;
-      await pool.query(SCHEMA_SQL);
-      await pool.query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='member_profiles' AND column_name='visibility') THEN
-            ALTER TABLE member_profiles ADD COLUMN visibility TEXT NOT NULL DEFAULT 'visible';
-          END IF;
-        END $$;
-      `);
-      await pool.query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_member_profiles_visibility') THEN
-            ALTER TABLE member_profiles ADD CONSTRAINT chk_member_profiles_visibility CHECK (visibility IN ('visible', 'invisible'));
-          END IF;
-        END $$;
-      `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_profiles_visibility ON member_profiles (visibility) WHERE visibility = 'visible'`);
+      try {
+        await pool.query(SCHEMA_SQL);
+      } catch (err) {
+        console.warn('[initMemberPgSchema] SCHEMA_SQL block partial/fail; continuing with ALTER follow-ups:', err instanceof Error ? err.message : err);
+      }
+      try {
+        await pool.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='member_profiles' AND column_name='visibility') THEN
+              ALTER TABLE member_profiles ADD COLUMN visibility TEXT NOT NULL DEFAULT 'visible';
+            END IF;
+          END $$;
+        `);
+      } catch (err) {
+        console.warn('[initMemberPgSchema] ALTER ADD COLUMN visibility:', err instanceof Error ? err.message : err);
+      }
+      try {
+        await pool.query(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_member_profiles_visibility') THEN
+              ALTER TABLE member_profiles ADD CONSTRAINT chk_member_profiles_visibility CHECK (visibility IN ('visible', 'invisible'));
+            END IF;
+          END $$;
+        `);
+      } catch (err) {
+        console.warn('[initMemberPgSchema] ALTER ADD CONSTRAINT visibility:', err instanceof Error ? err.message : err);
+      }
+      try {
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_member_profiles_visibility ON member_profiles (visibility) WHERE visibility = 'visible'`);
+      } catch (err) {
+        console.warn('[initMemberPgSchema] CREATE INDEX visibility:', err instanceof Error ? err.message : err);
+      }
       schemaReady = true;
     })();
   }
