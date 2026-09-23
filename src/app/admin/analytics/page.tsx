@@ -31,6 +31,9 @@ interface AnalyticsData {
   totalGhostMembers: number
   totalBeehiivMembers?: number
   activeBeehiivMembers?: number
+  totalReachDistinct?: number
+  totalReachRawSum?: number
+  platformPlusGhostDistinct?: number
   totalEvents: number
   totalMessages: number
 }
@@ -144,9 +147,17 @@ export default function AdminAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-serif font-bold text-foreground">
-              {data.totalMembers + data.totalGhostMembers + (data.totalBeehiivMembers || 0)}
+              {typeof data.totalReachDistinct === "number"
+                ? data.totalReachDistinct
+                : data.totalMembers +
+                  data.totalGhostMembers +
+                  (data.totalBeehiivMembers || 0)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Combined community</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {typeof data.totalReachDistinct === "number"
+                ? "Distinct emails (Platform ∪ Ghost + newsletter estimate)"
+                : "Combined community"}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-accent/10">
