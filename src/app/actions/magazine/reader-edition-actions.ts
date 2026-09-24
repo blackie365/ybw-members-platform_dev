@@ -52,6 +52,7 @@ export async function syncBuilderToReaderEditionAction(
     }
 
     let sourcePages: MagazinePage[] = [];
+    let pagesSource: 'override' | 'builder' | 'fallback-reader' = 'builder';
 
     if (Array.isArray(opts.readerPagesOverride) && opts.readerPagesOverride.length > 0) {
       sourcePages = (opts.readerPagesOverride as any[]).map((raw, idx) => {
@@ -63,6 +64,7 @@ export async function syncBuilderToReaderEditionAction(
         }
         return obj as MagazinePage;
       });
+      pagesSource = 'override';
     } else {
       const builderPages: MagazinePage[] = await readStore.getMagazinePages(issueId);
 
@@ -96,6 +98,7 @@ export async function syncBuilderToReaderEditionAction(
                 updatedAt: now,
               } as unknown as MagazinePage;
             });
+            pagesSource = 'fallback-reader';
           } else {
             sourcePages = builderPages;
           }
@@ -109,6 +112,12 @@ export async function syncBuilderToReaderEditionAction(
 
     if (Array.isArray(opts.readerPagesOverride) && opts.readerPagesOverride.length === 0) {
       sourcePages = [];
+    }
+
+    console.error(`[magazine-sync] issue=${issueId} pagesSource=${pagesSource} sourcePageCount=${sourcePages.length} title=${JSON.stringify(issueDoc.title || '')}`);
+    const emptyTitleCount = sourcePages.filter(p => !(typeof p.content?.title === 'string' && p.content.title.trim().length >= 1)).length;
+    if (emptyTitleCount > 0) {
+      console.warn(`[magazine-sync] issue=${issueId} WARNING pagesWithoutTitle=${emptyTitleCount} out of sourcePageCount=${sourcePages.length} — these may fail ReaderPageContentSchema.title.min(1) validation`);
     }
 
     const projected: any = mapBuilderIssueToReaderEdition(
@@ -133,15 +142,23 @@ export async function syncBuilderToReaderEditionAction(
     }
     projected.updatedAt = new Date().toISOString();
 
+    console.error(`[magazine-sync] issue=${issueId} projected pageCount=${projected.pages?.length ?? 0} existingReaderEditionId=${existingReaderEditionId || 'none'}`);
+
     const parseResult = ReaderEditionSchema.safeParse(projected);
     if (!parseResult.success) {
+      const issues = (parseResult as any).error?.issues || [];
+      console.error(`[magazine-sync] issue=${issueId} ReaderEditionSchema FAILED issueCount=${issues.length}. Top issues:`);
+      issues.slice(0, 8).forEach((iss: any, i: number) => {
+        console.error(`  [magazine-sync] issue=${issueId} schema[${i+1}] path=[${iss.path.join('.')}] code=${iss.code || '-'} message=${JSON.stringify(iss.message)}`);
+      });
       return {
         success: false,
         error: 'ReaderEditionSchema validation failed',
-        schemaIssues: (parseResult as any).error?.issues || [],
+        schemaIssues: issues,
       };
     }
     const validated = parseResult.data;
+    console.error(`[magazine-sync] issue=${issueId} ReaderEditionSchema PASSED validatedPageCount=${validated.pages?.length ?? 0} slug=${JSON.stringify(validated.slug)}`);
 
     // Preserve the frozen Classifieds snapshot across rebuilds. The classifieds
     // page is baked into a reader edition independently of the builder pages
@@ -170,6 +187,7 @@ export async function syncBuilderToReaderEditionAction(
       );
       validated.pages = nextPages as any;
       validated.pageCount = nextPages.length;
+      console.error(`[magazine-sync] issue=${issueId} classifieds carry-forward merged, final pageCount=${nextPages.length}`);
     }
 
     const tDiag = Date.now();
@@ -180,6 +198,7 @@ export async function syncBuilderToReaderEditionAction(
       String((validated as any).id || String(projected.id || '')) ||
       String(issueDoc.readerEditionId || '');
     const publicSlug = String((validated as any).slug || issueDoc.readerEditionSlug || issueDoc.slug || '').trim();
+    console.error(`[magazine-sync] issue=${issueId} upsertReaderEdition OK readerEditionId=${readerEditionId} slug=${JSON.stringify(publicSlug)}`);
 
     const issuePatch: Record<string, unknown> = {
       readerEditionId,
@@ -193,6 +212,7 @@ export async function syncBuilderToReaderEditionAction(
     };
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     await getMagazineWriteStore().updateIssue(issueId, issuePatch);
+    console.error(`[magazine-sync] issue=${issueId} issue patched readerEditionId=${readerEditionId} pageCount=${issuePatch.pageCount} published=${issuePatch.published}`);
 
     try {
       const tSync = Date.now();
@@ -213,6 +233,8 @@ export async function syncBuilderToReaderEditionAction(
 
     return { success: true, readerEditionId, pageCount: issuePatch.pageCount as number };
   } catch (error: any) {
+    console.error(`[magazine-sync] issue=${issueId} UNHANDLED EXCEPTION message=${error?.message || String(error)}`);
+    console.error(error);
     return { success: false, error: error?.message || String(error) };
   }
 }

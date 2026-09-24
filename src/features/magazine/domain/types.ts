@@ -95,6 +95,7 @@ export interface ReaderPageContent {
 export interface ReaderPage {
   id: string;
   position: number;
+  pageNumber?: number;
   template: ReaderPageTemplate;
   content: ReaderPageContent;
 }

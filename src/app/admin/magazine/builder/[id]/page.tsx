@@ -6,9 +6,7 @@ import {
   Save,
   Loader2,
   ExternalLink,
-  Sparkles,
   Upload,
-  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,7 +23,6 @@ import {
   deleteMagazinePageAction,
   bulkUpdateMagazinePagesAction,
   bulkDeleteMagazinePagesAction,
-  getGhostPostsAction,
   importIdmlToStoryLibraryAction,
   getReaderEditionByIssueIdAction,
   runSyncLegacyFromReaderEditionAction,
@@ -42,12 +39,8 @@ import {
   isActionNotFoundError,
 } from '@/app/admin/magazine/builder/_components/DeployStalenessBanner';
 
-// Modular Components - Type Only Imports
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { extractPrintPageNumberFromBuilderPage, mergeDisplayedPages } from '@/features/magazine/domain/builder-to-reader';
-import type { GhostImporterProps } from '@/components/admin/magazine-builder/GhostImporter';
-import type { ManualImporterProps } from '@/components/admin/magazine-builder/ManualImporter';
-import type { StoryLibraryPanelProps } from '@/components/admin/magazine-builder/StoryLibraryPanel';
 import {
   emitMagazineMutation,
   type MagazineMutationType,
@@ -68,18 +61,6 @@ const PageEditor = dynamic(() => import('@/components/admin/magazine-builder/Pag
 });
 
 const PageTypeSelector = dynamic(() => import('@/components/admin/magazine-builder/PageTypeSelector').then(m => m.PageTypeSelector));
-
-const GhostImporter = dynamic<GhostImporterProps>(() => import('@/components/admin/magazine-builder/GhostImporter').then(m => m.GhostImporter), {
-  loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Ghost Importer...</p></div>
-});
-
-const ManualImporter = dynamic<ManualImporterProps>(() => import('@/components/admin/magazine-builder/ManualImporter').then(m => m.ManualImporter), {
-  loading: () => <div className="h-60 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3"><Loader2 className="h-6 w-6 animate-spin text-accent/20" /><p className="text-xs text-muted-foreground italic">Initializing Manual Importer...</p></div>
-});
-
-const StoryLibraryPanel = dynamic<StoryLibraryPanelProps>(() => import('@/components/admin/magazine-builder/StoryLibraryPanel').then(m => m.StoryLibraryPanel), {
-  loading: () => <div className="h-60 bg-muted/20 animate-pulse rounded-lg" />
-});
 
 const CONTENTS_CATEGORY_BY_TYPE: Record<string, string> = {
   editorial: 'EDITORIAL',
@@ -290,17 +271,14 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     return mergeDisplayedPages(readerEditionPages, pages, 'builder');
   }, [readerEditionPages, pages]);
 
-  const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isIdmlImporting, setIsIdmlImporting] = useState(false);
-  const [isSyncingReaderToBuilder, setIsSyncingReaderToBuilder] = useState(false);
   const [idmlFileName, setIdmlFileName] = useState<string>('');
   const idmlFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
-  const syncFnRef = useRef<typeof syncStoryLibrarySpreads | null>(null);
   const pagesRef = useRef<MagazinePage[]>([]);
   const issueRef = useRef<any>(issue);
   const loadingRef = useRef<boolean>(false);
+  const syncLockRef = useRef<Promise<MagazinePage[]> | null>(null);
   // Set to true for exactly one IDML import cycle: when an admin just did
   // "Import IDML" (Story Library was saved from an IDML parse) we want
   // Spread Builder tab to auto-create spreads ONCE. Manual page deletions
@@ -315,11 +293,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     if (syncLockRef.current) {
       return syncLockRef.current;
     }
-    syncFnRef.current = syncStoryLibrarySpreads;
     syncLockRef.current = (async () => {
       try {
-        const fn = syncFnRef.current || syncStoryLibrarySpreads;
-        return await fn(storyLibrary, currentPages, options);
+        return await syncStoryLibrarySpreads(storyLibrary, currentPages, options);
       } finally {
         syncLockRef.current = null;
       }
@@ -467,55 +443,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     }
   };
 
-  const handleSyncReaderEditionToBuilder = useCallback(async () => {
-    if (isNew) {
-      toast.error('Please create the edition first');
-      return;
-    }
-    if (isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing) {
-      toast.info('Still processing previous sync/import…');
-      return;
-    }
-    if (!readerEditionId) {
-      toast.error('No published ReaderEdition linked to this issue yet. Publish via the ManualImporter → Auto-Import IDML tab first.');
-      return;
-    }
-
-    setIsSyncingReaderToBuilder(true);
-    const toastId = 'reader-to-builder-sync';
-    try {
-      toast.info('Syncing published ReaderEdition into Story Library + Spread Builder (editable pages)…', { id: toastId });
-      const res = await callAction(runSyncLegacyFromReaderEditionAction,String(id));
-      if (!res?.success) throw new Error(res?.error || 'Sync failed');
-      const sl = Number(res?.data?.storyLibraryCount || 0);
-      const lp = Number(res?.data?.legacyPageCount || 0);
-      toast.success(`Synced ${sl} Story Library items + ${lp} editable spreads (Cover → Back Cover). Contents page links regenerated.`, { id: toastId });
-
-      // Reload legacy pages and story library + reader pages from server so UI shows post-sync state without manual refresh.
-      const [newPagesRes, newStoryRes, newReaderRes] = await Promise.all([
-        getMagazinePagesAction(id),
-        getMagazineStoryLibraryAction(id),
-        getReaderEditionByIssueIdAction(id),
-      ]);
-      if (newPagesRes?.success && Array.isArray(newPagesRes.data)) setPages(newPagesRes.data as MagazinePage[]);
-      if (newStoryRes?.success && Array.isArray((newStoryRes as any).data?.storyLibrary)) {
-        setIssue((prev) => ({ ...prev, storyLibrary: (newStoryRes as any).data.storyLibrary }));
-      }
-      if (newReaderRes?.success && newReaderRes.data) {
-        setReaderEditionId(String(newReaderRes.data.id || ''));
-        setReaderEditionPages([]);
-      }
-      toast.success('Spread Builder synced!', { id: toastId });
-      await emitAndSync('reader-edition-synced', null, { forceSync: true });
-      setActiveTab('builder');
-    } catch (err: any) {
-      console.error('[handleSyncReaderEditionToBuilder]', err);
-      toast.error(err?.message || err?.toString?.() || 'Sync failed', { id: toastId });
-    } finally {
-      setIsSyncingReaderToBuilder(false);
-    }
-  }, [id, isNew, readerEditionId, isSyncingReaderToBuilder, isIdmlImporting, isBatchSyncing, convertReaderPagesToShadow, emitAndSync]);
-
   const applyContentsPageItems = useCallback((nextPages: MagazinePage[]) => {
     const contentsPage = nextPages.find((page) => page.type === 'contents');
     if (!contentsPage) return nextPages;
@@ -652,57 +579,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to reorder pages');
     } finally {
       setSaving(false);
-      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
-        console.warn('[persistPageOrder] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
-      });
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true })
+        .then((syncRes) => {
+          if (syncRes && syncRes.success === false) {
+            const topIssues = ((syncRes as any).schemaIssues || []).slice(0, 3).map((i: any) => `${i.path}: ${i.message}`).join(' | ');
+            toast.error(`Reader sync failed: ${syncRes.error || 'schema validation'}${topIssues ? ' - ' + topIssues : ''}`);
+          }
+        })
+        .catch((syncErr: any) => {
+          console.warn('[persistPageOrder] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+        });
     }
   }, [applyContentsPageItems, emitAndSync, id, pages]);
-
-  const handleBatchSync = async () => {
-    if (!issue.ghostSyncTag) {
-      toast.error('Please set a Ghost Sync Tag in Issue Settings first');
-      setActiveTab('metadata');
-      return;
-    }
-
-    if (!confirm(`This will find all Ghost articles tagged "${issue.ghostSyncTag}" and add them as new spreads. Continue?`)) {
-      return;
-    }
-
-    setIsBatchSyncing(true);
-    try {
-      // 1. Fetch articles by tag
-      const res = await callAction(getGhostPostsAction,{ filter: `tag:${issue.ghostSyncTag}` });
-      
-      if (!res.success || !res.data || res.data.length === 0) {
-        toast.error(`No articles found with tag "${issue.ghostSyncTag}"`);
-        return;
-      }
-
-      toast.info(`Found ${res.data.length} articles. Starting extraction...`);
-
-      // 2. Loop and Import
-      let count = 0;
-      for (const post of res.data) {
-        // Smart map to template
-        const { mapGhostToTemplate } = await import('@/lib/magazine-theme');
-        const type = mapGhostToTemplate(post);
-        
-        // Use our existing import logic
-        await handleImportContent(post, type);
-        count++;
-      }
-
-      toast.success(`Successfully extracted ${count} articles into spreads!`);
-      await loadData(true);
-      await emitAndSync('page-reordered', null, { forceSync: true });
-      setActiveTab('builder');
-    } catch (err) {
-      toast.error('Batch extraction failed');
-    } finally {
-      setIsBatchSyncing(false);
-    }
-  };
 
   // Load Initial Data
   const loadData = useCallback(async (silent = false) => {
@@ -716,12 +604,9 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     // Auto-sync from Story Library → Pages now ONLY runs on EXPLICIT admin
     // actions:
     //   • Import IDML (handleIdmlFileForSpreads)
-    //   • Click "Smart Batch Fill" (handleBatchSync, via handleImportContent)
-    //   • Select a story in the library and press "Add as spread" (if any)
     //
     // This guarantees: if the admin explicitly deletes all spreads, they
-    // STAY deleted. They can always be restored by clicking Smart Batch Fill
-    // or re-importing IDML.
+    // STAY deleted. They can always be restored by re-importing IDML.
     if (!silent) setLoading(true);
     try {
         let loadedStoryLibrary: any[] = [];
@@ -884,7 +769,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
   useEffect(() => {
-    syncFnRef.current = syncStoryLibrarySpreads;
+    syncLockRef.current = null;
   });
 
   useEffect(() => {
@@ -948,7 +833,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     // Case 2 (default): NO auto-create of spreads on tab switch. This was the
     // cause of the deleted-spreads bounce-back bug. "0 pages" is now a VALID
     // user choice. Spreads are created explicitly by: Import IDML button,
-    // Smart Batch Fill button, or the pending-import-sync case above.
+    // or the pending-import-sync case above.
     didSpreadSyncOnTabRef.current = true;
   }, [activeTab, isNew, id, runSingleFlightSync]);
 
@@ -1029,10 +914,10 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             );
             setActiveTab('builder');
           } else {
-            toast.success('Story library saved — click Smart Batch Fill to create missing spreads from new stories.');
+            toast.success('Story library saved — re-import IDML to create missing spreads from new stories.');
           }
         } else {
-          toast.success('Story library saved — click Smart Batch Fill to auto-generate spreads from this library.');
+          toast.success('Story library saved — re-import IDML to auto-generate spreads from this library.');
         }
       } else {
         toast.error(res.error || 'Failed to save story library');
@@ -1041,79 +926,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error('Failed to save story library');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleStoryLibraryImported = async (storyLibrary: any[]) => {
-    await emitAndSync('story-library-saved', null, { forceSync: false });
-    setIssue((prev) => ({
-      ...prev,
-      storyLibrary: Array.isArray(storyLibrary) ? storyLibrary : prev.storyLibrary || [],
-    }));
-
-    if (!isNew) {
-      // Called from ManualImporter when an IDML was saved into the Story
-      // Library via "Import Stored IDML" or the ManualImporter file
-      // picker. Always set the pending-sync flag AND eagerly try to build
-      // spreads now if pages are empty, so the admin doesn't have to click
-      // Spread Builder tab first. If pages aren't empty (admin was already
-      // editing manually), only flag for tab switch and let admin choose.
-      pendingIdmlSyncOnTabSwitchRef.current = true;
-      try {
-        const pagesRes = await callAction(getMagazinePagesAction,id);
-        const currentPages: MagazinePage[] =
-          pagesRes?.success && Array.isArray(pagesRes.data)
-            ? sortByPrintOrder(pagesRes.data as MagazinePage[])
-            : [];
-        if (currentPages.length === 0 && Array.isArray(storyLibrary) && storyLibrary.length > 0) {
-          const nextPages = await runSingleFlightSync(storyLibrary, currentPages, {
-            suppressToast: true,
-          });
-          setPages(nextPages);
-          pendingIdmlSyncOnTabSwitchRef.current = false;
-          toast.success('IDML imported — spreads auto-generated. Switching to Spread Builder…');
-          setActiveTab('builder');
-          return;
-        }
-      } catch (err) {
-        console.warn('Auto-sync after IDML import failed, deferring to tab switch:', err);
-      }
-      toast.info('Story library imported — spreads will auto-generate when you open the Spread Builder tab.');
-    }
-  };
-
-  const handleRemoveStoryLibraryItem = async (storyId: string) => {
-    await emitAndSync('story-library-saved', null, { forceSync: false });
-    const next = (issue.storyLibrary || []).filter((story) => story.id !== storyId);
-    try {
-      await handleSaveStoryLibrary(next);
-    } catch {
-      toast.error('Failed to remove story');
-    }
-  };
-
-  const handleToggleStoryLibraryInclusion = async (storyId: string) => {
-    await emitAndSync('story-library-saved', null, { forceSync: false });
-    const next = (issue.storyLibrary || []).map((story) =>
-      story.id === storyId
-        ? { ...story, includedInPremiumReader: story.includedInPremiumReader === false }
-        : story,
-    );
-
-    try {
-      await handleSaveStoryLibrary(next);
-    } catch {
-      toast.error('Failed to update premium reader inclusion');
-    }
-  };
-
-  const handleDeleteStoryLibraryAll = async () => {
-    await emitAndSync('story-library-saved', null, { forceSync: false });
-    try {
-      await handleSaveStoryLibrary([]);
-      toast.success('Story library cleared');
-    } catch {
-      toast.error('Failed to clear story library');
     }
   };
 
@@ -1504,25 +1316,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       console.warn('Contents page sync failed after no-op spread sync:', err);
     }
     return sortedExisting;
-  }
-
-  const handleApplyStoryToSelectedPage = async (story: any) => {
-    await emitAndSync('page-saved', null, { forceSync: false });
-    const selectedPage = pages.find((page) => page.docId === selectedPageId);
-    if (!selectedPageId || !selectedPage) {
-      toast.error('Select a spread first');
-      return;
-    }
-
-    try {
-      await handleImportContent(
-        { _isManual: true, title: story.title, manualContent: buildManualContentFromStory(story, selectedPage.type) },
-        selectedPage.type,
-        selectedPageId,
-      );
-    } catch {
-      toast.error('Failed to apply story to spread');
-    }
   };
 
   // Page Handlers
@@ -1532,10 +1325,18 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     setSaving(true);
     try {
       const maxId = pages.reduce((max, p) => Math.max(max, p.id || 0), 0);
+      const nextPosition = (pages?.length || 0) + 1;
+      const nextPageNumber = nextPosition;
+      const newPageContent = getInitialContent(type);
+      const contentWithPage = newPageContent && typeof newPageContent === 'object'
+        ? { ...newPageContent, position: nextPosition, pageNumber: nextPageNumber }
+        : newPageContent;
       const newPage = {
         id: maxId + 1,
         type,
-        content: getInitialContent(type),
+        position: nextPosition,
+        pageNumber: nextPageNumber,
+        content: contentWithPage,
         createdAt: new Date().toISOString()
       };
 
@@ -1553,9 +1354,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       await loadData(true);
     } finally {
       setSaving(false);
-      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
-        console.warn('[handleAddPage] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
-      });
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true })
+        .then((syncRes) => {
+          if (syncRes && syncRes.success === false) {
+            const topIssues = ((syncRes as any).schemaIssues || []).slice(0, 3).map((i: any) => `${i.path}: ${i.message}`).join(' | ');
+            toast.error(`Reader sync failed: ${syncRes.error || 'schema validation'}${topIssues ? ' - ' + topIssues : ''}`);
+          }
+        })
+        .catch((syncErr: any) => {
+          console.warn('[handleAddPage] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+        });
     }
   };
 
@@ -1748,9 +1556,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       toast.error(err instanceof Error ? err.message : 'Failed to import content');
     } finally {
       setSaving(false);
-      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
-        console.warn('[handleImportContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
-      });
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true })
+        .then((syncRes) => {
+          if (syncRes && syncRes.success === false) {
+            const topIssues = ((syncRes as any).schemaIssues || []).slice(0, 3).map((i: any) => `${i.path}: ${i.message}`).join(' | ');
+            toast.error(`Reader sync failed: ${syncRes.error || 'schema validation'}${topIssues ? ' - ' + topIssues : ''}`);
+          }
+        })
+        .catch((syncErr: any) => {
+          console.warn('[handleImportContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+        });
     }
   };
 
@@ -1793,9 +1608,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       await loadData(true);
     } finally {
       setSaving(false);
-      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
-        console.warn('[handleSavePageContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
-      });
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true })
+        .then((syncRes) => {
+          if (syncRes && syncRes.success === false) {
+            const topIssues = ((syncRes as any).schemaIssues || []).slice(0, 3).map((i: any) => `${i.path}: ${i.message}`).join(' | ');
+            toast.error(`Reader sync failed: ${syncRes.error || 'schema validation'}${topIssues ? ' - ' + topIssues : ''}`);
+          }
+        })
+        .catch((syncErr: any) => {
+          console.warn('[handleSavePageContent] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+        });
     }
   };
 
@@ -1824,9 +1646,16 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
       await loadData(true);
     } finally {
       setSaving(false);
-      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true }).catch((syncErr: any) => {
-        console.warn('[handleChangePageType] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
-      });
+      syncBuilderToReaderEditionAction(id, { revalidatePublicRoutesOnly: true })
+        .then((syncRes) => {
+          if (syncRes && syncRes.success === false) {
+            const topIssues = ((syncRes as any).schemaIssues || []).slice(0, 3).map((i: any) => `${i.path}: ${i.message}`).join(' | ');
+            toast.error(`Reader sync failed: ${syncRes.error || 'schema validation'}${topIssues ? ' - ' + topIssues : ''}`);
+          }
+        })
+        .catch((syncErr: any) => {
+          console.warn('[handleChangePageType] post-fire syncBuilderToReaderEdition non-fatal:', syncErr?.message || syncErr);
+        });
     }
   };
 
@@ -1898,215 +1727,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
     const legacyDocId = typeof pageDocId === 'string' && !pageDocId.startsWith('reader:') ? pageDocId : '';
     const shadowDocId = typeof pageDocId === 'string' && pageDocId.startsWith('reader:') ? pageDocId : '';
     return { legacyDocId, shadowDocId };
-  };
-
-  const handleDeleteAllPages = async () => {
-    const allMerged = Array.isArray(mergedDisplayedPages) ? [...mergedDisplayedPages] : [];
-    const totalPages = allMerged.filter((p) => p && typeof p.docId === 'string').length;
-    const totalIdmlPublished = allMerged.filter(
-      (p) => p?.readOnly || String(p?.docId || '').startsWith('reader:'),
-    ).length;
-    const totalManual = totalPages - totalIdmlPublished;
-
-    if (totalPages === 0) {
-      toast.warning('No spreads in this issue — nothing to delete.');
-      return;
-    }
-
-    await emitAndSync('pages-all-deleted', null, { forceSync: false });
-
-    const stage1 = confirm(
-      `About to permanently delete ALL ${totalPages} spread${totalPages === 1 ? '' : 's'} ` +
-        `(${totalIdmlPublished} published IDML spread${totalIdmlPublished === 1 ? '' : 's'}, ` +
-        `${totalManual} manual/custom spread${totalManual === 1 ? '' : 's'}) from the builder. ` +
-        `Continue to final confirmation?`
-    );
-    if (!stage1) return;
-
-    const stage2 = confirm(
-      `FINAL WARNING: This will destroy ${totalIdmlPublished > 0 ? `ALL ${totalIdmlPublished} published IDML spreads from the live reader edition` : 'all spreads'}. ` +
-        `The ReaderEdition pages list will be cleared server-side and public routes will be invalidated. ` +
-        `This cannot be undone manually — re-import the IDML file later if you need to restore. ` +
-        `Type exactly what you want to do: DELETE EVERYTHING AND CLEAR READER`
-    );
-    if (!stage2) {
-      toast.info('Delete All cancelled.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const generatedSpreadIds = new Set(
-        allMerged
-          .filter((p) => p && typeof p.docId === 'string' && Boolean(p.generatedFromStoryLibrary))
-          .map((p) => String(p.docId))
-      );
-      if (generatedSpreadIds.size > 0 && Array.isArray(issue.storyLibrary)) {
-        try {
-          const allDeletedPageKeys = new Set<string>();
-          for (const page of allMerged) {
-            if (!page || typeof page.docId !== 'string') continue;
-            if (!generatedSpreadIds.has(page.docId)) continue;
-            try {
-              const keys = getPageIdentityKeys(page);
-              for (const k of keys || []) {
-                if (typeof k === 'string' && k) allDeletedPageKeys.add(k);
-              }
-            } catch {
-              /* skip page key extraction */
-            }
-          }
-          if (allDeletedPageKeys.size > 0) {
-            const nextStoryLibrary = issue.storyLibrary.map((story) => {
-              try {
-                const storyKeys = getStoryIdentityKeys(story);
-                const matchesDeletedPage =
-                  Array.isArray(storyKeys) &&
-                  storyKeys.length > 0 &&
-                  storyKeys.some((key) => typeof key === 'string' && allDeletedPageKeys.has(key));
-                if (!matchesDeletedPage || story?.includedInPremiumReader === false) {
-                  return story;
-                }
-                return { ...(story || {}), includedInPremiumReader: false };
-              } catch {
-                return story;
-              }
-            });
-            const changedStoryLibrary = nextStoryLibrary.some(
-              (story, index) =>
-                story?.includedInPremiumReader !==
-                issue.storyLibrary?.[index]?.includedInPremiumReader
-            );
-            if (changedStoryLibrary) {
-              const storyLibraryRes = await callAction(saveMagazineStoryLibraryAction,
-                id,
-                nextStoryLibrary
-              );
-              if (!storyLibraryRes.success) {
-                console.warn('[delete-all] Story Library dedupe non-fatal:', storyLibraryRes.error);
-              } else {
-                const persistedStoryLibrary = Array.isArray(storyLibraryRes.data)
-                  ? storyLibraryRes.data
-                  : nextStoryLibrary;
-                setIssue((prev) => ({ ...prev, storyLibrary: persistedStoryLibrary }));
-              }
-            }
-          }
-        } catch (dedupeErr) {
-          console.warn('[delete-all] Story Library dedupe failed — continuing with deletes', dedupeErr);
-        }
-      }
-
-      const deletedLegacyDocIds = new Set<string>();
-      const deletedShadowDocIds = new Set<string>();
-      let firestoreDeleted = 0;
-      let firestoreFailed = 0;
-
-      const legacyDocIdsToDelete: string[] = [];
-      for (const page of allMerged) {
-        if (!page || typeof page.docId !== 'string') continue;
-
-        const { legacyDocId, shadowDocId } = resolveDeleteTargets(page.docId);
-
-        if (shadowDocId) {
-          deletedShadowDocIds.add(shadowDocId);
-        }
-
-        if (legacyDocId) {
-          if (!deletedLegacyDocIds.has(legacyDocId)) {
-            legacyDocIdsToDelete.push(legacyDocId);
-          }
-        } else if (shadowDocId) {
-          firestoreDeleted++;
-        }
-      }
-
-      if (legacyDocIdsToDelete.length > 0) {
-        const bulkRes = await callAction(bulkDeleteMagazinePagesAction,id, legacyDocIdsToDelete, { skipSync: true });
-        if (bulkRes.success) {
-          firestoreDeleted += legacyDocIdsToDelete.length;
-          legacyDocIdsToDelete.forEach((did) => deletedLegacyDocIds.add(did));
-        } else {
-          firestoreFailed += legacyDocIdsToDelete.length;
-        }
-      }
-
-      setSelectedPageId(null);
-      didSpreadSyncOnTabRef.current = true;
-
-      const remainingLegacyPages = Array.isArray(pages)
-        ? pages.filter((p) => !p.docId || !deletedLegacyDocIds.has(p.docId))
-        : [];
-      const remainingShadowPages = Array.isArray(readerEditionPages)
-        ? readerEditionPages.filter((p) => !p.docId || !deletedShadowDocIds.has(p.docId))
-        : [];
-
-      const mergedAfterDelete = (() => {
-        const deduped: MagazinePage[] = [];
-        const seenPositions = new Set<number>();
-        const seenLegacyDocIds = new Set<string>();
-        [...remainingLegacyPages, ...remainingShadowPages].forEach((page) => {
-          if (!page || typeof page !== 'object') return;
-          const docId = String((page as any).docId || '');
-          if (!docId) return;
-          if (docId.startsWith('reader:') === false) {
-            if (seenLegacyDocIds.has(docId)) return;
-            seenLegacyDocIds.add(docId);
-          }
-          const pos = typeof (page as any).position === 'number' ? (page as any).position : (typeof (page as any).pageNumber === 'number' ? (page as any).pageNumber : 0);
-          if (docId.startsWith('reader:') && Number.isFinite(pos) && pos > 0) {
-            if (seenPositions.has(pos)) return;
-            seenPositions.add(pos);
-          }
-          deduped.push(page);
-        });
-        return deduped.sort((a: any, b: any) => {
-          const pa = typeof a?.position === 'number' ? a.position : (typeof a?.pageNumber === 'number' ? a.pageNumber : 99999);
-          const pb = typeof b?.position === 'number' ? b.position : (typeof b?.pageNumber === 'number' ? b.pageNumber : 99999);
-          return pa - pb;
-        });
-      })();
-
-      try {
-        await syncContentsPage(mergedAfterDelete);
-      } catch {
-        /* Contents sync non-fatal */
-      }
-
-      setPages(sortByPrintOrder(remainingLegacyPages));
-      setReaderEditionPages(remainingShadowPages);
-
-      try {
-        await callAction(syncBuilderToReaderEditionAction,id, { readerPagesOverride: mergedAfterDelete });
-      } catch (syncErr) {
-        console.warn('[delete-all] ReaderEdition post-delete sync non-fatal:', syncErr);
-      }
-
-      const remainingTotal = remainingLegacyPages.length + remainingShadowPages.length;
-      const totalDeleted = totalPages - remainingTotal;
-
-      if (firestoreFailed > 0) {
-        toast.warning(
-          `Deleted ${totalDeleted} spread${totalDeleted === 1 ? '' : 's'} from builder & reader. ` +
-            `${firestoreFailed} Firestore delete(s) had errors. ${remainingTotal} remaining.`
-        );
-      } else if (totalDeleted === 0 && firestoreDeleted === 0) {
-        toast.warning('No spreads were deleted.');
-      } else {
-        toast.success(
-          `Deleted ${totalDeleted} spread${totalDeleted === 1 ? '' : 's'} from builder & live reader. ` +
-            `${remainingTotal} spread${remainingTotal === 1 ? '' : 's'} remaining.`
-        );
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to delete spreads'
-      );
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleDeletePage = async (pageDocId: string) => {
@@ -2250,7 +1870,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           `Spread removed from builder list${firestoreErrMsg ? ` (Firestore: ${firestoreErrMsg})` : ''}.`,
         );
       } else {
-        toast.success('Spread removed — click Smart Batch Fill or re-import IDML to regenerate.');
+        toast.success('Spread removed — re-import IDML to regenerate.');
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error deleting spread');
@@ -2372,6 +1992,34 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           linkUrl: '',
           alt: '',
         };
+      case 'feature-full':
+        return {
+          kicker: 'Feature',
+          mediaLayout: 'full',
+          title: 'Full Spread Feature',
+          name: 'Featured Guest',
+          intro: 'The full story — a journey through leadership, challenge, and lasting change...',
+          kicker2: 'In Depth',
+          headline: 'Full Spread Feature',
+          text: 'In this feature, we explore the full story in depth, spanning a complete double-page spread with rich imagery, supporting data, and detailed narrative to give members the full picture...',
+          pullQuote: 'The moments that test us are the ones that define us.',
+          quote: 'The moments that test us are the ones that define us.',
+          author: 'YBW Editorial',
+          byline: 'Words by YBW Editorial',
+          featureImage: '',
+          image: '',
+          heroImage: '',
+          mainImage: '',
+          coverImage: '',
+          imageUrl: '',
+          images: [],
+          gallery: [],
+          additionalImages: [],
+          stats: [
+            { label: 'READ TIME', value: '8 MIN' },
+            { label: 'CATEGORY', value: 'FEATURE' },
+          ],
+        };
       case 'ads':
         return {
           title: 'Advertisement',
@@ -2395,7 +2043,15 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
           image: '',
           featureImage: ''
         };
-      default: return {};
+      default: return {
+        title: 'New Page',
+        name: 'New Page',
+        headline: 'New Page',
+        text: '',
+        intro: '',
+        image: '',
+        featureImage: '',
+      };
     }
   };
 
@@ -2451,15 +2107,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                   {isIdmlImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
                   Import IDML
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleBatchSync}
-                  disabled={isBatchSyncing || saving}
-                  className="border-accent text-accent hover:bg-accent hover:text-white transition-all"
-                >
-                  {isBatchSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                  Smart Batch Fill
-                </Button>
                 <Button variant="outline" asChild>
                   <Link href={`/magazine/issue/${id}`} target="_blank">
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -2488,16 +2135,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
               {isNew && <TooltipContent side="top">Save issue first to build spreads</TooltipContent>}
             </Tooltip>
           </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <div className="inline-block">
-                  <TabsTrigger value="import" className="rounded-lg px-8" disabled={isNew}>Import CMS</TabsTrigger>
-                </div>
-              </TooltipTrigger>
-              {isNew && <TooltipContent side="top">Save issue first to import content</TooltipContent>}
-            </Tooltip>
-          </TooltipProvider>
         </TabsList>
 
         <TabsContent value="metadata" className="mt-0 space-y-8">
@@ -2505,7 +2142,7 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             <div className="border border-accent/20 rounded-lg overflow-hidden w-full">
               <div className="bg-accent/5 px-4 py-3">
                 <div className="flex items-start gap-2 text-accent">
-                  <BookOpen className="h-5 w-5 mt-0.5 shrink-0" />
+                  <Upload className="h-5 w-5 mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <h3 className="text-base font-serif font-semibold">Import InDesign (IDML)</h3>
                     <p className="text-[10px] text-muted-foreground">
@@ -2558,29 +2195,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                       )}
                       {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSyncReaderEditionToBuilder}
-                      disabled={isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing || !readerEditionId}
-                      title={
-                        !readerEditionId
-                          ? 'Publish via ManualImporter → Auto-Import IDML first (or link a ReaderEdition to this issue)'
-                          : 'Convert the already-published IDML ReaderEdition pages into editable Story Library items + Builder spread pages (id=position), then auto-rebuild the Contents page links. Re-runnable; replaces spreads 1..N with latest from ReaderEdition.'
-                      }
-                      className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all whitespace-nowrap"
-                    >
-                      {isSyncingReaderToBuilder ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <BookOpen className="h-4 w-4 mr-2" />
-                      )}
-                      {isSyncingReaderToBuilder
-                        ? 'Syncing…'
-                        : readerEditionId
-                          ? 'Sync Published IDML → Builder'
-                          : 'Sync Published IDML → Builder (publish first)'}
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -2598,105 +2212,20 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="builder" className="mt-0">
-          <div className="mb-6 border border-accent/20 rounded-lg overflow-hidden w-full">
-            <div className="bg-accent/5 px-4 py-3">
-              <div className="flex items-start gap-2 text-accent">
-                <BookOpen className="h-5 w-5 mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <h3 className="text-base font-serif font-semibold">Import InDesign (IDML)</h3>
-                  <p className="text-[10px] text-muted-foreground">
-                    Populate the Story Library and auto-generate Cover, Contents, Article and Back-cover spreads.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="px-4 py-4 space-y-4 bg-background">
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-                Upload a full <code className="bg-muted/30 px-1 py-0.5 rounded text-[11px]">.idml</code> export.
-                Every article is extracted into the Story Library (Editor&rsquo;s Note, spotlights and short profiles included),
-                then spreads are created and ordered by priority: Cover → Contents → Articles → Back cover.
-              </p>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1">
-                    <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                      InDesign File
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-md border border-border bg-muted/10 px-3 py-2 text-xs text-muted-foreground truncate">
-                        {idmlFileName || 'No file selected'}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => idmlFileInputRef.current?.click()}
-                        disabled={isIdmlImporting || isNew}
-                        className="border-accent/30 text-accent hover:bg-accent hover:text-white transition-all whitespace-nowrap"
-                      >
-                        {isIdmlImporting ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Upload className="h-4 w-4 mr-2" />
-                        )}
-                        {isIdmlImporting ? 'Importing…' : 'Select .idml File'}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => idmlFileInputRef.current?.click()}
-                    disabled={isIdmlImporting || isNew}
-                    className="bg-accent hover:bg-accent/90 text-white transition-all sm:mt-6"
-                  >
-                    {isIdmlImporting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
-                    )}
-                    {isIdmlImporting ? 'Importing IDML…' : 'Import & Build Spreads'}
-                  </Button>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSyncReaderEditionToBuilder}
-                  disabled={isSyncingReaderToBuilder || isIdmlImporting || isBatchSyncing || isNew || !readerEditionId}
-                  title={
-                    !readerEditionId
-                      ? 'Publish via ManualImporter → Auto-Import IDML first (or link a ReaderEdition to this issue)'
-                      : 'Convert the already-published IDML ReaderEdition pages into editable Story Library items + Builder spread pages (id=position). Re-runnable; replaces spreads 1..N with latest from ReaderEdition.'
-                  }
-                  className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all self-start"
-                >
-                  {isSyncingReaderToBuilder ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <BookOpen className="h-4 w-4 mr-2" />
-                  )}
-                  {isSyncingReaderToBuilder
-                    ? 'Syncing Published IDML → Story Library + Spreads…'
-                    : readerEditionId
-                      ? 'Sync Published IDML → Story Library + Spreads'
-                      : 'Sync Published IDML → Builder (publish via Auto-Import first)'}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-start">
             <div className="lg:col-span-2 min-w-[200px]">
               <PageTypeSelector 
                 onAddPage={handleAddPage}
                 isSaving={saving}
               />
             </div>
-            <div className="lg:col-span-3 min-w-[280px]">
+            <div className="lg:col-span-4 min-w-[280px]">
               <PageList 
                 pages={mergedDisplayedPages}
                 selectedPageId={selectedPageId}
                 readerSlug={(issue as any).slug || issue.readerEditionSlug || ''}
                 onSelectPage={setSelectedPageId}
                 onDeletePage={handleDeletePage}
-                onDeleteAllPages={handleDeleteAllPages}
                 onChangeType={(pageDocId, type) => {
                   handleChangePageType(pageDocId, type);
                 }}
@@ -2704,19 +2233,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
                 onMovePageTo={handleMovePageToPosition}
                 isSaving={saving}
               />
-            </div>
-            <div className="lg:col-span-3 min-w-[320px]">
-              <div className="lg:sticky lg:top-6">
-                <StoryLibraryPanel
-                  stories={issue.storyLibrary || []}
-                  selectedPage={mergedDisplayedPages.find(p => p.docId === selectedPageId)}
-                  isSaving={saving}
-                  onApplyStory={handleApplyStoryToSelectedPage}
-                  onToggleInclusion={handleToggleStoryLibraryInclusion}
-                  onRemoveStory={handleRemoveStoryLibraryItem}
-                  onDeleteAll={handleDeleteStoryLibraryAll}
-                />
-              </div>
             </div>
             <div className="lg:col-span-4">
               <PageEditor 
@@ -2737,45 +2253,6 @@ export default function MagazineBuilderPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
         </TabsContent>
-
-            <TabsContent value="import" className="mt-0">
-              <div className="space-y-6">
-                <div className="p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-4">
-                  <div className="bg-accent p-2 rounded-full text-white shadow-lg">
-                    <Save className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-accent">Import & Integration</h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Choose to import from Ghost CMS for existing articles, or use <strong>Manual Import</strong> to paste raw text and images directly into your template.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2">
-                    <GhostImporter 
-                      onImport={handleImportContent} 
-                      isImporting={saving}
-                      selectedPageId={selectedPageId || undefined}
-                      selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-                    />
-                  </div>
-                  <ManualImporter 
-                    onImport={handleImportContent}
-                    isImporting={saving}
-                    selectedPageId={selectedPageId || undefined}
-                    selectedPageType={pages.find(p => p.docId === selectedPageId)?.type}
-                    selectedPage={pages.find(p => p.docId === selectedPageId)}
-                    issueId={id}
-                    storyLibrary={issue.storyLibrary || []}
-                    onSaveStoryLibrary={handleSaveStoryLibrary}
-                    onStoryLibraryImported={handleStoryLibraryImported}
-                    onAfterPublish={() => loadData(true)}
-                  />
-                </div>
-              </div>
-            </TabsContent>
       </Tabs>
     </div>
   );

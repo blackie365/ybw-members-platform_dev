@@ -71,7 +71,7 @@ const BroadsheetSocialPostSchema = z
     imageUrl: p.imageUrl || undefined,
   }));
 
-const ReaderPageContentSchema = z
+export const ReaderPageContentSchema = z
   .object({
     title: z.string().trim().min(1, 'title is required').max(400),
     body: z.string().trim().optional(),

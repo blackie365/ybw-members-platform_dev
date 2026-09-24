@@ -334,8 +334,21 @@ export class PgMagazineWriteStore implements MagazineWriteStore {
     delete raw.docId;
     const id = this.pageId(page);
     let sortKey = 0;
-    const numeric = Number(raw.id);
-    if (raw.id !== undefined && raw.id !== null && !Number.isNaN(numeric)) sortKey = numeric;
+    const contentSortRaw = raw.content && typeof raw.content === 'object'
+      ? (raw.content.position ?? raw.content.pageNumber ?? Number((raw.content as any).sourceRef ?? String(raw.id).match(/P(\d+)/)?.[1]) ?? NaN)
+      : NaN;
+    const rootSortRaw = raw.position ?? raw.pageNumber ?? contentSortRaw;
+    const numericRoot = Number(rootSortRaw);
+    if (rootSortRaw !== undefined && rootSortRaw !== null && !Number.isNaN(numericRoot)) {
+      sortKey = numericRoot;
+    } else {
+      const numeric = Number(raw.id);
+      if (raw.id !== undefined && raw.id !== null && !Number.isNaN(numeric)) sortKey = numeric;
+    }
+    if (sortKey <= 0) {
+      const numericId = Number(raw.id);
+      if (!Number.isNaN(numericId) && numericId > 0) sortKey = Math.max(sortKey, numericId);
+    }
     const publish = toPgDate(raw.publishDate);
     void publish;
     const sql =

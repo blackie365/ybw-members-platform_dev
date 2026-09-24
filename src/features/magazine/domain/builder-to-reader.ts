@@ -374,6 +374,7 @@ export function mapBuilderIssueToReaderEdition(
     return {
       id,
       position,
+      pageNumber: position,
       template,
       content: {
         ...baseContent,
