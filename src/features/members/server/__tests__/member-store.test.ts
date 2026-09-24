@@ -22,7 +22,7 @@ describe('PgMemberStore — lookups', () => {
     fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: { displayName: 'Ada', email: 'a@x.com' }, visibility: 'visible' }] });
     const out = await store().getMemberByClerkId('u1');
     expect(fakePool.query).toHaveBeenCalledWith(
-      "SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1 AND visibility = 'visible'",
+      "SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles WHERE clerk_id = $1 AND visibility = 'visible'",
       ['u1'],
     );
     expect(out).toEqual({ displayName: 'Ada', email: 'a@x.com', clerkId: 'u1', visibility: 'visible' });
@@ -37,7 +37,7 @@ describe('PgMemberStore — lookups', () => {
     fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u2', data: { email: 'a@x.com' }, visibility: 'visible' }] });
     const out = await store().getMemberByEmail('  A@X.COM ');
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data, visibility FROM member_profiles
+      `SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles
          WHERE (email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1) AND visibility = 'visible'
          ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
          LIMIT 1`,
@@ -50,7 +50,7 @@ describe('PgMemberStore — lookups', () => {
     fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u3', data: { memberSlug: 'ada' }, visibility: 'visible' }] });
     expect(await store().getMemberBySlug('ada')).toEqual({ memberSlug: 'ada', clerkId: 'u3', visibility: 'visible' });
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data, visibility FROM member_profiles
+      `SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles
          WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1) AND visibility = 'visible'
          LIMIT 1`,
       ['ada'],
@@ -61,7 +61,7 @@ describe('PgMemberStore — lookups', () => {
     fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u4', data: { industry: 'Tech' }, visibility: 'visible' }] });
     expect(await store().queryOne({ field: 'industry', value: 'Tech' })).toEqual({ industry: 'Tech', clerkId: 'u4', visibility: 'visible' });
     expect(fakePool.query).toHaveBeenCalledWith(
-      "SELECT clerk_id, data, visibility FROM member_profiles\n         WHERE data->>'industry' = $1 AND visibility = 'visible'\n         LIMIT 1",
+      "SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles\n         WHERE data->>'industry' = $1 AND visibility = 'visible'\n         LIMIT 1",
       ['Tech'],
     );
   });
@@ -90,7 +90,7 @@ describe('PgMemberStore — collections & counts', () => {
     fakePool.query.mockResolvedValue({ rows: [{ clerk_id: 'u1', data: {}, visibility: 'visible' }] });
     expect(await store().getFeatured(3)).toEqual([{ clerkId: 'u1', visibility: 'visible' }]);
     expect(fakePool.query).toHaveBeenCalledWith(
-      `SELECT clerk_id, data, visibility FROM member_profiles
+      `SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles
          WHERE is_featured = true AND visibility = 'visible'
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,

@@ -113,21 +113,115 @@ export interface MemberStore {
   health(): Promise<boolean>;
 }
 
-function toMember(
-  row: { data: unknown; clerk_id?: string; visibility?: unknown } | undefined,
-): MemberProfile | null {
+function isBlank(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === 'object') return Object.keys(v as object).length === 0;
+  return false;
+}
+
+function normalizeDate(value: unknown, fallbackIsoText?: unknown): string | undefined {
+  const candidates: unknown[] = [];
+  if (value !== undefined && value !== null) candidates.push(value);
+  if (fallbackIsoText !== undefined && fallbackIsoText !== null) candidates.push(fallbackIsoText);
+  for (const raw of candidates) {
+    if (raw instanceof Date) {
+      if (!Number.isNaN(raw.getTime())) return raw.toISOString();
+      continue;
+    }
+    if (typeof raw === 'number') {
+      const ms = raw > 1e12 ? raw : raw * 1000;
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+      continue;
+    }
+    if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (!s) continue;
+      if (/^\d+$/.test(s)) {
+        const n = Number(s);
+        const ms = n > 1e12 ? n : n * 1000;
+        const d = new Date(ms);
+        if (!Number.isNaN(d.getTime())) return d.toISOString();
+      } else {
+        const d = new Date(s);
+        if (!Number.isNaN(d.getTime())) return d.toISOString();
+      }
+      continue;
+    }
+    if (typeof raw === 'object' && raw !== null) {
+      const o = raw as Record<string, unknown>;
+      const sec = typeof o._seconds === 'number' ? o._seconds : typeof o.seconds === 'number' ? o.seconds : null;
+      const nano = typeof o._nanoseconds === 'number' ? o._nanoseconds : typeof o.nanoseconds === 'number' ? o.nanoseconds : 0;
+      if (sec !== null) {
+        const d = new Date(sec * 1000 + Math.floor(Number(nano) / 1e6));
+        if (!Number.isNaN(d.getTime())) return d.toISOString();
+      }
+      continue;
+    }
+  }
+  return undefined;
+}
+
+function sqlColText(row: Record<string, unknown>, key: string): string | undefined {
+  const v = row[key];
+  if (v === null || v === undefined) return undefined;
+  return v instanceof Date ? v.toISOString() : String(v);
+}
+
+function sqlColBool(row: Record<string, unknown>, key: string): boolean | undefined {
+  const v = row[key];
+  if (v === null || v === undefined) return undefined;
+  return !!v;
+}
+
+type MemberRow = {
+  clerk_id?: string;
+  data?: unknown;
+  visibility?: unknown;
+  email?: unknown;
+  email_lower?: unknown;
+  member_slug?: unknown;
+  is_featured?: unknown;
+  is_active?: unknown;
+  role?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+function toMember(row: MemberRow | undefined): MemberProfile | null {
   if (!row) return null;
   const data = (row.data as Record<string, unknown>) ?? {};
+  const sqlEmail = sqlColText(row, 'email');
+  const sqlEmailLower = sqlColText(row, 'email_lower');
+  const sqlSlug = sqlColText(row, 'member_slug');
+  const sqlFeatured = sqlColBool(row, 'is_featured');
+  const sqlActive = sqlColBool(row, 'is_active');
+  const sqlRole = sqlColText(row, 'role');
   const vis =
     row.visibility === 'invisible' || row.visibility === 'visible'
       ? (row.visibility as MemberVisibility)
       : ((data.visibility as MemberVisibility) ?? 'visible');
-  return {
-    ...data,
-    clerkId: (row.clerk_id || (data.clerkId as string)) as string,
-    visibility: vis,
-  } as MemberProfile;
+  const createdAt = normalizeDate(data.createdAt, row.created_at) ?? normalizeDate(data.memberSince) ?? normalizeDate(data.joinDate) ?? normalizeDate(data.ghostCreatedAt) ?? normalizeDate(data.ghostMemberJoinedAt);
+  const updatedAt = normalizeDate(data.updatedAt, row.updated_at) ?? createdAt;
+  const merged: Record<string, unknown> = { ...data };
+  if (!isBlank(merged.clerkId)) merged.clerkId = merged.clerkId;
+  if (!isBlank(sqlEmail) && isBlank(merged.email)) merged.email = sqlEmail;
+  if (!isBlank(sqlEmailLower) && isBlank(merged.emailLower)) merged.emailLower = sqlEmailLower;
+  if (!isBlank(sqlSlug) && isBlank(merged.memberSlug) && isBlank(merged.slug)) merged.memberSlug = sqlSlug;
+  if (sqlFeatured !== undefined && isBlank(merged.isFeatured)) merged.isFeatured = sqlFeatured;
+  if (sqlActive !== undefined && isBlank(merged.isActive)) merged.isActive = sqlActive;
+  if (!isBlank(sqlRole) && isBlank(merged.role)) merged.role = sqlRole;
+  if (createdAt !== undefined) merged.createdAt = createdAt;
+  if (updatedAt !== undefined) merged.updatedAt = updatedAt;
+  if (!isBlank(vis)) merged.visibility = vis;
+  merged.clerkId = (row.clerk_id || (merged.clerkId as string)) as string;
+  return merged as MemberProfile;
 }
+
+const MEMBER_SQL_COLS =
+  'clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at';
 
 function extract(row: Record<string, unknown>, field: string): unknown {
   if (field in row) return row[field];
@@ -214,7 +308,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1${this.visFilter(opts)}`,
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles WHERE clerk_id = $1${this.visFilter(opts)}`,
         [clerkId],
       );
       return toMember(rows[0]);
@@ -230,7 +324,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE (email_lower = $1 OR data->>'emailLower' = $1 OR data->>'email' = $1)${this.visFilter(opts)}
          ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST
          LIMIT 1`,
@@ -248,7 +342,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1)${this.visFilter(opts)}
          LIMIT 1`,
         [slug],
@@ -266,7 +360,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE data->>'${sanitizeField(query.field)}' = $1${this.visFilter(opts)}
          LIMIT 1`,
         [param],
@@ -283,7 +377,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE is_active = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST`,
       );
@@ -299,7 +393,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE 1=1${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST`,
       );
@@ -319,7 +413,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE is_featured = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,
@@ -337,7 +431,7 @@ export class PgMemberStore implements MemberStore {
     try {
       const pool = getMagazinePgPool()!;
       const { rows } = await pool.query(
-        `SELECT clerk_id, data, visibility FROM member_profiles
+        `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE is_active = true${this.visFilter(opts)}
          ORDER BY COALESCE(created_at, updated_at) DESC NULLS LAST
          LIMIT $1`,

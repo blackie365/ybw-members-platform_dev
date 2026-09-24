@@ -503,9 +503,34 @@ function AdminMembersContent() {
     return matchesSearch && matchesTier
   })
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "Never"
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+  const formatDate = (dateStr: unknown) => {
+    if (dateStr === null || dateStr === undefined) return "Never"
+    if (typeof dateStr === "string" && dateStr.trim() === "") return "Never"
+    let ms: number | null = null
+    if (dateStr instanceof Date) {
+      ms = dateStr.getTime()
+    } else if (typeof dateStr === "number") {
+      ms = dateStr > 1e12 ? dateStr : dateStr * 1000
+    } else if (typeof dateStr === "string") {
+      const s = dateStr.trim()
+      if (/^\d+$/.test(s)) {
+        const n = Number(s)
+        ms = n > 1e12 ? n : n * 1000
+      } else {
+        ms = new Date(s).getTime()
+      }
+    } else if (typeof dateStr === "object" && dateStr !== null) {
+      const o = dateStr as Record<string, unknown>
+      const sec = typeof o._seconds === "number" ? o._seconds : typeof o.seconds === "number" ? o.seconds : null
+      if (sec !== null) {
+        const nano = typeof o._nanoseconds === "number" ? o._nanoseconds : typeof o.nanoseconds === "number" ? o.nanoseconds : 0
+        ms = sec * 1000 + Math.floor(Number(nano) / 1e6)
+      }
+    }
+    if (ms === null || Number.isNaN(ms)) return "Never"
+    const d = new Date(ms)
+    if (Number.isNaN(d.getTime())) return "Never"
+    return d.toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",

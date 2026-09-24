@@ -8,6 +8,35 @@ import { getMagazinePgPool } from "@/features/magazine/server/read-store/pg-clie
 import { getPgEventStore } from "@/features/events/server/pg-events-store";
 import Stripe from "stripe";
 
+function createdAtEpoch(v: unknown): number {
+  if (v === null || v === undefined) return -1
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? -1 : v.getTime()
+  if (typeof v === "number") {
+    const ms = v > 1e12 ? v : v * 1000
+    return Number.isNaN(ms) ? -1 : ms
+  }
+  if (typeof v === "string") {
+    const s = v.trim()
+    if (!s) return -1
+    if (/^\d+$/.test(s)) {
+      const n = Number(s)
+      const ms = n > 1e12 ? n : n * 1000
+      return Number.isNaN(ms) ? -1 : ms
+    }
+    const d = new Date(s).getTime()
+    return Number.isNaN(d) ? -1 : d
+  }
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>
+    const sec = typeof o._seconds === "number" ? o._seconds : typeof o.seconds === "number" ? o.seconds : null
+    if (sec !== null) {
+      const nano = typeof o._nanoseconds === "number" ? o._nanoseconds : typeof o.nanoseconds === "number" ? o.nanoseconds : 0
+      return sec * 1000 + Math.floor(Number(nano) / 1e6)
+    }
+  }
+  return -1
+}
+
 export async function getMembersAction(opts?: { includeInvisible?: boolean }) {
   try {
     await checkAdmin();
@@ -21,8 +50,11 @@ export async function getMembersAction(opts?: { includeInvisible?: boolean }) {
     const members = all
       .filter((m: any) => m.userInactive !== true)
       .sort((a, b) => {
-        const da = a.createdAt ? Date.parse(String(a.createdAt)) : 0;
-        const db = b.createdAt ? Date.parse(String(b.createdAt)) : 0;
+        const da = createdAtEpoch(a.createdAt);
+        const db = createdAtEpoch(b.createdAt);
+        if (db === -1 && da === -1) return 0;
+        if (db === -1) return -1;
+        if (da === -1) return 1;
         return db - da;
       })
       .map((doc) => ({
