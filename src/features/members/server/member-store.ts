@@ -203,7 +203,7 @@ function toMember(row: MemberRow | undefined): MemberProfile | null {
     row.visibility === 'invisible' || row.visibility === 'visible'
       ? (row.visibility as MemberVisibility)
       : ((data.visibility as MemberVisibility) ?? 'visible');
-  const createdAt = normalizeDate(data.createdAt, row.created_at) ?? normalizeDate(data.memberSince) ?? normalizeDate(data.joinDate) ?? normalizeDate(data.ghostCreatedAt) ?? normalizeDate(data.ghostMemberJoinedAt);
+  const createdAt = normalizeDate(data.memberSince) ?? normalizeDate(data.ghostCreatedAt) ?? normalizeDate(data.joinDate) ?? normalizeDate(data.ghostMemberJoinedAt) ?? normalizeDate(data.createdAt, row.created_at);
   const updatedAt = normalizeDate(data.updatedAt, row.updated_at) ?? createdAt;
   const merged: Record<string, unknown> = { ...data };
   if (!isBlank(merged.clerkId)) merged.clerkId = merged.clerkId;
