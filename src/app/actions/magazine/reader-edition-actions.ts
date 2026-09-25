@@ -461,7 +461,16 @@ export async function syncReaderEditionToLegacyIssue(
     const pos = typeof rp.position === 'number' ? rp.position : i + 1;
     const sourceTemplate = String(rp.template || '').toLowerCase();
     const type = SOURCE_TEMPLATE_TO_PAGE_TYPE[sourceTemplate] || 'feature-full';
-    let content = rp.content && typeof rp.content === 'object' ? { ...rp.content } : {};
+    // DEFENSE: deep-clone rp.content (via structuredClone) to guarantee no nested
+    // object reference aliasing across loop iterations or from upstream shared
+    // arrays. Prevents accidental all-identical-content rows if any upstream or
+    // normalizeMagazinePageContent ever returns a cached/shared nested ref.
+    const rpContentBase = rp.content && typeof rp.content === 'object'
+      ? (typeof structuredClone === 'function'
+          ? structuredClone(rp.content)
+          : JSON.parse(JSON.stringify(rp.content)))
+      : {};
+    let content = { ...rpContentBase };
     const title = String(content.title || rp.title || '').trim();
     const body = String(content.body || content.text || '').trim();
     if (title) content.title = title;
@@ -488,7 +497,13 @@ export async function syncReaderEditionToLegacyIssue(
       updatedAt: now,
       name: title || `${String(rp.template || 'Page')} ${pos}`,
     };
-    legacyDocs.push(legacyDoc as unknown as MagazinePage & { id: number | string });
+    // SECONDARY DEFENSE: deep-clone legacyDoc (the whole page object) before
+    // push so any shared nested references between doc fields (e.g. content vs
+    // other nested fields) can't leak across loop iterations or to bulkUpsert.
+    const clonedDoc = typeof structuredClone === 'function'
+      ? structuredClone(legacyDoc)
+      : JSON.parse(JSON.stringify(legacyDoc));
+    legacyDocs.push(clonedDoc as unknown as MagazinePage & { id: number | string });
   }
 
   await getMagazineWriteStore().bulkUpsertPages(issueId, legacyDocs);
