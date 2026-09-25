@@ -1,0 +1,8 @@
+curl: (3) URL rejected: No host part in the URL
+curl: (6) Could not resolve host: HTTP
+curl: (3) unmatched brace in URL position 2:
+%{http_/acurl
+ ^
+GET /api/upload/idml HTTP 000
+curl -sS -o /dev/null -w GETGET /api/upload/idml HTTP 000
+curl -sS -o /dev/null -w GET
