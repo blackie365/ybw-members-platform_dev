@@ -47,6 +47,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'img.rocket.new',
       },
+      {
+        protocol: 'https',
+        hostname: 'yorkshirebusinesswoman.co.uk',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
     ],
   },
   async redirects() {

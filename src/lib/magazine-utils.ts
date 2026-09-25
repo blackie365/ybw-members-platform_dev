@@ -258,6 +258,41 @@ export function fixMagazineImageUrl(url: string, version?: string | number): str
         }
       }
     }
+
+    // --- VPS self-hosted storage migration safety-net.
+    //
+    // After copying objects out of the Firebase Storage bucket onto the VPS
+    // local filesystem, gcloud flattens directory paths whose basename
+    // matches an existing object *path* (e.g. a spread folder named
+    // `issue.idml/` next to an unrelated object named `issue.idml` ends up
+    // as just the file, so images originally stored at
+    //   /uploads/magazine-import/issue.idml/img.jpg
+    // end up physically on disk at
+    //   /uploads/magazine-import/img.jpg
+    //
+    // We rewrite the URL at render time to that flat layout. This happens
+    // AFTER any DB rewrite passes so it also protects against stale /
+    // partially-migrated rows and rows re-imported from old data.
+    //
+    // Applied to both relative `/uploads/...` and absolute
+    // `https://yorkshirebusinesswoman.co.uk/uploads/...` paths.
+    const upPrefixMatch = finalUrl.match(/^((?:https?:\/\/[^\/]+)?\/uploads\/)((?:[^?#\/]+\/)*)([^?#\/]*)([?#].*)?$/);
+    if (upPrefixMatch) {
+      const scheme = upPrefixMatch[1];
+      const mid = upPrefixMatch[2] ?? '';
+      const last = upPrefixMatch[3] ?? '';
+      const tail = upPrefixMatch[4] ?? '';
+      const fullRel = `${mid}${last}`;
+      // Rule 1: magazine-import/<name>.idml/<rest> → basename of <rest>.
+      const idmlFlat = fullRel.match(/^magazine-import\/[^\/]+\.idml\/(.+)$/);
+      if (idmlFlat) {
+        const rest = idmlFlat[1];
+        const base = rest.includes('/') ? rest.slice(rest.lastIndexOf('/') + 1) : rest;
+        if (base) {
+          finalUrl = `${scheme}magazine-import/${base}${tail}`;
+        }
+      }
+    }
   }
 
   // Append versioning if provided
