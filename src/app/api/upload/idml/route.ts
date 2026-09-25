@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import {
+  isStorageReady,
   uploadBuffer,
-  getGcsStorage,
-  getGcsDefaultBucketName,
-  buildPublicStorageUrl,
-} from '@/features/storage/gcs-storage';
+  getDefaultBucketName,
+  buildPublicUrl,
+} from '@/features/storage';
 
 const MAX_IDML_SIZE = 100 * 1024 * 1024;
 const SAFE_FOLDER = 'magazine-import';
@@ -16,6 +16,11 @@ function sanitizeFileName(name: string): string {
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase();
+}
+
+function buildFirebaseShapeUrl(bucketName: string, objectPath: string): string {
+  const encodedPath = encodeURIComponent(objectPath);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
 }
 
 export async function POST(req: NextRequest) {
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    if (!getGcsStorage()) {
+    if (!isStorageReady()) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
@@ -71,16 +76,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const bucketName = uploaded.bucketName || getGcsDefaultBucketName() || '';
-    const encodedPath = encodeURIComponent(objectName);
-    const httpsFirebaseShapeUrl =
-      `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
+    const bucketName = uploaded.bucketName || getDefaultBucketName() || '';
+    const httpsFirebaseShapeUrl = buildFirebaseShapeUrl(bucketName, objectName);
+    const absolutePublicUrl = buildPublicUrl(objectName, bucketName);
 
     return NextResponse.json({
       success: true,
       data: {
-        gsUrl: uploaded.gsUrl,
-        httpsUrl: httpsFirebaseShapeUrl,
+        gsUrl: uploaded.gsUrl || uploaded.publicUrl,
+        httpsUrl: absolutePublicUrl.startsWith('http') ? absolutePublicUrl : httpsFirebaseShapeUrl,
         publicUrl: uploaded.publicUrl,
         path: objectName,
         bucket: bucketName,

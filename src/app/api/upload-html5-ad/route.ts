@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import JSZip from 'jszip';
-import { uploadBuffer, getGcsStorage, getGcsDefaultBucketName, buildPublicStorageUrl } from '@/features/storage/gcs-storage';
+import { isStorageReady, uploadBuffer, getDefaultBucketName, buildPublicUrl } from '@/features/storage';
 
 const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024;
 const SAFE_FOLDER = 'ads/html5';
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    if (!getGcsStorage()) {
+    if (!isStorageReady()) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     }
 
     const prefix = `${SAFE_FOLDER}/${userId}-${Date.now()}`;
-    const bucketName = getGcsDefaultBucketName();
+    const bucketName = getDefaultBucketName();
     if (!bucketName) {
       return NextResponse.json({ error: 'Storage bucket not configured' }, { status: 500 });
     }
@@ -112,8 +112,8 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(uploads);
 
-    const baseUrl = buildPublicStorageUrl(bucketName, prefix);
-    const indexUrlRaw = indexPath ? buildPublicStorageUrl(bucketName, indexPath) : '';
+    const baseUrl = buildPublicUrl(prefix, bucketName);
+    const indexUrlRaw = indexPath ? buildPublicUrl(indexPath, bucketName) : '';
     const indexUrl = indexUrlRaw ? `${indexUrlRaw}?v=${Date.now()}` : '';
 
     if (!indexUrl) {

@@ -3,9 +3,9 @@ import {
   uploadBuffer,
   downloadBuffer,
   getGcsBucket,
-  getGcsStorage,
-  buildPublicStorageUrl as gcsBuildPublicStorageUrl,
-} from '@/features/storage/gcs-storage';
+  buildPublicUrl,
+  isStorageReady,
+} from '@/features/storage';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { parseIdml } from '@/lib/idml-parser';
 import { mapIdmlToReaderPages, buildEditionMetadata, detectArticles, detectAdPage } from '@/lib/idml-template-mapper';
@@ -45,7 +45,7 @@ import { syncReaderEditionToLegacyIssue } from './reader-edition-actions';
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function parseGoogleStoragePath(storagePath: string): { bucketName?: string; objectPath: string } {
+export function parseGoogleStoragePath(storagePath: string): { bucketName?: string; objectPath: string } {
   const trimmed = String(storagePath || '').trim();
   if (!trimmed) {
     throw new Error('Storage path is required');
@@ -64,8 +64,23 @@ function parseGoogleStoragePath(storagePath: string): { bucketName?: string; obj
     };
   }
 
+  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
+    const objectPath = trimmed.replace(/^\/?uploads\//i, '');
+    return { bucketName: 'local', objectPath };
+  }
+
+  const siteUrl = String(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (siteUrl && trimmed.startsWith(siteUrl)) {
+    const rest = trimmed.slice(siteUrl.length);
+    if (rest.startsWith('/uploads/')) {
+      const objectPath = rest.replace(/^\/uploads\//i, '');
+      return { bucketName: 'local', objectPath };
+    }
+  }
+
   return { objectPath: trimmed.replace(/^\/+/, '') };
 }
+
 
 function isFirebaseStorageUrl(url: string): { bucket?: string; objectPath?: string } | null {
   const s = String(url || '').trim();
@@ -110,20 +125,27 @@ function isFirebaseStorageUrl(url: string): { bucket?: string; objectPath?: stri
 }
 
 async function downloadIdmlBufferFromStoragePath(storagePath: string): Promise<{ buffer: Buffer; bucketName: string; objectPath: string }> {
-  if (!getGcsStorage()) throw new Error('GCS Storage not configured');
+  if (!isStorageReady()) throw new Error('Storage not initialized');
 
   const parsed = parseGoogleStoragePath(storagePath);
-  const { bucketName, objectPath } = parsed as { bucketName?: string; objectPath: string };
+  const { bucketName: parsedBucketName, objectPath } = parsed as { bucketName?: string; objectPath: string };
   if (!objectPath) throw new Error('Storage path has no object');
 
-  const bucket = getGcsBucket(bucketName);
-  if (!bucket) throw new Error('GCS bucket not available');
-  const resolvedBucketName = bucketName || bucket.name;
+  const isLocal = parsedBucketName === 'local' || objectPath.startsWith('uploads/');
+  let resolvedBucketName = String(parsedBucketName || '');
+  if (!isLocal) {
+    const bucket = getGcsBucket(parsedBucketName);
+    if (!bucket) throw new Error('GCS bucket not available');
+    resolvedBucketName = parsedBucketName || bucket.name;
+  }
 
-  const buffer = await downloadBuffer(objectPath, bucketName);
-  if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: gs://${resolvedBucketName}/${objectPath}`);
+  const buffer = await downloadBuffer(
+    objectPath,
+    isLocal ? undefined : parsedBucketName,
+  );
+  if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: ${storagePath}`);
 
-  return { buffer, bucketName: resolvedBucketName, objectPath };
+  return { buffer, bucketName: resolvedBucketName || (isLocal ? 'local' : ''), objectPath };
 }
 
 function inferStoryLibraryDefaults(input: {
@@ -175,11 +197,8 @@ function inferStoryLibraryDefaults(input: {
 async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdml>>, fileName: string) {
   const imageUrls: Record<string, string> = {};
 
-  if (parsed.images.length === 0 || !getGcsStorage()) return imageUrls;
+  if (parsed.images.length === 0 || !isStorageReady()) return imageUrls;
 
-  const bucket = getGcsBucket();
-  if (!bucket) return imageUrls;
-  const bucketName = bucket.name;
   const BATCH_SIZE = 10;
 
   for (let i = 0; i < parsed.images.length; i += BATCH_SIZE) {
@@ -194,7 +213,7 @@ async function uploadParsedIdmlImages(parsed: Awaited<ReturnType<typeof parseIdm
 
         return {
           fileName: img.fileName,
-          url: uploaded.publicUrl || buildPublicStorageUrl(bucketName, filePath),
+          url: uploaded.publicUrl || buildPublicUrl(filePath, uploaded.bucketName),
         };
       }),
     );
@@ -258,13 +277,9 @@ async function uploadStoryLibraryArticleImages(
 ) {
   const imageUrls: Record<string, string> = {};
 
-  if (parsed.images.length === 0 || !getGcsStorage() || storyLibrary.length === 0) {
+  if (parsed.images.length === 0 || !isStorageReady() || storyLibrary.length === 0) {
     return imageUrls;
   }
-
-  const bucket = getGcsBucket();
-  if (!bucket) return imageUrls;
-  const bucketName = bucket.name;
 
   const imagesByFileName = new Map(
     parsed.images.map((img) => [img.fileName, img] as const),
@@ -306,7 +321,7 @@ async function uploadStoryLibraryArticleImages(
 
       return {
         fileName: parsedImage.fileName,
-        url: uploaded.publicUrl || buildPublicStorageUrl(bucketName, filePath),
+        url: uploaded.publicUrl || buildPublicUrl(filePath, uploaded.bucketName),
       };
     }),
   );
@@ -812,7 +827,7 @@ export async function importIdmlAction(idmlBase64: string, fileName: string) {
 export async function importIdmlFromStoragePathForPublishAction(storagePath: string, fileName?: string) {
   try {
     await checkAdmin();
-    if (!getGcsStorage()) throw new Error('GCS Storage not configured');
+    if (!isStorageReady()) throw new Error('Storage not initialized');
 
     const { buffer, objectPath } = await downloadIdmlBufferFromStoragePath(storagePath);
     const resolvedFileName =
@@ -840,7 +855,7 @@ export async function importIdmlFromUrlAction(fileUrl: string, fileName: string)
     // Storage REST API when security rules require request.auth != null.
     const firebaseInfo = isFirebaseStorageUrl(fileUrl);
     if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
-      if (!getGcsStorage()) throw new Error('GCS Storage not configured');
+      if (!isStorageReady()) throw new Error('Storage not initialized');
       const gs = firebaseInfo.bucket && firebaseInfo.objectPath
         ? `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`
         : '';
@@ -917,7 +932,7 @@ export async function importIdmlToStoryLibraryFromUrlAction(issueId: string, fil
 
     const firebaseInfo = isFirebaseStorageUrl(fileUrl);
     if (firebaseInfo?.bucket && firebaseInfo?.objectPath) {
-      if (!getGcsStorage()) throw new Error('GCS Storage not configured');
+      if (!isStorageReady()) throw new Error('Storage not initialized');
       const gs = `gs://${firebaseInfo.bucket}/${firebaseInfo.objectPath}`;
       const downloaded = await downloadIdmlBufferFromStoragePath(gs);
       buffer = downloaded.buffer;
@@ -955,7 +970,7 @@ export async function importIdmlToStoryLibraryFromStoragePathAction(
 ) {
   try {
     await checkAdmin();
-    if (!getGcsStorage()) {
+    if (!isStorageReady()) {
       throw new Error('Storage not initialized');
     }
 
@@ -1104,8 +1119,8 @@ export async function uploadIdmlFileToStorageAction(idmlBase64: string, fileName
   try {
     await checkAdmin();
 
-    if (!getGcsStorage()) {
-      throw new Error('GCS Storage not configured');
+    if (!isStorageReady()) {
+      throw new Error('Storage not initialized');
     }
 
     if (!idmlBase64 || typeof idmlBase64 !== 'string') {

@@ -32,6 +32,9 @@ tsconfig.typecheck.tsbuildinfo
 *.csv
 *.zip
 
+# VPS-style local storage backend (dev writes, prod uses STORAGE_VPS_ROOT)
+.uploads/
+
 # clerk configuration (can include secrets)
 /.clerk/
 

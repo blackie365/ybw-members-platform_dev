@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { checkAdmin } from '@/lib/server/auth-utils';
-import { uploadBuffer, getGcsStorage } from '@/features/storage/gcs-storage';
+import { isStorageReady, uploadBuffer } from '@/features/storage';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'video/mp4', 'video/webm'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `File exceeds ${isVideo ? '200MB' : '10MB'} size limit` }, { status: 400 });
     }
 
-    if (!getGcsStorage()) {
+    if (!isStorageReady()) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
