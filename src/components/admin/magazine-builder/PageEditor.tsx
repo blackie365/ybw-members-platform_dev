@@ -305,15 +305,52 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
     // scenario where parent setPages updates the prop but JSON is
     // equal so setContent was historically skipped, leaving refs
     // stale.
+    const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
+
     if (nextKey === currentKey) {
       if (lastSyncedContentJsonRef.current !== nextKey) {
         lastSyncedContentJsonRef.current = nextKey;
       }
       lastLoadedDocIdRef.current = page.docId;
+      if (isNewDoc) {
+        setContent(loadedContent);
+        setRawJsonDraft(JSON.stringify(loadedContent || {}, null, 2));
+        setRawJsonError('');
+        if (page.type === 'lifestyle') {
+          const initial = Array.isArray((loadedContent as any)?.images) ? (loadedContent as any).images : [];
+          setLifestyleImagesDraft(JSON.stringify(initial, null, 2));
+        } else {
+          setLifestyleImagesDraft('[]');
+        }
+        setPullQuotesDraft(stringifyPullQuotes((loadedContent as any)?.pullQuotes || (loadedContent as any)?.quotes || ''));
+        setContentsItemsDraft(stringifyJson((loadedContent as any)?.items || []));
+        setContentsItemsError('');
+        setNewsDraft(stringifyJson((loadedContent as any)?.news || []));
+        setNewsError('');
+        setTipsDraft(stringifyJson((loadedContent as any)?.tips || []));
+        setTipsError('');
+        setHighlightsDraft(stringifyJson((loadedContent as any)?.highlights || []));
+        setHighlightsError('');
+        setSocialsDraft(stringifyJson((loadedContent as any)?.socials || []));
+        setSocialsError('');
+        {
+          const rawEmbeds = [
+            (loadedContent as any)?.socialEmbeds ?? [],
+            (loadedContent as any)?.social ?? [],
+            (loadedContent as any)?.socialPosts ?? [],
+          ].flat();
+          const normalized = dedupeAndNormalizeSocialEmbeds(rawEmbeds);
+          setSocialEmbedsDraft(normalized);
+          setSocialEmbedsError('');
+        }
+        setStatsDraft(stringifyStats((loadedContent as any)?.stats));
+        setStatsError('');
+        setPendingType(null);
+        setIsTypeDialogOpen(false);
+      }
       return;
     }
 
-    const isNewDoc = lastLoadedDocIdRef.current !== page.docId;
     const hasLocalEdits = currentKey !== lastSyncedContentJsonRef.current;
     const shouldSync = isNewDoc || !hasLocalEdits;
 
