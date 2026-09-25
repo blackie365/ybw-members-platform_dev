@@ -78,9 +78,9 @@ export interface ReaderPageContent {
   // ---- Explicit brand/publisher logos. Populated by idml-parser whenever a
   // graphic frame has InDesign Script Label = "LogoImage" (or "Logo").
   // These are ALWAYS kept separate from hero/images/gallery: they can NEVER
-  // be accidentally blown up to full-page hero proportions. PagePartner and
-  // PageFullPageAd templates render `logoImage` small (max-h-16), usually
-  // above or alongside the main creative.
+  // be accidentally blown up to full-page hero proportions. The PageFullPageAd
+  // and ads templates render `logoImage` small (max-h-16), usually above or
+  // alongside the main creative.
   logoImage?: string;
   logoImages?: string[];
   partnerLogo?: string;
