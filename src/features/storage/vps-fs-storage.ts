@@ -15,7 +15,10 @@ export function getVpsStorageRoot(): string {
 
 function resolveFsPath(objectPath: string): string {
   const root = getVpsStorageRoot();
-  const cleanPath = String(objectPath || '').replace(/^\/+/, '');
+  let cleanPath = String(objectPath || '').replace(/^\/+/, '');
+  if (cleanPath.startsWith('uploads/')) {
+    cleanPath = cleanPath.slice('uploads/'.length);
+  }
   const resolved = join(root, cleanPath);
   if (!isAbsolute(resolved)) {
     throw new Error(`[VPS Storage] Resolved path is not absolute: ${resolved}`);
