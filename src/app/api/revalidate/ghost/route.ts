@@ -35,7 +35,14 @@ export async function POST(req: Request) {
           profileImage: profileImage || '',
           memberSlug: `${(firstName || '').toLowerCase()}-${(lastName || '').toLowerCase()}-${Date.now().toString().slice(-4)}`,
           status: 'active',
+          isActive: true,
+          visibility: 'visible',
+          membershipTier: 'free',
+          role: 'member',
+          isAdmin: false,
+          isFeatured: false,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
       });
 

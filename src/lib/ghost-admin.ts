@@ -87,7 +87,8 @@ export async function getGhostMemberByEmail(email: string): Promise<any | null> 
   if (!admin) return null;
   if (!email) return null;
   try {
-    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    const norm = String(email || '').replace(/[']/g, "\\'").toLowerCase();
+    const members = await admin.members.browse({ filter: `email:${norm}` });
     return members && members.length > 0 ? members[0] : null;
   } catch (err: any) {
     console.warn('Ghost member lookup failed:', err?.message || err);
@@ -150,7 +151,8 @@ export async function removeGhostMemberByEmail(email: string) {
   }
 
   try {
-    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    const norm = String(email || '').replace(/[']/g, "\\'").toLowerCase();
+    const members = await admin.members.browse({ filter: `email:${norm}` });
     for (const member of members) {
       await admin.members.destroy(member.id);
     }
@@ -166,7 +168,7 @@ export async function removeGhostMemberByEmail(email: string) {
  */
 export async function upgradeGhostMemberByEmail(email: string, tierLabel: string) {
   const admin = getGhostAdmin();
-  if (!admin) return null;
+  if (!admin) throw new Error('[Ghost upgrade] Admin API not initialized — set GHOST_ADMIN_API_KEY');
 
   if (!config.ghostTierId) {
     console.warn(
@@ -175,32 +177,35 @@ export async function upgradeGhostMemberByEmail(email: string, tierLabel: string
   }
 
   try {
-    const members = await admin.members.browse({ filter: `email:'${email}'` });
+    const norm = String(email || '').replace(/[']/g, "\\'").toLowerCase();
+    const members = await admin.members.browse({ filter: `email:${norm}` });
     if (members && members.length > 0) {
       const member = members[0];
-      const currentLabels = member.labels.map((l: any) => l.name || l);
+      const currentLabels = (member.labels || []).map((l: any) => l.name || l);
       const newLabels = currentLabels.filter((l: string) => !['free-member'].includes(l));
       
       if (!newLabels.includes('paid-member')) newLabels.push('paid-member');
       if (!newLabels.includes('stripe-upgrade')) newLabels.push('stripe-upgrade');
-      if (!newLabels.includes(tierLabel)) newLabels.push(tierLabel);
+      if (tierLabel && !newLabels.includes(tierLabel)) newLabels.push(tierLabel);
 
       return await admin.members.edit({
         id: member.id,
-        labels: newLabels,
-        tiers: config.ghostTierId ? [{id: config.ghostTierId}] : []
+        labels: newLabels.map((name: string) => ({ name })),
+        tiers: config.ghostTierId ? [{ id: config.ghostTierId }] : (member.tiers && member.tiers.length ? member.tiers : []),
+        status: 'paid',
+        subscribed: true,
       });
     } else {
-      // If they somehow don't exist, create them as paid
       return await admin.members.add({
         email,
-        labels: ['stripe-upgrade', 'paid-member', tierLabel],
-        tiers: config.ghostTierId ? [{id: config.ghostTierId}] : [],
+        labels: ['stripe-upgrade', 'paid-member', tierLabel].filter(Boolean),
+        tiers: config.ghostTierId ? [{ id: config.ghostTierId }] : [],
         newsletters: []
       });
     }
-  } catch (err) {
-    console.error("Error upgrading Ghost member:", err);
-    return null;
+  } catch (err: any) {
+    const msg = `[Ghost] upgradeGhostMemberByEmail(${email}, ${tierLabel}) FAILED: ${err?.message || String(err)}`;
+    console.error(msg, err);
+    throw new Error(msg, { cause: err });
   }
 }

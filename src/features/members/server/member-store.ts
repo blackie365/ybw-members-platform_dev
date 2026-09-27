@@ -601,9 +601,19 @@ export class PgMemberStore implements MemberStore {
     const updatedAt = profile.updatedAt ? new Date(String(profile.updatedAt)).toISOString() : null;
     try {
       const pool = getMagazinePgPool()!;
+      const emailMatchExpr = `LOWER(TRIM(COALESCE(email_lower, lower(data->>'emailLower'), lower(data->>'email'), lower(data->>'Email'), email, '')))`;
+      const byEmailPrior = await pool.query(
+        `SELECT clerk_id, data, visibility FROM member_profiles WHERE ${emailMatchExpr} = $1 ORDER BY
+           (CASE WHEN clerk_id LIKE 'user_%' THEN 1 ELSE 2 END),
+           (CASE WHEN visibility='visible' THEN 0 ELSE 1 END),
+           created_at ASC NULLS LAST
+         LIMIT 1`,
+        [emailLower],
+      );
+      const chosenClerkId = (byEmailPrior.rows[0]?.clerk_id as string) || clerkId;
       const prior = await pool.query(
         `SELECT clerk_id, data, visibility FROM member_profiles WHERE clerk_id = $1`,
-        [clerkId],
+        [chosenClerkId],
       );
       const fieldsChanged: Record<string, unknown> = {};
       const before = prior.rows[0];
@@ -623,7 +633,7 @@ export class PgMemberStore implements MemberStore {
            role = EXCLUDED.role,
            created_at = COALESCE(member_profiles.created_at, EXCLUDED.created_at),
            updated_at = COALESCE(EXCLUDED.updated_at, member_profiles.updated_at)`,
-        [clerkId, JSON.stringify(profile), email, emailLower, memberSlug, isFeatured, isActive, visibility, role, createdAt, updatedAt],
+        [chosenClerkId, JSON.stringify(profile), email, emailLower, memberSlug, isFeatured, isActive, visibility, role, createdAt, updatedAt],
       );
       const upsertedRow = !before;
       if (beforeData) {
@@ -642,7 +652,7 @@ export class PgMemberStore implements MemberStore {
         auditLogId = await this.writeAuditLog({
           action: upsertedRow ? 'merge.upsert_ghost_new' : 'merge.upsert_ghost_priority',
           targetType: 'member_profiles',
-          targetId: clerkId,
+          targetId: chosenClerkId,
           emailLower,
           visibilityBefore: before ? beforeVisibility : undefined,
           visibilityAfter: visibility,
