@@ -231,13 +231,19 @@ export async function POST(req: Request) {
           await sendPremiumWelcomeOnce(userId, userEmail, firstName);
         }
 
-        if (userEmail && !(userData as any).ghostPaidSyncedAt && !(userData as any).ghostPaidSyncAttemptedAt) {
-          getMemberStore().patch(userId, { ghostPaidSyncAttemptedAt: nowIso }).catch(() => {});
-          upgradeGhostMemberByEmail(userEmail, membershipTier)
-            .then((res) => {
-              if (res) return getMemberStore().patch(userId, { ghostPaidSyncedAt: nowIso, ghostSyncedAt: nowIso });
-            })
-            .catch(() => {});
+        if (userEmail) {
+          const ms = getMemberStore();
+          const refetch = (await ms.getMemberByClerkId(userId, { includeInvisible: true })) || (existingMember as any) || {};
+          if (!refetch.ghostPaidSyncedAt) {
+            await ms.patch(userId, { ghostPaidSyncAttemptedAt: nowIso });
+            const upgraded = await upgradeGhostMemberByEmail(userEmail, membershipTier);
+            if (upgraded) {
+              await ms.patch(userId, {
+                ghostPaidSyncedAt: nowIso,
+                ghostSyncedAt: refetch.ghostSyncedAt || nowIso,
+              });
+            }
+          }
         }
 
         const adminRecipients = await getAdminRecipients();

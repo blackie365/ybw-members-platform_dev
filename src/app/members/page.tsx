@@ -54,11 +54,17 @@ async function getMembers() {
       const avatarUrl = sanitizedData.avatarUrl || "";
       const profileImage = sanitizedData.profileImage || "";
       const profileImageSource = sanitizedData.profileImageSource || "";
-      const image = [avatarUrl, profileImage, profileImageSource, sanitizedData.image].find(url => 
-        url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app') || url.includes('firebasestorage.googleapis.com'))
-      ) || [avatarUrl, profileImage, profileImageSource, sanitizedData.image].find(url => 
-        url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
-      ) || avatarUrl || profileImage;
+      const imageCandidates = [avatarUrl, profileImage, profileImageSource, sanitizedData.image];
+      const realPhotosFirst = imageCandidates.filter(url =>
+        url && typeof url === 'string' && (
+          url.startsWith('/uploads/') ||
+          url.includes('storage.googleapis.com') ||
+          url.includes('firebasestorage.app') ||
+          url.includes('firebasestorage.googleapis.com') ||
+          (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
+        )
+      );
+      const image = realPhotosFirst[0] || profileImage || avatarUrl;
 
       return {
         id: doc.id,

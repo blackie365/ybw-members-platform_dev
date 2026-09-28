@@ -38,6 +38,10 @@ describe('VPS storage backend (drop-in for GCS uploads)', () => {
 
   it('uploadBuffer writes a binary file into STORAGE_VPS_ROOT and returns relative publicUrl', async () => {
     const buffer = Buffer.from('hello vps storage', 'utf8');
+    // Object path includes a leading "uploads/" SAFE_FOLDER prefix as produced by
+    // callers such as src/app/api/upload/route.ts. Storage root on VPS is already
+    // pointing into the uploads directory itself, so the leading uploads/ is
+    // stripped at resolveFsPath to avoid a double uploads/uploads/ nest.
     const objectPath = 'uploads/userA-1000.jpg';
 
     const opts: UploadBufferOptions = { contentType: 'image/jpeg', makePublic: true };
@@ -48,7 +52,8 @@ describe('VPS storage backend (drop-in for GCS uploads)', () => {
     expect(uploaded.gsUrl).toBeUndefined();
     expect(uploaded.publicUrl).toMatch(/^\/uploads\/userA-1000\.jpg$/);
 
-    const written = await readFile(join(tmpRoot!, 'uploads', 'userA-1000.jpg'));
+    // Contract: STORAGE_VPS_ROOT + file (NOT STORAGE_VPS_ROOT + uploads + file)
+    const written = await readFile(join(tmpRoot!, 'userA-1000.jpg'));
     expect(written).toEqual(buffer);
   });
 
@@ -63,11 +68,34 @@ describe('VPS storage backend (drop-in for GCS uploads)', () => {
     }
   });
 
+  it('no double /uploads/ nesting when STORAGE_VPS_ROOT points into uploads dir (SAFE_FOLDER prefix regression)', async () => {
+    // Simulate production VPS: STORAGE_VPS_ROOT = /srv/.../uploads (already inside uploads)
+    // but callers (e.g. api/upload route.ts SAFE_FOLDER='uploads') still prefix objectPath with 'uploads/'
+    // The resolved filesystem path must NOT contain a double 'uploads/uploads/' segment.
+    const storageRoot = tmpRoot!; // acts as "the uploads dir" on VPS
+    const prefixedObjectPath = 'uploads/userA-2000.jpg'; // as produced by route.ts SAFE_FOLDER='uploads'
+    const buffer = Buffer.from('no-double-nesting please', 'utf8');
+    const uploaded = await vpsStorageBackend.uploadBuffer(prefixedObjectPath, buffer);
+
+    // Public URL must be clean single /uploads/...
+    expect(uploaded.publicUrl).toBe('/uploads/userA-2000.jpg');
+
+    // Filesystem path must be STORAGE_VPS_ROOT/userA-2000.jpg — NOT STORAGE_VPS_ROOT/uploads/userA-2000.jpg
+    const nestedPath = join(storageRoot, 'uploads', 'userA-2000.jpg');
+    const correctPath = join(storageRoot, 'userA-2000.jpg');
+    await expect(access(correctPath)).resolves.toBeUndefined();
+    await expect(access(nestedPath)).rejects.toThrow();
+    expect(await readFile(correctPath)).toEqual(buffer);
+  });
+
   it('downloadBuffer reads back bytes from a previous upload', async () => {
     const raw = Buffer.from('roundtrip payload', 'utf8');
     const path = 'uploads/rt-1.bin';
     await vpsStorageBackend.uploadBuffer(path, raw);
 
+    // After fix: file lives at tmpRoot/rt-1.bin, downloadBuffer('uploads/rt-1.bin')
+    // should resolve the same path and read it back.
+    await expect(access(join(tmpRoot!, 'rt-1.bin'))).resolves.toBeUndefined();
     const got = await vpsStorageBackend.downloadBuffer(path);
     expect(got).toEqual(raw);
   });
@@ -136,7 +164,10 @@ describe('storage backend downloadBuffer dispatch (/uploads/ → VPS)', async ()
     process.env.STORAGE_BACKEND = 'gcs'; // Even with BACKEND=gcs, /uploads/ path uses VPS backend
     try {
       const payload = Buffer.from('router dispatch test', 'utf8');
+      // router-test.bin uploads with 'uploads/' prefix; resolveFsPath strips it
       await uploadBuffer('uploads/router-test.bin', payload);
+      // Verify file actually at tmpRoot/router-test.bin (not tmpRoot/uploads/router-test.bin)
+      await expect(access(join(tmpRoot!, 'router-test.bin'))).resolves.toBeUndefined();
       const got = await downloadBuffer('/uploads/router-test.bin');
       expect(got).toEqual(payload);
     } finally {

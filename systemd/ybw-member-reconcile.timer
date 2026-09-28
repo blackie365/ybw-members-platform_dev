@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly reconcile: Ghost <-> PG member counts (02:30 UTC daily)
+Requires=ybw-member-reconcile.service
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+AccuracySec=5s
+Unit=ybw-member-reconcile.service
+
+[Install]
+WantedBy=timers.target

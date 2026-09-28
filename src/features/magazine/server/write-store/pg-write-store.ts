@@ -330,7 +330,15 @@ export class PgMagazineWriteStore implements MagazineWriteStore {
   // `exec` is a pg.PoolClient | Pool (any is used to keep the non-txn and txn
   // call paths sharing one helper without an extra pg type import).
   private async writePage(exec: any, issueId: string, page: MagazinePage & { id: number | string }, inTxn = false): Promise<void> {
-    const raw = { ...(page as any) };
+    // DEFENSE: deep-clone the incoming page to sever any shared object
+    // references (nested content arrays, content fields aliased across pages,
+    // etc.) before any mutation or JSON serialization. Guards against latent
+    // aliasing bugs in every call site (syncReaderEditionToLegacyIssue,
+    // handleSavePageContent loops, bulkUpsertPages callers, etc.).
+    const cloned: any = typeof structuredClone === 'function'
+      ? structuredClone(page)
+      : JSON.parse(JSON.stringify(page));
+    const raw = { ...cloned };
     delete raw.docId;
     const id = this.pageId(page);
     let sortKey = 0;
