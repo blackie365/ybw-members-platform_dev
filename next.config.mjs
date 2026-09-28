@@ -52,6 +52,18 @@ const nextConfig = {
         hostname: 'yorkshirebusinesswoman.co.uk',
       },
       {
+        protocol: 'https',
+        hostname: 'img.clerk.com',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+      },
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
       },

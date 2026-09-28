@@ -63,7 +63,12 @@ export function MemberCard({ member }: { member: any }) {
               fill
               className="object-cover"
               onError={() => setImageError(true)}
-              unoptimized={profileImage.includes('gravatar.com')}
+              unoptimized={
+                typeof profileImage === 'string' &&
+                (profileImage.includes('gravatar.com') ||
+                  profileImage.startsWith('/uploads/') ||
+                  profileImage.includes('img.clerk.com'))
+              }
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xl font-serif text-foreground bg-muted">

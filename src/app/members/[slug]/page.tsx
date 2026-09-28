@@ -139,6 +139,12 @@ export default async function MemberProfilePage({
                   className="object-cover"
                   sizes="(max-width: 640px) 128px, 160px"
                   priority
+                  unoptimized={
+                    typeof profileImage === 'string' &&
+                    (profileImage.includes('gravatar.com') ||
+                      profileImage.startsWith('/uploads/') ||
+                      profileImage.includes('img.clerk.com'))
+                  }
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-4xl sm:text-5xl font-serif font-medium text-accent bg-accent/10">
