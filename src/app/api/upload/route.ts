@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    const folderParam = formData.get('folder') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -35,9 +36,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Storage not initialized' }, { status: 500 });
     }
 
+    const safeFolder = folderParam && typeof folderParam === 'string'
+      ? folderParam.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64)
+      : null;
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `${SAFE_FOLDER}/${userId}-${Date.now()}.${fileExtension}`;
+    const objectTail = `${userId}-${Date.now()}.${fileExtension}`;
+    const fileName = safeFolder
+      ? `${SAFE_FOLDER}/${safeFolder}/${objectTail}`
+      : `${SAFE_FOLDER}/${objectTail}`;
 
     const result = await uploadBuffer(fileName, buffer, {
       contentType: file.type,

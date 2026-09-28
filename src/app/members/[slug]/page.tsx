@@ -87,11 +87,17 @@ export default async function MemberProfilePage({
   // Find the best image URL, preferring storage over gravatar
   const avatarUrl = member.avatarUrl || "";
   const profileImageSource = member.profileImage || "";
-  const profileImage = [avatarUrl, profileImageSource, member.image].find((url: any) => 
-    url && typeof url === 'string' && (url.includes('storage.googleapis.com') || url.includes('firebasestorage.app'))
-  ) || [avatarUrl, profileImageSource, member.image].find((url: any) => 
-    url && typeof url === 'string' && url.startsWith('http') && !url.includes('gravatar.com/avatar')
-  ) || avatarUrl || profileImageSource;
+  const imageCandidates = [avatarUrl, profileImageSource, member.image];
+  const realPhotosFirst = imageCandidates.filter((url: any) =>
+    url && typeof url === 'string' && (
+      url.startsWith('/uploads/') ||
+      url.includes('storage.googleapis.com') ||
+      url.includes('firebasestorage.app') ||
+      url.includes('firebasestorage.googleapis.com') ||
+      (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
+    )
+  );
+  const profileImage = realPhotosFirst[0] || profileImageSource || avatarUrl;
 
   // Check if image is a blank gravatar
   const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
