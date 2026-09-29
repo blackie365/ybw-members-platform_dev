@@ -3,21 +3,46 @@ import Image from"next/image";
  import Link from"next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 export function FeaturedInterview({ member }: { member?: any }) {
   if (!member || typeof member !== 'object') return null;
+
+  const [imageError, setImageError] = useState(false);
 
   const bio = member.bio || member.description || "";
   const memberBio = typeof bio === 'string' ? bio : "The old playbook for women in business was about fitting in. Today, it's about standing out.";
   const displayQuote = memberBio.length > 180 ? memberBio.substring(0, 180) + "..." : memberBio;
 
   const memberName = typeof member.name === 'string' ? member.name : (typeof member.displayName === 'string' ? member.displayName : "Featured Member");
-  const memberImage = typeof member.image === 'string' ? member.image : (typeof member.profileImage === 'string' ? member.profileImage : "https://images.unsplash.com/photo-1573497019236-17f8177b81e8?w=800&q=80");
+
+  // Image handling (align with MemberCard pattern)
+  const imageCandidates = [member.profileImage, member.image, member.avatarUrl, member.profileImageSource];
+  const realPhotosFirst = imageCandidates.filter(url =>
+    url && typeof url === 'string' && (
+      url.startsWith('/uploads/') ||
+      url.includes('storage.googleapis.com') ||
+      url.includes('firebasestorage.app') ||
+      url.includes('firebasestorage.googleapis.com') ||
+      (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
+    )
+  );
+  const memberImage = realPhotosFirst[0] || member.profileImage || member.avatarUrl;
+  const isBlankGravatar = typeof memberImage === 'string' && memberImage.includes('gravatar.com/avatar') && memberImage.includes('d=blank');
+  const hasRealImage = memberImage && !isBlankGravatar && !imageError;
+
+  const memberInitial = memberName && memberName.length ? memberName.trim()[0].toUpperCase() : "F";
   const memberRole = String(member.role || member.jobTitle || "CEO");
   const memberCompany = String(member.company || member.companyName || "");
 
   // Keywords based on member data or defaults
   const keywords = member.keywords || member.expertise || ["Leadership", "Innovation", "Strategy"];
+
+  const unoptimized =
+    typeof memberImage === 'string' &&
+    (memberImage.includes('gravatar.com') ||
+      memberImage.startsWith('/uploads/') ||
+      memberImage.includes('img.clerk.com'));
 
   return (
     <section className="bg-background border-t border-border/50">
@@ -44,13 +69,21 @@ export function FeaturedInterview({ member }: { member?: any }) {
             className="relative"
           >
             <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-              <Image
-                src={memberImage}
-                alt={memberName}
-                fill
-                className="object-cover"
-                priority
-              />
+              {hasRealImage ? (
+                <Image
+                  src={memberImage}
+                  alt={memberName}
+                  fill
+                  className="object-cover"
+                  priority
+                  unoptimized={unoptimized}
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-8xl font-serif text-foreground bg-muted/50">
+                  {memberInitial}
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -83,13 +116,21 @@ export function FeaturedInterview({ member }: { member?: any }) {
 
             {/* Author Info with Avatar */}
             <div className="mt-8 flex items-center gap-4">
-              <Image
-                src={memberImage}
-                alt={memberName}
-                width={56}
-                height={56}
-                className="h-14 w-14 rounded-full object-cover"
-              />
+              {hasRealImage ? (
+                <Image
+                  src={memberImage}
+                  alt={memberName}
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 rounded-full object-cover"
+                  unoptimized={unoptimized}
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-xl font-serif text-foreground">
+                  {memberInitial}
+                </div>
+              )}
               <div>
                 <h3 className="font-medium text-foreground">
                   {memberName}

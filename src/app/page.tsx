@@ -17,10 +17,28 @@ import Link from "next/link";
 
 function toFeaturedMember(doc: any) {
   const data = doc;
+  // Real-photo filter (same as MemberCard logic)
+  const imageCandidates = [data.profileImage, data.image, data.avatarUrl, data.profileImageSource];
+  const realPhotosFirst = imageCandidates.filter(url =>
+    url && typeof url === 'string' && (
+      url.startsWith('/uploads/') ||
+      url.includes('storage.googleapis.com') ||
+      url.includes('firebasestorage.app') ||
+      url.includes('firebasestorage.googleapis.com') ||
+      (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
+    )
+  );
+  const profileImage = realPhotosFirst[0] || data.profileImage || data.avatarUrl;
+  const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
+  const hasRealPhoto = !!profileImage && !isBlankGravatar;
+  const firstName = data.firstName || '';
+  const lastName = data.lastName || '';
+  const display = String(data.displayName || `${firstName} ${lastName}`.trim() || data.name || '').trim();
   return {
     id: data.clerkId,
-    name: String(data.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name || ''),
-    image: String(data.profileImage || data.image || data.avatarUrl || ''),
+    name: display,
+    image: String(profileImage || ''),
+    hasRealPhoto,
     company: String(data.companyName || data.company || ''),
     role: String(data.jobTitle || data.role || ''),
     bio: String(data.bio || ''),
@@ -33,22 +51,18 @@ async function getFeaturedMembers() {
   try {
     const store = getMemberStore();
 
-    // First, try to fetch the explicitly featured member
-    const featured = await store.getFeatured(1);
-    if (featured.length > 0) {
-      return [toFeaturedMember(featured[0])];
-    }
+    // First, try to fetch the explicitly featured member — but only keep if has a real photo + bio
+    const explicit = await store.getFeatured(1);
+    const explicitClean = explicit.map(toFeaturedMember).filter(m => m.hasRealPhoto && m.name && m.bio && m.bio.trim().length > 20);
+    if (explicitClean.length > 0) return [explicitClean[0]];
 
-    // Fallback: Fetch a batch of members to find one with a complete profile
+    // Fallback: Fetch a batch of members to find one with a complete profile + real photo
     const all = await store.getAll();
     const members = all
-      .slice(0, 50)
-      .map((p) => toFeaturedMember(p))
-      .filter((member: any) => {
-        const hasImage = !!member.image;
-        const hasBio = member.bio && typeof member.bio === 'string' && member.bio.trim().length > 20;
-        const hasName = member.name && typeof member.name === 'string' && member.name.trim().length > 0;
-        return hasImage && hasBio && hasName;
+      .slice(0, 200)
+      .map(toFeaturedMember)
+      .filter((m: any) => {
+        return m.hasRealPhoto && m.name && m.name.trim().length > 0 && m.bio && typeof m.bio === 'string' && m.bio.trim().length > 20;
       });
 
     return members;
