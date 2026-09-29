@@ -6,9 +6,8 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 
 export function FeaturedInterview({ member }: { member?: any }) {
-  if (!member || typeof member !== 'object') return null;
-
   const [imageError, setImageError] = useState(false);
+  if (!member || typeof member !== 'object') return null;
 
   const bio = member.bio || member.description || "";
   const memberBio = typeof bio === 'string' ? bio : "The old playbook for women in business was about fitting in. Today, it's about standing out.";
