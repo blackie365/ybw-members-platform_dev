@@ -1,13 +1,8 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
-// Generous page-view budget: only real page navigations hit this (the matcher
-// excludes /_next/static and other static assets), so a human reading a
-// broadsheet — long pages, image loading, hard refreshes, preview iframes —
-// should never trip it. It still bounds pathological page-fetching. The tight
-// anti-abuse limits (5/min) live on the contact/newsletter/events API routes.
 const PAGE_LIMIT = 600;
 const PAGE_WINDOW_MS = 60_000;
 
@@ -28,7 +23,19 @@ function isLoopbackIp(ip: string | undefined | null): boolean {
   );
 }
 
-const base = clerkMiddleware((_auth, req) => {
+// Clerk v7 pattern: define which routes require authentication with
+// createRouteMatcher() and call auth().protect() only for those matches.
+// Everything else (home, /members, magazine, news, sign-in/up, etc.) is PUBLIC.
+const isProtectedRoute = createRouteMatcher([
+  "/admin(.*)",
+  "/dashboard(.*)",
+]);
+
+const base = clerkMiddleware(async (auth, req) => {
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+  }
+
   if (req.nextUrl.pathname.startsWith("/admin")) {
     const ip = getClientIp(req);
     console.info(
