@@ -40,6 +40,27 @@ jobs:
           cd /tmp && pnpm --version
           sudo -n true && echo "sudo: nopasswd OK" || { echo "sudo requires password - fix /etc/sudoers.d/gha-runner-ybw-deploy"; exit 1; }
 
+      - name: self-heal missing APPDIR .git
+        run: |
+          set -euo pipefail
+          if sudo test -d "$APPDIR/.git"; then
+            echo "APPDIR/.git present — nothing to do"
+            exit 0
+          fi
+          echo "WARNING: $APPDIR/.git is missing; every deploy fails at step 1"
+          echo "         with 'fatal: not a git repository'. Restoring it from the"
+          echo "         newest backup that still carries one."
+          SRC=""
+          for d in $(ls -1dt /srv/ybw-frontend.*.bak 2>/dev/null); do
+            if sudo test -d "$d/.git"; then SRC="$d"; break; fi
+          done
+          [ -n "$SRC" ] || { echo "FATAL: no /srv/ybw-frontend.*.bak with a .git found; restore it manually"; exit 1; }
+          echo "Restoring $APPDIR/.git from $SRC/.git"
+          sudo cp -a "$SRC/.git" "$APPDIR/.git"
+          sudo /bin/chown -R www-data:www-data "$APPDIR/.git"
+          sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
+          echo "restored HEAD: $(sudo git -C "$APPDIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
       - name: git fetch origin/main + reset APPDIR to ${{ github.sha }}
         run: |
           set -euo pipefail
