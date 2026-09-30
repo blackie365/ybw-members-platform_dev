@@ -227,15 +227,7 @@ jobs:
           echo "MAIN_PID=$MAINPID" | tee -a "$LOG"
           echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV, pid=$MAINPID)" | tee -a "$LOG"
 
-      # PROVISIONAL: continue-on-error because `cp` was found NOT to be on the
-      # gha-runner sudo allowlist (run 36737621737), so this step cannot yet
-      # write the unit files. The 'report gha-runner sudo allowlist' step
-      # prints the policy; once an allowed write path is known this guard is
-      # removed and the step goes strict again. Kept non-blocking so a
-      # timer-install gap does not mark an otherwise-successful code deploy
-      # red and hide the real signal.
       - name: Install + enable weekly newsletter systemd timer
-        continue-on-error: true
         run: |
           set -euo pipefail
           APPDIR=/srv/ybw-frontend
@@ -243,17 +235,23 @@ jobs:
           # Actions cron (11:11 UTC Wed) is the cross-region backup. Both hit
           # the same atomic-dedup endpoint, so whichever fires first sends and
           # the other is a no-op.
-          sudo /bin/cp "$APPDIR/deploy/ybw-newsletter.service" /etc/systemd/system/ybw-newsletter.service
-          sudo /bin/cp "$APPDIR/deploy/ybw-newsletter.timer"  /etc/systemd/system/ybw-newsletter.timer
+          #
+          # Unit files are written with `tee < src` rather than `cp`: the
+          # gha-runner sudo allowlist permits tee/chmod/chown/rm/mkdir/git/
+          # systemctl but NOT cp/cat/install/tar (see the allowlist step).
+          sudo /bin/tee /etc/systemd/system/ybw-newsletter.service \
+            < "$APPDIR/deploy/ybw-newsletter.service" >/dev/null
+          sudo /bin/tee /etc/systemd/system/ybw-newsletter.timer \
+            < "$APPDIR/deploy/ybw-newsletter.timer" >/dev/null
           sudo /bin/chown root:root /etc/systemd/system/ybw-newsletter.{service,timer}
           sudo /bin/chmod 0644 /etc/systemd/system/ybw-newsletter.{service,timer}
 
           # Rotate the secret used by the timer service on every deploy so the
-          # file always matches the repo secret. Root-only read. Same
-          # sudo tee + sudo chmod 600 pattern already used for CREDFILE above
-          # (deliberately NOT `sudo umask`, which cannot work: umask is a shell
-          # builtin, not a binary sudo can exec).
-          printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo tee /etc/ybw-newsletter.env >/dev/null
+          # file always matches the repo secret. Root-only read, via the same
+          # tee + chmod 600 pattern already used for CREDFILE above.
+          # (Deliberately NOT `sudo umask`, which cannot work: umask is a shell
+          # builtin, not a binary sudo can exec.)
+          printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo /bin/tee /etc/ybw-newsletter.env >/dev/null
           sudo /bin/chown root:root /etc/ybw-newsletter.env
           sudo /bin/chmod 600 /etc/ybw-newsletter.env
 
