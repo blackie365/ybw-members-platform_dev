@@ -23,6 +23,15 @@ jobs:
     env:
       CI: 'true'
       APPDIR: /srv/ybw-frontend
+      # Canonical origin. Compared against the nested copy's own remote in the
+      # [1c/6] purge guard, so both sides get normalised (`.git` suffix off)
+      # before comparison -- the deployed checkout may carry either form.
+      ORIGIN: 'https://github.com/blackie365/ybw-members-platform_dev'
+      # The stray self-nested copy the [1c/6] purge step is allowed to delete.
+      # A constant, never a workflow input, so this can only ever target this
+      # one well-known path; it must stay equal to $APPDIR/$(basename $APPDIR),
+      # which the step re-verifies (dirname + basename guards) before deleting.
+      STRAY: /srv/ybw-frontend/ybw-frontend
       GITHUB_TOKEN: ${{ github.token }}
 
     steps:
@@ -77,7 +86,7 @@ jobs:
           echo "         fresh repo; the fetch/reset step below repopulates the"
           echo "         whole worktree from origin, so nothing is lost."
           sudo git init -q "$APPDIR"
-          sudo git -C "$APPDIR" remote add origin https://github.com/blackie365/ybw-members-platform_dev.git
+          sudo git -C "$APPDIR" remote add origin "$ORIGIN.git"
           sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
           echo "re-initialised: $(sudo git -C "$APPDIR" rev-parse --is-inside-work-tree 2>/dev/null || echo failed)"
 
@@ -121,6 +130,59 @@ jobs:
               echo "removed stray root file: $f" | tee -a "$LOG"
             fi
           done
+
+          # A whole-app copy of APPDIR ended up nested INSIDE APPDIR at
+          # /srv/ybw-frontend/ybw-frontend (2.6G, including its own .git --
+          # which is how APPDIR lost its own). It is a stale snapshot of
+          # origin/main and nothing writes to it, but `next build` type-checks
+          # `**/*.ts`, so tsconfig has to exclude it (see tsconfig.json).
+          # Purging it here means the exclusion can eventually be dropped and
+          # the 2.6G stops silently accumulating inside the release dir.
+          #
+          # Guarded hard because this is `rm -rf`: the path is a constant, must
+          # resolve to itself (catches a symlink swap), must be a direct child of
+          # APPDIR, and the live uploads/ tree is inode-checked either side of the
+          # delete so a mistake fails loudly instead of taking member photos with
+          # it. Live photos are separate inodes from the nested copy, so this
+          # cannot reclaim or damage them.
+          echo "[1c/6] purge stray self-nested release copy ($STRAY)" | tee -a "$LOG"
+          if [ -e "$STRAY" ] || [ -L "$STRAY" ]; then
+            [ -L "$STRAY" ] && { echo "FATAL: $STRAY is a symlink - refusing"; exit 3; }
+            [ -d "$STRAY" ] || { echo "FATAL: $STRAY is not a directory - refusing"; exit 3; }
+            [ "$(readlink -f "$STRAY")" = "$STRAY" ] || { echo "FATAL: $STRAY does not resolve to itself - refusing"; exit 3; }
+            [ "$(dirname "$STRAY")" = "$APPDIR" ] || { echo "FATAL: $STRAY is not a direct child of APPDIR - refusing"; exit 3; }
+            [ "$(basename "$STRAY")" = "ybw-frontend" ] || { echo "FATAL: unexpected basename - refusing"; exit 3; }
+            # Never silently destroy app config/secrets if this ever points at
+            # something that should not be purged.
+            [ -f "$STRAY/.env.local" ] && { echo "FATAL: $STRAY contains .env.local - refusing"; exit 3; }
+            # Only purge something that is provably our own stale copy of this
+            # repo, and that is behind main rather than ahead of it.
+            # Normalise the optional trailing `.git` on both sides before
+            # comparing: the deployed checkout was seeded with ORIGIN.git while
+            # the nested copy recorded the bare ORIGIN, and a literal string
+            # compare would refuse a copy that is in fact our own repo.
+            SREMOTE=$(sudo git -C "$STRAY" remote get-url origin 2>/dev/null || true)
+            SREMOTE=${SREMOTE%.git}
+            [ "$SREMOTE" = "$ORIGIN" ] || { echo "FATAL: $STRAY origin '$SREMOTE' != '$ORIGIN' - refusing"; exit 3; }
+            SUDO_GIT="sudo git -C $STRAY"
+            $SUDO_GIT fetch --quiet origin main 2>/dev/null || true
+            SBEHIND=$($SUDO_GIT rev-list --count HEAD..FETCH_HEAD 2>/dev/null || echo 0)
+            SAHEAD=$($SUDO_GIT rev-list --count FETCH_HEAD..HEAD 2>/dev/null || echo 0)
+            echo "  nested HEAD=$($SUDO_GIT rev-parse --short HEAD) behind=$SBEHIND ahead=$SAHEAD" | tee -a "$LOG"
+            [ "$SAHEAD" = "0" ] || { echo "FATAL: $STRAY has commits not on origin/main - refusing to purge"; exit 3; }
+            LIVE_FILES_BEFORE=$(find "$APPDIR/uploads" -type f 2>/dev/null | wc -l)
+            LIVE_INODES_BEFORE=$(find "$APPDIR/uploads" -type f -printf '%i\n' 2>/dev/null | sort -u | wc -l)
+            echo "  purging $STRAY ($(du -sh "$STRAY" 2>/dev/null | cut -f1)); live uploads: $LIVE_FILES_BEFORE files / $LIVE_INODES_BEFORE inodes" | tee -a "$LOG"
+            sudo /bin/rm -rf "$STRAY"
+            [ -e "$STRAY" ] && { echo "FATAL: $STRAY still exists after purge"; exit 3; }
+            LIVE_FILES_AFTER=$(find "$APPDIR/uploads" -type f 2>/dev/null | wc -l)
+            LIVE_INODES_AFTER=$(find "$APPDIR/uploads" -type f -printf '%i\n' 2>/dev/null | sort -u | wc -l)
+            [ "$LIVE_FILES_BEFORE" = "$LIVE_FILES_AFTER" ] && [ "$LIVE_INODES_BEFORE" = "$LIVE_INODES_AFTER" ] \
+              || { echo "FATAL: live uploads changed ($LIVE_FILES_BEFORE/$LIVE_INODES_BEFORE -> $LIVE_FILES_AFTER/$LIVE_INODES_AFTER)"; exit 3; }
+            echo "  purged OK; live uploads intact ($LIVE_FILES_AFTER files / $LIVE_INODES_AFTER inodes)" | tee -a "$LOG"
+          else
+            echo "  no stray nested copy present - nothing to do" | tee -a "$LOG"
+          fi
 
           echo "[2/6] chown checkout to www-data" | tee -a "$LOG"
           sudo /bin/chown -R www-data:www-data "$APPDIR" || true
