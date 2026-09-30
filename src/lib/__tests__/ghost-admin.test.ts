@@ -48,8 +48,20 @@ describe('getGhostMemberByEmail', () => {
   it('returns the first member matching the email filter', async () => {
     browseMock.mockResolvedValue([{ id: 'm1', status: 'paid' }]);
     const member = await getGhostMemberByEmail('a@x.com');
-    expect(browseMock).toHaveBeenCalledWith({ filter: "email:'a@x.com'" });
+    expect(browseMock).toHaveBeenCalledWith({ filter: 'email:a@x.com' });
     expect(member).toEqual({ id: 'm1', status: 'paid' });
+  });
+
+  it('normalises the email to lowercase so lookups are case-insensitive', async () => {
+    browseMock.mockResolvedValue([]);
+    await getGhostMemberByEmail('A@X.COM');
+    expect(browseMock).toHaveBeenCalledWith({ filter: 'email:a@x.com' });
+  });
+
+  it('escapes single quotes so they cannot break out of the filter', async () => {
+    browseMock.mockResolvedValue([]);
+    await getGhostMemberByEmail("a'@x.com");
+    expect(browseMock).toHaveBeenCalledWith({ filter: "email:a\\'@x.com" });
   });
 
   it('returns null when Ghost returns no members', async () => {
