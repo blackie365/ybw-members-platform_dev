@@ -157,6 +157,12 @@ jobs:
             [ -f "$STRAY/.env.local" ] && { echo "FATAL: $STRAY contains .env.local - refusing"; exit 3; }
             # Only purge something that is provably our own stale copy of this
             # repo, and that is behind main rather than ahead of it.
+            # STRAY is www-data-owned, so git's "dubious ownership" check makes
+            # it refuse to read the repo and `remote get-url` returns empty --
+            # indistinguishable from a foreign remote, so the guard below would
+            # refuse our own stale copy. Trust it first, exactly as the APPDIR
+            # self-heal step does. (Run 36743717381 failed here for this reason.)
+            sudo git config --global --add safe.directory "$STRAY" 2>/dev/null || true
             # Normalise the optional trailing `.git` on both sides before
             # comparing: the deployed checkout was seeded with ORIGIN.git while
             # the nested copy recorded the bare ORIGIN, and a literal string
