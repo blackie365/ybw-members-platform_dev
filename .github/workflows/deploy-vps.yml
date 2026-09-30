@@ -178,3 +178,34 @@ jobs:
           MAINPID=$(sudo systemctl show -p MainPID --value ybw-frontend.service)
           echo "MAIN_PID=$MAINPID" | tee -a "$LOG"
           echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV, pid=$MAINPID)" | tee -a "$LOG"
+
+      - name: Install + enable weekly newsletter systemd timer
+        run: |
+          set -euo pipefail
+          APPDIR=/srv/ybw-frontend
+          # The VPS-local timer is the guaranteed weekly sender; the GitHub
+          # Actions cron (11:11 UTC Wed) is the cross-region backup. Both hit
+          # the same atomic-dedup endpoint, so whichever fires first sends and
+          # the other is a no-op.
+          sudo /bin/cp "$APPDIR/deploy/ybw-newsletter.service" /etc/systemd/system/ybw-newsletter.service
+          sudo /bin/cp "$APPDIR/deploy/ybw-newsletter.timer"  /etc/systemd/system/ybw-newsletter.timer
+          sudo /bin/chown root:root /etc/systemd/system/ybw-newsletter.{service,timer}
+          sudo /bin/chmod 0644 /etc/systemd/system/ybw-newsletter.{service,timer}
+
+          # Rotate the secret used by the timer service on every deploy so the
+          # file always matches the repo secret. Root-only read.
+          sudo umask 077
+          printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo tee /etc/ybw-newsletter.env >/dev/null
+          sudo chown root:root /etc/ybw-newsletter.env
+          sudo chmod 600 /etc/ybw-newsletter.env
+
+          sudo /bin/systemctl daemon-reload
+          sudo /bin/systemctl enable ybw-newsletter.timer
+          sudo /bin/systemctl start  ybw-newsletter.timer
+
+          echo "timer state:"
+          sudo /bin/systemctl --no-pager is-active ybw-newsletter.timer
+          sudo /bin/systemctl --no-pager is-enabled ybw-newsletter.timer
+          sudo /bin/systemctl --no-pager list-timers ybw-newsletter.timer
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

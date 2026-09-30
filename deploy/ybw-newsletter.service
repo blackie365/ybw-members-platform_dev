@@ -1,0 +1,22 @@
+# YBW weekly newsletter — VPS-local sender. GitHub Actions `schedule` events
+# are unreliable for this repo (the 16 Sep 2026 event never fired), so the
+# systemd timer below is the GUARANTEED weekly trigger. The GitHub cron at
+# 11:11 UTC stays as a cross-region backup: whoever fires first claims the ISO
+# week via /api/cron/daily-newsletter's single atomic INSERT, the other is
+# deduped to a no-op. Exactly one broadcast per week.
+#
+# CRON_SECRET is loaded from /etc/ybw-newsletter.env (written by the deploy
+# workflow from the GitHub Actions secret, mode 0600, rotated per deploy).
+[Unit]
+Description=Send YBW weekly newsletter (VPS-local guaranteed sender)
+After=network-online.target ybw-frontend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ybw-newsletter.env
+ExecStart=/usr/bin/curl -fsS -o /tmp/ybw-newsletter-response.json -w "HTTP %%{http_code}\n" -X POST -H "Authorization: Bearer ${CRON_SECRET}" -H "Content-Type: application/json" --data "{}" http://127.0.0.1:3003/api/cron/daily-newsletter
+# curl -f makes HTTP >= 400 a nonzero exit so a failed send fails the unit.
+
+[Install]
+WantedBy=multi-user.target
