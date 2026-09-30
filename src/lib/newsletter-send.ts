@@ -82,8 +82,39 @@ export async function wasNewsletterSentThisWeek(
   }
 }
 
-/** Record a completed send for the given ISO week. */
-async function logNewsletterSend(
+/**
+ * Atomically claim the current ISO week for a newsletter send.
+ * Returns one of:
+ *   - "claimed"       — this caller won the week and must do the send
+ *   - "already-sent"  — another send (cron/timer/admin) already owns this week
+ *   - "no-pg"         — Postgres unavailable; caller should send unguarded
+ *
+ * The claim is made in the same statement as the dedup check
+ * (INSERT ... ON CONFLICT DO NOTHING + rowCount), so two overlapping
+ * triggers — e.g. the VPS systemd timer and the GitHub Actions cron firing in
+ * the same minute — can never both pass the check and double-send.
+ */
+async function claimNewsletterSendWeek(
+  weekKey: string,
+): Promise<"claimed" | "already-sent" | "no-pg"> {
+  const pool = getMagazinePgPool();
+  if (!pool) return "no-pg";
+  try {
+    const { rowCount } = await pool.query(
+      `INSERT INTO newsletter_send_log (week_key)
+       VALUES ($1)
+       ON CONFLICT (week_key) DO NOTHING`,
+      [weekKey],
+    );
+    return rowCount === 1 ? "claimed" : "already-sent";
+  } catch (err) {
+    console.warn("[newsletter-send] failed to claim week:", err);
+    return "no-pg";
+  }
+}
+
+/** Update a claimed week with the actual send outcome. */
+async function updateNewsletterSend(
   weekKey: string,
   count: number,
   uniqueCount: number,
@@ -94,13 +125,24 @@ async function logNewsletterSend(
   if (!pool) return;
   try {
     await pool.query(
-      `INSERT INTO newsletter_send_log (week_key, count, unique_count, batches, mock)
-       VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (week_key) DO NOTHING`,
+      `UPDATE newsletter_send_log
+       SET count = $2, unique_count = $3, batches = $4, mock = $5, deduped = FALSE
+       WHERE week_key = $1`,
       [weekKey, count, uniqueCount, batches, mock],
     );
   } catch (err) {
-    console.warn("[newsletter-send] failed to log send:", err);
+    console.warn("[newsletter-send] failed to update send log:", err);
+  }
+}
+
+/** Release a claimed week when the send failed, so it can be retried. */
+async function releaseNewsletterSend(weekKey: string): Promise<void> {
+  const pool = getMagazinePgPool();
+  if (!pool) return;
+  try {
+    await pool.query("DELETE FROM newsletter_send_log WHERE week_key = $1", [weekKey]);
+  } catch (err) {
+    console.warn("[newsletter-send] failed to release week:", err);
   }
 }
 
@@ -149,14 +191,15 @@ export async function sendWeeklyNewsletter(options?: {
   const subject = options?.subject || NEWSLETTER_DEFAULT_SUBJECT;
 
   // --- deduplication (Postgres-backed, per ISO week) ---
+  // Claim the week first: only the caller that wins the INSERT gets to send.
+  // Anything that fires later (GitHub cron, VPS timer, admin button) sees an
+  // existing row and returns without broadcasting — exactly one send per week.
   const weekKey = isoWeekKey();
   const tableReady = await ensureSendLogTable();
-  if (tableReady) {
-    const alreadySent = await wasNewsletterSentThisWeek(weekKey);
-    if (alreadySent) {
-      console.log(`[newsletter-send] skip — already sent this week (${weekKey})`);
-      return { success: true, count: 0, unique: 0, batches: 0, deduped: true };
-    }
+  const weekClaim = tableReady ? await claimNewsletterSendWeek(weekKey) : "no-pg";
+  if (weekClaim === "already-sent") {
+    console.log(`[newsletter-send] skip — already sent this week (${weekKey})`);
+    return { success: true, count: 0, unique: 0, batches: 0, deduped: true };
   }
 
   const posts = await getPosts({
@@ -166,6 +209,7 @@ export async function sendWeeklyNewsletter(options?: {
 
   const emails = await collectNewsletterRecipients();
   if (emails.length === 0) {
+    if (weekClaim === "claimed") await releaseNewsletterSend(weekKey);
     return { success: false, count: 0, unique: 0, batches: 0, error: "No newsletter recipients found" };
   }
 
@@ -189,10 +233,43 @@ export async function sendWeeklyNewsletter(options?: {
     }
   }
 
-  // --- record the send (table may not exist on older deploys) ---
-  if (tableReady) {
+  // --- record the send only if emails were actually delivered, so a failed
+  // send (all batches errored) is not swallowed by the weekly dedup and can
+  // be retried ---
+  if (successCount === 0) {
+    if (weekClaim === "claimed") await releaseNewsletterSend(weekKey);
+    return {
+      success: false,
+      count: 0,
+      unique: emails.length,
+      batches: Math.ceil(emails.length / NEWSLETTER_BATCH_SIZE),
+      error: "No newsletter recipients could be reached (all batches failed)",
+    };
+  }
+
+  if (weekClaim === "claimed") {
+    await updateNewsletterSend(
+      weekKey,
+      successCount,
+      emails.length,
+      Math.ceil(emails.length / NEWSLETTER_BATCH_SIZE),
+      !!mock,
+    );
+  } else if (tableReady) {
     const totalBatches = Math.ceil(emails.length / NEWSLETTER_BATCH_SIZE);
-    await logNewsletterSend(weekKey, successCount, emails.length, totalBatches, !!mock);
+    const pool = getMagazinePgPool();
+    if (pool) {
+      await pool
+        .query(
+          `INSERT INTO newsletter_send_log (week_key, count, unique_count, batches, mock)
+           VALUES ($1,$2,$3,$4,$5)
+           ON CONFLICT (week_key) DO NOTHING`,
+          [weekKey, successCount, emails.length, totalBatches, !!mock],
+        )
+        .catch((err: unknown) =>
+          console.warn("[newsletter-send] failed to log send:", err),
+        );
+    }
   }
 
   return {

@@ -76,11 +76,11 @@ describe('wasNewsletterSentThisWeek', () => {
 });
 
 describe('sendWeeklyNewsletter deduplication', () => {
-  it('skips send when already logged for this week', async () => {
+  it('skips send when the week is already claimed (deduped)', async () => {
     // ensureSendLogTable: CREATE TABLE succeeds
     fakePool.query.mockResolvedValueOnce({ rows: [] });
-    // wasNewsletterSentThisWeek: row exists
-    fakePool.query.mockResolvedValueOnce({ rows: [{ week_key: '2026-W38' }] });
+    // claimNewsletterSendWeek: INSERT ON CONFLICT rowCount 0 → already-sent
+    fakePool.query.mockResolvedValueOnce({ rowCount: 0 });
 
     const result = await sendWeeklyNewsletter();
 
@@ -91,12 +91,12 @@ describe('sendWeeklyNewsletter deduplication', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it('sends and logs when no prior send exists', async () => {
+  it('sends and updates the log when the week is claimed', async () => {
     // ensureSendLogTable: CREATE TABLE succeeds
     fakePool.query.mockResolvedValueOnce({ rows: [] });
-    // wasNewsletterSentThisWeek: no row
-    fakePool.query.mockResolvedValueOnce({ rows: [] });
-    // logNewsletterSend INSERT succeeds
+    // claimNewsletterSendWeek: INSERT ON CONFLICT rowCount 1 → claimed
+    fakePool.query.mockResolvedValueOnce({ rowCount: 1 });
+    // updateNewsletterSend UPDATE succeeds
     fakePool.query.mockResolvedValueOnce({ rows: [] });
 
     const result = await sendWeeklyNewsletter();
@@ -104,6 +104,23 @@ describe('sendWeeklyNewsletter deduplication', () => {
     expect(result.success).toBe(true);
     expect(result.deduped).toBeUndefined();
     expect(result.count).toBe(2);
+    expect(sendEmail).toHaveBeenCalled();
+  });
+
+  it('releases the week claim when every batch fails, so it can retry', async () => {
+    // ensureSendLogTable: CREATE TABLE succeeds
+    fakePool.query.mockResolvedValueOnce({ rows: [] });
+    // claimNewsletterSendWeek: claimed
+    fakePool.query.mockResolvedValueOnce({ rowCount: 1 });
+    // releaseNewsletterSend DELETE succeeds
+    fakePool.query.mockResolvedValueOnce({ rows: [] });
+    sendEmail.mockResolvedValue({ success: false });
+
+    const result = await sendWeeklyNewsletter();
+
+    expect(result.success).toBe(false);
+    expect(result.count).toBe(0);
+    expect((result as { error?: string }).error).toMatch(/No newsletter recipients could be reached/);
     expect(sendEmail).toHaveBeenCalled();
   });
 
