@@ -43,7 +43,11 @@ jobs:
       - name: self-heal missing APPDIR .git
         run: |
           set -euo pipefail
-          if sudo test -d "$APPDIR/.git"; then
+          # NOTE: this step must only use binaries on the gha-runner sudo
+          # allowlist in /etc/sudoers.d/gha-runner-ybw-deploy. `sudo test`
+          # is NOT on it and prompts for a password, so use the bash `[ ]`
+          # builtin for the existence checks instead.
+          if [ -d "$APPDIR/.git" ]; then
             echo "APPDIR/.git present — nothing to do"
             exit 0
           fi
@@ -52,11 +56,11 @@ jobs:
           echo "         newest backup that still carries one."
           SRC=""
           for d in $(ls -1dt /srv/ybw-frontend.*.bak 2>/dev/null); do
-            if sudo test -d "$d/.git"; then SRC="$d"; break; fi
+            if [ -d "$d/.git" ]; then SRC="$d"; break; fi
           done
           [ -n "$SRC" ] || { echo "FATAL: no /srv/ybw-frontend.*.bak with a .git found; restore it manually"; exit 1; }
           echo "Restoring $APPDIR/.git from $SRC/.git"
-          sudo cp -a "$SRC/.git" "$APPDIR/.git"
+          sudo /bin/cp -a "$SRC/.git" "$APPDIR/.git"
           sudo /bin/chown -R www-data:www-data "$APPDIR/.git"
           sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
           echo "restored HEAD: $(sudo git -C "$APPDIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -89,7 +93,11 @@ jobs:
 
           echo "[1b/6] purge stray root-level source duplicates (untracked leftovers from past manual sessions; next build type-checks them and they fall out of date with src/)" | tee -a "$LOG"
           for f in profile.ts ghost.ts firebase-admin.ts middleware.ts auth-utils.ts; do
-            if sudo test -f "$APPDIR/$f"; then
+            # `sudo test` is not on the gha-runner sudo allowlist: it fails
+            # non-interactively, so the `if` was always false and this purge
+            # silently never removed anything. gha-runner is in the www-data
+            # group and these files are 0644, so the builtin check is enough.
+            if [ -f "$APPDIR/$f" ]; then
               sudo rm -f "$APPDIR/$f"
               echo "removed stray root file: $f" | tee -a "$LOG"
             fi
@@ -214,11 +222,13 @@ jobs:
           sudo /bin/chmod 0644 /etc/systemd/system/ybw-newsletter.{service,timer}
 
           # Rotate the secret used by the timer service on every deploy so the
-          # file always matches the repo secret. Root-only read.
-          sudo umask 077
+          # file always matches the repo secret. Root-only read. Same
+          # sudo tee + sudo chmod 600 pattern already used for CREDFILE above
+          # (deliberately NOT `sudo umask`, which cannot work: umask is a shell
+          # builtin, not a binary sudo can exec).
           printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo tee /etc/ybw-newsletter.env >/dev/null
-          sudo chown root:root /etc/ybw-newsletter.env
-          sudo chmod 600 /etc/ybw-newsletter.env
+          sudo /bin/chown root:root /etc/ybw-newsletter.env
+          sudo /bin/chmod 600 /etc/ybw-newsletter.env
 
           sudo /bin/systemctl daemon-reload
           sudo /bin/systemctl enable ybw-newsletter.timer
