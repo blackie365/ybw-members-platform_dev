@@ -4,25 +4,9 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { Check, ArrowRight, Sparkles, Users, Building2 } from 'lucide-react';
+import { Check, ArrowRight, Sparkles, Building2 } from 'lucide-react';
 
 const tiers = [
-  {
-    name: 'Free Subscriber',
-    id: 'tier-free',
-    href: '/sign-up',
-    priceMonthly: '£0',
-    priceAnnually: '£0',
-    icon: Users,
-    description: 'The essential Yorkshire Businesswoman experience. Perfect for staying up to date.',
-    features: [
-      'Weekly newsletter access',
-      'Read public articles and news',
-      'Basic community updates',
-      'Event notifications',
-    ],
-    mostPopular: false,
-  },
   {
     name: 'Premium Member',
     id: 'tier-premium',
@@ -210,7 +194,7 @@ function MembershipPageClient() {
         </div>
 
         {/* Pricing cards */}
-        <div className="mx-auto mt-12 grid max-w-md grid-cols-1 gap-6 md:max-w-2xl md:grid-cols-2 lg:max-w-none lg:grid-cols-3 lg:gap-8">
+        <div className="mx-auto mt-12 grid max-w-md grid-cols-1 gap-6 md:max-w-2xl md:grid-cols-2 lg:gap-8">
           {tiers.map((tier) => {
             const Icon = tier.icon;
             return (
@@ -281,24 +265,6 @@ function MembershipPageClient() {
                     Contact Us
                     <ArrowRight className="h-4 w-4" />
                   </Link>
-                ) : tier.id === 'tier-free' ? (
-                  user ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-muted text-muted-foreground cursor-not-allowed"
-                    >
-                      Current Plan
-                    </button>
-                  ) : (
-                    <Link
-                      href={`/sign-up?cycle=${billingCycle}`}
-                      className="mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold border border-border bg-card text-foreground hover:bg-muted transition-all"
-                    >
-                      Get Started
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  )
                 ) : !user ? (
                   <Link
                     href={`/sign-up?returnUrl=${encodeURIComponent(`/membership?upgrade=1&cycle=${billingCycle}`)}`}
