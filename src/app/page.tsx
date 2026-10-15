@@ -119,6 +119,7 @@ function applyFeaturedStalenessFallback(
     const fill: any[] = [];
     for (const p of recentSorted) {
       if (!p?.id) continue;
+      if (p?.featured !== true) continue;
       const id = String(p.id);
       if (heroPosts.some((h: any) => h?.id && String(h.id) === id)) continue;
       if (staleIds.has(id)) continue;
