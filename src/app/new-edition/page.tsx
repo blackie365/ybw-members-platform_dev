@@ -89,30 +89,46 @@ export default async function NewEditionPage() {
   ]);
 
   const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
-  const matchedEditions = liveIssue
-    ? readerEditions.filter((edition) => editionRecordsMatch(liveIssue, edition))
-    : [];
-  const preferredMatchedEdition = matchedEditions.length > 0
-    ? [...matchedEditions].sort(compareReaderEditions)[0]
+  const exactLiveReaderEdition = liveIssue
+    ? readerEditions.find((edition) => {
+        const editionIssueId = (edition as any)?.issueId;
+        return editionIssueId && liveIssue.id && String(editionIssueId) === String(liveIssue.id);
+      }) ?? null
     : null;
+  const matchedEditions = liveIssue
+    ? readerEditions.filter((edition) => {
+        const editionIssueId = (edition as any)?.issueId;
+        if (editionIssueId && liveIssue.id && String(editionIssueId) === String(liveIssue.id)) {
+          return true;
+        }
+        return editionRecordsMatch(liveIssue, edition);
+      })
+    : [];
+  const preferredMatchedEdition = exactLiveReaderEdition
+    ?? (matchedEditions.length > 0
+      ? [...matchedEditions].sort(compareReaderEditions)[0]
+      : null);
   const latestReaderEdition =
     preferredMatchedEdition ??
     readerEditions[0] ??
     null;
   const matchedLatestLegacyIssue = latestReaderEdition
     ? issues.find((issue) => (
-        editionRecordsMatch(issue, latestReaderEdition) &&
+        ((liveIssue?.id && latestReaderEdition.issueId && String(latestReaderEdition.issueId) === String(liveIssue.id)) ||
+          editionRecordsMatch(issue, latestReaderEdition)) &&
         (issue.flipbookUrl || issue.pdfUrl)
       )) ?? null
     : null;
-  const flipbookIssue = latestReaderEdition
-    ? matchedLatestLegacyIssue && (matchedLatestLegacyIssue.flipbookUrl || matchedLatestLegacyIssue.pdfUrl)
-      ? matchedLatestLegacyIssue
-      : null
-    : issues.find((issue) => issue.featureInFlipbook && (issue.flipbookUrl || issue.pdfUrl))
-      ?? issues.find((issue) => issue.isLatest && (issue.flipbookUrl || issue.pdfUrl))
-      ?? issues.find((issue) => issue.flipbookUrl || issue.pdfUrl)
-      ?? liveIssue;
+  const flipbookIssue = (liveIssue && (liveIssue.flipbookUrl || liveIssue.pdfUrl))
+    ? liveIssue
+    : (latestReaderEdition
+      ? (matchedLatestLegacyIssue && (matchedLatestLegacyIssue.flipbookUrl || matchedLatestLegacyIssue.pdfUrl)
+        ? matchedLatestLegacyIssue
+        : null)
+      : issues.find((issue) => issue.featureInFlipbook && (issue.flipbookUrl || issue.pdfUrl))
+        ?? issues.find((issue) => issue.isLatest && (issue.flipbookUrl || issue.pdfUrl))
+        ?? issues.find((issue) => issue.flipbookUrl || issue.pdfUrl)
+        ?? liveIssue);
   const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
   const archiveIssues = issues.filter((issue) => (
@@ -121,6 +137,9 @@ export default async function NewEditionPage() {
   const featuredPost = ghostPosts[0];
 
   const featuredEditionUrl = (() => {
+    if (latestReaderEdition && latestReaderEdition.slug) {
+      return `/magazine/read/${latestReaderEdition.slug}`;
+    }
     if (liveIssue) {
       const slug = deriveIssueSlug({
         id: String(liveIssue.id || ''),
@@ -133,9 +152,6 @@ export default async function NewEditionPage() {
         return `/magazine/read/${slug}`;
       }
       return `/magazine/issue/${liveIssue.id}`;
-    }
-    if (latestReaderEdition && latestReaderEdition.slug) {
-      return `/magazine/read/${latestReaderEdition.slug}`;
     }
     return '/new-edition';
   })();
@@ -155,10 +171,14 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
-  const latestCoverImage = latestReaderEdition
+  const latestCoverImage = (latestReaderEdition
     ? (getArchiveCoverForEdition(latestReaderEdition, issues, IMAGE_VERSION) ||
-      fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION))
-    : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION);
+      (liveIssue?.coverImage
+        ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
+        : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION)))
+    : (liveIssue?.coverImage
+      ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
+      : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION)));
 
   return (
     <main className="flex-1 bg-background">
