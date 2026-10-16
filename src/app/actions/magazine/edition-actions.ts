@@ -198,8 +198,12 @@ export async function createMagazineIssueAction(data: any) {
     assertPgReady();
 
     const { id: _ignoredId, ...rest } = data ?? {};
+    const generatedId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const idToUse = String(rest.id || _ignoredId || generatedId).trim() || generatedId;
     const slug = deriveIssueSlug({
-      id: 'new',
+      id: idToUse || 'new',
       title: String(rest.title || '').trim(),
       ghostSyncTag: String(rest.ghostSyncTag || '').trim(),
       readerEditionSlug: String(rest.readerEditionSlug || '').trim(),
@@ -208,6 +212,7 @@ export async function createMagazineIssueAction(data: any) {
 
     const payload = {
       ...rest,
+      id: idToUse,
       slug,
       title: String(rest.title || '').trim(),
     };
@@ -220,6 +225,7 @@ export async function createMagazineIssueAction(data: any) {
     const { getMagazineWriteStore } = await import('@/features/magazine/server/write-store');
     const createdId = await getMagazineWriteStore().createIssue({
       ...cleanCreate,
+      id: idToUse,
       slug,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
