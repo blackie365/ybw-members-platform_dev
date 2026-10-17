@@ -34,7 +34,7 @@ jobs:
       # ---- THE SWITCH ----
       # 'dry-run' lists what would be copied and writes nothing.
       # 'apply'   downloads the objects into /srv/ybw-frontend/uploads.
-      MODE: dry-run
+      MODE: apply
       # firestore-backups are Firestore database dumps, not site assets --
       # copying them into the web root would publish them.
       SKIP_PREFIXES: firestore-backups
