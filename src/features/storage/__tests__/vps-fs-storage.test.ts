@@ -110,6 +110,29 @@ describe('VPS storage backend (drop-in for GCS uploads)', () => {
   it('buildPublicUrl returns the same as publicUrl result for uploaded object path', () => {
     expect(vpsStorageBackend.buildPublicUrl('magazine-import/id.jpg')).toBe('/uploads/magazine-import/id.jpg');
   });
+
+  it('buildPublicUrl routes an /uploads/ object path to the VPS even when STORAGE_BACKEND is gcs', async () => {
+    const { buildPublicUrl } = await import('@/features/storage');
+    process.env.STORAGE_BACKEND = 'gcs';
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://ybw.co.uk';
+    try {
+      // Regression: this used to return
+      // `https://storage.googleapis.com/<bucket>/uploads/x.jpg` — an object that
+      // does not exist, because buildPublicUrl ignored the path-prefix routing
+      // that uploadBuffer/downloadBuffer apply.
+      expect(buildPublicUrl('uploads/magazine-import/x.jpg')).toBe(
+        'https://ybw.co.uk/uploads/magazine-import/x.jpg',
+      );
+      expect(buildPublicUrl('/uploads/ads/html5/index.html')).toBe(
+        'https://ybw.co.uk/uploads/ads/html5/index.html',
+      );
+      // No double /uploads/uploads/ nesting when the caller already has the prefix.
+      expect(buildPublicUrl('uploads/x.jpg')).not.toContain('/uploads/uploads/');
+    } finally {
+      delete process.env.STORAGE_BACKEND;
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+    }
+  });
 });
 
 describe('parseGoogleStoragePath (VPS /uploads/ passthrough branch)', () => {

@@ -5,7 +5,9 @@ import JSZip from 'jszip';
 import { isStorageReady, uploadBuffer, getDefaultBucketName, buildPublicUrl } from '@/features/storage';
 
 const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024;
-const SAFE_FOLDER = 'ads/html5';
+// Must stay under `uploads/` so uploadBuffer() routes to the VPS disk rather
+// than the Firebase/GCS bucket. See features/storage/index.ts.
+const SAFE_FOLDER = 'uploads/ads/html5';
 
 function getContentType(filePath: string) {
   const lower = filePath.toLowerCase();

@@ -4,23 +4,19 @@ import { checkAdmin } from '@/lib/server/auth-utils';
 import {
   isStorageReady,
   uploadBuffer,
-  getDefaultBucketName,
   buildPublicUrl,
 } from '@/features/storage';
 
 const MAX_IDML_SIZE = 100 * 1024 * 1024;
-const SAFE_FOLDER = 'magazine-import';
+// Must stay under `uploads/` so uploadBuffer() routes to the VPS disk rather
+// than the Firebase/GCS bucket. See features/storage/index.ts.
+const SAFE_FOLDER = 'uploads/magazine-import';
 
 function sanitizeFileName(name: string): string {
   return String(name || 'import.idml')
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase();
-}
-
-function buildFirebaseShapeUrl(bucketName: string, objectPath: string): string {
-  const encodedPath = encodeURIComponent(objectPath);
-  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
 }
 
 export async function POST(req: NextRequest) {
@@ -76,18 +72,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const bucketName = uploaded.bucketName || getDefaultBucketName() || '';
-    const httpsFirebaseShapeUrl = buildFirebaseShapeUrl(bucketName, objectName);
-    const absolutePublicUrl = buildPublicUrl(objectName, bucketName);
+    const httpsUrl = uploaded.publicUrl || buildPublicUrl(objectName, uploaded.bucketName);
 
     return NextResponse.json({
       success: true,
       data: {
         gsUrl: uploaded.gsUrl || uploaded.publicUrl,
-        httpsUrl: absolutePublicUrl.startsWith('http') ? absolutePublicUrl : httpsFirebaseShapeUrl,
+        httpsUrl,
         publicUrl: uploaded.publicUrl,
         path: objectName,
-        bucket: bucketName,
+        bucket: uploaded.bucketName,
         sizeBytes: buffer.length,
         fileName: sanitizedName,
       },
