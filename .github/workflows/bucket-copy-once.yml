@@ -98,12 +98,11 @@ jobs:
             return dest;
           }
 
-          async function statSize(p) {
+          async function statOrNull(p) {
             try {
-              const st = await fsp.stat(p);
-              return st.isFile() ? st.size : -1;
+              return await fsp.stat(p);
             } catch {
-              return -1;
+              return null;
             }
           }
 
@@ -133,34 +132,52 @@ jobs:
 
             const escapes = [];
             const skipped = [];
+            const placeholders = [];
             const plan = [];
             for (const f of files) {
-              const top = f.name.includes('/') ? f.name.split('/')[0] : '(root)';
+              const name = f.name;
+              // Console-created folders appear as zero-byte objects whose name
+              // ends in '/'. They are not files and must never be downloaded.
+              if (name.endsWith('/')) {
+                placeholders.push(name);
+                continue;
+              }
+              const top = name.includes('/') ? name.split('/')[0] : '(root)';
               if (SKIP.includes(top)) {
-                skipped.push(f.name);
+                skipped.push(name);
                 continue;
               }
               let dest;
               try {
-                dest = destFor(f.name);
+                dest = destFor(name);
               } catch (e) {
-                escapes.push({ name: f.name, error: String((e && e.message) || e) });
+                escapes.push({ name, error: String((e && e.message) || e) });
                 continue;
               }
-              plan.push({ name: f.name, dest, top, size: Number((f.metadata && f.metadata.size) || 0) });
+              plan.push({ name, dest, top, size: Number((f.metadata && f.metadata.size) || 0) });
             }
 
+            // Classify each planned object against what is already on disk.
+            const present = [];
+            const pending = [];
             const byPrefix = new Map();
             let planBytes = 0;
-            let already = 0;
             for (const item of plan) {
               planBytes += item.size;
               const g = byPrefix.get(item.top) || { n: 0, bytes: 0, present: 0 };
               g.n += 1;
               g.bytes += item.size;
-              if (item.size > 0 && (await statSize(item.dest)) === item.size) {
+
+              let isPresent = false;
+              if (item.size > 0) {
+                const st = await statOrNull(item.dest);
+                if (st && st.isFile() && st.size === item.size) isPresent = true;
+              }
+              if (isPresent) {
                 g.present += 1;
-                already += 1;
+                present.push(item);
+              } else {
+                pending.push(item);
               }
               byPrefix.set(item.top, g);
             }
@@ -175,16 +192,82 @@ jobs:
                   String(v.present).padStart(12),
               );
             }
+
+            // Resolve needed directories BEFORE any parallel write. Concurrent
+            // fsp.mkdir(..., {recursive:true}) on the same path races and throws
+            // EEXIST on Linux, and a legacy *file* can occupy a name the bucket
+            // uses as a *folder* -- neither may abort the run.
+            const neededDirs = new Set();
+            for (const item of pending) neededDirs.add(path.dirname(item.dest));
+            const dirs = [...neededDirs].sort((a, b) => a.length - b.length);
+            const blocked = new Map(); // dir -> reason
+            for (const dir of dirs) {
+              const st = await statOrNull(dir);
+              if (st) {
+                if (!st.isDirectory()) {
+                  blocked.set(dir, 'a file already exists at this path (' + st.size + ' bytes)');
+                }
+                continue;
+              }
+              if (MODE !== 'apply') continue;
+              try {
+                await fsp.mkdir(dir, { recursive: true });
+              } catch (e) {
+                const code = (e && e.code) || '';
+                const after = await statOrNull(dir);
+                if (after && after.isDirectory()) continue;
+                blocked.set(
+                  dir,
+                  code === 'ENOTDIR'
+                    ? 'a parent path segment is a file'
+                    : code + ' ' + ((e && e.message) || ''),
+                );
+              }
+            }
+
+            const isBlocked = (dest) => {
+              for (const dir of blocked.keys()) {
+                if (dest === dir || dest.startsWith(dir + path.sep)) return blocked.get(dir);
+              }
+              return null;
+            };
+
+            const copyable = [];
+            const collisions = [];
+            for (const item of pending) {
+              const reason = isBlocked(item.dest);
+              const st = await statOrNull(item.dest);
+              if (st && !st.isFile()) {
+                collisions.push({ name: item.name, dest: item.dest, reason: 'destination is a directory' });
+                continue;
+              }
+              if (reason) {
+                collisions.push({ name: item.name, dest: item.dest, reason });
+                continue;
+              }
+              copyable.push(item);
+            }
+
             console.log('');
-            console.log(
-              'plan: ' + plan.length + ' objects / ' + (planBytes / 1048576).toFixed(1) + ' MB' +
-                ' (' + already + ' already present with matching size)',
-            );
-            console.log('skipped prefix [' + SKIP.join(', ') + ']: ' + skipped.length + ' objects');
-            if (escapes.length) {
+            console.log('plan: ' + plan.length + ' objects / ' + (planBytes / 1048576).toFixed(1) + ' MB');
+            console.log('  already on disk (size match): ' + present.length);
+            console.log('  to copy:                      ' + copyable.length +
+              ' / ' + (copyable.reduce((a, i) => a + i.size, 0) / 1048576).toFixed(1) + ' MB');
+            console.log('  blocked by collisions:        ' + collisions.length);
+            console.log('  skipped prefix [' + SKIP.join(', ') + ']: ' + skipped.length + ' objects');
+            console.log('  directory placeholders ignored: ' + placeholders.length);
+            if (escapes.length) console.log('  PATH ESCAPES excluded:        ' + escapes.length);
+            if (collisions.length) {
               console.log('');
-              console.log('PATH ESCAPES (' + escapes.length + ') -- excluded:');
-              for (const e of escapes.slice(0, 20)) console.log('  ' + e.name);
+              console.log('COLLISIONS -- these objects were NOT copied:');
+              const seen = new Set();
+              for (const c of collisions) {
+                const key = c.reason + '|' + c.dest;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                console.log('  ' + c.dest);
+                console.log('      reason: ' + c.reason + '   (' + c.name + ')');
+              }
             }
 
             const report = {
@@ -194,10 +277,14 @@ jobs:
               bucketObjects: files.length,
               planned: plan.length,
               plannedBytes: planBytes,
-              alreadyPresent: already,
+              alreadyPresent: present.length,
+              copyable: copyable.length,
+              copyableBytes: copyable.reduce((a, i) => a + i.size, 0),
+              collisions,
+              escapes,
+              placeholders,
               skippedPrefix: SKIP,
               skippedCount: skipped.length,
-              escapes,
               byPrefix: Object.fromEntries(byPrefix),
               copied: [],
               failed: [],
@@ -210,28 +297,25 @@ jobs:
               return;
             }
 
-            const pending = [];
-            for (const item of plan) {
-              if (!(item.size > 0 && (await statSize(item.dest)) === item.size)) pending.push(item);
-            }
             console.log('');
-            console.log('APPLY -- ' + pending.length + ' objects, concurrency ' + CONCURRENCY);
-
-            const queue = pending.slice();
+            console.log('APPLY -- ' + copyable.length + ' objects, concurrency ' + CONCURRENCY);
+            const queue = copyable.slice();
             let done = 0;
             async function worker() {
               while (queue.length) {
                 const item = queue.shift();
                 const tmp = item.dest + '.part';
                 try {
-                  await fsp.mkdir(path.dirname(item.dest), { recursive: true });
                   await pipeline(
                     bucket.file(item.name).createReadStream(),
                     fs.createWriteStream(tmp, { mode: 0o644 }),
                   );
-                  const written = await statSize(tmp);
-                  if (item.size > 0 && written !== item.size) {
-                    throw new Error('size mismatch: wrote ' + written + ', expected ' + item.size);
+                  const written = await statOrNull(tmp);
+                  if (!written || (item.size > 0 && written.size !== item.size)) {
+                    throw new Error(
+                      'size mismatch: wrote ' + (written ? written.size : 'nothing') +
+                        ', expected ' + item.size,
+                    );
                   }
                   await fsp.rename(tmp, item.dest);
                   report.copied.push(item.name);
@@ -241,7 +325,7 @@ jobs:
                   console.error('  FAILED ' + item.name + ': ' + ((e && e.message) || e));
                 }
                 done += 1;
-                if (done % 50 === 0) console.log('  ... ' + done + '/' + pending.length);
+                if (done % 25 === 0) console.log('  ... ' + done + '/' + copyable.length);
               }
             }
             await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
@@ -264,9 +348,10 @@ jobs:
         if: env.MODE == 'apply'
         run: |
           set -euo pipefail
-          sudo /bin/chown -R www-data:www-data "$APPDIR/uploads"
+          sudo /bin/chown -R www-data:www-data "$APPDIR/uploads" \
+            || echo "WARN: chown not permitted; files are 0644 and group-read coherent"
           echo "files in uploads now: $(find "$APPDIR/uploads" -type f | wc -l)"
           du -sh "$APPDIR/uploads"
-          echo "--- report tail ---"
-          /bin/cat /tmp/bucket-copy-report.json | head -c 400
+          echo "--- report summary ---"
+          /bin/cat /tmp/bucket-copy-report.json | head -c 600
           echo ""
