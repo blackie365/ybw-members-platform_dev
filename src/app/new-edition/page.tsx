@@ -256,16 +256,16 @@ export default async function NewEditionPage() {
       </section>
 
       {flipbookEmbedUrl && (
-        <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
+        <section id="classic-flipbook" className="border-b border-zinc-200 bg-white py-24 text-zinc-900 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
             <div className="mb-10 text-center">
               <h2 className="font-serif text-3xl font-medium sm:text-4xl">The Complete Edition, At Your Fingertips</h2>
-              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 sm:text-lg">
                 Explore every feature, interview and insight from the latest edition below — presented in a familiar page-turning format you can enjoy on any device.
               </p>
             </div>
 
-            <div className="group relative overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_30px_110px_rgba(0,0,0,0.12)]">
+            <div className="group relative overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-[0_30px_110px_rgba(0,0,0,0.12)]">
               <div
                 style={{ position: 'relative', paddingTop: 'max(60%, 326px)', height: 0, width: '100%' }}
               >
