@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { getPosts } from '@/lib/ghost';
 import { fixMagazineImageUrl, fixIssuuEmbedUrl } from '@/lib/magazine-utils';
 import { getMagazineReadStore } from '@/features/magazine/server/read-store';
-import type { ReaderEdition } from '@/features/magazine/domain/types';
 import { editionRecordsMatch } from '@/features/magazine/domain/edition-match';
 import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
@@ -22,9 +21,6 @@ export const metadata: Metadata = {
     type: 'website',
   },
 };
-
-const CURRENT_ISSUE_COVER_IMAGE =
-  'https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine%2Fjune-july%2Fybw_JUNE_clean_2026.jpg?alt=media&token=647ff4b0-8ee8-4141-8304-bd638f17913d';
 
 function isCopySlug(value: unknown): boolean {
   return /copy/i.test(String(value || ''));
@@ -59,25 +55,16 @@ function compareReaderEditions(left: any, right: any): number {
   return String(right?.id || '').localeCompare(String(left?.id || ''));
 }
 
-function getEditionCoverImage(edition: ReaderEdition | null, version: number): string {
-  if (!edition) return '';
-  const coverPage = Array.isArray(edition.pages)
-    ? edition.pages.find((page) => page?.template === 'cover')
-    : undefined;
-  const coverImage = String(coverPage?.content?.imageUrl || edition.coverImage || '');
-  return fixMagazineImageUrl(coverImage, version);
-}
-
-function getArchiveCoverForEdition(
-  edition: ReaderEdition,
-  issues: Array<{ title?: string; publishDate?: string; coverImage?: string }>,
-  version: number,
-): string {
-  const matchingIssue = issues.find((issue) => editionRecordsMatch(issue, edition));
-  if (matchingIssue?.coverImage) {
-    return fixMagazineImageUrl(matchingIssue.coverImage, version);
+function humanizeEditionTitle(issue: any): string {
+  const raw = String(issue?.title || '').trim();
+  // Titles from the ingest pipeline are often slugs (e.g. "ybw_October_2026").
+  if (raw && !raw.includes('_') && !raw.includes('-')) return raw;
+  const date = new Date(String(issue?.publishDate || ''));
+  if (!Number.isNaN(date.getTime())) {
+    const monthYear = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    return `Yorkshire BusinessWoman ${monthYear} Edition`;
   }
-  return getEditionCoverImage(edition, version);
+  return 'Yorkshire BusinessWoman';
 }
 
 export default async function NewEditionPage() {
@@ -136,25 +123,6 @@ export default async function NewEditionPage() {
   ));
   const featuredPost = ghostPosts[0];
 
-  const featuredEditionUrl = (() => {
-    if (latestReaderEdition && latestReaderEdition.slug) {
-      return `/magazine/read/${latestReaderEdition.slug}`;
-    }
-    if (liveIssue) {
-      const slug = deriveIssueSlug({
-        id: String(liveIssue.id || ''),
-        title: String(liveIssue.title || ''),
-        ghostSyncTag: String((liveIssue as any).ghostSyncTag || ''),
-        readerEditionSlug: String((liveIssue as any).readerEditionSlug || ''),
-        slug: String((liveIssue as any).slug || ''),
-      }).trim().toLowerCase();
-      if (slug && slug !== `issue-${String(liveIssue.id || '').toLowerCase()}`) {
-        return `/magazine/read/${slug}`;
-      }
-      return `/magazine/issue/${liveIssue.id}`;
-    }
-    return '/new-edition';
-  })();
   console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
   
   if (!liveIssue) {
@@ -171,14 +139,29 @@ export default async function NewEditionPage() {
   }
 
   const IMAGE_VERSION = Date.now();
-  const latestCoverImage = (latestReaderEdition
-    ? (getArchiveCoverForEdition(latestReaderEdition, issues, IMAGE_VERSION) ||
-      (liveIssue?.coverImage
-        ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
-        : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION)))
-    : (liveIssue?.coverImage
-      ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
-      : fixMagazineImageUrl(CURRENT_ISSUE_COVER_IMAGE, IMAGE_VERSION)));
+
+  // The top hero always reflects the *live* issue (not the reader editions,
+  // which can lag behind the current edition).
+  const editionTitle = humanizeEditionTitle(liveIssue);
+  const editionDescription =
+    String(liveIssue.description || '').trim() ||
+    'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.';
+  const liveCoverImage = liveIssue.coverImage
+    ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
+    : '';
+  const featuredEditionUrl = (() => {
+    const slug = deriveIssueSlug({
+      id: String(liveIssue.id || ''),
+      title: String(liveIssue.title || ''),
+      ghostSyncTag: String((liveIssue as any).ghostSyncTag || ''),
+      readerEditionSlug: String((liveIssue as any).readerEditionSlug || ''),
+      slug: String((liveIssue as any).slug || ''),
+    }).trim().toLowerCase();
+    if (slug && slug !== `issue-${String(liveIssue.id || '').toLowerCase()}`) {
+      return `/magazine/read/${slug}`;
+    }
+    return `/magazine/issue/${liveIssue.id}`;
+  })();
 
   return (
     <main className="flex-1 bg-background">
@@ -196,19 +179,19 @@ export default async function NewEditionPage() {
                 Latest Edition
               </Badge>
               <h1 className="font-serif text-5xl font-medium tracking-tight sm:text-7xl">
-                {latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'}
+                {editionTitle}
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-zinc-300 sm:text-xl">
-                {latestReaderEdition?.description || 'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.'}
+                {editionDescription}
               </p>
 
-                <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                  <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
-                    <Link href={featuredEditionUrl}>
-                      Open Digital Reader
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
+              <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+                <Button asChild size="lg" className="h-auto rounded-none border-none bg-[#A3413A] px-8 py-6 text-lg text-white shadow-xl transition-all duration-300 hover:bg-white hover:text-[#A3413A]">
+                  <Link href={featuredEditionUrl}>
+                    Open Digital Reader
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
                 <Button asChild size="lg" variant="outline" className="h-auto rounded-none border-white/15 bg-transparent px-8 py-6 text-lg text-white hover:bg-white hover:text-[#050505]">
                   <Link href="#edition-archive">
                     Browse Archive
@@ -219,7 +202,7 @@ export default async function NewEditionPage() {
               <div className="mt-12 flex flex-wrap items-center gap-6 text-sm text-zinc-500">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-accent" />
-                  <span>{new Date(latestReaderEdition?.publishDate || liveIssue?.publishDate || Date.now()).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
+                  <span>{new Date(liveIssue.publishDate || Date.now()).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
                 </div>
                 <div className="h-4 w-px bg-white/10" />
                 <p>Yorkshire BusinessWoman Magazine</p>
@@ -231,14 +214,16 @@ export default async function NewEditionPage() {
               <div className="relative grid gap-5 lg:grid-cols-[0.68fr_0.32fr]">
                 <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
                   <div className="relative aspect-[3/4] overflow-hidden rounded-[1.4rem] bg-black/30">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={latestCoverImage}
-                      alt={`${latestReaderEdition?.title || liveIssue?.title || 'Yorkshire BusinessWoman'} Cover`}
-                      crossOrigin="anonymous"
-                      referrerPolicy="no-referrer"
-                      className="absolute inset-0 h-full w-full object-contain"
-                    />
+                    {liveCoverImage && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={liveCoverImage}
+                        alt={`${editionTitle} Cover`}
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        className="absolute inset-0 h-full w-full object-contain"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-transparent to-white/10" />
                     <div className="absolute left-4 top-4">
                       <Badge className="border-none bg-white text-[#050505] px-3 py-1 text-[10px] uppercase tracking-[0.18em]">
@@ -248,22 +233,22 @@ export default async function NewEditionPage() {
                   </div>
                 </div>
 
-                  <div className="flex flex-col justify-between gap-4">
-                    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Primary Experience</p>
-                      <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Reader</h2>
-                      <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                        Open the latest edition in our premium digital reader, designed for elegant on-screen reading rather than a print replica.
-                      </p>
-                    </div>
-                    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Alternate Format</p>
-                      <h2 className="mt-3 font-serif text-xl font-medium text-white">Flipping Book</h2>
-                      <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                        The familiar page-turning version remains available below for readers who prefer a more print-led format.
-                      </p>
-                    </div>
+                <div className="flex flex-col justify-between gap-4">
+                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Primary Experience</p>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Digital Reader</h2>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                      Open the latest edition in our premium digital reader, designed for elegant on-screen reading rather than a print replica.
+                    </p>
                   </div>
+                  <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-accent">Alternate Format</p>
+                    <h2 className="mt-3 font-serif text-xl font-medium text-white">Flipping Book</h2>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                      The familiar page-turning version remains available below for readers who prefer a more print-led format.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -274,9 +259,9 @@ export default async function NewEditionPage() {
         <section id="classic-flipbook" className="border-b border-border bg-white py-24 dark:bg-zinc-950 scroll-mt-24">
           <div className="mx-auto max-w-6xl px-6 lg:px-8">
             <div className="mb-10 text-center">
-                <h2 className="font-serif text-3xl font-medium sm:text-4xl">The Complete Edition, At Your Fingertips</h2>
+              <h2 className="font-serif text-3xl font-medium sm:text-4xl">The Complete Edition, At Your Fingertips</h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  Explore every feature, interview and insight from the latest edition below — presented in a familiar page-turning format you can enjoy on any device.
+                Explore every feature, interview and insight from the latest edition below — presented in a familiar page-turning format you can enjoy on any device.
               </p>
             </div>
 
