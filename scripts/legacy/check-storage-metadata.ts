@@ -1,5 +1,5 @@
 
-import { adminStorage } from '../src/lib/firebase-admin';
+import { adminStorage } from '../../src/lib/firebase-admin';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });

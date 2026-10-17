@@ -1,6 +1,14 @@
 import type { ComponentType } from "react";
 import type { ReaderPage } from "./types";
 import { isPlaceholderImageUrl, filterNonPlaceholderUrls, firstNonPlaceholderImage } from "@/lib/magazine-utils";
+import CoverTemplate from "../templates/cover/renderer";
+import ContentsTemplate from "../templates/contents/renderer";
+import FeatureTemplate from "../templates/feature/renderer";
+import EditorNoteTemplate from "../templates/editor-note/renderer";
+import AdTemplate from "../templates/ad/renderer";
+import AdsTemplate from "../templates/ads/renderer";
+import ClassifiedsTemplate from "../templates/classifieds/renderer";
+import BackCoverTemplate from "../templates/back-cover/renderer";
 
 export interface StorySummary {
   pageId: string | null;
@@ -409,22 +417,12 @@ export function getTemplateComponent(
   return REGISTRY[template]?.render ?? null;
 }
 
-// Lazy load all template renderers (avoids circular deps)
+// Wire the renderers onto the registry entries. Renderers only import *types*
+// from this module, so a static import cannot create a runtime cycle.
 let _loaded = false;
 export function loadTemplateRenderers() {
   if (_loaded) return;
   _loaded = true;
-
-  const CoverTemplate = require("../templates/cover/renderer").default;
-  const ContentsTemplate = require("../templates/contents/renderer").default;
-  const FeatureTemplate = require("../templates/feature/renderer").default;
-  const EditorNoteTemplate =
-    require("../templates/editor-note/renderer").default;
-  const AdTemplate = require("../templates/ad/renderer").default;
-  const AdsTemplate = require("../templates/ads/renderer").default;
-  const ClassifiedsTemplate =
-    require("../templates/classifieds/renderer").default;
-  const BackCoverTemplate = require("../templates/back-cover/renderer").default;
 
   // Override the render function on each entry
   // The template renderers still expect TemplateRenderProps with the old shape,

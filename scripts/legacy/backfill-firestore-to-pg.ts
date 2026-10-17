@@ -28,21 +28,21 @@ const DRY = process.argv.includes('--dry');
 
 async function main(): Promise<void> {
   const { initMagazinePgSchema, toPgDate } = await import(
-    '../src/features/magazine/server/read-store/pg-schema'
+    '../../src/features/magazine/server/read-store/pg-schema'
   );
   const { getMagazinePgPool } = await import(
-    '../src/features/magazine/server/read-store/pg-client'
+    '../../src/features/magazine/server/read-store/pg-client'
   );
   const {
     getMagazineIssuesServer,
     getMagazinePagesServer,
-  } = await import('../src/lib/magazine-service-server');
+  } = await import('../../src/lib/magazine-service-server');
   const {
     listReaderEditions,
     getReaderEditionById,
     getReaderEditionBySlug,
-  } = await import('../src/features/magazine/server/simple-reader');
-  const { adminDb } = await import('../src/lib/firebase-admin');
+  } = await import('../../src/features/magazine/server/simple-reader');
+  const { adminDb } = await import('../../src/lib/firebase-admin');
 
   const pool = getMagazinePgPool();
   if (!pool) {

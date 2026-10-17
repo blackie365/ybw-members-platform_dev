@@ -1,6 +1,5 @@
 allowBuilds:
   '@clerk/shared': true
-  '@firebase/util': true
   esbuild: true
   protobufjs: true
   sharp: true

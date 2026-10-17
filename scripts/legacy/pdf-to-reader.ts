@@ -17,7 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { basename, extname } from 'node:path';
 import pdfParse from 'pdf-parse';
-import { adminDb } from '../src/lib/firebase-admin';
+import { adminDb } from '../../src/lib/firebase-admin';
 
 interface ReaderPage {
   id: string;

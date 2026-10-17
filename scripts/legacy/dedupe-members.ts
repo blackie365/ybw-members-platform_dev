@@ -122,7 +122,7 @@ function mergeInto(primary: Record<string, any>, secondary: Record<string, any>)
 async function main() {
   // Dynamic import so the .env.local values are loaded before firebase-admin
   // initializes (static imports are hoisted and would run too early).
-  const { adminDb } = await import('../src/lib/firebase-admin');
+  const { adminDb } = await import('../../src/lib/firebase-admin');
 
   if (!adminDb) {
     console.error('Firestore Admin SDK not initialized — check FIREBASE_* env vars in .env.local');

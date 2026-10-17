@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ReaderPage, ReaderPageContent, ReaderPageTemplate } from '../src/features/magazine/domain/types';
+import type { ReaderPage, ReaderPageContent, ReaderPageTemplate } from '../../src/features/magazine/domain/types';
 
 const REPORT_PATH = '/Users/robertblackwell/Desktop/ybw_August_2026_report.txt';
 const EDITION_ID = 'idml-ybw-aug-2026-msrn5rbl';
@@ -205,7 +205,7 @@ async function main() {
   }
 
   // Now read + rebuild Firestore reader pages
-  const { adminDb } = await import('../src/lib/firebase-admin');
+  const { adminDb } = await import('../../src/lib/firebase-admin');
   if (!adminDb) throw new Error('no admin db');
 
   const edSnap = await adminDb.collection('magazine_reader_editions').doc(EDITION_ID).get();

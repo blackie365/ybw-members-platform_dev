@@ -1,5 +1,5 @@
 
-import { adminDb } from '../src/lib/firebase-admin';
+import { adminDb } from '../../src/lib/firebase-admin';
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 

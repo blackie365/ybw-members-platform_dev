@@ -123,8 +123,6 @@ export default async function NewEditionPage() {
   ));
   const featuredPost = ghostPosts[0];
 
-  console.log('[NewEditionPage] featuredPost:', featuredPost?.title);
-  
   if (!liveIssue) {
     console.warn('[NewEditionPage] No latest issue found');
     return (
@@ -138,16 +136,17 @@ export default async function NewEditionPage() {
     );
   }
 
-  const IMAGE_VERSION = Date.now();
-
   // The top hero always reflects the *live* issue (not the reader editions,
   // which can lag behind the current edition).
   const editionTitle = humanizeEditionTitle(liveIssue);
   const editionDescription =
     String(liveIssue.description || '').trim() ||
     'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.';
+  // Cache-buster is derived from the edition itself, so the URL only changes when
+  // the edition does. A per-render `Date.now()` gave every render a unique URL,
+  // defeating the Next image cache, the 1-year minimumCacheTTL and any CDN cache.
   const liveCoverImage = liveIssue.coverImage
-    ? fixMagazineImageUrl(liveIssue.coverImage, IMAGE_VERSION)
+    ? fixMagazineImageUrl(liveIssue.coverImage, liveIssue.publishDate || '')
     : '';
   const featuredEditionUrl = (() => {
     const slug = deriveIssueSlug({
@@ -364,7 +363,7 @@ export default async function NewEditionPage() {
                 <div className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={fixMagazineImageUrl(issue.coverImage, IMAGE_VERSION)}
+                    src={fixMagazineImageUrl(issue.coverImage, issue.publishDate || '')}
                     alt={issue.title}
                     crossOrigin="anonymous"
                     referrerPolicy="no-referrer"

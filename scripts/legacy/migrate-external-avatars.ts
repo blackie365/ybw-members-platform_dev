@@ -1,5 +1,5 @@
 
-import { adminDb, adminStorage } from '../src/lib/firebase-admin';
+import { adminDb, adminStorage } from '../../src/lib/firebase-admin';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
