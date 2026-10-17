@@ -32,6 +32,12 @@ import {
 } from './magazine/reader-edition-actions';
 import { fetchIssuuMetadataAction } from './magazine/issuu-actions';
 import {
+  listFlatPlansAction,
+  getFlatPlanAction,
+  saveFlatPlanAction,
+  deleteFlatPlanAction,
+} from './magazine/flat-plan-actions';
+import {
   importIdmlAction,
   importIdmlFromStoragePathForPublishAction,
   importIdmlFromUrlAction,
@@ -71,6 +77,10 @@ export {
   syncReaderEditionToLegacyIssue,
   runSyncLegacyFromReaderEditionAction,
   fetchIssuuMetadataAction,
+  listFlatPlansAction,
+  getFlatPlanAction,
+  saveFlatPlanAction,
+  deleteFlatPlanAction,
   importIdmlAction,
   importIdmlFromStoragePathForPublishAction,
   importIdmlFromUrlAction,

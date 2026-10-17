@@ -39,9 +39,14 @@ CREATE TABLE IF NOT EXISTS magazine_idml_drafts (
   data         JSONB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS magazine_ads (
-  id           TEXT PRIMARY KEY,
+  id         TEXT PRIMARY KEY,
   position     INT  NOT NULL DEFAULT 0,
-  data         JSONB NOT NULL
+  data       JSONB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS magazine_flat_plans (
+  id         TEXT PRIMARY KEY,
+  updated_at TIMESTAMPTZ,
+  data       JSONB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_magazine_issues_publish   ON magazine_issues (publish_date DESC);
 CREATE INDEX IF NOT EXISTS idx_reader_editions_publish   ON magazine_reader_editions (publish_date DESC);
@@ -51,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_magazine_pages_issue_sort ON magazine_pages (issu
 CREATE INDEX IF NOT EXISTS idx_story_library_issue       ON magazine_story_library (issue_id);
 CREATE INDEX IF NOT EXISTS idx_idml_drafts_updated       ON magazine_idml_drafts (updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_magazine_ads_position     ON magazine_ads (position ASC);
+CREATE INDEX IF NOT EXISTS idx_flat_plans_updated        ON magazine_flat_plans (updated_at DESC);
 ALTER TABLE magazine_reader_editions ADD COLUMN IF NOT EXISTS data_light JSONB;
 `;
 

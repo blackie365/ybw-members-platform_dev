@@ -9,13 +9,15 @@ import {
   Mail,
   BookOpen,
   Megaphone,
-  Globe
+  Globe,
+  LayoutGrid
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const adminNavItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/magazine", label: "Magazine", icon: BookOpen },
+  { href: "/admin/magazine/plan", label: "Flat Plans", icon: LayoutGrid },
   { href: "/admin/members", label: "Members", icon: Users },
   { href: "/admin/ads", label: "Ads", icon: Megaphone },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
