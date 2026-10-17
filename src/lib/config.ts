@@ -43,12 +43,6 @@ export const config = {
    */
   newsletterAlertSelfTag: process.env.NEWSLETTER_ALERT_SELF_TAG || 'alerts',
 
-  /** Firebase project ID */
-  firebaseProjectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-
-  /** Firebase Cloud Functions base URL */
-  firebaseFunctionsBase: process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_BASE || `https://us-central1-${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || ''}.cloudfunctions.net`,
-
   /** Default site URL */
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk',
 

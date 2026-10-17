@@ -1,4 +1,4 @@
-import { adminAuth, adminDb } from '../src/lib/firebase-admin';
+import { adminAuth, adminDb } from '../../src/lib/firebase-admin';
 import * as dotenv from 'dotenv';
 import { Resend } from 'resend';
 dotenv.config({ path: '.env.local' });

@@ -11,9 +11,6 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       include: ['src/lib/**'],
       exclude: [
-        'src/lib/firebase.ts',
-        'src/lib/firebase-admin.ts',
-        'src/lib/adminCheck.ts',
         'src/lib/AuthContext.tsx',
       ],
     },

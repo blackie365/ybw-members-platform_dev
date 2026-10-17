@@ -33,14 +33,14 @@ import slugify from '@sindresorhus/slugify';
 import {
   deriveIssueSlug,
   BUILDER_TYPE_TO_READER_TEMPLATE,
-} from '../src/features/magazine/domain/builder-to-reader';
+} from '../../src/features/magazine/domain/builder-to-reader';
 import {
   CURRENT_READER_SCHEMA_VERSION,
-} from '../src/features/magazine/server/simple-reader';
+} from '../../src/features/magazine/server/simple-reader';
 import {
   normalizeMagazinePageContent,
   fixMagazineImageUrl,
-} from '../src/lib/magazine-utils';
+} from '../../src/lib/magazine-utils';
 
 const DRY = !process.argv.includes('--apply') || process.argv.includes('--dry');
 console.log(`\n🔍 Backfill running in ${DRY ? '✨ DRY-RUN ✨' : '✅ APPLY'} mode.\n`);

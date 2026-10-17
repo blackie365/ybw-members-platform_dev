@@ -12,7 +12,7 @@
 import 'dotenv/config';
 import { resolve } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
-import { CURRENT_READER_SCHEMA_VERSION } from '../src/lib/magazine-utils';
+import { CURRENT_READER_SCHEMA_VERSION } from '../../src/lib/magazine-utils';
 
 (function maybeLoadEnvFile() {
   const candidates = [

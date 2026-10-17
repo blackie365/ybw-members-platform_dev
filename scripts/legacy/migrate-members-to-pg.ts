@@ -21,11 +21,11 @@ dotenvConfig({ path: resolve(process.cwd(), '.env.local'), override: false });
 const DRY = process.argv.includes('--dry');
 
 async function main(): Promise<void> {
-  const { initMemberPgSchema } = await import('../src/features/members/server/member-schema');
+  const { initMemberPgSchema } = await import('../../src/features/members/server/member-schema');
   const { getMagazinePgPool } = await import(
-    '../src/features/magazine/server/read-store/pg-client'
+    '../../src/features/magazine/server/read-store/pg-client'
   );
-  const { adminDb } = await import('../src/lib/firebase-admin');
+  const { adminDb } = await import('../../src/lib/firebase-admin');
 
   const pool = getMagazinePgPool();
   if (!pool) {

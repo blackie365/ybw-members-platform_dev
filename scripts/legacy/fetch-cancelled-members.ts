@@ -1,4 +1,4 @@
-import { adminDb } from '../src/lib/firebase-admin';
+import { adminDb } from '../../src/lib/firebase-admin';
 import * as dotenv from 'dotenv';
 dotenv?.config({ path: '.env.local' });
 

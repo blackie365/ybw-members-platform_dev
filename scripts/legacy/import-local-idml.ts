@@ -8,12 +8,12 @@
  *   tsx scripts/import-local-idml.ts <path-to.idml> <issue-title> <publish-date>
  */
 import { readFileSync } from 'node:fs';
-import { parseIdml } from '../src/lib/idml-parser';
+import { parseIdml } from '../../src/lib/idml-parser';
 import {
   mapIdmlToReaderPages,
   buildEditionMetadata,
-} from '../src/lib/idml-template-mapper';
-import { adminDb, adminStorage } from '../src/lib/firebase-admin';
+} from '../../src/lib/idml-template-mapper';
+import { adminDb, adminStorage } from '../../src/lib/firebase-admin';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });

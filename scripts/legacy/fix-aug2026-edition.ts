@@ -14,7 +14,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-import type { ReaderPage, ReaderPageContent, ReaderPageTemplate } from '../src/features/magazine/domain/types';
+import type { ReaderPage, ReaderPageContent, ReaderPageTemplate } from '../../src/features/magazine/domain/types';
 
 // ----- KNOWN GOOD: per printed-page → expected image basenames (from IDML audit v4) -----
 // Key = printed page number (1-based as in InDesign layout), value = list of image filenames that BELONG on this page.
@@ -240,7 +240,7 @@ function countImagesOnPageFromContent(content: ReaderPageContent) { return count
 
 async function main() {
   console.log(`\n${DRY_RUN ? '🐢 DRY RUN — no writes.' : '🚀 APPLYING WRITES TO FIRESTORE.'}\n`);
-  const { adminDb } = await import('../src/lib/firebase-admin');
+  const { adminDb } = await import('../../src/lib/firebase-admin');
   if (!adminDb) { console.error('no admin db'); process.exit(1); }
 
   const EDITION_ID = 'idml-ybw-aug-2026-msrn5rbl';
