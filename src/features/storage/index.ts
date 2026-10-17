@@ -79,12 +79,21 @@ export async function downloadBuffer(
 }
 
 export function buildPublicUrl(objectPath: string, bucketName?: string): string {
+  const path = String(objectPath || '').trim();
+  // Mirror uploadBuffer/downloadBuffer: an `/uploads/` object path is written to
+  // the VPS disk no matter what STORAGE_BACKEND says, so it must never be
+  // rendered as a bucket URL. Without this, buildPublicUrl('uploads/x.jpg')
+  // returned `https://storage.googleapis.com/<bucket>/uploads/x.jpg` — an
+  // object that does not exist.
+  if (path.startsWith('/uploads/') || path.startsWith('uploads/')) {
+    return buildPublicVpsStorageUrl(path);
+  }
   const backend = getStorageBackend();
   if (backend.kind === 'vps') {
-    return buildPublicVpsStorageUrl(objectPath);
+    return buildPublicVpsStorageUrl(path);
   }
   const bucket = bucketName || getGcsDefaultBucketName() || '';
-  return buildPublicStorageUrl(bucket, objectPath);
+  return buildPublicStorageUrl(bucket, path);
 }
 
 export function getDefaultBucketName(): string | null {
