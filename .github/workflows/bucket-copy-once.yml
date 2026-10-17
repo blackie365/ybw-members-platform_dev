@@ -1,0 +1,276 @@
+name: Bucket copy (one-off)
+
+# ONE-OFF migration helper. Not part of the deploy pipeline.
+# Copies the legacy Firebase/GCS bucket into /srv/ybw-frontend/uploads, using the
+# same credentials the app already has in $APPDIR/.env.local. Runs on the
+# self-hosted runner because gha-runner is in the www-data group, so it can read
+# that env file AND write the uploads tree -- the topix SSH user can do neither.
+#
+# DELETE THIS FILE once the bucket has been retired.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry-run (list only) or apply (write to disk)'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options:
+          - dry-run
+          - apply
+      skip_prefixes:
+        description: 'Comma-separated top-level object prefixes to exclude'
+        required: true
+        default: 'firestore-backups'
+      concurrency:
+        description: 'Parallel downloads'
+        required: true
+        default: '4'
+
+concurrency:
+  group: bucket-copy-once
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    name: Firebase bucket -> /srv/ybw-frontend/uploads
+    runs-on: [self-hosted, deploy]
+    timeout-minutes: 90
+
+    env:
+      APPDIR: /srv/ybw-frontend
+      MODE: ${{ inputs.mode }}
+      SKIP_PREFIXES: ${{ inputs.skip_prefixes }}
+      COPY_CONCURRENCY: ${{ inputs.concurrency }}
+
+    steps:
+      - name: Preflight (identity, permissions, disk)
+        run: |
+          set -euo pipefail
+          echo "whoami: $(whoami)"
+          echo "groups: $(groups)"
+          id
+          ls -ld "$APPDIR" "$APPDIR/uploads"
+          [ -r "$APPDIR/.env.local" ] || { echo "FATAL: cannot read $APPDIR/.env.local"; exit 1; }
+          [ -w "$APPDIR/uploads" ] || { echo "FATAL: $APPDIR/uploads is not writable by $(whoami)"; exit 1; }
+          df -h /srv | tail -n 1
+          echo "existing files in uploads: $(find "$APPDIR/uploads" -type f | wc -l)"
+
+      - name: Copy bucket -> disk
+        run: |
+          set -euo pipefail
+          cat > /tmp/bucket-copy.cjs <<'NODEEOF'
+          #!/usr/bin/env node
+          'use strict';
+          const fs = require('node:fs');
+          const fsp = require('node:fs/promises');
+          const path = require('node:path');
+          const { pipeline } = require('node:stream/promises');
+
+          const APPDIR = process.env.APPDIR || '/srv/ybw-frontend';
+          const MODE = (process.env.MODE || 'dry-run').trim();
+          const UPLOADS = path.join(APPDIR, 'uploads');
+          const SKIP = (process.env.SKIP_PREFIXES || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const CONCURRENCY = Math.max(1, Number(process.env.COPY_CONCURRENCY || 4));
+
+          function loadEnvLocal() {
+            const txt = fs.readFileSync(path.join(APPDIR, '.env.local'), 'utf8');
+            const out = {};
+            for (const raw of txt.split('\n')) {
+              const line = raw.trim();
+              if (!line || line.startsWith('#')) continue;
+              const i = line.indexOf('=');
+              if (i === -1) continue;
+              out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+            }
+            return out;
+          }
+
+          // Mirrors vpsStorageBackend.resolveFsPath(): a leading `uploads/`
+          // segment is stripped so the object lands inside the uploads root
+          // rather than in a nested uploads/uploads/ directory.
+          function destFor(name) {
+            let rel = String(name).replace(/^\/+/, '');
+            if (rel.startsWith('uploads/')) rel = rel.slice('uploads/'.length);
+            const dest = path.resolve(UPLOADS, rel);
+            const root = path.resolve(UPLOADS) + path.sep;
+            if (!(dest + path.sep).startsWith(root)) throw new Error('PATH_ESCAPE');
+            return dest;
+          }
+
+          async function statSize(p) {
+            try {
+              const st = await fsp.stat(p);
+              return st.isFile() ? st.size : -1;
+            } catch {
+              return -1;
+            }
+          }
+
+          async function main() {
+            const env = loadEnvLocal();
+            const privateKey = (env.FIREBASE_PRIVATE_KEY || '')
+              .replace(/^"|"$/g, '')
+              .replace(/\\n/g, '\n');
+            const bucketName = env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+            const missing = [
+              !env.FIREBASE_PROJECT_ID && 'FIREBASE_PROJECT_ID',
+              !env.FIREBASE_CLIENT_EMAIL && 'FIREBASE_CLIENT_EMAIL',
+              !privateKey && 'FIREBASE_PRIVATE_KEY',
+              !bucketName && 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+            ].filter(Boolean);
+            if (missing.length) throw new Error('Missing in .env.local: ' + missing.join(', '));
+
+            const { Storage } = require(path.join(APPDIR, 'node_modules', '@google-cloud/storage'));
+            const bucket = new Storage({
+              projectId: env.FIREBASE_PROJECT_ID,
+              credentials: { client_email: env.FIREBASE_CLIENT_EMAIL, private_key: privateKey },
+            }).bucket(bucketName);
+
+            console.log('mode=' + MODE + '  bucket=' + bucketName + '  uploads=' + UPLOADS);
+            const [files] = await bucket.getFiles();
+            console.log('bucket objects: ' + files.length);
+
+            const escapes = [];
+            const skipped = [];
+            const plan = [];
+            for (const f of files) {
+              const top = f.name.includes('/') ? f.name.split('/')[0] : '(root)';
+              if (SKIP.includes(top)) {
+                skipped.push(f.name);
+                continue;
+              }
+              let dest;
+              try {
+                dest = destFor(f.name);
+              } catch (e) {
+                escapes.push({ name: f.name, error: String((e && e.message) || e) });
+                continue;
+              }
+              plan.push({ name: f.name, dest, top, size: Number((f.metadata && f.metadata.size) || 0) });
+            }
+
+            const byPrefix = new Map();
+            let planBytes = 0;
+            let already = 0;
+            for (const item of plan) {
+              planBytes += item.size;
+              const g = byPrefix.get(item.top) || { n: 0, bytes: 0, present: 0 };
+              g.n += 1;
+              g.bytes += item.size;
+              if (item.size > 0 && (await statSize(item.dest)) === item.size) {
+                g.present += 1;
+                already += 1;
+              }
+              byPrefix.set(item.top, g);
+            }
+
+            console.log('');
+            console.log('prefix                 objs        size     on-disk');
+            for (const [k, v] of [...byPrefix].sort((a, b) => b[1].bytes - a[1].bytes)) {
+              console.log(
+                k.padEnd(20) +
+                  String(v.n).padStart(5) +
+                  ('  ' + (v.bytes / 1048576).toFixed(1) + ' MB').padStart(12) +
+                  String(v.present).padStart(12),
+              );
+            }
+            console.log('');
+            console.log(
+              'plan: ' + plan.length + ' objects / ' + (planBytes / 1048576).toFixed(1) + ' MB' +
+                ' (' + already + ' already present with matching size)',
+            );
+            console.log('skipped prefix [' + SKIP.join(', ') + ']: ' + skipped.length + ' objects');
+            if (escapes.length) {
+              console.log('');
+              console.log('PATH ESCAPES (' + escapes.length + ') -- excluded:');
+              for (const e of escapes.slice(0, 20)) console.log('  ' + e.name);
+            }
+
+            const report = {
+              mode: MODE,
+              bucket: bucketName,
+              uploads: UPLOADS,
+              bucketObjects: files.length,
+              planned: plan.length,
+              plannedBytes: planBytes,
+              alreadyPresent: already,
+              skippedPrefix: SKIP,
+              skippedCount: skipped.length,
+              escapes,
+              byPrefix: Object.fromEntries(byPrefix),
+              copied: [],
+              failed: [],
+            };
+
+            if (MODE !== 'apply') {
+              console.log('');
+              console.log('DRY RUN -- nothing written.');
+              fs.writeFileSync('/tmp/bucket-copy-report.json', JSON.stringify(report, null, 2));
+              return;
+            }
+
+            const pending = [];
+            for (const item of plan) {
+              if (!(item.size > 0 && (await statSize(item.dest)) === item.size)) pending.push(item);
+            }
+            console.log('');
+            console.log('APPLY -- ' + pending.length + ' objects, concurrency ' + CONCURRENCY);
+
+            const queue = pending.slice();
+            let done = 0;
+            async function worker() {
+              while (queue.length) {
+                const item = queue.shift();
+                const tmp = item.dest + '.part';
+                try {
+                  await fsp.mkdir(path.dirname(item.dest), { recursive: true });
+                  await pipeline(
+                    bucket.file(item.name).createReadStream(),
+                    fs.createWriteStream(tmp, { mode: 0o644 }),
+                  );
+                  const written = await statSize(tmp);
+                  if (item.size > 0 && written !== item.size) {
+                    throw new Error('size mismatch: wrote ' + written + ', expected ' + item.size);
+                  }
+                  await fsp.rename(tmp, item.dest);
+                  report.copied.push(item.name);
+                } catch (e) {
+                  try { await fsp.unlink(tmp); } catch {}
+                  report.failed.push({ name: item.name, error: String((e && e.message) || e) });
+                  console.error('  FAILED ' + item.name + ': ' + ((e && e.message) || e));
+                }
+                done += 1;
+                if (done % 50 === 0) console.log('  ... ' + done + '/' + pending.length);
+              }
+            }
+            await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+            console.log('');
+            console.log('copied: ' + report.copied.length + '   failed: ' + report.failed.length);
+            fs.writeFileSync('/tmp/bucket-copy-report.json', JSON.stringify(report, null, 2));
+            if (report.failed.length) process.exitCode = 1;
+          }
+
+          main().catch((e) => {
+            console.error('FATAL: ' + ((e && e.stack) || e));
+            process.exit(1);
+          });
+          NODEEOF
+          cd "$APPDIR"
+          node /tmp/bucket-copy.cjs
+          rm -f /tmp/bucket-copy.cjs
+
+      - name: Ownership + final count
+        if: inputs.mode == 'apply'
+        run: |
+          set -euo pipefail
+          sudo /bin/chown -R www-data:www-data "$APPDIR/uploads"
+          echo "files in uploads now: $(find "$APPDIR/uploads" -type f | wc -l)"
+          du -sh "$APPDIR/uploads"
+          echo "--- report tail ---"
+          /bin/cat /tmp/bucket-copy-report.json | head -c 400
+          echo ""
