@@ -7,26 +7,17 @@ name: Bucket copy (one-off)
 # that env file AND write the uploads tree -- the topix SSH user can do neither.
 #
 # DELETE THIS FILE once the bucket has been retired.
+#
+# Driven by a `push` to this throwaway branch rather than workflow_dispatch:
+# GitHub only allows dispatching a workflow that exists on the DEFAULT branch,
+# and this must never land on main. Pushing runs the copy using the file in the
+# pushed commit -- so MODE below is the switch. It starts as dry-run; flip it to
+# 'apply' in a follow-up commit to perform the real copy.
 
 on:
+  push:
+    branches: [chore/bucket-copy-once]
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'dry-run (list only) or apply (write to disk)'
-        required: true
-        default: 'dry-run'
-        type: choice
-        options:
-          - dry-run
-          - apply
-      skip_prefixes:
-        description: 'Comma-separated top-level object prefixes to exclude'
-        required: true
-        default: 'firestore-backups'
-      concurrency:
-        description: 'Parallel downloads'
-        required: true
-        default: '4'
 
 concurrency:
   group: bucket-copy-once
@@ -40,9 +31,14 @@ jobs:
 
     env:
       APPDIR: /srv/ybw-frontend
-      MODE: ${{ inputs.mode }}
-      SKIP_PREFIXES: ${{ inputs.skip_prefixes }}
-      COPY_CONCURRENCY: ${{ inputs.concurrency }}
+      # ---- THE SWITCH ----
+      # 'dry-run' lists what would be copied and writes nothing.
+      # 'apply'   downloads the objects into /srv/ybw-frontend/uploads.
+      MODE: dry-run
+      # firestore-backups are Firestore database dumps, not site assets --
+      # copying them into the web root would publish them.
+      SKIP_PREFIXES: firestore-backups
+      COPY_CONCURRENCY: '4'
 
     steps:
       - name: Preflight (identity, permissions, disk)
@@ -265,7 +261,7 @@ jobs:
           rm -f /tmp/bucket-copy.cjs
 
       - name: Ownership + final count
-        if: inputs.mode == 'apply'
+        if: env.MODE == 'apply'
         run: |
           set -euo pipefail
           sudo /bin/chown -R www-data:www-data "$APPDIR/uploads"
