@@ -53,6 +53,39 @@ jobs:
           df -h /srv | tail -n 1
           echo "existing files in uploads: $(find "$APPDIR/uploads" -type f | wc -l)"
 
+      - name: Clear the two legacy IDML packages blocking the copy
+        if: env.MODE == 'apply'
+        run: |
+          set -euo pipefail
+          # These two are *regular files* sitting at paths the bucket uses as
+          # *folders*, so they block 229 objects. Verified before removing:
+          #   * no live DB row references either path (0 hits across
+          #     magazine_issues / magazine_pages / magazine_reader_editions /
+          #     magazine_story_library / magazine_ads / member_profiles);
+          #   * both inodes (1342748, 1342740) have hardlinks=3, and the other
+          #     two entries are dated backups of the whole tree --
+          #     /srv/ybw-frontend.bak-2026-10-01-2311/uploads/...
+          #     /srv/ybw-frontend.20260928-220154.bak/uploads/...
+          #     -- so unlinking these two names destroys no data.
+          for rel in \
+            "uploads/magazine-import/ybw_August_2026.idml" \
+            "uploads/magazine-import/ybw_August_2026_DIGITAL.idml"
+          do
+            f="$APPDIR/$rel"
+            if [ ! -e "$f" ]; then
+              echo "already absent: $rel"
+              continue
+            fi
+            [ -f "$f" ] || { echo "REFUSING: $rel exists but is not a regular file"; exit 1; }
+            stat -c 'removing %n  size=%s  hardlinks=%h' "$f"
+            sha256sum "$f"
+            rm -f "$f" 2>/dev/null || sudo /bin/rm -f "$f"
+            [ -e "$f" ] && { echo "FAILED to remove $rel"; exit 1; }
+            echo "removed: $rel"
+          done
+          echo "--- remaining ybw_August_2026 entries ---"
+          ls -la "$APPDIR/uploads/magazine-import" | grep -F 'ybw_August_2026' || echo "(none)"
+
       - name: Copy bucket -> disk
         run: |
           set -euo pipefail
@@ -353,5 +386,8 @@ jobs:
           echo "files in uploads now: $(find "$APPDIR/uploads" -type f | wc -l)"
           du -sh "$APPDIR/uploads"
           echo "--- report summary ---"
-          /bin/cat /tmp/bucket-copy-report.json | head -c 600
+          # NOTE: do NOT pipe /bin/cat into `head` here -- cat takes SIGPIPE once
+          # head has its bytes, and `set -o pipefail` then fails the step even
+          # though the copy succeeded. Read the file directly instead.
+          head -c 600 /tmp/bucket-copy-report.json
           echo ""
