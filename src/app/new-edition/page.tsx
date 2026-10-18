@@ -71,6 +71,12 @@ export async function generateMetadata(): Promise<Metadata> {
       type: 'website',
       images: coverImage ? [{ url: coverImage, alt: `${editionTitle} cover` }] : undefined,
     },
+    // Without this the root layout's static tagline wins on X, which then shows the
+    // right cover under the wrong words.
+    twitter: {
+      title: `${editionTitle} | Yorkshire BusinessWoman`,
+      description,
+    },
   };
 }
 
