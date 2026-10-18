@@ -1,4 +1,5 @@
 import { getMagazinePgPool } from '@/features/magazine/server/read-store/pg-client';
+import { fixMagazineImageUrl } from '@/lib/magazine-utils';
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -210,10 +211,15 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
             : '',
         )
         .find((s) => s && s.length > 0);
-      const effectiveImageUrl =
+      // A stored `system:ads` row may still carry a legacy Firebase/GCS bucket
+      // URL (the header leaderboard predates the VPS cutover). Those objects now
+      // live under /uploads, so normalise on read — otherwise the raw bucket URL
+      // is rendered straight into the <img srcSet> and the RSC payload.
+      const effectiveImageUrl = fixMagazineImageUrl(
         nestedCedarImage ||
-        (existingHeaderImageUrl.trim().length > 0 ? existingHeaderImageUrl.trim() : envImageUrl) ||
-        '/uploads/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg';
+          (existingHeaderImageUrl.trim().length > 0 ? existingHeaderImageUrl.trim() : envImageUrl) ||
+          '/uploads/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg',
+      );
       const effectiveLinkUrl =
         nestedCedarLink ||
         (existingHeader && typeof existingHeader.linkUrl === 'string' && existingHeader.linkUrl.trim().length > 0
