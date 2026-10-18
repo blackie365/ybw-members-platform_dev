@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -12,15 +13,66 @@ import { deriveIssueSlug } from '@/features/magazine/domain/builder-to-reader';
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: 'Latest Edition',
-  description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
-  openGraph: {
-    title: 'Latest Edition | Yorkshire BusinessWoman',
-    description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
-    type: 'website',
-  },
-};
+/**
+ * Resolving the live issue is needed twice per request: once by `generateMetadata()`
+ * for the <head>, once by the page body. React `cache()` collapses that to a single
+ * store read, so naming the current edition in the <head> costs nothing extra on an
+ * ISR cycle.
+ */
+const loadEditionContext = cache(async () => {
+  const issues = await getMagazineReadStore().getMagazineIssues();
+  const flagged = issues.find((issue) => issue.isLatest) ?? null;
+
+  if (!flagged && issues.length > 0) {
+    console.warn(
+      '[NewEditionPage] No issue is flagged isLatest=true; falling back to issues[0]. ' +
+        'Exactly one row is expected to carry this flag.',
+    );
+  }
+
+  return { issues, liveIssue: flagged ?? issues[0] ?? null };
+});
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { liveIssue } = await loadEditionContext();
+
+  if (!liveIssue) {
+    return {
+      title: 'Latest Edition',
+      description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
+      alternates: { canonical: '/new-edition' },
+      openGraph: {
+        title: 'Latest Edition | Yorkshire BusinessWoman',
+        description: 'Read the latest edition of the Yorkshire BusinessWoman magazine online.',
+        type: 'website',
+      },
+    };
+  }
+
+  const editionTitle = humanizeEditionTitle(liveIssue);
+  const description =
+    String(liveIssue.description || '').trim() ||
+    'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.';
+  // Left relative on purpose: the root layout's `metadataBase` turns it into the
+  // absolute URL that social crawlers require.
+  const coverImage = liveIssue.coverImage
+    ? fixMagazineImageUrl(liveIssue.coverImage, liveIssue.publishDate || '')
+    : '';
+
+  return {
+    // `absolute` because the root layout template appends " | Yorkshire BusinessWoman"
+    // and the humanised edition title already carries the brand.
+    title: { absolute: editionTitle },
+    description,
+    alternates: { canonical: '/new-edition' },
+    openGraph: {
+      title: `${editionTitle} | Yorkshire BusinessWoman`,
+      description,
+      type: 'website',
+      images: coverImage ? [{ url: coverImage, alt: `${editionTitle} cover` }] : undefined,
+    },
+  };
+}
 
 function isCopySlug(value: unknown): boolean {
   return /copy/i.test(String(value || ''));
@@ -30,6 +82,22 @@ function getTimestamp(value: unknown): number {
   const parsed = new Date(String(value || ''));
   const time = parsed.getTime();
   return Number.isNaN(time) ? 0 : time;
+}
+
+/**
+ * Edition dates are pinned to the publication's own timezone: the server runs UTC, so
+ * an unpinned `toLocaleDateString` can push a first-of-month edition into the previous
+ * month. Returns '' for a missing date so callers can hide the row instead of
+ * rendering "Invalid Date".
+ */
+function formatEditionDate(value: unknown): string {
+  const parsed = new Date(String(value || ''));
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/London',
+  });
 }
 
 function compareReaderEditions(left: any, right: any): number {
@@ -69,13 +137,12 @@ function humanizeEditionTitle(issue: any): string {
 
 export default async function NewEditionPage() {
   const store = getMagazineReadStore();
-  const [issues, ghostPosts, readerEditions] = await Promise.all([
-    store.getMagazineIssues(),
+  const [{ issues, liveIssue }, ghostPosts, readerEditions] = await Promise.all([
+    loadEditionContext(),
     getPosts({ limit: 1, filter: "featured:true" }),
     store.listReaderEditions()
   ]);
 
-  const liveIssue = issues.find((issue) => issue.isLatest) ?? issues[0] ?? null;
   const exactLiveReaderEdition = liveIssue
     ? readerEditions.find((edition) => {
         const editionIssueId = (edition as any)?.issueId;
@@ -118,9 +185,12 @@ export default async function NewEditionPage() {
         ?? liveIssue);
   const rawFlipbookUrl = flipbookIssue?.flipbookUrl || flipbookIssue?.pdfUrl || null;
   const flipbookEmbedUrl = rawFlipbookUrl ? fixIssuuEmbedUrl(rawFlipbookUrl) : null;
-  const archiveIssues = issues.filter((issue) => (
-    Boolean(issue.flipbookUrl || issue.pdfUrl)
-  ));
+  // The archive is for *past* editions: newest first, and never a second copy of the
+  // edition already sitting in the hero above.
+  const archiveIssues = issues
+    .filter((issue) => Boolean(issue.flipbookUrl || issue.pdfUrl))
+    .filter((issue) => !liveIssue || String(issue.id) !== String(liveIssue.id))
+    .sort((left, right) => getTimestamp(right.publishDate) - getTimestamp(left.publishDate));
   const featuredPost = ghostPosts[0];
 
   if (!liveIssue) {
@@ -139,6 +209,7 @@ export default async function NewEditionPage() {
   // The top hero always reflects the *live* issue (not the reader editions,
   // which can lag behind the current edition).
   const editionTitle = humanizeEditionTitle(liveIssue);
+  const editionDateLabel = formatEditionDate(liveIssue.publishDate);
   const editionDescription =
     String(liveIssue.description || '').trim() ||
     'Read the latest Yorkshire BusinessWoman edition online in a polished magazine presentation.';
@@ -199,11 +270,15 @@ export default async function NewEditionPage() {
               </div>
 
               <div className="mt-12 flex flex-wrap items-center gap-6 text-sm text-zinc-500">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-accent" />
-                  <span>{new Date(liveIssue.publishDate || Date.now()).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</span>
-                </div>
-                <div className="h-4 w-px bg-white/10" />
+                {editionDateLabel && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-accent" />
+                      <span>{editionDateLabel}</span>
+                    </div>
+                    <div className="h-4 w-px bg-white/10" />
+                  </>
+                )}
                 <p>Yorkshire BusinessWoman Magazine</p>
               </div>
             </div>
@@ -218,8 +293,6 @@ export default async function NewEditionPage() {
                       <img
                         src={liveCoverImage}
                         alt={`${editionTitle} Cover`}
-                        crossOrigin="anonymous"
-                        referrerPolicy="no-referrer"
                         className="absolute inset-0 h-full w-full object-contain"
                       />
                     )}
@@ -358,15 +431,15 @@ export default async function NewEditionPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {archiveIssues.map((issue: any) => (
+            {archiveIssues.map((issue: any) => {
+              const dateLabel = formatEditionDate(issue.publishDate);
+              return (
               <div key={issue.id} className="group relative flex flex-col bg-card rounded-2xl border border-border overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 items-center text-center">
                 <div className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden block mt-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={fixMagazineImageUrl(issue.coverImage, issue.publishDate || '')}
                     alt={issue.title}
-                    crossOrigin="anonymous"
-                    referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-contain bg-black/5 transition-transform duration-500 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center">
@@ -382,10 +455,12 @@ export default async function NewEditionPage() {
                 </div>
 
                 <div className="flex flex-1 flex-col p-6 items-center">
-                  <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(issue.publishDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                  </div>
+                  {dateLabel && (
+                    <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-accent">
+                      <Calendar className="h-3 w-3" />
+                      {dateLabel}
+                    </div>
+                  )}
                   <h3 className="mb-2 font-serif text-lg font-medium text-foreground transition-colors group-hover:text-accent line-clamp-1">
                     {issue.title}
                   </h3>
@@ -412,7 +487,8 @@ export default async function NewEditionPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           
           <div className="mt-16 text-center">
