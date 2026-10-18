@@ -970,7 +970,7 @@ export function ManualImporter({
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5 min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-accent">
-                    File saved to Firebase Storage
+                    File saved to server storage
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">
                     {lastIdmlStorageUpload.fileName} ·{' '}
@@ -985,7 +985,7 @@ export function ManualImporter({
                   onClick={() => {
                     if (!lastIdmlStorageUpload) return;
                     setStoredIdmlPath(lastIdmlStorageUpload.gsUrl);
-                    toast.success('Stored IDML path filled with Firebase Storage URL');
+                    toast.success('Stored IDML path filled');
                   }}
                 >
                   Fill stored path
@@ -995,7 +995,7 @@ export function ManualImporter({
               <div className="space-y-2">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    gs:// URL
+                    Stored path
                   </Label>
                   <div className="flex items-stretch gap-2">
                     <Input readOnly value={lastIdmlStorageUpload.gsUrl} className="font-mono text-[10px] h-8 pr-20" />
@@ -1008,7 +1008,7 @@ export function ManualImporter({
                         if (!lastIdmlStorageUpload) return;
                         try {
                           await navigator.clipboard.writeText(lastIdmlStorageUpload.gsUrl);
-                          toast.success('Copied gs:// URL');
+                          toast.success('Copied stored path');
                         } catch {
                           toast.error('Copy failed — copy manually');
                         }
@@ -1374,14 +1374,14 @@ export function ManualImporter({
             <div className="space-y-1">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Stored IDML path</Label>
               <p className="text-[10px] text-muted-foreground">
-                Use an existing Firebase Storage object directly, for example `gs://bucket/folder/file.idml`.
+                Use an IDML already held on the server, for example `/uploads/magazine-import/your-file.idml`.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={storedIdmlPath}
                 onChange={(e) => setStoredIdmlPath(e.target.value)}
-                placeholder="gs://newmembersdirectory130325.firebasestorage.app/magazine-import/your-file.idml"
+                placeholder="/uploads/magazine-import/your-file.idml"
                 disabled={isParsing || isImporting}
               />
               <Button

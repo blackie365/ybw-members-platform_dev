@@ -52,16 +52,25 @@ export function parseGoogleStoragePath(storagePath: string): { bucketName?: stri
   }
 
   if (trimmed.startsWith('gs://')) {
+    // The Firebase/GCS bucket is retired. Every object it held was copied onto
+    // the VPS mirroring the bucket layout under the uploads root, so a gs:// URI
+    // now resolves to the equivalent LOCAL uploads path — nothing is fetched
+    // from GCS. The bucket name is still required in the URI for backwards
+    // compatibility with the admin UI, but it is discarded here.
     const withoutScheme = trimmed.replace(/^gs:\/\//i, '');
     const slashIndex = withoutScheme.indexOf('/');
     if (slashIndex === -1) {
       throw new Error('Storage path must include both bucket and object path');
     }
 
-    return {
-      bucketName: withoutScheme.slice(0, slashIndex).trim(),
-      objectPath: withoutScheme.slice(slashIndex + 1).trim(),
-    };
+    const objectPath = withoutScheme
+      .slice(slashIndex + 1)
+      .trim()
+      .replace(/^\/+/, '')
+      .replace(/^uploads\//i, '');
+    if (!objectPath) throw new Error('Storage path has no object');
+
+    return { bucketName: 'local', objectPath: `uploads/${objectPath}` };
   }
 
   if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
@@ -139,8 +148,15 @@ async function downloadIdmlBufferFromStoragePath(storagePath: string): Promise<{
     resolvedBucketName = parsedBucketName || bucket.name;
   }
 
+  // Every local object lives under the uploads root, and downloadBuffer() routes
+  // on that `uploads/` prefix. A bare `magazine-import/x.idml` would otherwise
+  // fall through to the fallback (GCS) backend, so normalise the prefix here.
+  const localObjectPath = objectPath.startsWith('uploads/')
+    ? objectPath
+    : `uploads/${objectPath.replace(/^\/+/, '')}`;
+
   const buffer = await downloadBuffer(
-    objectPath,
+    isLocal ? localObjectPath : objectPath,
     isLocal ? undefined : parsedBucketName,
   );
   if (!buffer || buffer.length === 0) throw new Error(`Downloaded file is empty: ${storagePath}`);

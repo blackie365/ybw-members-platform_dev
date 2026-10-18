@@ -580,7 +580,7 @@ export const siteContent = {
       cta: "Join the Community",
       nextIssue: "June / July 2026",
       socials: ["Instagram", "LinkedIn", "X"],
-      image: "https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/magazine/apr-may-2026/rebecca-rhoades-15b.jpg"
+      image: "/uploads/magazine/apr-may-2026/rebecca-rhoades-15b.jpg"
     }
   }]
 
