@@ -22,9 +22,6 @@ function toFeaturedMember(doc: any) {
   const realPhotosFirst = imageCandidates.filter(url =>
     url && typeof url === 'string' && (
       url.startsWith('/uploads/') ||
-      url.includes('storage.googleapis.com') ||
-      url.includes('firebasestorage.app') ||
-      url.includes('firebasestorage.googleapis.com') ||
       (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
     )
   );

@@ -520,7 +520,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
               <Input
                 value={value || ''}
                 onChange={(e) => updateContent(field, e.target.value)}
-                placeholder="https://storage.googleapis.com/… or leave blank to upload"
+                placeholder="/uploads/… or leave blank to upload"
               />
               <input
                 ref={inputRef}
@@ -1932,7 +1932,7 @@ export function PageEditor({ page, onSave, onChangeType, isSaving, readOnly: for
                 💡 PDF display in the online magazine reader
               </p>
               <p className="text-xs text-stone-700 leading-relaxed">
-                Browsers <strong>cannot reliably embed PDFs inline</strong> from Firebase Storage due to
+                Browsers <strong>cannot reliably embed PDFs inline</strong> from remote storage due to
                 X-Frame-Options / Content-Security-Policy / Chromium ORB blocks.
               </p>
               <ul className="text-[11px] text-stone-600 space-y-1 list-disc pl-5 marker:text-[#a3413a]">

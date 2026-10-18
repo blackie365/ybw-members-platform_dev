@@ -213,7 +213,7 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
       const effectiveImageUrl =
         nestedCedarImage ||
         (existingHeaderImageUrl.trim().length > 0 ? existingHeaderImageUrl.trim() : envImageUrl) ||
-        'https://storage.googleapis.com/newmembersdirectory130325.firebasestorage.app/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg';
+        '/uploads/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg';
       const effectiveLinkUrl =
         nestedCedarLink ||
         (existingHeader && typeof existingHeader.linkUrl === 'string' && existingHeader.linkUrl.trim().length > 0

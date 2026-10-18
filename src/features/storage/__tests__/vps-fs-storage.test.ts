@@ -160,10 +160,10 @@ describe('parseGoogleStoragePath (VPS /uploads/ passthrough branch)', () => {
     }
   });
 
-  it('legacy gs:// URIs still parse correctly unchanged', () => {
+  it('resolves legacy gs:// URIs to the local uploads tree', () => {
     expect(parseGoogleStoragePath('gs://fire.appspot.com/magazine-import/file.idml')).toEqual({
-      bucketName: 'fire.appspot.com',
-      objectPath: 'magazine-import/file.idml',
+      bucketName: 'local',
+      objectPath: 'uploads/magazine-import/file.idml',
     });
   });
 });

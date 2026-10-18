@@ -55,12 +55,12 @@ This framework is reflected and underlined in St Peter's School Charter, which f
 Famous and successful female Old Peterites include sports broadcaster and television personality Kat Downes; Emma Hustler, co-owner of the restaurant chain Tasca Franga; Jenni Ashwood of Filey Bay Whisky and Yorkshire Wolds Beer; and actress Fleur Keith.`,
   text: "",
   featureImage:
-    "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine-import%2Fybw_August_2026_DIGITAL.idml%2FSt%20Peter's-Jeremy.jpg?alt=media",
+    "/uploads/magazine-import/ybw_August_2026_DIGITAL.idml/St Peter's-Jeremy.jpg",
   image:
-    "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine-import%2Fybw_August_2026_DIGITAL.idml%2FSt%20Peter's-Jeremy.jpg?alt=media",
+    "/uploads/magazine-import/ybw_August_2026_DIGITAL.idml/St Peter's-Jeremy.jpg",
   gallery: [
-    "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine-import%2Fybw_August_2026_DIGITAL.idml%2FSt%20Peters-Victoria%20Inness.jpg?alt=media",
-    "https://firebasestorage.googleapis.com/v0/b/newmembersdirectory130325.firebasestorage.app/o/magazine-import%2Fybw_August_2026_DIGITAL.idml%2FSt%20Peter's-Jeremy.jpg?alt=media",
+    "/uploads/magazine-import/ybw_August_2026_DIGITAL.idml/St Peters-Victoria Inness.jpg",
+    "/uploads/magazine-import/ybw_August_2026_DIGITAL.idml/St Peter's-Jeremy.jpg",
   ],
 };
 

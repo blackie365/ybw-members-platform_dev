@@ -49,18 +49,14 @@ describe('normalizeImageUrl + fixMagazineImageUrl /uploads/ regression', () => {
       expect(out).toEqual('https://ybw.co.uk/uploads/x.jpg?foo=1&v=b2');
     });
 
-    test('gs:// still rewritten to firebasestorage v0', () => {
+    test('gs:// is converted to the equivalent /uploads/ path', () => {
       const out = fixMagazineImageUrl('gs://bucket.app/file with space.jpg');
-      expect(out.startsWith('https://firebasestorage.googleapis.com/v0/b/bucket.app/o/')).toBe(true);
-      // Slashes inside path become %2F, while path segment spaces stay %20.
-      expect(out).toContain('file%20with%20space.jpg');
+      expect(out).toEqual('/uploads/file with space.jpg');
     });
 
-    test('storage.googleapis.com/<bucket>/<path> still rewritten to firebasestorage v0 (not /uploads/)', () => {
+    test('storage.googleapis.com/<bucket>/<path> is converted to the equivalent /uploads/ path', () => {
       const out = fixMagazineImageUrl('https://storage.googleapis.com/bucket.app/path/file.png');
-      expect(out.startsWith('https://firebasestorage.googleapis.com/v0/b/bucket.app/o/')).toBe(true);
-      expect(out).toContain('path%2Ffile.png');
-      expect(out).not.toContain('/uploads/');
+      expect(out).toEqual('/uploads/path/file.png');
     });
 
     test('magazine-import/<name>.idml/<image> rewritten to flat magazine-import/<image>', () => {
