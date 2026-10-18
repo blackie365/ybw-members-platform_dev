@@ -515,8 +515,6 @@ function AdditionalMediaGallery({
             <img
               src={fixMagazineImageUrl(item.src, imageVersion)}
               alt={item.alt}
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-[1.04]"
               loading="lazy"
             />
@@ -758,8 +756,6 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
           alt=""
           fill
           sizes="100vw"
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
           className={
             pdfUrl
               ? "object-cover blur-2xl scale-105 opacity-25"
@@ -826,8 +822,6 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
               alt={alt}
               fill
               sizes="100vw"
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               className="object-contain"
             />
           </div>
@@ -891,8 +885,6 @@ export const PageFullPageAd = ({ data, imageVersion }: any) => {
               alt={String(data?.brand || label || "Sponsor logo").trim()}
               width={256}
               height={64}
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               className="h-auto max-h-16 w-auto object-contain"
               style={{ maxHeight: 64 }}
             />
@@ -971,8 +963,6 @@ export const PageAds = ({ data, imageVersion = "" }: any) => {
             alt=""
             fill
             sizes="100vw"
-            crossOrigin="anonymous"
-            referrerPolicy="no-referrer"
             className="object-cover"
           />
         ) : null}
@@ -989,8 +979,6 @@ export const PageAds = ({ data, imageVersion = "" }: any) => {
               alt={alt}
               fill
               sizes="100vw"
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               className="p-6 sm:p-10 lg:p-12 object-contain"
               style={{ padding: "clamp(1rem, 5vw, 4rem)" }}
             />
@@ -1022,8 +1010,6 @@ export const PageAds = ({ data, imageVersion = "" }: any) => {
               alt="Sponsor logo"
               width={256}
               height={64}
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               className="mx-auto h-auto max-h-10 w-auto object-contain"
             />
           ) : null}
