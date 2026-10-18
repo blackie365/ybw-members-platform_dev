@@ -68,12 +68,15 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: `${editionTitle} | Yorkshire BusinessWoman`,
       description,
+      url: '/new-edition',
       type: 'website',
       images: coverImage ? [{ url: coverImage, alt: `${editionTitle} cover` }] : undefined,
     },
-    // Without this the root layout's static tagline wins on X, which then shows the
-    // right cover under the wrong words.
+    // A page-level `twitter` object replaces the layout's wholesale rather than
+    // merging into it, so `card` has to be repeated here or the share silently
+    // downgrades to the small "summary" card.
     twitter: {
+      card: 'summary_large_image',
       title: `${editionTitle} | Yorkshire BusinessWoman`,
       description,
     },
