@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
+import { useAuth } from "@/lib/AuthContext";
 import {
   EventInterestPopover,
   clearEventPopupMemory,
@@ -43,6 +44,7 @@ interface GhostPost {
 }
 
 export function LatestEvents({ events, featuredHomepageEventSlug }: { events: GhostPost[]; featuredHomepageEventSlug?: string | null }) {
+  const { user, loading: authLoading } = useAuth();
   const [activeEvent, setActiveEvent] = useState<GhostPost | null>(null);
   const [autoTriggered, setAutoTriggered] = useState(false);
   const topEvent: GhostPost | null = (() => {
@@ -97,6 +99,13 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
       };
     }
 
+    // A signed-in member already has an account and is already on the event
+    // list, so prompting them to leave an email is pure noise. Wait for the
+    // auth check to settle before arming the timer: starting it on mount opens
+    // a window in which `user` has not arrived yet, which is how this pop-up
+    // reached members who were already logged in.
+    if (authLoading || user) return;
+
     timer = window.setTimeout(() => {
       if (!mounted) return;
       if (shouldSkipForCooldowns(topEvent.slug)) return;
@@ -107,7 +116,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
       mounted = false;
       if (timer) window.clearTimeout(timer);
     };
-  }, [topEvent, autoTriggered]);
+  }, [topEvent, autoTriggered, authLoading, user]);
 
   if (!events || events.length === 0) return null;
 
