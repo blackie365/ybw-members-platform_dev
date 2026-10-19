@@ -84,4 +84,53 @@ describe('normalizeImageUrl + fixMagazineImageUrl /uploads/ regression', () => {
       expect(out).toEqual('/uploads/magazine-import/iStock-483363494.jpg?v=77');
     });
   });
+
+  /**
+   * Rows written by the storage migration carry a doubled `uploads/` segment,
+   * which 404s because the storage backend refuses to re-prefix. Five such
+   * values live in Postgres today (magazine_pages 19/21/23, magazine_issues,
+   * magazine_reader_editions, magazine_story_library).
+   */
+  describe('duplicated uploads/ segment collapse', () => {
+    test('normalizeImageUrl collapses a doubled relative path', () => {
+      expect(normalizeImageUrl('/uploads/uploads/user_abc-123.PNG')).toEqual('/uploads/user_abc-123.PNG');
+    });
+
+    test('normalizeImageUrl collapses a doubled absolute path', () => {
+      expect(normalizeImageUrl('https://ybw.co.uk/uploads/uploads/user_abc-123.PNG')).toEqual(
+        'https://ybw.co.uk/uploads/user_abc-123.PNG',
+      );
+    });
+
+    test('normalizeImageUrl collapses three or more segments', () => {
+      expect(normalizeImageUrl('/uploads/uploads/uploads/a.jpg')).toEqual('/uploads/a.jpg');
+    });
+
+    test('gs:// with a doubled segment collapses to a single prefix', () => {
+      expect(normalizeImageUrl('gs://bucket.app/uploads/uploads/a.jpg')).toEqual('/uploads/a.jpg');
+    });
+
+    test('storage.googleapis.com with a doubled segment collapses to a single prefix', () => {
+      expect(
+        fixMagazineImageUrl('https://storage.googleapis.com/bucket.app/uploads/uploads/a.jpg'),
+      ).toEqual('/uploads/a.jpg');
+    });
+
+    test('fixMagazineImageUrl collapses and still appends the version param', () => {
+      expect(fixMagazineImageUrl('/uploads/uploads/user_abc-123.PNG', '2026-06-01')).toEqual(
+        '/uploads/user_abc-123.PNG?v=2026-06-01',
+      );
+    });
+
+    test('a correct single-prefix path is left untouched (idempotent)', () => {
+      const once = normalizeImageUrl('/uploads/user_abc-123.PNG');
+      expect(once).toEqual('/uploads/user_abc-123.PNG');
+      expect(normalizeImageUrl(once)).toEqual('/uploads/user_abc-123.PNG');
+    });
+
+    test('a directory genuinely named "uploads" below the root is not collapsed twice over', () => {
+      // Only *consecutive* uploads/ segments collapse; this stays intact.
+      expect(normalizeImageUrl('/uploads/a/uploads/b.jpg')).toEqual('/uploads/a/uploads/b.jpg');
+    });
+  });
 });
