@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, Loader2, X } from "lucide-react";
 import { hasHomepageEventAutoTriggeredThisSession } from "@/components/events/EventInterestPopover";
+import { useAuth } from "@/lib/AuthContext";
 
 const DISMISS_KEY = "ybw:newsletter_popup_dismissed";
 const DISMISS_DAYS = 30;
@@ -36,6 +37,7 @@ function storeDismissed(): void {
 }
 
 export function NewsletterPopup() {
+  const { user, loading: authLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -55,13 +57,20 @@ export function NewsletterPopup() {
   };
 
   useEffect(() => {
+    // Hold the timer until the auth check has settled. Arming it first leaves an
+    // 8-second window in which a signed-in member still gets the popup before
+    // `user` arrives, which is exactly how it was showing when already logged in.
+    if (authLoading) return;
+    // A signed-in member already has an account and is already on the Ghost
+    // member list, so asking them to subscribe is pure noise.
+    if (user) return;
     if (isDismissedStored()) return;
     const timer = setTimeout(() => {
       if (hasHomepageEventAutoTriggeredThisSession()) return;
       setIsOpen(true);
     }, SHOW_DELAY_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [authLoading, user]);
 
   const closeAndDismiss = useCallback(() => {
     storeDismissed();
