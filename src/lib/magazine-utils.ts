@@ -1,4 +1,20 @@
 /**
+ * Collapse a duplicated `uploads/` segment.
+ *
+ * Rows written by the storage migration carry paths like
+ * `/uploads/uploads/photo.jpg`, because the object path itself already began
+ * with `uploads/` when `/uploads/` was prefixed onto it. Nothing downstream
+ * repairs it — the storage backend deliberately refuses to re-prefix, so the
+ * URL simply 404s. Collapsing here is idempotent and sits in the one funnel
+ * every magazine image passes through on its way to the browser.
+ */
+const DUPLICATED_UPLOADS_SEGMENT = /^((?:https?:\/\/[^\/]+)?\/uploads\/)(?:uploads\/)+/i;
+
+function stripUploadsPrefixes(value: string): string {
+  return value.replace(/^\/+/, '').replace(/^(?:uploads\/)+/i, '');
+}
+
+/**
  * Aggressively strip surrounding delimiters that sometimes leak into CMS
  * fields and Story Library records: backticks, quotes, angle brackets,
  * whitespace, curly braces and Markdown link wrappers.
@@ -49,6 +65,8 @@ export function normalizeImageUrl(value: unknown): string {
   const lower = raw.toLowerCase();
   if (lower === 'undefined' || lower === 'null' || lower === 'none' || lower === 'n/a' || lower === 'na') return '';
 
+  raw = raw.replace(DUPLICATED_UPLOADS_SEGMENT, '$1');
+
   if (raw.startsWith('gs://')) {
     // The bucket is retired: its objects live on the VPS, mirroring the bucket
     // layout under the uploads root, so a gs:// URI now resolves to the
@@ -58,7 +76,7 @@ export function normalizeImageUrl(value: unknown): string {
     if (slash <= 0) return '';
     const rawPath = rest.slice(slash + 1);
     if (!rawPath) return '';
-    const objectPath = rawPath.replace(/^\/+/, '').replace(/^uploads\//i, '');
+    const objectPath = stripUploadsPrefixes(rawPath);
     if (!objectPath) return '';
     return `/uploads/${objectPath}`;
   }
@@ -90,7 +108,7 @@ function decodeSegment(segment: string): string {
  * Returns '' for anything that is not a bucket URL.
  */
 function bucketObjectPathFromUrl(rawUrl: string): string {
-  const stripUploadsPrefix = (p: string) => p.replace(/^\/+/, '').replace(/^uploads\//i, '');
+  const stripUploadsPrefix = stripUploadsPrefixes;
 
   let parsed: URL;
   try {
