@@ -147,10 +147,19 @@ function AdContent({
   } else if (safeImageUrl) {
     inner = (
       <div className={cn('relative w-full bg-muted', aspectClass)}>
+        {/* Ad creatives are already produced at their final size, so the image
+            optimiser adds nothing — and for `/uploads/...` paths it actively
+            breaks the ad. The optimiser re-fetches the source from this app's
+            own Node origin (127.0.0.1:3003), which does not serve `/uploads/`;
+            that directory is an Nginx-only `alias` to /srv/ybw-frontend/uploads.
+            The re-fetch 404s, so the optimiser answers HTTP 400 and the slot
+            renders as a broken box. Serving the file directly avoids the
+            round-trip entirely. */}
         <Image
           src={safeImageUrl}
           alt={altText}
           fill
+          unoptimized
           className="object-cover"
           sizes={`(max-width: 768px) 100vw, ${LEADERBOARD_WIDTH}px`}
         />
