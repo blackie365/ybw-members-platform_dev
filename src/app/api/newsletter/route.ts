@@ -366,6 +366,32 @@ export async function POST(request: Request) {
       }
     }
 
+    // The primary delivery engine is Beehiiv. `disabled` means it simply is not
+    // configured, which is fine — the local member record, Ghost and the Resend
+    // welcome email still ran. But a real failure (configured and rejected /
+    // unreachable) means the subscriber did not land in the newsletter at all:
+    // the record exists locally, yet they will never receive a send. This route
+    // used to answer 200/success in that case regardless, so the caller printed
+    // "You're subscribed!" and permanently set its 30-day dismissal flag for
+    // someone who was never actually subscribed. Surface the failure instead so
+    // the caller shows a real error and the visitor can retry.
+    if (!beehiivResult.success && !beehiivResult.disabled) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "We couldn't finish your subscription just now. Please try again in a moment.",
+          details: {
+            beehiiv: {
+              success: false,
+              error: beehiivResult.error,
+              httpStatus: beehiivResult.httpStatus,
+            },
+          },
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const responseData = {
       success: true as const,
       message: beehiivResult.alreadyExists
