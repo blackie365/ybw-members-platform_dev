@@ -33,31 +33,34 @@ function requireGhostContentKey() {
   return trimmed;
 }
 
+/**
+ * The Ghost host this app reads from — exactly one, explicitly configured.
+ *
+ * This used to enumerate four candidates (the configured URL, the public site
+ * origin `NEXT_PUBLIC_SITE_URL`, and the apex/`admin.` twin of each) while every
+ * caller looped over the list and retried the next entry on any failure.
+ *
+ * The public site origin is not a Ghost host. `yorkshirebusinesswoman.co.uk`
+ * serves the Next.js app and has no `/ghost` route at all — verified
+ * 2026-10-19: `/ghost` and `/ghost/api/content/posts` both answer 404 with
+ * Next's own not-found page, while only `admin.yorkshirebusinesswoman.co.uk`
+ * proxies to Ghost. So that candidate could only ever 404 and contributed no
+ * resilience, yet because the callers retry and then swallow the error and
+ * return an empty result, a genuinely wrong base degraded silently into "zero
+ * posts" instead of failing where an operator would see it.
+ *
+ * Returns an empty list when nothing is configured, so callers report the
+ * misconfiguration rather than guessing a host.
+ */
 function getGhostBaseCandidates() {
-  const candidates = new Set<string>();
+  const configured = normalizeBaseUrl(process.env.NEXT_PUBLIC_GHOST_API_URL || process.env.GHOST_API_URL);
+  if (configured) return [configured];
 
-  const explicit = normalizeBaseUrl(process.env.NEXT_PUBLIC_GHOST_API_URL || process.env.GHOST_API_URL);
-  if (explicit) candidates.add(explicit);
-
-  const site = normalizeBaseUrl(process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk');
-  if (site) candidates.add(site);
-
-  for (const base of [explicit, site, 'https://yorkshirebusinesswoman.co.uk', 'https://admin.yorkshirebusinesswoman.co.uk']) {
-    if (!base) continue;
-    candidates.add(base);
-    try {
-      const u = new URL(base);
-      if (u.hostname.startsWith('admin.')) {
-        u.hostname = u.hostname.replace(/^admin\./, '');
-        candidates.add(normalizeBaseUrl(u.toString()));
-      } else {
-        u.hostname = `admin.${u.hostname}`;
-        candidates.add(normalizeBaseUrl(u.toString()));
-      }
-    } catch {}
-  }
-
-  return Array.from(candidates).filter(Boolean);
+  console.error(
+    '[Ghost] No Ghost host configured — set NEXT_PUBLIC_GHOST_API_URL (or GHOST_API_URL) to the Ghost ' +
+      'origin, e.g. https://admin.yorkshirebusinesswoman.co.uk. Content reads will return empty until then.'
+  );
+  return [];
 }
 
 /**

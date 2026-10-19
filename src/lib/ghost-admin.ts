@@ -4,12 +4,13 @@ import GhostAdminAPI from '@tryghost/admin-api';
 import { config } from '@/lib/config';
 import { normalizeBaseUrl } from '@/lib/ghost';
 
+// Same rule as the Content API base in `ghost.ts`: the public site origin
+// (`NEXT_PUBLIC_SITE_URL`) is not a Ghost host, so it must not be used as a
+// fallback here either.
 const GHOST_API_URL = normalizeBaseUrl(
   process.env.GHOST_ADMIN_API_URL ||
     process.env.NEXT_PUBLIC_GHOST_API_URL ||
-    process.env.GHOST_API_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    'https://yorkshirebusinesswoman.co.uk'
+    process.env.GHOST_API_URL
 );
 
 function getGhostAdmin() {
