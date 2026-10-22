@@ -53,11 +53,6 @@ export default async function ContactPage() {
                       editor@yorkshirebusinesswoman.co.uk
                     </a>
                   </p>
-                  <p className="text-sm text-primary-foreground/60">
-                    <a href="mailto:dd@yorkshirebusinesswoman.co.uk" className="hover:text-accent transition-colors">
-                      dd@yorkshirebusinesswoman.co.uk
-                    </a>
-                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-4">

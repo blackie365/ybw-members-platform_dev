@@ -11,7 +11,7 @@ export const config = {
   adminEmail: process.env.ADMIN_EMAIL || 'editor@yorkshirebusinesswoman.co.uk',
 
   /** Contact form recipient emails */
-  contactRecipients: (process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk,dd@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
+  contactRecipients: (process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
 
   /**
    * Recipients for the admin-facing newsletter sign-up alert (distinct from contact
@@ -21,14 +21,14 @@ export const config = {
    * self-send delivery quirk (same mailbox in from AND to → silent drop) is
    * avoided while still delivering to the same inbox via '+tag' routing.
    */
-  newsletterAlertRecipients: (process.env.NEWSLETTER_ALERT_RECIPIENTS || process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk,dd@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
+  newsletterAlertRecipients: (process.env.NEWSLETTER_ALERT_RECIPIENTS || process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
 
   /**
    * Verified From-address used by newsletter/alert emails. This MUST be a
    * Resend-verified sender (domain + SPF/DKIM). Previously we tried a
    * noreply@ sender here but that domain identity was unverified in Resend,
-   * causing ALL copies (dd@ + editor@) to be silently discarded by the
-   * provider even though the API accepted the request. Keep this pointed at
+   * causing ALL copies to be silently discarded by the provider even though
+   * the API accepted the request. Keep this pointed at
    * the existing editor@ mailbox identity which is already proven to deliver.
    */
   emailFrom: process.env.EMAIL_FROM || 'Yorkshire Businesswoman <editor@yorkshirebusinesswoman.co.uk>',
