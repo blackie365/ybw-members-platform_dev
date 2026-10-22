@@ -137,8 +137,8 @@ export default function AdvertiseClient({
             <p className="font-medium text-foreground">The next issue is not open for booking yet.</p>
             <p className="mt-1 text-sm text-muted-foreground">
               The rate card below is current. Email{' '}
-              <a className="underline" href="mailto:hello@yorkshirebusinesswoman.co.uk">
-                hello@yorkshirebusinesswoman.co.uk
+              <a className="underline" href="mailto:editor@yorkshirebusinesswoman.co.uk">
+                editor@yorkshirebusinesswoman.co.uk
               </a>{' '}
               and we will hold space for you.
             </p>
