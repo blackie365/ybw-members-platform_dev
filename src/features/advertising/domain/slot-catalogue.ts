@@ -75,7 +75,7 @@ export const SLOT_CATALOGUE: readonly SlotDefinition[] = [
     key: 'ad-full',
     kind: 'ad',
     label: 'Display advert (full page)',
-    blurb: 'Full page, 216 × 303mm including 3mm bleed. Supply a print-ready PDF.',
+    blurb: 'Full page, 176 × 253mm including 3mm bleed (170 × 247mm trim). Supply a print-ready PDF.',
     capacityPerEdition: 4,
     pricePence: 65000,
     placementSize: 'full',

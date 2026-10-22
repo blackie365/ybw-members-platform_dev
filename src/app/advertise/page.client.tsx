@@ -276,7 +276,7 @@ export default function AdvertiseClient({
                     {selected.requiresSuppliedPdf && (
                       <p className="rounded-md bg-secondary px-3 py-2 text-xs text-muted-foreground">
                         After payment we will email you to request your print-ready PDF
-                        (216 × 303mm including 3mm bleed).
+                        (176 × 253mm including 3mm bleed — 170 × 247mm trim).
                       </p>
                     )}
                     {error && (
