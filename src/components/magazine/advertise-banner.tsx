@@ -1,28 +1,17 @@
 import Link from "next/link";
 import { ArrowRight, Megaphone } from "lucide-react";
-import { formatPrice, getSlot } from "@/features/advertising/domain/slot-catalogue";
 
 // Prominent house advert for the shop, sat directly beneath the hero.
-// Prices come from the same catalogue the /advertise shop sells from, so the
-// two can never drift apart.
+// Deliberately price-free: the formats are shown as proportional page shapes
+// so the band reads as an invitation rather than a rate card.
 
-const RATE_ROWS: ReadonlyArray<{ key: string; name: string }> = [
-  { key: "directory-listing", name: "Directory" },
-  { key: "classified-ad", name: "Classified" },
-  { key: "advertorial", name: "Advertorial" },
-  { key: "ad-full", name: "Full page" },
-  { key: "ad-half", name: "Half page" },
-  { key: "ad-quarter", name: "Quarter page" },
+const FORMATS: ReadonlyArray<{ label: string; area: string }> = [
+  { label: "Full page", area: "inset-0" },
+  { label: "Half page", area: "inset-x-0 bottom-0 h-1/2" },
+  { label: "Quarter page", area: "bottom-0 right-0 h-1/2 w-1/2" },
 ];
 
 export function AdvertiseBanner() {
-  const rates = RATE_ROWS.flatMap(({ key, name }) => {
-    const slot = getSlot(key);
-    return slot ? [{ key, name, price: formatPrice(slot.pricePence) }] : [];
-  });
-
-  if (rates.length === 0) return null;
-
   return (
     <section
       aria-labelledby="advertise-banner-heading"
@@ -50,21 +39,26 @@ export function AdvertiseBanner() {
               href="/advertise"
               className="group mt-7 inline-flex items-center gap-3 bg-accent px-7 py-3 text-[11px] font-bold uppercase tracking-[0.15em] text-accent-foreground transition-colors hover:bg-accent/90"
             >
-              View the rates and book space
+              Book your space
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
 
-          <dl className="grid w-full shrink-0 grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:w-auto lg:grid-cols-3">
-            {rates.map((rate) => (
-              <div key={rate.key} className="border-t-2 border-accent/30 pt-3">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                  {rate.name}
-                </dt>
-                <dd className="mt-1 font-serif text-xl leading-none">{rate.price}</dd>
-              </div>
+          <div className="flex w-full shrink-0 items-end justify-center gap-5 sm:gap-8 lg:w-auto">
+            {FORMATS.map((format) => (
+              <figure key={format.label} className="flex flex-col items-center gap-3">
+                <div
+                  className="relative w-16 overflow-hidden rounded-sm border border-border bg-background shadow-sm sm:w-20"
+                  style={{ aspectRatio: "170 / 247" }}
+                >
+                  <div className={`absolute bg-accent/90 ${format.area}`} aria-hidden />
+                </div>
+                <figcaption className="text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  {format.label}
+                </figcaption>
+              </figure>
             ))}
-          </dl>
+          </div>
         </div>
       </div>
     </section>
