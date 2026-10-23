@@ -182,18 +182,17 @@ export function AdvertiseBanner() {
               id="advertise-banner-heading"
               className="mt-4 font-serif text-3xl font-medium leading-tight text-balance md:text-4xl"
             >
-              Put your business in front of Yorkshire&apos;s businesswomen
+              Put your business in front of Yorkshire&apos;s business community
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Space is open in the next printed edition — a directory listing, a classified
-              advert, or display pages. Every booking is placed on a real page, in front of a
-              real reader.
+              In the magazine and on the site. Reserve your space below and pay by card — a
+              directory listing, a classified advert or a display page, booked in minutes.
             </p>
             <Link
               href="/advertise"
               className="group mt-7 inline-flex items-center gap-3 bg-accent px-7 py-3 text-[11px] font-bold uppercase tracking-[0.15em] text-accent-foreground transition-colors hover:bg-accent/90"
             >
-              Book your space
+              Reserve your space
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
