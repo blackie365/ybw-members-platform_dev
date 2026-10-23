@@ -12,6 +12,7 @@ import {
   getPgEventAttendeeStore,
   getPgEventTicketStore,
 } from '@/features/events/server/pg-events-store';
+import { markPaidBySession as markAdBookingPaid } from '@/features/advertising/server/booking-store';
 
 // Need to access raw body for Stripe signature verification
 export const dynamic = 'force-dynamic';
@@ -163,7 +164,47 @@ export async function POST(req: Request) {
       const userId = typeof meta.userId === 'string' ? meta.userId : undefined;
       const guestEmail = typeof meta.guestEmail === 'string' ? meta.guestEmail : undefined;
       const guestName = typeof meta.guestName === 'string' ? meta.guestName : undefined;
-      
+
+      // Advertising bookings (magazine space sold through /advertise). The shop's
+      // own checkout tags the session, so we claim it here rather than standing
+      // up a second endpoint and a second signing secret for the same brand.
+      // This block deliberately falls through: an ad session has no postId and
+      // no plan, so neither the ticket nor the membership branch below matches.
+      if (meta.kind === 'ybw_ad_booking') {
+        const paymentIntent =
+          typeof session.payment_intent === 'string' ? session.payment_intent : null;
+        // Idempotent — a webhook can fire more than once for the same session.
+        const paidBooking = await markAdBookingPaid(session.id, paymentIntent);
+        if (paidBooking) {
+          console.log(`Advertising booking ${paidBooking.booking_ref} marked paid`);
+          const recipients = await getAdminRecipients();
+          sendEmail({
+            to: recipients,
+            subject: `Advertising booking paid: ${paidBooking.booking_ref}`,
+            html: `
+              <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #a3413a;">Advertising Booking Paid</h2>
+                <p>A booking has been paid and is waiting for review.</p>
+                <ul>
+                  <li><strong>Reference:</strong> ${paidBooking.booking_ref}</li>
+                  <li><strong>Issue:</strong> ${paidBooking.issue_label}</li>
+                  <li><strong>Client:</strong> ${paidBooking.client}</li>
+                  <li><strong>Slot:</strong> ${paidBooking.slot_key}</li>
+                  <li><strong>Amount:</strong> £${(paidBooking.amount_pence / 100).toFixed(2)}</li>
+                  <li><strong>Contact:</strong> ${paidBooking.contact_email || 'N/A'}</li>
+                  <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
+                </ul>
+                <p>Review it on the <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk'}/admin/advertising">advertising board</a>.</p>
+              </div>
+            `,
+          }).catch((err) => console.error('Failed to send advertising booking notification:', err));
+        } else {
+          console.warn(
+            `Advertising webhook found no booking for session ${session.id} (ref ${String(meta.booking_ref || '')})`,
+          );
+        }
+      }
+
       // If this was a subscription checkout, update the user immediately.
       // We check if it's a subscription mode checkout OR if they passed 'premium' plan metadata.
       if ((session.mode === 'subscription' || plan === 'premium') && userId) {

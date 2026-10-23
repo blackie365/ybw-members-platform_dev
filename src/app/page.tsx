@@ -1,4 +1,5 @@
 import { HeroSection } from "@/components/magazine/hero-section";
+import { AdvertiseBanner } from "@/components/magazine/advertise-banner";
 import { ArticleGrid } from "@/components/magazine/article-grid";
 import { FeaturedInterview } from "@/components/magazine/featured-interview";
 import { CategoriesSection } from "@/components/magazine/categories-section";
@@ -243,6 +244,7 @@ export default async function MagazinePage() {
       <NewsletterPopup />
       <div className="flex-1">
         <HeroSection posts={heroPosts} recentPosts={heroTop3} />
+        <AdvertiseBanner />
         <ArticleGrid posts={gridPosts} />
         <LatestEvents events={latestEvents} featuredHomepageEventSlug={featuredHomepageEventSlug} />
         <CategorySection title="Editors Blog" posts={editorsBlogPosts} tagSlug="editorial" />
