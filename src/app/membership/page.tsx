@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { signUpUrlFor } from '@/lib/signup-intent';
 import { Check, ArrowRight, Sparkles, Building2 } from 'lucide-react';
 
 const tiers = [
@@ -68,7 +69,7 @@ function MembershipPageClient() {
     const cycle = cycleOverride || billingCycle;
     if (!user?.uid || !user.email) {
       const returnUrl = `/membership?upgrade=1&cycle=${cycle}`;
-      router.push(`/sign-up?returnUrl=${encodeURIComponent(returnUrl)}`);
+      router.push(signUpUrlFor('paid', returnUrl));
       return;
     }
 
@@ -267,7 +268,7 @@ function MembershipPageClient() {
                   </Link>
                 ) : !user ? (
                   <Link
-                    href={`/sign-up?returnUrl=${encodeURIComponent(`/membership?upgrade=1&cycle=${billingCycle}`)}`}
+                    href={signUpUrlFor('paid', `/membership?upgrade=1&cycle=${billingCycle}`)}
                     className={`mt-8 flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-sm font-semibold transition-all ${
                       tier.mostPopular
                         ? 'bg-accent text-accent-foreground hover:bg-accent/90'

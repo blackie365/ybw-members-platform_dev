@@ -1,5 +1,20 @@
 import { SignUp } from '@clerk/nextjs';
 import { Suspense } from 'react';
+import Link from 'next/link';
+import { isPaidSignupIntent } from '@/lib/signup-intent';
+
+/**
+ * Master switch for public self-service sign-up.
+ *
+ * While `false`, the Clerk form is only rendered for genuine paid journeys:
+ *   - the visitor arrived with a paid intent param (Premium checkout / ticket booking)
+ *   - the visitor is mid-flow on a Clerk sign-up sub-step (/sign-up/verify-email-address …),
+ *     which we must keep open so a paid sign-up is never interrupted half way through.
+ * Everyone else — i.e. anyone wanting a free account — sees the "not open yet" panel.
+ *
+ * Flip to `true` to open sign-up to everyone again.
+ */
+const SIGNUP_OPEN: boolean = false;
 
 function normalizeReturnUrl(value: unknown): string {
   if (typeof value !== 'string') return '/dashboard';
@@ -118,12 +133,85 @@ function SignUpContent({ returnUrl }: { returnUrl: string }) {
   )
 }
 
-export default async function Page({ searchParams }: { searchParams?: Promise<{ returnUrl?: string | string[] }> }) {
+function SignUpClosed() {
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {/* Left side - Decorative (Matches Contact Page) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-accent" />
+          <div className="absolute -bottom-32 right-0 h-[500px] w-[500px] rounded-full bg-accent" />
+        </div>
+        <div className="relative flex flex-col justify-center px-12 xl:px-20">
+          <div className="max-w-md">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">
+              Membership
+            </span>
+            <h1 className="mt-4 font-serif text-4xl font-medium text-primary-foreground xl:text-5xl">
+              Not open just yet
+            </h1>
+            <p className="mt-6 text-primary-foreground/70 leading-relaxed text-lg">
+              We&apos;re putting the finishing touches to member sign-up. Existing members can sign in as normal.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Closed notice */}
+      <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-12 xl:px-20 bg-background">
+        <div className="mx-auto w-full max-w-lg">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-accent">
+            Sign-up closed
+          </span>
+          <h1 className="mt-3 font-serif text-3xl font-medium text-foreground sm:text-4xl">
+            Member sign-up isn&apos;t open yet
+          </h1>
+          <p className="mt-4 text-muted-foreground leading-relaxed">
+            We&apos;re not taking new members through the website at the moment. If you already have an account you can
+            sign in as usual — for anything else, the team is on email.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/sign-in"
+              className="flex items-center justify-center rounded-none bg-[#8b3e2f] px-8 h-14 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:bg-[#722f25] active:scale-95"
+            >
+              Member sign in
+            </Link>
+            <Link
+              href="/contact"
+              className="flex items-center justify-center rounded-none border border-stone-200 bg-white px-8 h-14 text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-900 transition-all hover:bg-stone-50 active:scale-95"
+            >
+              Contact us
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params?: Promise<{ 'sign-up'?: string[] }>;
+  searchParams?: Promise<{ returnUrl?: string | string[]; intent?: string | string[] }>;
+}) {
+  const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const rawReturnUrl = Array.isArray(resolvedSearchParams?.returnUrl)
     ? resolvedSearchParams?.returnUrl[0]
     : resolvedSearchParams?.returnUrl;
   const returnUrl = normalizeReturnUrl(rawReturnUrl);
+
+  // A sign-up sub-path (e.g. /sign-up/verify-email-address) means a sign-up is
+  // already in progress — treat it as allowed so the paid journey can finish.
+  const inProgressStep = resolvedParams?.['sign-up']?.length ?? 0;
+
+  if (!SIGNUP_OPEN && !isPaidSignupIntent(resolvedSearchParams?.intent) && inProgressStep === 0) {
+    return <SignUpClosed />;
+  }
+
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background">Loading...</div>}>
       <SignUpContent returnUrl={returnUrl} />

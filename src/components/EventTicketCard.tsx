@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getEventMetadata } from '@/app/actions/eventActions';
+import { signUpUrlFor } from '@/lib/signup-intent';
 
 export function EventTicketCard({ post }: { post: any }) {
   const [loading, setLoading] = useState(false);
@@ -123,7 +124,7 @@ export function EventTicketCard({ post }: { post: any }) {
       const returnUrl = typeof window !== 'undefined'
         ? `${window.location.pathname}${window.location.search}`
         : `/news/${post.slug}`;
-      router.push(`/sign-up?returnUrl=${encodeURIComponent(returnUrl)}`);
+      router.push(signUpUrlFor('booking', returnUrl));
       return;
     }
 
