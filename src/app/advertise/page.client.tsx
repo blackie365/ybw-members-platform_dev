@@ -193,7 +193,7 @@ export default function AdvertiseClient({
                               )}
                               {!catalogue.noIssueOpen && !soldOut && (
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                  {s.remaining} of {s.capacity} left
+                                  {s.remaining} left
                                 </p>
                               )}
                             </div>
