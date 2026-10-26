@@ -183,7 +183,7 @@ export async function upgradeGhostMemberByEmail(email: string, tierLabel: string
     if (members && members.length > 0) {
       const member = members[0];
       const currentLabels = (member.labels || []).map((l: any) => l.name || l);
-      const newLabels = currentLabels.filter((l: string) => !['free-member'].includes(l));
+      const newLabels = currentLabels.filter((l: string) => !['free-member', 'pending-member'].includes(l));
       
       if (!newLabels.includes('paid-member')) newLabels.push('paid-member');
       if (!newLabels.includes('stripe-upgrade')) newLabels.push('stripe-upgrade');

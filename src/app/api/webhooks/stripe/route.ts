@@ -242,9 +242,13 @@ export async function POST(req: Request) {
           lastPaymentDate: nowIso,
           userInactive: false,
           updatedAt: nowIso,
+          // Payment confirmed: clear the paid-funnel pending state and let the
+          // member appear in lists/counts as a real (paid) member.
+          pendingPaidIntent: false,
+          visibility: 'visible',
         };
 
-        const existingMember = await getMemberStore().getMemberByClerkId(userId);
+        const existingMember = await getMemberStore().getMemberByClerkId(userId, { includeInvisible: true });
 
         if (!existingMember) {
           membershipUpdate.createdAt = nowIso;
