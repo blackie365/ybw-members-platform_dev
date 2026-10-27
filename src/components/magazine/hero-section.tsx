@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 // Full-width hero carousel with latest articles overlay
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
@@ -129,6 +129,13 @@ export function HeroSection({ posts, recentPosts }: { posts: any[], recentPosts?
                   >
                     Read Article
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                  <Link
+                    href="/membership"
+                    className="group inline-flex items-center gap-3 bg-accent text-accent-foreground px-6 py-3 text-[11px] font-bold uppercase tracking-[0.15em] transition-all hover:bg-accent/90"
+                  >
+                    Become a Member
+                    <Users className="h-4 w-4" />
                   </Link>
                   <Link
                     href="/new-edition"

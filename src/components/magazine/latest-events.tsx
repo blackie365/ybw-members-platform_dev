@@ -52,19 +52,20 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
 
   // Events carry their real date in a Ghost tag (`event-date-YYYY-MM-DD`) or, as
   // a fallback, baked into the post slug — Ghost has nowhere else to keep it.
-  // Events still to come lead; anything already held drops below them, and an
-  // event with no date is treated as "unknown" rather than "already happened".
-  const { upcoming, past } = partitionEventsByDate(events || []);
-  const orderedEvents = [...upcoming, ...past];
+  // The homepage is a "what's on" list, so anything already held is dropped
+  // rather than shown as stale news; an event with no date counts as "unknown",
+  // never as "already happened". Three cards keep the grid to a single row.
+  const { upcoming } = partitionEventsByDate(events || []);
+  const visibleEvents = upcoming.slice(0, 3);
 
   const topEvent: GhostPost | null = (() => {
-    if (!events || events.length === 0) return null;
+    if (upcoming.length === 0) return null;
     if (typeof featuredHomepageEventSlug === "string" && featuredHomepageEventSlug.trim()) {
-      const override = events.find((e) => e.slug === featuredHomepageEventSlug.trim());
+      const override = upcoming.find((e) => e.slug === featuredHomepageEventSlug.trim());
       if (override) return override;
     }
-    // Prefer the next event still to come over one that has already happened.
-    return orderedEvents[0] ?? null;
+    // The next event still to come.
+    return upcoming[0] ?? null;
   })();
 
   // Homepage soft auto-trigger: 5s after the first visitor lands on the homepage,
@@ -129,7 +130,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
     };
   }, [topEvent, autoTriggered, authLoading, user]);
 
-  if (!events || events.length === 0) return null;
+  if (visibleEvents.length === 0) return null;
 
   return (
     <section className="bg-primary text-primary-foreground">
@@ -160,7 +161,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {orderedEvents.map((event, index) => {
+          {visibleEvents.map((event, index) => {
             const shownDate =
               resolveEventDate(event) ?? (event.published_at ? new Date(event.published_at) : null);
             const dateLabel = shownDate ? format(shownDate, "MMM d, yyyy") : "TBA";
