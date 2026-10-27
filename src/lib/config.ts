@@ -14,6 +14,16 @@ export const config = {
   contactRecipients: (process.env.CONTACT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk').split(',').map(s => s.trim()),
 
   /**
+   * Recipients for YBW brand-admin alert emails (new member sign-ups, membership
+   * cancellations, paid advertising bookings). YBW and YBM share one Postgres
+   * member table, so scanning it for "admins" pulled Yorkshire BusinessMan
+   * addresses (e.g. rob@topicuk.co.uk) into Yorkshire Businesswoman alerts.
+   * Keep this a fixed, brand-specific list instead of deriving it from the
+   * shared member store.
+   */
+  adminAlertRecipients: (process.env.ADMIN_ALERT_RECIPIENTS || 'editor@yorkshirebusinesswoman.co.uk,rob@ghost-communications.com').split(',').map(s => s.trim()).filter(Boolean),
+
+  /**
    * Recipients for the admin-facing newsletter sign-up alert (distinct from contact
    * form to allow separate routing). Defaults match CONTACT_RECIPIENTS, with an
    * important transformation inside /api/newsletter: any address that matches the

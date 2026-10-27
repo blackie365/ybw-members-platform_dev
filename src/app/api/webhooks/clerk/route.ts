@@ -134,21 +134,9 @@ export async function POST(req: Request) {
     if (eventType === 'user.created') {
       const nowIso = new Date().toISOString();
 
-      // 2a. Admin notification email (all admins)
+      // 2a. Admin notification email (fixed YBW-only recipient list)
       try {
-        let adminRecipients: string[] = [config.adminEmail];
-        try {
-          const emails = new Set<string>();
-          const members = await store.getAllAdmin();
-          for (const m of members) {
-            if ((m.role === 'admin' || m.role === 'super_admin' || m.isAdmin === true) && typeof m.email === 'string' && m.email.includes('@')) {
-              emails.add(m.email);
-            }
-          }
-          if (emails.size > 0) adminRecipients = Array.from(emails);
-        } catch (err) {
-          console.error('Failed to fetch admin recipients:', err);
-        }
+        const adminRecipients = config.adminAlertRecipients;
 
         await sendEmail({
           to: adminRecipients,

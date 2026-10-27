@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { sendEmail } from '@/lib/email';
-import { getMemberStore } from '@/features/members/server';
 import { getFreeWelcomeEmailTemplate } from '@/lib/email-templates';
 import { config } from '@/lib/config';
 
@@ -12,25 +11,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Send notification to all admins
-    let adminRecipients: string[] = [config.adminEmail];
-    try {
-      const members = await getMemberStore().getAll();
-      const emails = new Set<string>();
-      for (const doc of members) {
-        const isAdmin =
-          (doc as any)?.isAdmin === true ||
-          (doc as any)?.role === 'admin' ||
-          (doc as any)?.role === 'super_admin';
-        if (isAdmin) {
-          const e = (doc as any)?.email;
-          if (typeof e === 'string' && e.includes('@')) emails.add(e);
-        }
-      }
-      if (emails.size > 0) adminRecipients = Array.from(emails);
-    } catch (err) {
-      console.error('Failed to fetch admin recipients:', err);
-    }
+    // Send notification to the fixed YBW-only recipient list
+    const adminRecipients = config.adminAlertRecipients;
 
     await sendEmail({
       to: adminRecipients,
