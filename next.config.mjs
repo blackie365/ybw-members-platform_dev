@@ -74,6 +74,11 @@ const nextConfig = {
       { source: '/page/:page', destination: '/news', permanent: true },
       { source: '/tag/:slug/page/:page', destination: '/news', permanent: true },
       { source: '/news/page/:page', destination: '/news', permanent: true },
+      // Corrected slug: "exclipse" typo fixed to "eclipse". Keep the old URL alive.
+      { source: '/news/sunshine-trains-and-an-exclipse', destination: '/news/sunshine-trains-and-an-eclipse', permanent: true },
+      { source: '/sunshine-trains-and-an-exclipse', destination: '/news/sunshine-trains-and-an-eclipse', permanent: true },
+      // Corrected directory slug: "huntingotn" typo fixed to "huntington".
+      { source: '/members/brogan-huntingotn', destination: '/members/brogan-huntington', permanent: true },
     ];
   },
 }
