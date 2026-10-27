@@ -1,5 +1,5 @@
 import { getPosts } from '@/lib/ghost';
-import { isPastEvent, resolveEventDate } from '@/lib/events';
+import { partitionEventsByDate, resolveEventDate } from '@/lib/events';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -102,24 +102,11 @@ export default async function NewsPage(props: {
   let pastPosts: any[] = [];
 
   if (isEventsTag) {
-    const dated = (posts as any[]).map((post) => ({ post, eventDate: resolveEventDate(post) }));
-
-    // A post with no date is treated as "unknown" and never demoted.
-    const upcoming = dated.filter((entry) => !entry.eventDate || !isPastEvent(entry.eventDate));
-    const past = dated.filter((entry) => entry.eventDate && isPastEvent(entry.eventDate));
-
-    // Soonest first; anything without a date sinks to the bottom.
-    upcoming.sort((a, b) => {
-      if (a.eventDate && b.eventDate) return a.eventDate.getTime() - b.eventDate.getTime();
-      if (a.eventDate) return -1;
-      if (b.eventDate) return 1;
-      return 0;
-    });
-    // Most recent first once they've happened.
-    past.sort((a, b) => b.eventDate!.getTime() - a.eventDate!.getTime());
-
-    upcomingPosts = upcoming.map((entry) => entry.post);
-    pastPosts = past.map((entry) => entry.post);
+    // Events are split into upcoming/past and ordered by the event's own date,
+    // not by when the article happened to be published.
+    const partition = partitionEventsByDate(posts as any[]);
+    upcomingPosts = partition.upcoming;
+    pastPosts = partition.past;
   }
 
   const eventDateFor = (post: any) => (isEventsTag ? resolveEventDate(post) : undefined);

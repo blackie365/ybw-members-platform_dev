@@ -14,6 +14,7 @@ import {
 import { Search, Download, Loader2, UserCog, Calendar, Tag, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts } from "@/lib/ghost";
+import { partitionEventsByDate } from "@/lib/events";
 import { getAllEventsMetadata, updateEventMetadata, getFeaturedHomepageEvent, setFeaturedHomepageEvent as setFeaturedHomepageEventAction, type FeaturedHomepageEvent } from "@/app/actions/eventActions";
 
 // Import domain-specific actions
@@ -251,7 +252,10 @@ function AdminMembersContent() {
         getAllEventsMetadata(),
         getFeaturedHomepageEvent().catch(() => ({ success: false, data: null }) as const),
       ])
-      setEvents(ghostEvents)
+      // Ghost returns events by publish date. Managers expect them in the order
+      // they actually happen, with anything already held pushed to the bottom.
+      const { upcoming, past } = partitionEventsByDate(ghostEvents as any[])
+      setEvents([...upcoming, ...past])
 
       if (metadataRes.success && metadataRes.data) {
         setEventsMetadata(metadataRes.data)
