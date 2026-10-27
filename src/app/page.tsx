@@ -187,9 +187,11 @@ export default async function MagazinePage() {
       // Fetch a wider window than the three cards shown: the home block drops
       // events that have already happened, so three raw posts could leave it empty.
       getPosts({ limit: 12, filter: "tag:events", order: "published_at DESC" }).catch(() => []),
-      getPosts({ limit: 3, filter: "tag:editorial,tag:editors-blog,tag:editors", order: "published_at DESC" }).catch(() => []),
-      getPosts({ limit: 3, filter: "tag:fashion-lifestyle", order: "published_at DESC" }).catch(() => []),
-      getPosts({ limit: 3, filter: "tag:health-wellbeing", order: "published_at DESC" }).catch(() => []),
+      // Fetch a few spares: the category rails drop anything already shown in
+      // the hero or the Latest Stories grid above them.
+      getPosts({ limit: 6, filter: "tag:editorial,tag:editors-blog,tag:editors", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 6, filter: "tag:fashion-lifestyle", order: "published_at DESC" }).catch(() => []),
+      getPosts({ limit: 6, filter: "tag:health-wellbeing", order: "published_at DESC" }).catch(() => []),
       getTags({ limit: 5, include: 'count.posts', order: 'count.posts DESC' }).catch(() => []),
       getFeaturedHomepageEventSlug(),
       getFeaturedMembers(),
@@ -229,6 +231,26 @@ export default async function MagazinePage() {
   } = applyFeaturedStalenessFallback(featuredPosts, recentPosts);
   const gridPosts = gridRecent.slice(0, 6);
 
+  // A story shown in the hero or the Latest Stories grid must not reappear in a
+  // category rail further down the page.
+  const shownIds = new Set<string>();
+  for (const p of [...heroPosts, ...gridPosts]) if (p?.id) shownIds.add(String(p.id));
+  const takeUnshown = (posts: any[], n: number) => {
+    const out: any[] = [];
+    for (const p of posts || []) {
+      if (!p?.id) continue;
+      const id = String(p.id);
+      if (shownIds.has(id)) continue;
+      shownIds.add(id);
+      out.push(p);
+      if (out.length >= n) break;
+    }
+    return out;
+  };
+  const editorsBlogRail = takeUnshown(editorsBlogPosts, 3);
+  const fashionRail = takeUnshown(fashionPosts, 3);
+  const healthRail = takeUnshown(healthPosts, 3);
+
   const heroTop3 = [...heroPosts].sort((a: any, b: any) => {
     const da = (parsePostDate(a?.published_at ?? a?.publishedAt)?.getTime() ?? 0) * -1;
     const db = (parsePostDate(b?.published_at ?? b?.publishedAt)?.getTime() ?? 0) * -1;
@@ -249,10 +271,10 @@ export default async function MagazinePage() {
         <AdvertiseBanner />
         <ArticleGrid posts={gridPosts} />
         <LatestEvents events={latestEvents} featuredHomepageEventSlug={featuredHomepageEventSlug} />
-        <CategorySection title="Editors Blog" posts={editorsBlogPosts} tagSlug="editorial" />
-        <CategorySection title="Fashion & Lifestyle" posts={fashionPosts} />
+        <CategorySection title="Editors Blog" posts={editorsBlogRail} tagSlug="editorial" />
+        <CategorySection title="Fashion & Lifestyle" posts={fashionRail} />
         <FeaturedInterview member={featuredMember} />
-        <CategorySection title="Health & Wellbeing" posts={healthPosts} />
+        <CategorySection title="Health & Wellbeing" posts={healthRail} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
         <MagazineExperience />

@@ -1,6 +1,11 @@
-// Nightly Ghost <-> Postgres member count reconcile (daily 02:30 UTC via ybw-member-reconcile.timer).
-// Diff Ghost unique emails vs PG active+visible distinct emails.
-// If |delta| != 0 → write member_audit + email admin notification.
+// Nightly Ghost <-> Postgres member reconcile (daily 02:30 UTC via ybw-member-reconcile.timer).
+// Postgres is the source of truth for membership. Ghost is legacy: it still carries
+// rows and stale paid flags from the shared-Stripe era, so a raw count diff is
+// expected and is NOT actionable. The full drift picture is still written to
+// member_audit for visibility, but we only alert (and exit non-zero) when a
+// genuinely NEW Ghost paid sign-up appears — a paid-like Ghost member created
+// inside the recent window that the platform DB has never seen. That is the one
+// thing that needs a human.
 // Must run with NODE_PATH=/srv/ybw-frontend/node_modules so pnpm symlinks resolve,
 // WorkingDirectory=/srv/ybw-frontend so the relative require paths for libs resolve.
 
@@ -45,6 +50,10 @@ const GHOST_API_VERSION = env.GHOST_API_VERSION || 'v6.44';
 const KNOWN_DELTA_IGNORE = new Set([
   'rob@ghost-communications.com',
 ].map(s => String(s || '').toLowerCase().trim()));
+
+// How far back to look for a "new" Ghost paid sign-up. Anything older is treated
+// as legacy state left over from before memberships moved to the Next.js app.
+const NEW_SIGNUP_WINDOW_HOURS = Number(env.RECONCILE_NEW_WINDOW_HOURS || 72);
 
 if (!ghostKey) {
   console.error('[reconcile] missing GHOST_ADMIN_API_KEY — abort');
@@ -126,8 +135,13 @@ function tierRank(name) {
 }
 
 function buildAdminEmailHtml(s) {
-  const { runAt, ghostUniques, paidGhost, compedGhost, freeGhost, countRowRows, distinctEmails, deltaDistinct, ghostOnly, pgOnly, tierMismatches } = s;
+  const { runAt, ghostUniques, paidGhost, compedGhost, freeGhost, countRowRows, distinctEmails, deltaDistinct, ghostOnly, pgOnly, tierMismatches, newGhostPaid = [], legacyDrift } = s;
   const rows = (a) => a.map(e => `<tr><td style="padding:4px 8px;border:1px solid #eee;">${String(e).replace(/[<>]/g, '')}</td></tr>`).join('');
+  const newRows = newGhostPaid.slice(0, 50).map(m => `<tr>
+    <td style="padding:4px 8px;border:1px solid #eee;">${String(m.email).replace(/[<>]/g, '')}</td>
+    <td style="padding:4px 8px;border:1px solid #eee;">${String(m.createdAt || '-').replace(/[<>]/g, '')}</td>
+    <td style="padding:4px 8px;border:1px solid #eee;">${String(m.status || '-').replace(/[<>]/g, '')}</td>
+  </tr>`).join('');
   const mism = tierMismatches.slice(0, 20).map(m => `<tr>
     <td style="padding:4px 8px;border:1px solid #eee;">${m.email}</td>
     <td style="padding:4px 8px;border:1px solid #eee;">${m.pgTier || 'free'}</td>
@@ -135,17 +149,20 @@ function buildAdminEmailHtml(s) {
     <td style="padding:4px 8px;border:1px solid #eee;">${(m.ghostLabels || '').replace(/[<>]/g, '') || '-'}</td>
   </tr>`).join('');
   return `<div style="font-family:sans-serif;line-height:1.55;color:#222;max-width:860px;">
-<h2 style="color:#b91c1c;">⚠️ Nightly Member Drift Detected</h2>
-<p>At <b>${runAt.toISOString()}</b> there is a drift between Ghost CMS and the Postgres member profile count.</p>
+<h2 style="color:#b91c1c;">⚠️ New Ghost paid sign-up (not in the platform DB)</h2>
+<p>At <b>${runAt.toISOString()}</b> Ghost created a paid-like member inside the last ${NEW_SIGNUP_WINDOW_HOURS}h that Postgres has never seen. Memberships run on the Next.js app, so a new paid Ghost sign-up means a payment slipped through Ghost's own Stripe — check and migrate it.</p>
+${newGhostPaid.length ? `<h3 style="margin-top:18px;color:#b91c1c;">New paid sign-ups (${newGhostPaid.length})</h3><table style="border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:4px 8px;border:1px solid #eee;">Email</th><th style="text-align:left;padding:4px 8px;border:1px solid #eee;">Created</th><th style="text-align:left;padding:4px 8px;border:1px solid #eee;">Status</th></tr></thead><tbody>${newRows}</tbody></table>` : ''}
+<p style="color:#666;font-size:12px;margin-top:12px;">Postgres is the source of truth for membership. The counts below are recorded for context only and do not by themselves need action.</p>
 <table style="border-collapse:collapse;margin:16px 0;">
   <tr><th style="text-align:left;padding:6px 10px;border:1px solid #eee;">Metric</th><th style="text-align:left;padding:6px 10px;border:1px solid #eee;">Ghost</th><th style="text-align:left;padding:6px 10px;border:1px solid #eee;">Platform PG (active+visible FE)</th><th style="text-align:left;padding:6px 10px;border:1px solid #eee;">Δ</th></tr>
-  <tr><td style="padding:6px 10px;border:1px solid #eee;">Distinct emails</td><td style="padding:6px 10px;border:1px solid #eee;"><b>${ghostUniques.size}</b></td><td style="padding:6px 10px;border:1px solid #eee;"><b>${distinctEmails}</b></td><td style="padding:6px 10px;border:1px solid #eee;"><b style="color:#b91c1c;">${deltaDistinct}</b></td></tr>
+  <tr><td style="padding:6px 10px;border:1px solid #eee;">Distinct emails</td><td style="padding:6px 10px;border:1px solid #eee;"><b>${ghostUniques.size}</b></td><td style="padding:6px 10px;border:1px solid #eee;"><b>${distinctEmails}</b></td><td style="padding:6px 10px;border:1px solid #eee;"><b style="color:#b45309;">${deltaDistinct}</b></td></tr>
   <tr><td style="padding:6px 10px;border:1px solid #eee;">Counted rows (Quickstats)</td><td style="padding:6px 10px;border:1px solid #eee;">${ghostUniques.size}</td><td style="padding:6px 10px;border:1px solid #eee;">${countRowRows}</td><td style="padding:6px 10px;border:1px solid #eee;">${(ghostUniques.size - countRowRows)}</td></tr>
   <tr><td style="padding:6px 10px;border:1px solid #eee;">Ghost status</td><td style="padding:6px 10px;border:1px solid #eee;" colspan="3">paid=${paidGhost}, comped=${compedGhost}, free=${freeGhost}</td></tr>
 </table>
-${ghostOnly.length ? `<h3 style="margin-top:18px;">Ghost only (${ghostOnly.length})</h3><table style="border-collapse:collapse;"><tbody>${rows(ghostOnly.slice(0,50))}</tbody></table>` : ''}
-${pgOnly.length ? `<h3 style="margin-top:18px;">PG only (${pgOnly.length})</h3><table style="border-collapse:collapse;"><tbody>${rows(pgOnly.slice(0,50))}</tbody></table>` : ''}
-${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierMismatches.length})</h3><table style="border-collapse:collapse;"><thead><tr><th>Email</th><th>PG tier</th><th>Ghost status</th><th>Ghost labels</th></tr></thead><tbody>${mism}</tbody></table>` : ''}
+<p style="color:#666;font-size:12px;">Legacy drift${typeof legacyDrift === 'boolean' ? ` (${legacyDrift ? 'present' : 'none'})` : ''}: ghostOnly=${ghostOnly.length}, pgOnly=${pgOnly.length}, tierMismatches=${tierMismatches.length} — informational.</p>
+${ghostOnly.length ? `<h3 style="margin-top:18px;">Legacy — Ghost only (${ghostOnly.length})</h3><table style="border-collapse:collapse;"><tbody>${rows(ghostOnly.slice(0,50))}</tbody></table>` : ''}
+${pgOnly.length ? `<h3 style="margin-top:18px;">Legacy — PG only (${pgOnly.length})</h3><table style="border-collapse:collapse;"><tbody>${rows(pgOnly.slice(0,50))}</tbody></table>` : ''}
+${tierMismatches.length ? `<h3 style="margin-top:18px;">Legacy — tier mismatches (${tierMismatches.length})</h3><table style="border-collapse:collapse;"><thead><tr><th>Email</th><th>PG tier</th><th>Ghost status</th><th>Ghost labels</th></tr></thead><tbody>${mism}</tbody></table>` : ''}
 <p style="color:#666;font-size:12px;margin-top:24px;">auto-generated by ybw-member-reconcile.service. Check dashboard Admin → Members → review & run scripts/nightly-reconcile.mjs.</p>
 </div>`;
 }
@@ -197,7 +214,15 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
     "SELECT coalesce(email_lower, lower(btrim(email))) AS e, data->>'membershipTier' AS tier FROM member_profiles WHERE is_active=true AND visibility='visible' AND (email_lower IS NOT NULL OR btrim(email) <> '')"
   )).rows;
   const byEmailPG = new Map(rowsForPaidCheck.map(r => [String(r.e || '').toLowerCase().trim(), r.tier]));
+  // Every email the platform DB knows about, regardless of visibility — a Ghost
+  // sign-up is only "new" if Postgres has literally never seen the address.
+  const pgAllEmails = (await pgClient.query(
+    "SELECT distinct lower(btrim(coalesce(email_lower, email))) e FROM member_profiles WHERE (email_lower IS NOT NULL OR btrim(email) <> '')"
+  )).rows.map(r => r.e);
+  const pgAllSet = new Set(pgAllEmails);
+  const newSignupWindowStart = Date.now() - NEW_SIGNUP_WINDOW_HOURS * 60 * 60 * 1000;
   const tierMismatches = [];
+  const ghostPaidNew = [];
   for (const m of ghost) {
     const e = (m.email || '').toLowerCase().trim();
     if (!e) continue;
@@ -222,11 +247,20 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
     if (expectedPaid !== ghostPaidLike) {
       tierMismatches.push({ email: e, pgTier: pgTier || 'free', ghostStatus: m.status, ghostLabels: (m.labels || []).map(l => l.name).join(','), ghostTierCount: (m.tiers || []).length });
     }
+    // The only genuinely actionable signal: Ghost created a paid-like member
+    // inside the recent window and the platform DB has never seen that email.
+    const createdAtMs = m.created_at ? new Date(m.created_at).getTime() : 0;
+    if (ghostPaidLike && !pgAllSet.has(e) && !KNOWN_DELTA_IGNORE.has(e) && createdAtMs >= newSignupWindowStart) {
+      ghostPaidNew.push({ email: e, createdAt: m.created_at || null, status: m.status });
+    }
   }
   const deltaRows = ghostUniques.size - countRowRows;
   const deltaDistinct = ghostUniques.size - distinctEmails;
   const adjustedDeltaDistinct = deltaDistinct - ignoredDeltaContrib;
-  const drift = Math.abs(adjustedDeltaDistinct) >= 1 || ghostOnly.length >= 1 || pgOnly.length >= 1 || tierMismatches.length >= 1;
+  // Postgres is authoritative: the diffs above are recorded for visibility, but
+  // only a new Ghost paid sign-up is actionable. Legacy drift must not page anyone.
+  const legacyDrift = Math.abs(adjustedDeltaDistinct) >= 1 || ghostOnly.length >= 1 || pgOnly.length >= 1 || tierMismatches.length >= 1;
+  const shouldAlert = ghostPaidNew.length >= 1;
   const ignoredGhost = ghostOnlyAll.filter(e => KNOWN_DELTA_IGNORE.has(e));
   const ignoredPg = pgOnlyAll.filter(e => KNOWN_DELTA_IGNORE.has(e));
 
@@ -236,9 +270,9 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
       email_lower TEXT, visibility_before TEXT, visibility_after TEXT,
       fields_changed JSONB, note TEXT, operator TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )`);
-    const summaryNote = drift
-      ? `DRIFT: Δdistinct=${deltaDistinct} Δadj=${adjustedDeltaDistinct} Δrows=${deltaRows} ghostOnly=${ghostOnly.length} pgOnly=${pgOnly.length} tierMismatches=${tierMismatches.length} ignored=${[...ignoredGhost, ...ignoredPg].join(',')}`
-      : `OK: aligned Ghost=${ghostUniques.size} PG active+visible=${distinctEmails}; Δadj=${adjustedDeltaDistinct}; (paid=${paidGhost} comped=${compedGhost} free=${freeGhost}) ignoredDelta=${ignoredDeltaContrib}`;
+    const summaryNote = shouldAlert
+      ? `ALERT: ${ghostPaidNew.length} new Ghost paid sign-up(s) not in PG: ${ghostPaidNew.map(m => m.email).join(',')} — legacy drift: Δadj=${adjustedDeltaDistinct} ghostOnly=${ghostOnly.length} pgOnly=${pgOnly.length} tierMismatches=${tierMismatches.length}`
+      : `OK (PG authoritative): no new Ghost paid sign-ups in last ${NEW_SIGNUP_WINDOW_HOURS}h; legacy drift recorded only (Δadj=${adjustedDeltaDistinct} ghostOnly=${ghostOnly.length} pgOnly=${pgOnly.length} tierMismatches=${tierMismatches.length} ignored=${[...ignoredGhost, ...ignoredPg].join(',')})`;
     const fieldsChanged = {
       ghostTotalRows: ghost.length,
       ghostDistinct: ghostUniques.size,
@@ -256,6 +290,9 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
       ghostOnly,
       pgOnly,
       tierMismatches,
+      newGhostPaid: ghostPaidNew,
+      legacyDrift,
+      shouldAlert,
     };
     await pgClient.query(
       `INSERT INTO member_audit (action, target_type, fields_changed, note, operator) VALUES ($1,$2,$3::jsonb,$4,$5)`,
@@ -276,21 +313,28 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
   if (ghostOnly.length) console.log('ghostOnly:', ghostOnly.slice(0, 10).join(', '), ghostOnly.length > 10 ? `(+${ghostOnly.length - 10})` : '');
   if (pgOnly.length) console.log('pgOnly:', pgOnly.slice(0, 10).join(', '), pgOnly.length > 10 ? `(+${pgOnly.length - 10})` : '');
   if (tierMismatches.length) {
-    console.log('tierMismatches=' + tierMismatches.length + ' sample:');
+    console.log('tierMismatches=' + tierMismatches.length + ' sample (legacy, informational):');
     tierMismatches.slice(0, 5).forEach(m => console.log(' ', m.email, 'pgTier=', m.pgTier, 'ghost=', m.ghostStatus, m.ghostLabels ? 'labels='+m.ghostLabels : ''));
   }
-  console.log(drift ? 'RESULT: DRIFT DETECTED' : 'RESULT: OK (aligned)');
+  if (ghostPaidNew.length) {
+    console.log('NEW Ghost paid sign-ups (not in PG, last ' + NEW_SIGNUP_WINDOW_HOURS + 'h):');
+    ghostPaidNew.forEach(m => console.log(' ', m.email, m.createdAt || '', m.status || ''));
+  } else {
+    console.log('NEW Ghost paid sign-ups: none in last ' + NEW_SIGNUP_WINDOW_HOURS + 'h');
+  }
+  console.log('legacyDrift=' + (legacyDrift ? 'yes (informational)' : 'no'));
+  console.log(shouldAlert ? 'RESULT: ACTION NEEDED — new Ghost paid sign-up' : 'RESULT: OK (PG authoritative, nothing new)');
   console.log('------------------------------------------------------------------------');
 
-  if (drift && adminEmail) {
+  if (shouldAlert && adminEmail) {
     try {
       const sendMod = await import(path.resolve(ROOT, 'src/lib/email.ts')).catch(() => null);
       const sendEmail = sendMod?.sendEmail;
       if (typeof sendEmail === 'function') {
         await sendEmail({
           to: [adminEmail],
-          subject: `[YBWC] ⚠️ Member drift (Δadj=${adjustedDeltaDistinct}) Ghost ${ghostUniques.size} vs PG ${distinctEmails}`,
-          html: buildAdminEmailHtml({ runAt, ghost, ghostUniques, paidGhost, compedGhost, freeGhost, totalRows, pgDistinctAll, countRowRows, distinctEmails, deltaRows, deltaDistinct: adjustedDeltaDistinct, ghostOnly, pgOnly, tierMismatches }),
+          subject: `[YBWC] ⚠️ ${ghostPaidNew.length} new Ghost paid sign-up(s) not in platform DB`,
+          html: buildAdminEmailHtml({ runAt, ghost, ghostUniques, paidGhost, compedGhost, freeGhost, totalRows, pgDistinctAll, countRowRows, distinctEmails, deltaRows, deltaDistinct: adjustedDeltaDistinct, ghostOnly, pgOnly, tierMismatches, newGhostPaid: ghostPaidNew, legacyDrift }),
         }).catch(e => console.warn('[reconcile] sendEmail failed:', e?.message || e));
       }
     } catch (e) {
@@ -299,7 +343,7 @@ ${tierMismatches.length ? `<h3 style="margin-top:18px;">Tier mismatches (${tierM
   }
 
   await pgClient.end();
-  process.exit(drift ? 1 : 0);
+  process.exit(shouldAlert ? 1 : 0);
 })().catch(err => {
   console.error('[reconcile] FATAL:', err?.stack || err?.message || err);
   process.exit(99);

@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Business-only sign-ups: the member record carries the company name and no
+ * individual, so there is no one to list in a member directory. Keep this list
+ * small and explicit rather than guessing from the name.
+ */
+const ORGANISATION_SLUGS = new Set(['focus-4hope', 'mexi-bean']);
+
 function isConfigured(): boolean {
   return Boolean(
     process.env.DATABASE_URL ||
@@ -108,8 +115,17 @@ async function getMembers() {
       
       // 3. MUST have a name
       const hasName = member.name && member.name.trim().length > 0;
-      
-      return isActiveMember && isValidTier && hasName;
+
+      // 4. MUST read as a person. A card renders "<name>, <role/company>", so a
+      // single-token name ("liz", "Amanda") looks broken, and a business-only
+      // sign-up is not a member at all.
+      const looksLikePerson = hasName && /\s/.test(String(member.name).trim());
+      const slugKeys = [member.memberSlug, member.slug, member.id].filter(
+        (v): v is string => typeof v === 'string'
+      );
+      const isOrganisation = slugKeys.some((k) => ORGANISATION_SLUGS.has(k));
+
+      return isActiveMember && isValidTier && hasName && looksLikePerson && !isOrganisation;
     });
 
     return members;
