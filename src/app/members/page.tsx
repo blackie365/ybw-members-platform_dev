@@ -37,7 +37,7 @@ async function getMembers() {
       data: profile,
     }));
 
-    const members = docs.map((doc: any) => {
+    const mappedMembers = docs.map((doc: any) => {
       const data = doc.data;
       
       // Manually sanitize data to avoid JSON circular issues or other serialization errors
@@ -64,8 +64,10 @@ async function getMembers() {
       const image = realPhotosFirst[0] || profileImage || avatarUrl;
 
       return {
-        id: doc.id,
         ...sanitizedData,
+        // The stable Clerk id must win over any legacy `data.id` in the JSONB
+        // blob, otherwise the directory can hand out an ambiguous link target.
+        id: doc.id,
         name: sanitizedData.displayName || `${sanitizedData.firstName || ''} ${sanitizedData.lastName || ''}`.trim() || sanitizedData.name,
         company: sanitizedData.companyName || sanitizedData.company,
         role: sanitizedData.jobTitle || sanitizedData.role,
@@ -75,6 +77,28 @@ async function getMembers() {
         linkedin: sanitizedData.linkedinUrl || sanitizedData.linkedin,
         website: sanitizedData.websiteUrl || sanitizedData.website
       };
+    });
+
+    // Guard against ambiguous slugs. When a member signs up without a name the
+    // slug falls back to the email local-part, so several members can share the
+    // same slug (e.g. 'hello'). A slug used by more than one profile resolves
+    // unpredictably on the profile page, so we drop it and let the card link to
+    // the stable Clerk id instead. We count every value the profile resolver can
+    // match on (memberSlug, legacy slug, legacy id) across all visible profiles
+    // (before the active/tier filter) so an inactive twin cannot shadow a slug.
+    const slugCounts = new Map<string, number>();
+    for (const profile of snapshots) {
+      const keys = new Set<string>();
+      for (const value of [profile.memberSlug, profile.slug, profile.id]) {
+        if (typeof value === 'string' && value.trim()) keys.add(value.trim());
+      }
+      for (const key of keys) slugCounts.set(key, (slugCounts.get(key) || 0) + 1);
+    }
+
+    const members = mappedMembers.map((member: any) => {
+      const slug = typeof member.memberSlug === 'string' ? member.memberSlug.trim() : '';
+      const uniqueSlug = slug && slugCounts.get(slug) === 1 ? slug : undefined;
+      return { ...member, memberSlug: uniqueSlug };
     }).filter((member: any) => {
       // 1. MUST NOT be userInactive
       const isActiveMember = member.userInactive !== true;
