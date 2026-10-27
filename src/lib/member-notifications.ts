@@ -91,6 +91,14 @@ export async function ensureWelcomeEmailForMember(member: MemberProfile) {
   const email = typeof member.email === 'string' ? member.email : '';
   const firstName = typeof member.firstName === 'string' ? member.firstName : 'there';
 
+  const pendingPaidIntent = (member as Record<string, unknown>).pendingPaidIntent === true;
+  if (pendingPaidIntent && !isPaidSignal(member)) {
+    // Signed up on their way to a paid checkout but hasn't paid yet — sending a
+    // free welcome would be wrong. The premium welcome fires once Stripe
+    // confirms payment and the pending flag is cleared.
+    return;
+  }
+
   if (isPaidSignal(member)) {
     await sendPremiumWelcomeOnce(member.clerkId, email, firstName);
   } else {

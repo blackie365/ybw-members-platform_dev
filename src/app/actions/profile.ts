@@ -6,6 +6,7 @@ import { validateUserOrAdmin } from '@/lib/server/auth-utils';
 import { addGhostMember } from '@/lib/ghost-admin';
 import Stripe from 'stripe';
 import { isPaidSignal, ensureWelcomeEmailForMember } from '@/lib/member-notifications';
+import { paidIntentFromMetadata } from '@/lib/signup-intent';
 import slugify from '@sindresorhus/slugify';
 
 function getAllowedAdminEmails(): string[] {
@@ -74,6 +75,10 @@ export async function getProfile(uid: string) {
         const memberSlug = slugify(fullName || email.split('@')[0]);
         const avatarUrl = clerkUser?.imageUrl || '';
 
+        // A paid/booking intent means they're heading to a paid journey but
+        // haven't paid yet — don't let the lazy-create make them a free member.
+        const paidIntent = paidIntentFromMetadata(clerkUser?.unsafeMetadata);
+
         // Existing profile by email? Merge its persisted fields under the Clerk id.
         const existing = await store.getMemberByEmail(email, { includeInvisible: true });
 
@@ -98,12 +103,19 @@ export async function getProfile(uid: string) {
                   isAdmin: allowlisted ? true : false,
                   isFeatured: false,
                   createdAt: nowIso,
+                  ...(paidIntent
+                    ? {
+                        pendingPaidIntent: true,
+                        pendingPaidIntentAt: nowIso,
+                        visibility: 'invisible',
+                      }
+                    : {}),
                 }
               : {}),
           },
         });
 
-        data = await store.getMemberByClerkId(uid);
+        data = await store.getMemberByClerkId(uid, { includeInvisible: true });
       }
     }
 

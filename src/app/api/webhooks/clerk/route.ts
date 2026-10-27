@@ -6,6 +6,7 @@ import { addGhostMember, removeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
 import { getMemberStore } from '@/features/members/server';
+import { paidIntentFromMetadata } from '@/lib/signup-intent';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -70,6 +71,13 @@ export async function POST(req: Request) {
     // Check metadata for newsletter preference (from signup form)
     const acceptsNewsletter = unsafe_metadata?.acceptsNewsletter === true || unsafe_metadata?.newsletter === true;
 
+    // A paid/booking intent means the person is heading to a paid journey
+    // (Premium checkout or ticket booking). Their Clerk account — and this
+    // member record — exist *before* payment, so until Stripe confirms a
+    // payment they must not be recorded as a free member: no free-member
+    // Ghost label, no free welcome, and hidden from member lists/counts.
+    const paidIntent = paidIntentFromMetadata(unsafe_metadata);
+
     try {
       const nowIso = new Date().toISOString();
       const emailLower = email.toLowerCase();
@@ -99,6 +107,13 @@ export async function POST(req: Request) {
         baseUpdate.isAdmin = false;
         baseUpdate.isFeatured = false;
         baseUpdate.createdAt = nowIso;
+        if (paidIntent) {
+          // Unpaid paid-funnel sign-up: hold as pending and keep them out of
+          // public member lists/counts until Stripe confirms payment.
+          baseUpdate.pendingPaidIntent = true;
+          baseUpdate.pendingPaidIntentAt = nowIso;
+          baseUpdate.visibility = 'invisible';
+        }
       }
 
       await store.upsert({ clerkId: id, profile: baseUpdate });
@@ -131,15 +146,19 @@ export async function POST(req: Request) {
 
         await sendEmail({
           to: adminRecipients,
-          subject: `New Member Registration: ${firstName || 'Someone'}`,
+          subject: paidIntent
+            ? `Pending Sign-up (awaiting payment): ${firstName || 'Someone'}`
+            : `New Member Registration: ${firstName || 'Someone'}`,
           html: `
             <div style="font-family: sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #4f46e5;">New Member Registration</h2>
-              <p>A new member has just registered on the platform.</p>
+              <h2 style="color: #4f46e5;">${paidIntent ? 'Pending Sign-up' : 'New Member Registration'}</h2>
+              <p>${paidIntent
+                ? 'Someone has created an account on their way to a paid checkout but has not paid yet. They are held as pending and hidden from member lists until payment completes.'
+                : 'A new member has just registered on the platform.'}</p>
               <ul>
                 <li><strong>Name:</strong> ${fullName || 'N/A'}</li>
                 <li><strong>Email:</strong> ${email}</li>
-                <li><strong>Plan:</strong> Free</li>
+                <li><strong>Plan:</strong> ${paidIntent ? 'Pending — premium checkout, awaiting payment' : 'Free'}</li>
                 <li><strong>Time:</strong> ${new Date().toLocaleString('en-GB')}</li>
               </ul>
             </div>
@@ -161,7 +180,9 @@ export async function POST(req: Request) {
         const ghostRes = await addGhostMember({
           email,
           name: fullName,
-          labels: ['clerk-signup', 'free-member']
+          // Paid-funnel sign-ups that haven't paid must not be tagged a Ghost
+          // free member; hold them as pending until Stripe confirms payment.
+          labels: paidIntent ? ['clerk-signup', 'pending-member'] : ['clerk-signup', 'free-member']
         });
         if (ghostRes) {
           await store.patch(id, { ghostSyncedAt: nowIso });

@@ -1,7 +1,7 @@
 import { SignUp } from '@clerk/nextjs';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { isPaidSignupIntent } from '@/lib/signup-intent';
+import { isPaidSignupIntent, paidSignupMetadata } from '@/lib/signup-intent';
 
 /**
  * Master switch for public self-service sign-up.
@@ -23,7 +23,7 @@ function normalizeReturnUrl(value: unknown): string {
   return value;
 }
 
-function SignUpContent({ returnUrl }: { returnUrl: string }) {
+function SignUpContent({ returnUrl, intent }: { returnUrl: string; intent?: string }) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left side - Decorative (Matches Contact Page) */}
@@ -93,6 +93,7 @@ function SignUpContent({ returnUrl }: { returnUrl: string }) {
             path="/sign-up"
             routing="path"
             signInUrl="/sign-in"
+            unsafeMetadata={paidSignupMetadata(intent)}
             forceRedirectUrl={returnUrl}
             appearance={{
               variables: {
@@ -212,9 +213,13 @@ export default async function Page({
     return <SignUpClosed />;
   }
 
+  const intent = Array.isArray(resolvedSearchParams?.intent)
+    ? resolvedSearchParams?.intent[0]
+    : resolvedSearchParams?.intent;
+
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background">Loading...</div>}>
-      <SignUpContent returnUrl={returnUrl} />
+      <SignUpContent returnUrl={returnUrl} intent={intent} />
     </Suspense>
   )
 }
