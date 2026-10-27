@@ -7,7 +7,7 @@ import { ArrowRight, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
 import { useAuth } from "@/lib/AuthContext";
-import { isPastEvent, resolveEventDate } from "@/lib/events";
+import { partitionEventsByDate, resolveEventDate } from "@/lib/events";
 import {
   EventInterestPopover,
   clearEventPopupMemory,
@@ -51,30 +51,11 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
   const [autoTriggered, setAutoTriggered] = useState(false);
 
   // Events carry their real date in a Ghost tag (`event-date-YYYY-MM-DD`) or, as
-  // a fallback, baked into the post slug — Ghost has nowhere else to keep it. An
-  // event that has already happened drops below the ones still to come, and an
-  // undated event is treated as "unknown" rather than "already happened".
-  const orderedEvents = (() => {
-    const dated = (events || []).map((event) => ({
-      event,
-      eventDate: resolveEventDate(event),
-    }));
-
-    const upcoming = dated.filter((entry) => !entry.eventDate || !isPastEvent(entry.eventDate));
-    const past = dated.filter((entry) => entry.eventDate && isPastEvent(entry.eventDate));
-
-    // Soonest first; undated events sink to the bottom of this group.
-    upcoming.sort((a, b) => {
-      if (a.eventDate && b.eventDate) return a.eventDate.getTime() - b.eventDate.getTime();
-      if (a.eventDate) return -1;
-      if (b.eventDate) return 1;
-      return 0;
-    });
-    // Most recently held first.
-    past.sort((a, b) => b.eventDate!.getTime() - a.eventDate!.getTime());
-
-    return [...upcoming, ...past];
-  })();
+  // a fallback, baked into the post slug — Ghost has nowhere else to keep it.
+  // Events still to come lead; anything already held drops below them, and an
+  // event with no date is treated as "unknown" rather than "already happened".
+  const { upcoming, past } = partitionEventsByDate(events || []);
+  const orderedEvents = [...upcoming, ...past];
 
   const topEvent: GhostPost | null = (() => {
     if (!events || events.length === 0) return null;
@@ -83,7 +64,7 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
       if (override) return override;
     }
     // Prefer the next event still to come over one that has already happened.
-    return orderedEvents[0]?.event ?? null;
+    return orderedEvents[0] ?? null;
   })();
 
   // Homepage soft auto-trigger: 5s after the first visitor lands on the homepage,
@@ -179,8 +160,9 @@ export function LatestEvents({ events, featuredHomepageEventSlug }: { events: Gh
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {orderedEvents.map(({ event, eventDate }, index) => {
-            const shownDate = eventDate ?? (event.published_at ? new Date(event.published_at) : null);
+          {orderedEvents.map((event, index) => {
+            const shownDate =
+              resolveEventDate(event) ?? (event.published_at ? new Date(event.published_at) : null);
             const dateLabel = shownDate ? format(shownDate, "MMM d, yyyy") : "TBA";
             return (
               <motion.article

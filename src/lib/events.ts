@@ -85,3 +85,37 @@ export function isPastEvent(eventDate: Date, now: Date = new Date()): boolean {
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return eventDate.getTime() < today;
 }
+
+/**
+ * Split event posts into the ones still to come and the ones already held.
+ *
+ * Upcoming events come soonest-first, past events most-recent-first, and an
+ * event with no usable date is treated as "unknown": it never counts as past
+ * and sinks to the bottom of the upcoming group. Every surface that lists
+ * events (the View All page, the home page block, the admin Events Manager)
+ * shares this ordering so they cannot drift apart.
+ */
+export function partitionEventsByDate<T extends GhostEventPostLike>(
+  posts: T[],
+  now: Date = new Date()
+): { upcoming: T[]; past: T[] } {
+  const dated = (posts || []).map((item) => ({ item, eventDate: resolveEventDate(item) }));
+
+  const upcoming = dated.filter((entry) => !entry.eventDate || !isPastEvent(entry.eventDate, now));
+  const past = dated.filter((entry) => entry.eventDate && isPastEvent(entry.eventDate, now));
+
+  // Soonest first; undated events sink to the bottom of this group.
+  upcoming.sort((a, b) => {
+    if (a.eventDate && b.eventDate) return a.eventDate.getTime() - b.eventDate.getTime();
+    if (a.eventDate) return -1;
+    if (b.eventDate) return 1;
+    return 0;
+  });
+  // Most recently held first.
+  past.sort((a, b) => b.eventDate!.getTime() - a.eventDate!.getTime());
+
+  return {
+    upcoming: upcoming.map((entry) => entry.item),
+    past: past.map((entry) => entry.item),
+  };
+}

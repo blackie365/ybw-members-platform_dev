@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, Home, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { resolveEventDate } from "@/lib/events";
 
 export interface EventMetadata {
   id: string
@@ -69,7 +71,7 @@ export function EventManager({
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Falling back to the most-recently published event (no admin override set).
+                  Falling back to the next event still to come (no admin override set).
                 </p>
               )}
             </div>
@@ -112,12 +114,16 @@ export function EventManager({
               const isMembersOnly = meta?.accessLevel === 'members-only'
               const isTicketCardEnabled = meta?.ticketCardEnabled === true
               const isFeatured = featuredHomepageSlug === event.slug
+              const eventDate = resolveEventDate(event)
               return (
                 <TableRow key={event.id}>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{event.title}</span>
                       <span className="text-xs text-muted-foreground">{event.slug}</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {eventDate ? `Event: ${format(eventDate, 'd MMM yyyy')}` : 'No event date'}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
