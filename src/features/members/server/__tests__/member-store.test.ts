@@ -52,6 +52,7 @@ describe('PgMemberStore — lookups', () => {
     expect(fakePool.query).toHaveBeenCalledWith(
       `SELECT clerk_id, data, visibility, email, email_lower, member_slug, is_featured, is_active, role, created_at, updated_at FROM member_profiles
          WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1) AND visibility = 'visible'
+         ORDER BY starts_with(clerk_id, 'user_') DESC, created_at DESC NULLS LAST
          LIMIT 1`,
       ['ada'],
     );

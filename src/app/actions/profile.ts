@@ -7,7 +7,7 @@ import { addGhostMember } from '@/lib/ghost-admin';
 import Stripe from 'stripe';
 import { isPaidSignal, ensureWelcomeEmailForMember } from '@/lib/member-notifications';
 import { paidIntentFromMetadata } from '@/lib/signup-intent';
-import slugify from '@sindresorhus/slugify';
+import { buildMemberSlug } from '@/lib/member-slug';
 
 function getAllowedAdminEmails(): string[] {
   const raw =
@@ -72,7 +72,7 @@ export async function getProfile(uid: string) {
         const firstName = clerkUser?.firstName || '';
         const lastName = clerkUser?.lastName || '';
         const fullName = `${firstName} ${lastName}`.trim();
-        const memberSlug = slugify(fullName || email.split('@')[0]);
+        const memberSlug = buildMemberSlug({ fullName, email, clerkId: uid });
         const avatarUrl = clerkUser?.imageUrl || '';
 
         // A paid/booking intent means they're heading to a paid journey but

@@ -1,12 +1,12 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import slugify from '@sindresorhus/slugify';
 import { addGhostMember, removeGhostMemberByEmail } from '@/lib/ghost-admin';
 import { sendEmail } from '@/lib/email';
 import { config } from '@/lib/config';
 import { getMemberStore } from '@/features/members/server';
 import { paidIntentFromMetadata } from '@/lib/signup-intent';
+import { buildMemberSlug } from '@/lib/member-slug';
 
 export async function POST(req: Request) {
   const SIGNING_SECRET = process.env.CLERK_WEBHOOK_SECRET
@@ -65,7 +65,6 @@ export async function POST(req: Request) {
     const firstName = first_name || ''
     const lastName = last_name || ''
     const fullName = `${firstName} ${lastName}`.trim()
-    const slug = slugify(fullName || email.split('@')[0])
     const store = getMemberStore()
 
     // Check metadata for newsletter preference (from signup form)
@@ -82,7 +81,14 @@ export async function POST(req: Request) {
       const nowIso = new Date().toISOString();
       const emailLower = email.toLowerCase();
 
-      const existing = await store.getMemberByClerkId(id);
+      const existing = await store.getMemberByClerkId(id, { includeInvisible: true });
+
+      // Keep an existing slug so member URLs stay stable; otherwise derive a
+      // unique one. Without this, nameless sign-ups from a shared inbox all
+      // received the same slug and made profile lookups ambiguous.
+      const existingSlug =
+        typeof existing?.memberSlug === 'string' ? existing.memberSlug.trim() : '';
+      const slug = existingSlug || buildMemberSlug({ fullName, email, clerkId: id });
 
       const baseUpdate: Record<string, any> = {
         firstName,

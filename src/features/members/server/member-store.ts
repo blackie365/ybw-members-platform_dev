@@ -344,6 +344,7 @@ export class PgMemberStore implements MemberStore {
       const { rows } = await pool.query(
         `SELECT ${MEMBER_SQL_COLS} FROM member_profiles
          WHERE (member_slug = $1 OR data->>'memberSlug' = $1 OR data->>'slug' = $1 OR data->>'id' = $1)${this.visFilter(opts)}
+         ORDER BY starts_with(clerk_id, 'user_') DESC, created_at DESC NULLS LAST
          LIMIT 1`,
         [slug],
       );
