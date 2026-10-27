@@ -18,23 +18,10 @@ import { markPaidBySession as markAdBookingPaid } from '@/features/advertising/s
 export const dynamic = 'force-dynamic';
 
 async function getAdminRecipients(): Promise<string[]> {
-  const fallback = [config.adminEmail];
-  try {
-    const all = await getMemberStore().getAll();
-    const emails = new Set<string>();
-    for (const p of all) {
-      const role = p.role;
-      const isAdmin = (p as any).isAdmin === true || (p as any).isAdmin === 'true';
-      if (role === 'admin' || role === 'super_admin' || isAdmin) {
-        const e = typeof p.email === 'string' ? p.email : '';
-        if (e && e.includes('@')) emails.add(e);
-      }
-    }
-    return emails.size > 0 ? Array.from(emails) : fallback;
-  } catch (err) {
-    console.error('Failed to fetch admin recipients:', err);
-    return fallback;
-  }
+  // Fixed YBW-only list. YBW and YBM share one member table, so deriving this
+  // from the store's "admins" leaked Yorkshire BusinessMan addresses into
+  // Yorkshire Businesswoman alerts.
+  return config.adminAlertRecipients;
 }
 
 /**
