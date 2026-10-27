@@ -184,7 +184,9 @@ export default async function MagazinePage() {
     ] = await Promise.all([
       getPosts({ limit: 5, filter: "featured:true", order: "published_at DESC" }).catch(() => []),
       getPosts({ limit: 15, order: "published_at DESC" }).catch(() => []),
-      getPosts({ limit: 3, filter: "tag:events", order: "published_at DESC" }).catch(() => []),
+      // Fetch a wider window than the three cards shown: the home block drops
+      // events that have already happened, so three raw posts could leave it empty.
+      getPosts({ limit: 12, filter: "tag:events", order: "published_at DESC" }).catch(() => []),
       getPosts({ limit: 3, filter: "tag:editorial,tag:editors-blog,tag:editors", order: "published_at DESC" }).catch(() => []),
       getPosts({ limit: 3, filter: "tag:fashion-lifestyle", order: "published_at DESC" }).catch(() => []),
       getPosts({ limit: 3, filter: "tag:health-wellbeing", order: "published_at DESC" }).catch(() => []),
