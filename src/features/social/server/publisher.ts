@@ -76,9 +76,12 @@ async function metaPost<T>(
   return json as T;
 }
 
-/** Publicly reachable card URL — the only way Instagram will accept an image. */
+/**
+ * Publicly reachable card URL — the only way Instagram will accept an image.
+ * JPEG because Meta's image container requires it and rejects PNG.
+ */
 export function cardUrl(slug: string, format: 'portrait' | 'whatsapp'): string {
-  return `${config.siteUrl.replace(/\/$/, '')}/api/social/card/${encodeURIComponent(slug)}?format=${format}`;
+  return `${config.siteUrl.replace(/\/$/, '')}/api/social/card/${encodeURIComponent(slug)}?format=${format}&type=jpeg`;
 }
 
 async function postToFacebookPage(slug: string, caption: string): Promise<string> {
