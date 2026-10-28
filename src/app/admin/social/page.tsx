@@ -142,7 +142,7 @@ export default function SocialAdminPage() {
           </h1>
           <p className="text-muted-foreground mt-1">
             Approve and post YBW articles to Facebook and Instagram. One article is queued each
-            morning at 08:00 and emailed to you; nothing is published until you post it here.
+            morning at 09:00 and emailed to you; nothing is published until you post it here.
           </p>
         </div>
         <div className="flex gap-3">
@@ -186,7 +186,7 @@ export default function SocialAdminPage() {
         <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold">The daily 08:00 queue job is not configured.</p>
+            <p className="font-semibold">The daily 09:00 queue job is not configured.</p>
             <p className="mt-1">
               <code className="font-mono">CRON_SECRET</code> is missing, so the timer&apos;s call
               will be rejected. You can still queue articles manually with the button above.
