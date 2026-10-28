@@ -16,27 +16,34 @@ function secret(): string | null {
 
 export type SocialDecision = 'approved' | 'skipped';
 
-function payload(id: number, decision: SocialDecision): string {
-  return `${id}:${decision}`;
+/**
+ * Everything a signed one-click link may do. `unskip` puts a skipped row back
+ * in the queue, so it is signed separately — a token for one action can never
+ * be replayed as another.
+ */
+export type SocialLinkAction = SocialDecision | 'unskip';
+
+function payload(id: number, action: SocialLinkAction): string {
+  return `${id}:${action}`;
 }
 
-export function signApprovalToken(id: number, decision: SocialDecision): string {
+export function signApprovalToken(id: number, action: SocialLinkAction): string {
   const key = secret();
   if (!key) {
     throw new Error('SOCIAL_APPROVAL_SECRET (or CRON_SECRET) is not configured');
   }
-  return crypto.createHmac('sha256', key).update(payload(id, decision)).digest('base64url');
+  return crypto.createHmac('sha256', key).update(payload(id, action)).digest('base64url');
 }
 
 export function verifyApprovalToken(
   id: number,
-  decision: SocialDecision,
+  action: SocialLinkAction,
   token: string,
 ): boolean {
   if (!token) return false;
   let expected: string;
   try {
-    expected = signApprovalToken(id, decision);
+    expected = signApprovalToken(id, action);
   } catch {
     // No secret configured — refuse rather than silently allow a publish.
     return false;

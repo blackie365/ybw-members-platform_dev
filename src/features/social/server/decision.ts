@@ -2,6 +2,7 @@ import {
   claimDecision,
   getSocialPost,
   recordPublishResult,
+  unskipQueuedPost,
   type SocialQueueRow,
 } from '@/features/social/server/social-store';
 import { publishArticle, publishEnabled, type PublishOutcome } from '@/features/social/server/publisher';
@@ -20,6 +21,7 @@ export type DecisionStatus =
   | 'partly-published'
   | 'publish-disabled'
   | 'skipped'
+  | 'reopened'
   | 'already-handled'
   | 'not-found'
   | 'error';
@@ -116,4 +118,39 @@ export async function decideQueuedPost(
     await recordPublishResult(id, { ok: false, error: message });
     return { status: 'error', title: 'Publish failed', message, row: claimed };
   }
+}
+
+/**
+ * Undo a skip: return the row to `pending` so it can be posted later.
+ *
+ * Shared by the email undo link and the admin Social screen. Only a `skipped`
+ * row can be reopened — an `approved` row has already been published, so
+ * this refuses rather than implying it can unpublish.
+ */
+export async function reopenQueuedPost(id: number): Promise<DecisionResult> {
+  const existing = await getSocialPost(id);
+  if (!existing) {
+    return { status: 'not-found', title: 'Not found', message: `Queue entry #${id} does not exist.` };
+  }
+
+  const reopened = await unskipQueuedPost(id);
+  if (!reopened) {
+    const label = existing.title || existing.slug || `#${id}`;
+    return {
+      status: 'already-handled',
+      title: existing.status === 'approved' ? 'Already posted' : 'Nothing to undo',
+      message:
+        existing.status === 'approved'
+          ? `“${label}” has already been posted — this cannot unpublish it.`
+          : `Queue entry #${id} is “${existing.status}”, so there is no skip to undo.`,
+      row: existing,
+    };
+  }
+
+  return {
+    status: 'reopened',
+    title: 'Back in the queue',
+    message: `“${reopened.title || reopened.slug || `#${id}`}” is pending again.`,
+    row: reopened,
+  };
 }

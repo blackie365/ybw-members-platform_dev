@@ -1,35 +1,53 @@
 import { NextResponse } from 'next/server';
-import { verifyApprovalToken, type SocialDecision } from '@/features/social/server/approval-token';
-import { decideQueuedPost } from '@/features/social/server/decision';
+import {
+  signApprovalToken,
+  verifyApprovalToken,
+  type SocialLinkAction,
+} from '@/features/social/server/approval-token';
+import { decideQueuedPost, reopenQueuedPost } from '@/features/social/server/decision';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const ACTIONS: SocialLinkAction[] = ['approved', 'skipped', 'unskip'];
+
 /**
- * One-click approve / skip for a queued social post.
+ * One-click approve / skip / undo-skip for a queued social post.
  *
- *   GET /api/social/approve?id=<queueRowId>&decision=approved|skipped&token=<hmac>
+ *   GET /api/social/approve?id=<queueRowId>&decision=approved|skipped|unskip&token=<hmac>
  *
  * The link is clicked from an email, so this is deliberately GET and returns a
  * plain HTML page rather than JSON. Safety comes from the HMAC token, not a
  * session — see src/features/social/server/decision.ts for the shared logic and
  * the "only a pending row can be decided" rule that makes a replayed link a
- * no-op. The same decision is also available as an admin action.
+ * no-op. The same actions are also available on the admin Social screen.
  */
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const id = Number(params.get('id'));
-  const decision = params.get('decision') as SocialDecision | null;
+  const decision = params.get('decision') as SocialLinkAction | null;
   const token = params.get('token') || '';
 
   if (!Number.isInteger(id) || id <= 0) {
     return page('Invalid link', 'The queue id in this link is not valid.', 400);
   }
-  if (decision !== 'approved' && decision !== 'skipped') {
+  if (!decision || !ACTIONS.includes(decision)) {
     return page('Invalid link', 'The decision in this link is not valid.', 400);
   }
   if (!verifyApprovalToken(id, decision, token)) {
     return page('Link not valid', 'This approval link has an invalid or expired signature.', 401);
+  }
+
+  // Undoing a skip restores the row; it never publishes, so it is handled apart
+  // from the approve/skip decisions.
+  if (decision === 'unskip') {
+    const result = await reopenQueuedPost(id);
+    const httpStatus = result.status === 'not-found' ? 404 : 200;
+    const postItNow =
+      result.status === 'reopened' && result.row
+        ? `<p style="margin:28px 0 0;"><a href="${socialHref(result.row.id, 'approved')}" style="display:inline-block; background:#050505; color:#FAF9F6; padding:12px 22px; text-decoration:none; font-family:Helvetica,Arial,sans-serif; font-size:14px;">Approve &amp; post now</a></p>`
+        : '';
+    return page(result.title, `<p>${escapeHtml(result.message)}</p>${postItNow}`, httpStatus);
   }
 
   const result = await decideQueuedPost(id, decision);
@@ -59,7 +77,21 @@ export async function GET(request: Request) {
           list ? '' : `<p>${escapeHtml(result.message)}</p>`
         }`;
 
-  return page(result.title, body, httpStatus);
+  // A skip is the one decision worth offering an escape hatch for — a mis-click
+  // on the link in the email should not be final.
+  const undo =
+    result.status === 'skipped' && result.row
+      ? `<p style="margin:28px 0 0;">Changed your mind? <a href="${socialHref(result.row.id, 'unskip')}" style="color:#a3413a;">Put it back in the queue</a>.</p>`
+      : '';
+
+  return page(result.title, body + undo, httpStatus);
+}
+
+/** Relative signed link, so it works from whatever host served the page. */
+function socialHref(id: number, action: SocialLinkAction): string {
+  return `/api/social/approve?id=${id}&decision=${action}&token=${encodeURIComponent(
+    signApprovalToken(id, action),
+  )}`;
 }
 
 function page(heading: string, bodyHtml: string, status: number) {

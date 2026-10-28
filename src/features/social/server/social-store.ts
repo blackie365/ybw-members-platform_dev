@@ -179,6 +179,27 @@ export async function claimDecision(
   return rows[0] ? normaliseRow(rows[0]) : null;
 }
 
+/**
+ * Undo a skip: put the row back in the queue as `pending` so it can be posted
+ * later.
+ *
+ * Only a `skipped` row can be reopened. An `approved` row has already been
+ * published, so reversing that would mean deleting a live Facebook/Instagram
+ * post — deliberately not something this does.
+ */
+export async function unskipQueuedPost(id: number): Promise<SocialQueueRow | null> {
+  const p = await pool();
+  if (!p) return null;
+  const { rows } = await p.query<SocialQueueRow>(
+    `UPDATE social_posts
+        SET status = 'pending', decided_at = NULL
+      WHERE id = $1 AND status = 'skipped'
+      RETURNING *`,
+    [id],
+  );
+  return rows[0] ? normaliseRow(rows[0]) : null;
+}
+
 /** Store the outcome of an approved post (or its failure). */
 export async function recordPublishResult(
   id: number,
