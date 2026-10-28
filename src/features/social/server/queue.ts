@@ -48,7 +48,9 @@ export async function runSocialQueue(
   const article: GhostPost = { ...post, url: publicUrl };
 
   const captions = buildCaptions(article);
-  const cards = await renderCardFormats(post);
+  // JPEG keeps the approval email small (roughly a fifth of the PNG size) and is
+  // the format the social APIs need anyway, so the attachment is what gets posted.
+  const cards = await renderCardFormats(post, 'jpeg');
 
   if (options.dryRun) {
     return {
@@ -157,8 +159,8 @@ async function sendApprovalEmail(
     html,
     text,
     attachments: [
-      { filename: `${slug}-feed.png`, content: cards.portrait, contentType: 'image/png' },
-      { filename: `${slug}-story.png`, content: cards.whatsapp, contentType: 'image/png' },
+      { filename: `${slug}-feed.jpg`, content: cards.portrait, contentType: 'image/jpeg' },
+      { filename: `${slug}-story.jpg`, content: cards.whatsapp, contentType: 'image/jpeg' },
     ],
   });
 }

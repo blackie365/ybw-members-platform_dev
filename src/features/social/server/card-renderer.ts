@@ -301,7 +301,21 @@ export function isFormat(value: string): value is 'portrait' | 'whatsapp' {
 
 // ------------------------------------------------------------------- the card
 
-export async function renderCard(post: GhostPost, L: CardLayout): Promise<Buffer> {
+export type CardImageType = 'png' | 'jpeg';
+
+/**
+ * Render one card.
+ *
+ * `jpeg` is the format the social APIs need: Meta's image container rejects
+ * PNG, and it also wants an opaque sRGB image, so the JPEG path flattens onto
+ * the paper colour rather than keeping an alpha channel. `png` is the default
+ * because it is the nicer master for local previews.
+ */
+export async function renderCard(
+  post: GhostPost,
+  L: CardLayout,
+  type: CardImageType = 'png',
+): Promise<Buffer> {
   const { W, H, M } = L;
   const { kicker, author, excerpt, date } = postMeta(post);
   const bits: string[] = [];
@@ -392,17 +406,28 @@ export async function renderCard(post: GhostPost, L: CardLayout): Promise<Buffer
   const overlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${bits.join('')}</svg>`;
   composite.push({ input: Buffer.from(overlay), top: 0, left: 0 });
 
-  return sharp({ create: { width: W, height: H, channels: 4, background: hexToRgb(PAPER) } })
-    .composite(composite)
-    .png()
-    .toBuffer();
+  const canvas = sharp({
+    create: { width: W, height: H, channels: 4, background: hexToRgb(PAPER) },
+  }).composite(composite);
+
+  if (type === 'jpeg') {
+    return canvas
+      .flatten({ background: hexToRgb(PAPER) })
+      .jpeg({ quality: 90, chromaSubsampling: '4:4:4' })
+      .toBuffer();
+  }
+
+  return canvas.png().toBuffer();
 }
 
 /** Render every configured format for a post, keyed by layout key. */
-export async function renderCardFormats(post: GhostPost): Promise<Record<string, Buffer>> {
+export async function renderCardFormats(
+  post: GhostPost,
+  type: CardImageType = 'png',
+): Promise<Record<string, Buffer>> {
   const out: Record<string, Buffer> = {};
   for (const [format, layout] of Object.entries(LAYOUTS)) {
-    out[format] = await renderCard(post, layout);
+    out[format] = await renderCard(post, layout, type);
   }
   return out;
 }
