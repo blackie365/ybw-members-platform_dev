@@ -43,7 +43,7 @@ export async function getSocialOverviewAction(): Promise<{
   }
 }
 
-/** Queue the newest unposted article now — the same work the 08:00 timer does. */
+/** Queue the newest unposted article now — the same work the 09:00 timer does. */
 export async function queueNextSocialPostAction(): Promise<{
   success: boolean;
   error?: string;

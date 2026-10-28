@@ -48,6 +48,17 @@ export interface SocialQueueRow {
   error: string | null;
 }
 
+/**
+ * Postgres hands BIGINT/BIGSERIAL columns back as strings, so `id` arrives as
+ * "2" even though SocialQueueRow types it as a number. The admin screen passes
+ * that id straight to the server action, where `Number.isInteger("2")` is
+ * false — so every decision was rejected as an invalid queue id. Coerce at the
+ * boundary, where the type is declared, rather than at each call site.
+ */
+function normaliseRow(row: SocialQueueRow): SocialQueueRow {
+  return { ...row, id: Number(row.id) };
+}
+
 let schemaReady = false;
 let schemaPromise: Promise<void> | null = null;
 
@@ -137,14 +148,14 @@ export async function insertQueuedPost(input: InsertQueueInput): Promise<SocialQ
       JSON.stringify(input.targets),
     ],
   );
-  return rows[0] || null;
+  return rows[0] ? normaliseRow(rows[0]) : null;
 }
 
 export async function getSocialPost(id: number): Promise<SocialQueueRow | null> {
   const p = await pool();
   if (!p) return null;
   const { rows } = await p.query<SocialQueueRow>(`SELECT * FROM social_posts WHERE id = $1`, [id]);
-  return rows[0] || null;
+  return rows[0] ? normaliseRow(rows[0]) : null;
 }
 
 /**
@@ -165,7 +176,7 @@ export async function claimDecision(
       RETURNING *`,
     [id, decision],
   );
-  return rows[0] || null;
+  return rows[0] ? normaliseRow(rows[0]) : null;
 }
 
 /** Store the outcome of an approved post (or its failure). */
@@ -199,5 +210,5 @@ export async function recentQueueRows(limit = 10): Promise<SocialQueueRow[]> {
     `SELECT * FROM social_posts ORDER BY queued_at DESC LIMIT $1`,
     [limit],
   );
-  return rows;
+  return rows.map(normaliseRow);
 }

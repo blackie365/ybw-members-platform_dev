@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * Daily social queue job — triggered at 08:00 by deploy/ybw-social-queue.timer.
+ * Daily social queue job — triggered at 09:00 by deploy/ybw-social-queue.timer.
  *
  * Picks the newest never-queued Ghost article, renders the cards, stores a
  * pending row and emails them for approval. Publishing happens only from
