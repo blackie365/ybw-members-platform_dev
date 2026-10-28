@@ -1,6 +1,13 @@
 import { Resend } from 'resend';
 import { config } from '@/lib/config';
 
+export interface EmailAttachment {
+  filename: string;
+  /** Raw bytes; Resend accepts a Buffer or base64 string. */
+  content: Buffer | string;
+  contentType?: string;
+}
+
 interface SendEmailParams {
   to: string | string[];
   bcc?: string | string[];
@@ -9,6 +16,7 @@ interface SendEmailParams {
   html?: string;
   replyTo?: string;
   from?: string;
+  attachments?: EmailAttachment[];
 }
 
 /** Extract the bare email address from a string that may be in "Display <addr>" format. */
@@ -64,7 +72,7 @@ export interface SendEmailResult {
  * an alert "from" the same address as one of its recipients (e.g. admin
  * alerts where editor@ both sends and receives).
  */
-export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }: SendEmailParams): Promise<SendEmailResult> {
+export async function sendEmail({ to, bcc, subject, text, html, replyTo, from, attachments }: SendEmailParams): Promise<SendEmailResult> {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const MAIL_FROM = from || config.emailFrom;
 
@@ -97,6 +105,9 @@ export async function sendEmail({ to, bcc, subject, text, html, replyTo, from }:
     };
     if (recipientsBcc.length) {
       resendPayload.bcc = recipientsBcc as any;
+    }
+    if (attachments?.length) {
+      resendPayload.attachments = attachments as any;
     }
     const { data, error } = await resend.emails.send(resendPayload);
 

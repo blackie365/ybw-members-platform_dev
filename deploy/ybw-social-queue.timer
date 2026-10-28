@@ -1,0 +1,13 @@
+# Daily at 08:00 UK local time. Europe/London rather than UTC so the email
+# always lands at 8am in Yorkshire through the BST/GMT change. Persistent=true
+# catches up if the machine was off when the trigger would have fired.
+[Unit]
+Description=YBW daily social queue timer (08:00 Europe/London)
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 Europe/London
+Persistent=true
+Unit=ybw-social-queue.service
+
+[Install]
+WantedBy=timers.target

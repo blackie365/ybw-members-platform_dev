@@ -333,3 +333,32 @@ jobs:
           sudo /bin/systemctl --no-pager list-timers ybw-newsletter.timer
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Install + enable daily social queue timer
+        run: |
+          set -euo pipefail
+          APPDIR=/srv/ybw-frontend
+          # Queues the next unposted article and emails it for approval every
+          # morning. Publishing stays off until SOCIAL_PUBLISH_ENABLED=true is
+          # added to <APPDIR>/.env.local, so this is safe to enable now.
+          sudo /bin/tee /etc/systemd/system/ybw-social-queue.service \
+            < "$APPDIR/deploy/ybw-social-queue.service" >/dev/null
+          sudo /bin/tee /etc/systemd/system/ybw-social-queue.timer \
+            < "$APPDIR/deploy/ybw-social-queue.timer" >/dev/null
+          sudo /bin/chown root:root /etc/systemd/system/ybw-social-queue.{service,timer}
+          sudo /bin/chmod 0644 /etc/systemd/system/ybw-social-queue.{service,timer}
+
+          printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo /bin/tee /etc/ybw-social.env >/dev/null
+          sudo /bin/chown root:root /etc/ybw-social.env
+          sudo /bin/chmod 600 /etc/ybw-social.env
+
+          sudo /bin/systemctl daemon-reload
+          sudo /bin/systemctl enable ybw-social-queue.timer
+          sudo /bin/systemctl start  ybw-social-queue.timer
+
+          echo "social timer state:"
+          sudo /bin/systemctl --no-pager is-active ybw-social-queue.timer
+          sudo /bin/systemctl --no-pager is-enabled ybw-social-queue.timer
+          sudo /bin/systemctl --no-pager list-timers ybw-social-queue.timer
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

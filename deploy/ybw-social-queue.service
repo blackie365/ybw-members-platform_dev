@@ -1,0 +1,22 @@
+# YBW daily social queue — VPS-local trigger.
+#
+# Picks the newest Ghost article with no social_posts row, renders the two card
+# formats, stores a pending row and emails the cards + captions for one-click
+# approval. It never publishes: publishing happens only when the approval link
+# is clicked, and only when SOCIAL_PUBLISH_ENABLED=true is set on the app.
+#
+# CRON_SECRET is loaded from /etc/ybw-social.env (written by the deploy workflow
+# from the GitHub Actions secret, mode 0600, rotated per deploy).
+[Unit]
+Description=Queue the next YBW social post and email it for approval
+After=network-online.target ybw-frontend.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ybw-social.env
+ExecStart=/usr/bin/curl -fsS -o /tmp/ybw-social-queue-response.json -w "HTTP %%{http_code}\n" -X POST -H "Authorization: Bearer ${CRON_SECRET}" -H "Content-Type: application/json" --data "{}" http://127.0.0.1:3003/api/cron/social-queue
+# curl -f makes HTTP >= 400 a nonzero exit so a failed queue run fails the unit.
+
+[Install]
+WantedBy=multi-user.target
