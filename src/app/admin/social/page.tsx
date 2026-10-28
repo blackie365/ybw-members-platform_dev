@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Send,
   Share2,
   SkipForward,
@@ -18,6 +19,7 @@ import {
   decideSocialPostAction,
   getSocialOverviewAction,
   queueNextSocialPostAction,
+  unskipSocialPostAction,
   type SocialOverview,
 } from '@/app/actions/socialActions';
 import type { SocialQueueRow, SocialStatus } from '@/features/social/server/social-store';
@@ -113,6 +115,25 @@ export default function SocialAdminPage() {
         toast.info(res.result.message);
       } else {
         toast.warning(res.result.message);
+      }
+    } else {
+      toast.error(res.error || 'Action failed');
+    }
+    await load();
+    setBusyId(null);
+  };
+
+  const handleUnskip = async (row: SocialQueueRow) => {
+    const label = row.title || row.slug || `#${row.id}`;
+    if (!window.confirm(`Put “${label}” back in the queue?`)) return;
+
+    setBusyId(row.id);
+    const res = await unskipSocialPostAction(row.id);
+    if (res.success && res.result) {
+      if (res.result.status === 'reopened') {
+        toast.success(res.result.message);
+      } else {
+        toast.info(res.result.message);
       }
     } else {
       toast.error(res.error || 'Action failed');
@@ -306,6 +327,24 @@ export default function SocialAdminPage() {
                         >
                           <SkipForward className="h-4 w-4 mr-2" />
                           Skip
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    {row.status === 'skipped' ? (
+                      <div className="flex gap-3 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUnskip(row)}
+                          disabled={busyId === row.id}
+                        >
+                          {busyId === row.id ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                          )}
+                          Un-skip
                         </Button>
                       </div>
                     ) : null}

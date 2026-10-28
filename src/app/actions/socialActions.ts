@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { recentQueueRows, type SocialQueueRow } from '@/features/social/server/social-store';
 import { runSocialQueue, type SocialQueueResult } from '@/features/social/server/queue';
-import { decideQueuedPost, type DecisionResult } from '@/features/social/server/decision';
+import { decideQueuedPost, reopenQueuedPost, type DecisionResult } from '@/features/social/server/decision';
 import { publishEnabled } from '@/features/social/server/publisher';
 
 /**
@@ -70,6 +70,27 @@ export async function decideSocialPostAction(
       return { success: false, error: 'Invalid queue id' };
     }
     const result = await decideQueuedPost(id, decision);
+    revalidatePath('/admin/social');
+    return {
+      success: result.status !== 'error' && result.status !== 'not-found',
+      result,
+      error: result.status === 'error' || result.status === 'not-found' ? result.message : undefined,
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Action failed' };
+  }
+}
+
+/** Undo a skip — put a skipped article back in the queue. Mirrors the email undo link. */
+export async function unskipSocialPostAction(
+  id: number,
+): Promise<{ success: boolean; error?: string; result?: DecisionResult }> {
+  try {
+    await checkAdmin();
+    if (!Number.isInteger(id) || id <= 0) {
+      return { success: false, error: 'Invalid queue id' };
+    }
+    const result = await reopenQueuedPost(id);
     revalidatePath('/admin/social');
     return {
       success: result.status !== 'error' && result.status !== 'not-found',
