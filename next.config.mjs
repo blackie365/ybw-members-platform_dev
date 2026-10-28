@@ -5,6 +5,17 @@ const nextConfig = {
   staticPageGenerationTimeout: 180,
   experimental: {
     swcTraceProfiling: false,
+    // src/middleware.ts canonicalises same-route requests to the public origin
+    // (postProcess -> x-middleware-rewrite). Next.js treats an absolute-URL
+    // rewrite as an *external* proxy, so the app makes a real outbound request
+    // to its own public domain and back, and that proxy is hard-capped at 30s
+    // (node_modules/next/dist/server/lib/router-utils/proxy-request.js:
+    // `proxyTimeout || 30000`). Any legitimate request slower than 30s then
+    // dies with a bare "Internal Server Error" 500 even though the work itself
+    // completes — e.g. approving a social post, where the Instagram media
+    // container takes ~45s to process. Raise the cap to match nginx's
+    // proxy_read_timeout (180s) for this vhost.
+    proxyTimeout: 180000,
     serverActions: {
       bodySizeLimit: '10mb',
     },
