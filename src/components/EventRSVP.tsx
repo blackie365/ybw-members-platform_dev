@@ -25,6 +25,38 @@ function attendeeKeyForCurrentUser(a: Attendee, userId?: string) {
   return false;
 }
 
+/**
+ * Attendee thumbnail. `unoptimized` is deliberate: profile images are often
+ * relative paths or third-party hosts that aren't in `images.remotePatterns`,
+ * and these avatars are only 32px so optimisation buys nothing. Falls back to
+ * the initial if the image fails to load.
+ */
+function AttendeeAvatar({ src, name }: { src?: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (src && !failed) {
+    return (
+      <Image
+        src={src}
+        alt={name}
+        width={32}
+        height={32}
+        unoptimized
+        className="h-8 w-8 rounded-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+      <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        {name.charAt(0)}
+      </span>
+    </div>
+  );
+}
+
 export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventTitle: string }) {
   const { user } = useAuth();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
@@ -153,21 +185,7 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
                 }`}
                 onClick={!linkUid ? (e) => e.preventDefault() : undefined}
               >
-                {attendee.image ? (
-                  <Image
-                    src={attendee.image}
-                    alt={attendee.name}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                      {attendee.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
+                <AttendeeAvatar src={attendee.image} name={attendee.name} />
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold text-zinc-900 dark:text-white">
                     {attendee.name} {attendee.quantity && attendee.quantity > 1 ? `(+${attendee.quantity - 1})` : ''}
