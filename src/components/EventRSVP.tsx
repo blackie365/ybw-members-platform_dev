@@ -7,6 +7,8 @@ import Link from 'next/link';
 
 interface Attendee {
   uid?: string;
+  /** Member profile this off-site guest was matched to (link + thumbnail only). */
+  memberUid?: string;
   email?: string;
   name: string;
   image?: string;
@@ -140,14 +142,16 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
         <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
           <h4 className="text-sm font-medium text-zinc-900 dark:text-white mb-4">Members Attending</h4>
           <div className="flex flex-wrap gap-3">
-            {attendees.map((attendee, i) => (
+            {attendees.map((attendee, i) => {
+              const linkUid = attendee.uid || attendee.memberUid;
+              return (
               <Link 
-                key={attendee.uid ? `${attendee.uid}-${i}` : `${attendee.email ?? attendee.name}-${i}`}
-                href={attendee.uid ? `/members/${attendee.uid}` : '#'}
+                key={linkUid ? `${linkUid}-${i}` : `${attendee.email ?? attendee.name}-${i}`}
+                href={linkUid ? `/members/${linkUid}` : '#'}
                 className={`group relative flex items-center gap-x-3 rounded-full bg-zinc-50 dark:bg-zinc-800/50 pr-3 p-1 ring-1 ring-inset ring-zinc-200 dark:ring-zinc-700/50 transition-colors ${
-                  attendee.uid ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer' : 'cursor-default'
+                  linkUid ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer' : 'cursor-default'
                 }`}
-                onClick={!attendee.uid ? (e) => e.preventDefault() : undefined}
+                onClick={!linkUid ? (e) => e.preventDefault() : undefined}
               >
                 {attendee.image ? (
                   <Image
@@ -178,7 +182,8 @@ export function EventRSVP({ eventSlug, eventTitle }: { eventSlug: string, eventT
                   )}
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
