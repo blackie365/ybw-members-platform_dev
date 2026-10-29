@@ -636,6 +636,19 @@ function getGhostLabels(member: GhostMemberRecord | null) {
     .filter(Boolean);
 }
 
+/**
+ * Label the event-interest pop-up adds to every Ghost member it creates
+ * (see api/events/interest). Those people replied to a pop-up for event
+ * updates — they never created an account — so they are reported separately
+ * from genuine Ghost-only members. The label already exists in Ghost, so the
+ * existing nine are tagged too, not just new ones.
+ */
+const EVENT_INTEREST_LABEL = "event-interest";
+
+function isEventInterestContact(member: { labels: string[] }) {
+  return member.labels.some((label) => label.toLowerCase() === EVENT_INTEREST_LABEL);
+}
+
 function getGhostNote(member: GhostMemberRecord | null) {
   return typeof member?.note === "string" ? member.note.trim() : "";
 }
@@ -844,7 +857,7 @@ export async function getMembershipAuditAction() {
     });
 
     const appEmails = new Set(rows.map((row) => normalizeEmail(row.email)).filter(Boolean));
-    const ghostOnlyMembers = ghostMembers
+    const ghostOnlyAll = ghostMembers
       .filter((member) => {
         const emailLower = normalizeEmail(member.email);
         return emailLower && !appEmails.has(emailLower);
@@ -856,6 +869,12 @@ export async function getMembershipAuditAction() {
         note: getGhostNote(member),
       }))
       .sort((a, b) => a.email.localeCompare(b.email));
+
+    // Pop-up replies are held back from the Ghost-only member list: they are
+    // contacts, not accounts. They are still returned (and shown on the audit
+    // screen) so nothing is hidden, just moved out of the way.
+    const eventInterestContacts = ghostOnlyAll.filter(isEventInterestContact);
+    const ghostOnlyMembers = ghostOnlyAll.filter((member) => !isEventInterestContact(member));
 
     const counts = rows.reduce(
       (acc, row) => {
@@ -878,6 +897,7 @@ export async function getMembershipAuditAction() {
     const summary = {
       ...counts,
       ghostOnlyCount: ghostOnlyMembers.length,
+      eventInterestCount: eventInterestContacts.length,
       stripeConfigured,
       ghostConfigured,
     };
@@ -888,6 +908,7 @@ export async function getMembershipAuditAction() {
         rows,
         summary,
         ghostOnlyMembers,
+        eventInterestContacts,
       },
     };
   } catch (error: any) {

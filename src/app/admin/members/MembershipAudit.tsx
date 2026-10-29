@@ -50,6 +50,7 @@ type MembershipAuditSummary = {
   rowsWithIssues: number;
   ghostMissing: number;
   ghostOnlyCount: number;
+  eventInterestCount: number;
   stripeConfigured: boolean;
   ghostConfigured: boolean;
 };
@@ -65,6 +66,7 @@ interface MembershipAuditProps {
   rows: MembershipAuditRow[];
   summary: MembershipAuditSummary | null;
   ghostOnlyMembers: GhostOnlyMember[];
+  eventInterestContacts: GhostOnlyMember[];
   loading: boolean;
   onRefresh: () => void;
 }
@@ -141,11 +143,13 @@ export function MembershipAudit({
   rows,
   summary,
   ghostOnlyMembers,
+  eventInterestContacts,
   loading,
   onRefresh,
 }: MembershipAuditProps) {
   const [filter, setFilter] = useState<AuditFilter>("all");
   const [search, setSearch] = useState("");
+  const [showEventContacts, setShowEventContacts] = useState(false);
 
   const filteredRows = useMemo(() => {
     const byFilter = (() => {
@@ -251,6 +255,11 @@ export function MembershipAudit({
           <CardHeader className="pb-2">
             <CardDescription>Ghost Only</CardDescription>
             <CardTitle className="text-2xl">{summary?.ghostOnlyCount ?? 0}</CardTitle>
+            {(summary?.eventInterestCount ?? 0) > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                +{summary?.eventInterestCount} event pop-up {summary?.eventInterestCount === 1 ? "contact" : "contacts"}, listed separately
+              </p>
+            ) : null}
           </CardHeader>
         </Card>
       </div>
@@ -449,6 +458,66 @@ export function MembershipAudit({
                 </TableHeader>
                 <TableBody>
                   {ghostOnlyMembers.map((member) => (
+                    <TableRow key={member.email}>
+                      <TableCell>{member.email}</TableCell>
+                      <TableCell>{member.name || "-"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {member.labels.length > 0 ? member.labels.join(", ") : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {member.note || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Event Pop-up Contacts</CardTitle>
+            <CardDescription>
+              {eventInterestContacts.length} {eventInterestContacts.length === 1 ? "person" : "people"} asked
+              for event updates through a pop-up. They have no YBW account, so they are kept out of
+              the Ghost-only member list above — shown here under the{" "}
+              <code className="font-mono text-xs">event-interest</code> label so nothing is lost.
+            </CardDescription>
+          </div>
+          {eventInterestContacts.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setShowEventContacts((value) => !value)}
+            >
+              {showEventContacts ? "Hide" : "Show"}
+            </Button>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          {eventInterestContacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No event pop-up contacts found.</p>
+          ) : !showEventContacts ? (
+            <p className="text-sm text-muted-foreground">
+              Hidden — {eventInterestContacts.length} {eventInterestContacts.length === 1 ? "contact" : "contacts"}.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <Table className="min-w-[720px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Labels</TableHead>
+                    <TableHead>Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {eventInterestContacts.map((member) => (
                     <TableRow key={member.email}>
                       <TableCell>{member.email}</TableCell>
                       <TableCell>{member.name || "-"}</TableCell>
