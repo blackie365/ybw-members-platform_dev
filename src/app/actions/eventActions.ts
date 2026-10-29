@@ -4,7 +4,7 @@ import { Event } from '@/lib/events';
 import { checkAdmin } from '@/lib/server/auth-utils';
 import { currentUser } from '@clerk/nextjs/server';
 import { getSystemStore } from '@/features/system/server/system-store';
-import { getPgEventStore } from '@/features/events/server/pg-events-store';
+import { getPgEventStore, getPgEventAttendeeStore } from '@/features/events/server/pg-events-store';
 
 /**
  * Fetches event metadata from Postgres by its slug.
@@ -50,6 +50,57 @@ export async function getAllEventsMetadata() {
   } catch (error: any) {
     console.error('Error fetching all events metadata:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Admin UI: off-site guest names per event slug, for the "Off-site sign-ups"
+ * editor on the Events tab.
+ */
+export async function getAllEventGuests() {
+  try {
+    const data = await getPgEventAttendeeStore().listGuestsBySlug();
+    return { success: true as const, data };
+  } catch (error: any) {
+    console.error('Error fetching event guests:', error);
+    return { success: false as const, error: error.message };
+  }
+}
+
+/**
+ * Admin UI: replace the off-site guest list for one event.
+ * Names already held as a real web RSVP are skipped so they don't appear twice.
+ */
+export async function setEventGuests(slug: string, names: string[]) {
+  try {
+    await checkAdmin();
+    if (!slug) return { success: false as const, error: 'Missing event slug' };
+
+    const store = getPgEventAttendeeStore();
+    const existing = await store.list(slug);
+    const existingNames = new Set(
+      existing
+        .filter((a) => !a.attendeeKey.startsWith('guest:'))
+        .map((a) => String(a.data?.name ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    const cleaned: Array<{ name: string }> = [];
+    const seen = new Set<string>();
+    for (const raw of Array.isArray(names) ? names : []) {
+      const name = String(raw ?? '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key) || existingNames.has(key)) continue;
+      seen.add(key);
+      cleaned.push({ name });
+    }
+
+    const count = await store.replaceGuests(slug, cleaned);
+    return { success: true as const, count };
+  } catch (error: any) {
+    console.error('Error saving event guests:', error);
+    return { success: false as const, error: error.message };
   }
 }
 

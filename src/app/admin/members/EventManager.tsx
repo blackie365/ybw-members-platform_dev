@@ -7,11 +7,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, Home, XCircle } from "lucide-react";
+import { Loader2, Save, Home, XCircle, Check } from "lucide-react";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
 import { resolveEventDate } from "@/lib/events";
 
 export interface EventMetadata {
@@ -38,6 +40,87 @@ interface EventManagerProps {
   handleToggleAccess: (slug: string, currentLevel?: 'public' | 'members-only') => void
   handleToggleTicketCard: (slug: string, currentEnabled?: boolean) => void
   onSetFeaturedHomepage: (slug: string | null) => Promise<void>
+  eventsGuests: Record<string, string[]>
+  onSaveGuests: (slug: string, names: string[]) => Promise<boolean>
+}
+
+/**
+ * Free-text editor for people who signed up for an event away from the website.
+ * One name per line (or comma-separated); saving replaces this event's guest list.
+ */
+function GuestListEditor({
+  slug,
+  initial,
+  disabled,
+  onSave,
+}: {
+  slug: string
+  initial: string[]
+  disabled: boolean
+  onSave: (slug: string, names: string[]) => Promise<boolean>
+}) {
+  const initialStr = (initial || []).join('\n')
+  const [value, setValue] = useState(initialStr)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setValue(initialStr)
+  }, [initialStr])
+
+  const names = value
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const dirty = names.join('\n') !== initialStr
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaved(false)
+    try {
+      const ok = await onSave(slug, names)
+      if (ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2500)
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex w-[230px] flex-col gap-1.5">
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={"One name per line"}
+        rows={3}
+        className="text-xs"
+        disabled={disabled || saving}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {names.length} off-site {names.length === 1 ? 'name' : 'names'}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1.5 px-2 text-xs"
+          disabled={disabled || saving || !dirty}
+          onClick={handleSave}
+        >
+          {saving ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : saved ? (
+            <Check className="h-3 w-3 text-green-600" />
+          ) : (
+            <Save className="h-3 w-3" />
+          )}
+          {saved ? 'Saved' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export function EventManager({
@@ -54,6 +137,8 @@ export function EventManager({
   handleToggleAccess,
   handleToggleTicketCard,
   onSetFeaturedHomepage,
+  eventsGuests,
+  onSaveGuests,
 }: EventManagerProps) {
   return (
     <div className="w-full space-y-5">
@@ -94,7 +179,7 @@ export function EventManager({
       ) : null}
 
       <div className="w-full overflow-x-auto">
-        <Table className="min-w-[960px]">
+        <Table className="min-w-[1220px]">
           <TableHeader>
             <TableRow>
               <TableHead>Event</TableHead>
@@ -104,6 +189,7 @@ export function EventManager({
               <TableHead>New Member (£)</TableHead>
               <TableHead className="text-center">Members Only</TableHead>
               <TableHead className="text-center">Stripe Card</TableHead>
+              <TableHead className="w-[240px]">Off-site sign-ups</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -216,6 +302,14 @@ export function EventManager({
                         {isTicketCardEnabled ? 'Shown' : 'Hidden'}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <GuestListEditor
+                      slug={event.slug}
+                      initial={eventsGuests[event.slug] ?? []}
+                      disabled={isUpdating}
+                      onSave={onSaveGuests}
+                    />
                   </TableCell>
                   <TableCell>
                     <Button 

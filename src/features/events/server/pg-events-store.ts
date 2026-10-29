@@ -510,6 +510,79 @@ export class PgEventAttendeeStore {
       [eventSlug, attendeeKey],
     );
   }
+
+  /**
+   * Admin UI: off-site guest names per event slug, in the order they were added.
+   * Only rows written by the admin guests editor ('guest:' keys) are included.
+   */
+  async listGuestsBySlug(): Promise<Record<string, string[]>> {
+    if (!(await ready())) throw new Error('[PgEventAttendeeStore] Postgres schema not ready');
+    const pool = getMagazinePgPool()!;
+    const { rows } = await pool.query(
+      `SELECT event_slug, data->>'name' AS name
+         FROM event_attendees
+        WHERE attendee_key LIKE 'guest:%'
+        ORDER BY created_at ASC`,
+    );
+    const out: Record<string, string[]> = {};
+    for (const r of rows) {
+      const slug = typeof r.event_slug === 'string' ? r.event_slug : '';
+      const name = typeof r.name === 'string' ? r.name.trim() : '';
+      if (!slug || !name) continue;
+      if (!out[slug]) out[slug] = [];
+      out[slug].push(name);
+    }
+    return out;
+  }
+
+  /**
+   * Admin UI: replace the off-site guest list for an event.
+   * Real member RSVPs (non 'guest:' keys) are never touched.
+   */
+  async replaceGuests(
+    eventSlug: string,
+    guests: Array<{ name: string; email?: string }>,
+  ): Promise<number> {
+    if (!eventSlug) return 0;
+    if (!(await ready())) throw new Error('[PgEventAttendeeStore] Postgres schema not ready');
+    const pool = getMagazinePgPool()!;
+    const client = await pool.connect();
+    const now = new Date();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `DELETE FROM event_attendees WHERE event_slug = $1 AND attendee_key LIKE 'guest:%'`,
+        [eventSlug],
+      );
+      let inserted = 0;
+      for (const g of guests) {
+        const name = String(g.name ?? '').trim();
+        if (!name) continue;
+        const email =
+          typeof g.email === 'string' && g.email.trim() ? g.email.trim().toLowerCase() : null;
+        const key = `guest:${email ?? name.toLowerCase().replace(/\s+/g, '-')}`;
+        const data = { name, email, source: 'admin', timestamp: now.toISOString() };
+        await client.query(
+          `INSERT INTO event_attendees
+             (event_slug, attendee_key, user_id, email, has_ticket, created_at, updated_at, data)
+           VALUES ($1,$2,NULL,$3,false,$4,$4,$5::jsonb)
+           ON CONFLICT (event_slug, attendee_key) DO UPDATE SET
+             email      = COALESCE(EXCLUDED.email, event_attendees.email),
+             updated_at = EXCLUDED.updated_at,
+             data       = event_attendees.data || '{}'::jsonb || EXCLUDED.data`,
+          [eventSlug, key, email, now, JSON.stringify(data)],
+        );
+        inserted += 1;
+      }
+      await client.query('COMMIT');
+      return inserted;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 /* ========================================================================== */
