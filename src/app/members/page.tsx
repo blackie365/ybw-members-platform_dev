@@ -53,10 +53,55 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-/** A photograph is only usable if it is a real file, not a blank gravatar. */
+/**
+ * A photograph is only usable if it is a real picture of the member. Clerk hands
+ * every account a generic grey silhouette, and legacy records often carry a blank
+ * gravatar; rendering either produces rows of identical placeholders, which is
+ * worse than the typographic monogram we draw instead.
+ */
 function isUsablePhoto(url: string): boolean {
-  if (!url || url.includes('gravatar.com/avatar')) return false;
+  if (!url) return false;
+  if (url.includes('gravatar.com/avatar')) return false;
+  // Clerk's default avatar is a base64 slug starting `{"type":"default"…`.
+  if (url.includes('img.clerk.com') && url.includes('eyJ0eXBlIjoiZGVmYXVsdCI')) return false;
   return url.startsWith('/') || url.startsWith('http');
+}
+
+/**
+ * Hosts the image optimiser is allowed to fetch, mirroring the
+ * `images.remotePatterns` allow-list in next.config.mjs. A photo from any other
+ * host has to be served as-is: the optimiser throws on an unknown host.
+ */
+const OPTIMIZER_HOSTS = new Set([
+  'yorkshirebusinesswoman.co.uk',
+  'img.clerk.com',
+  'storage.googleapis.com',
+  'images.unsplash.com',
+  'admin.yorkshirebusinesswoman.co.uk',
+  'static.ghost.org',
+  'image.isu.pub',
+  'image.issuu.com',
+  'img.rocket.new',
+]);
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+
+/**
+ * Photos we host ourselves are stored as "/uploads/…". The optimiser rejects a
+ * relative path with a 400 ("The requested resource isn't a valid image"), so
+ * they have to be handed over as an absolute same-origin URL.
+ */
+function absolutise(url: string): string {
+  if (!url.startsWith('/')) return url;
+  return SITE_URL ? `${SITE_URL}${url}` : url;
+}
+
+function isOptimizable(url: string): boolean {
+  try {
+    return OPTIMIZER_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -135,13 +180,16 @@ async function getMembers(): Promise<DirectoryMember[]> {
 
       const location = asString(data.location) || asString(data.city);
 
-      const image =
+      // Prefer a photo the member uploaded themselves over the one Clerk supplied,
+      // which is frequently the generic placeholder.
+      const image = absolutise(
         [
-          asString(data.avatarUrl),
           asString(data.profileImage),
           asString(data.profileImageSource),
           asString(data.image),
-        ].find(isUsablePhoto) || '';
+          asString(data.avatarUrl),
+        ].find(isUsablePhoto) || '',
+      );
 
       members.push({
         id,
@@ -157,6 +205,7 @@ async function getMembers(): Promise<DirectoryMember[]> {
         bio: asString(data.bio),
         image,
         hasImage: Boolean(image),
+        optimizable: Boolean(image) && isOptimizable(image),
         tier,
         isPremium: PREMIUM_TIERS.has(tier),
         openToMentoring: data.openToMentoring === true,

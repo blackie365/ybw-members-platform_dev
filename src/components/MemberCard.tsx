@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { ArrowUpRight, MapPin } from 'lucide-react';
 
 /**
  * The shape the directory hands to the client. Built server-side in
@@ -27,6 +26,12 @@ export interface DirectoryMember {
   bio: string;
   image: string;
   hasImage: boolean;
+  /**
+   * Whether the host is known to the image optimiser. Member photos come from a
+   * mix of our own uploads and arbitrary third-party sites; the optimiser throws
+   * on a host it does not know, so those few are served as-is instead.
+   */
+  optimizable: boolean;
   tier: string;
   /** Paying members and founders carry the quiet gold accent. */
   isPremium: boolean;
@@ -39,33 +44,35 @@ export interface DirectoryMember {
 
 /**
  * A member with no photograph gets a typographic monogram rather than a grey
- * placeholder: Playfair on warm paper inside a hairline double rule.
+ * placeholder: Playfair on warm paper inside a hairline double rule. Sits
+ * directly on the card's plate, so it only draws its own inner rules.
  */
 export function MemberMonogram({
   initials,
   premium = false,
-  compact = false,
+  size = 'md',
 }: {
   initials: string;
   premium?: boolean;
-  compact?: boolean;
+  size?: 'sm' | 'md';
 }) {
+  const large = size === 'md';
   return (
     <div className="relative flex h-full w-full items-center justify-center bg-[#faf8f3] dark:bg-[#231810]">
       <span
         aria-hidden
         className={`pointer-events-none absolute border border-[#e8e0d5] dark:border-[#3d2d20] ${
-          compact ? 'inset-1' : 'inset-3'
+          large ? 'inset-2' : 'inset-0.5'
         }`}
       />
-      {!compact && (
+      {large && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-4 border border-[#e8e0d5]/70 dark:border-[#3d2d20]/70"
+          className="pointer-events-none absolute inset-3 border border-[#e8e0d5]/60 dark:border-[#3d2d20]/60"
         />
       )}
       <span
-        className={`relative font-serif ${compact ? 'text-base' : 'text-4xl'} tracking-[0.08em] ${
+        className={`relative font-serif tracking-[0.08em] ${large ? 'text-2xl' : 'text-sm'} ${
           premium ? 'text-accent' : 'text-[#1c1410] dark:text-[#f5efe8]'
         }`}
       >
@@ -75,95 +82,59 @@ export function MemberMonogram({
   );
 }
 
-function tagsFor(member: DirectoryMember): string[] {
-  return [
-    member.openToMentoring && 'Coaching',
-    member.seekingMentorship && 'Seeking a coach',
-    member.openToBoardRoles && 'NED',
-  ].filter(Boolean) as string[];
-}
-
+/**
+ * A contact-sheet tile: the photograph is mounted like a plate, inset on warm
+ * paper behind a hairline rule. Keeping the photo at this size means a small or
+ * low-resolution original is never blown up past its natural resolution — the
+ * mount does the visual work instead.
+ */
 export function MemberCard({ member }: { member: DirectoryMember }) {
   const [imageError, setImageError] = useState(false);
   const showImage = member.hasImage && Boolean(member.image) && !imageError;
   const subtitle = [member.role, member.company].filter(Boolean).join(' · ');
-  const tags = tagsFor(member);
 
   return (
-    <Link href={`/members/${member.linkTarget}`} className="group flex flex-col">
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-secondary">
-        {showImage ? (
-          // Profile photos come from a mix of relative paths and third-party
-          // hosts; serving them as-is keeps an unconfigured host from throwing
-          // in the optimiser, and these are already small thumbnails.
-          <Image
-            src={member.image}
-            alt={member.name}
-            fill
-            sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 90vw"
-            unoptimized
-            className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <MemberMonogram initials={member.initials} premium={member.isPremium} />
-        )}
+    <Link
+      href={`/members/${member.linkTarget}`}
+      title={subtitle ? `${member.name} — ${subtitle}` : member.name}
+      className="group flex flex-col"
+    >
+      <div className="relative bg-[#faf8f3] p-1.5 shadow-[0_1px_2px_rgba(28,25,23,0.06)] ring-1 ring-[#e8e0d5] transition-colors duration-300 group-hover:ring-[#c9956a]/50 dark:bg-[#231810] dark:ring-[#3d2d20]">
+        <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#efe9df] dark:bg-[#2a1d14]">
+          {showImage ? (
+            <Image
+              src={member.image}
+              alt={member.name}
+              fill
+              // The container is capped at 1280px, so fixed widths describe the
+              // slot far more accurately than viewport units.
+              sizes="(min-width: 1024px) 140px, (min-width: 640px) 15vw, 29vw"
+              unoptimized={!member.optimizable}
+              className="object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <MemberMonogram initials={member.initials} premium={member.isPremium} />
+          )}
+        </div>
 
         {member.isPremium && (
           <span
             aria-hidden
-            className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#c9956a] via-[#e8c49a] to-[#c9956a]"
+            className="absolute inset-x-1.5 top-1.5 h-px bg-gradient-to-r from-transparent via-[#c9956a] to-transparent"
           />
         )}
-
-        <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center bg-background/90 text-foreground opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <ArrowUpRight className="h-4 w-4" aria-hidden />
-        </span>
       </div>
 
-      <div className="flex flex-1 flex-col pt-5">
-        <h3 className="font-serif text-xl leading-snug text-foreground transition-colors group-hover:text-accent">
-          {member.name}
-        </h3>
+      <h3 className="mt-2.5 line-clamp-2 font-serif text-[13px] leading-[1.3] text-foreground transition-colors group-hover:text-accent">
+        {member.name}
+      </h3>
 
-        {subtitle && (
-          <p className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            {subtitle}
-          </p>
-        )}
-
-        {member.bio && (
-          <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{member.bio}</p>
-        )}
-
-        {tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-auto flex items-end justify-between gap-3 pt-5">
-          {member.location ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-              <MapPin className="h-3 w-3" aria-hidden />
-              {member.location}
-            </span>
-          ) : (
-            <span />
-          )}
-          <span
-            aria-hidden
-            className="h-px w-10 shrink-0 bg-border transition-colors group-hover:bg-accent/50"
-          />
-        </div>
-      </div>
+      {subtitle && (
+        <p className="mt-1 truncate text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+          {subtitle}
+        </p>
+      )}
     </Link>
   );
 }

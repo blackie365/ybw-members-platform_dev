@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { MemberCard, MemberMonogram, type DirectoryMember } from '@/components/MemberCard';
 
-const PAGE_SIZE = 18;
+// The tiles are now small enough to fit eight to a row, so a page of 18 would
+// barely fill two rows. 40 gives a proper contact sheet.
+const PAGE_SIZE = 40;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const NO_FILTERS = { mentoring: false, seeking: false, board: false };
@@ -326,7 +328,7 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: Dir
           </button>
         </div>
       ) : view === 'grid' ? (
-        <div className="mt-12 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-10 grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-6 lg:grid-cols-8">
           {displayedMembers.map((member) => (
             <MemberCard key={member.id} member={member} />
           ))}
@@ -346,11 +348,11 @@ export function MembersDirectoryClient({ initialMembers }: { initialMembers: Dir
                       alt=""
                       fill
                       sizes="48px"
-                      unoptimized
+                      unoptimized={!member.optimizable}
                       className="object-cover"
                     />
                   ) : (
-                    <MemberMonogram initials={member.initials} premium={member.isPremium} compact />
+                    <MemberMonogram initials={member.initials} premium={member.isPremium} size="sm" />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
