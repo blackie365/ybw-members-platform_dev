@@ -99,6 +99,54 @@ async function postToFacebookPage(slug: string, caption: string): Promise<string
   return postId;
 }
 
+const CONTAINER_POLL_INTERVAL_MS = 2_000;
+const CONTAINER_POLL_TIMEOUT_MS = 90_000;
+
+/**
+ * Wait until an Instagram media container has finished processing.
+ *
+ * POST /{ig-user}/media returns a container id as soon as the request is
+ * *accepted* — Meta has not fetched or processed the image at that point.
+ * Calling media_publish before then is refused with "Media ID is not available"
+ * (code 9007, subcode 2207027), which is what lost the Story on an otherwise
+ * successful post: the feed container was ready in time, the 9:16 Story one was
+ * not. Meta's contract is to poll until FINISHED, so poll every container —
+ * large images race too, and the race is only narrower, not absent.
+ */
+async function waitForContainerReady(containerId: string, token: string): Promise<void> {
+  const deadline = Date.now() + CONTAINER_POLL_TIMEOUT_MS;
+
+  for (;;) {
+    const res = await fetch(
+      `${META_API_BASE}/${encodeURIComponent(containerId)}?fields=status_code,status&access_token=${encodeURIComponent(token)}`,
+      { cache: 'no-store' },
+    );
+    const json = (await res.json()) as {
+      status_code?: string;
+      status?: string;
+      error?: { message?: string };
+    };
+    if (!res.ok || json.error) {
+      throw new Error(json.error?.message || `Meta API ${res.status} ${res.statusText}`);
+    }
+
+    // PUBLISHED is terminal too — waiting for it to become FINISHED hangs forever.
+    if (json.status_code === 'FINISHED' || json.status_code === 'PUBLISHED') return;
+    if (json.status_code === 'ERROR' || json.status_code === 'EXPIRED') {
+      throw new Error(
+        `Instagram container ${containerId} is ${json.status_code}: ${json.status || 'no detail given'}`,
+      );
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `Instagram container ${containerId} was still ${json.status_code || 'unknown'} after ${CONTAINER_POLL_TIMEOUT_MS} ms`,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, CONTAINER_POLL_INTERVAL_MS));
+  }
+}
+
 async function postToInstagram(
   slug: string,
   caption: string,
@@ -121,7 +169,10 @@ async function postToInstagram(
   );
   if (!container.id) throw new Error('Instagram returned no container id');
 
-  // Step 2: publish it.
+  // Step 2: wait for Meta to finish fetching the image off image_url.
+  await waitForContainerReady(container.id, token);
+
+  // Step 3: publish it.
   const published = await metaPost<{ id?: string }>(
     `/${id}/media_publish`,
     { creation_id: container.id },
