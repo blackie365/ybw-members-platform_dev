@@ -1,4 +1,5 @@
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
+import type { DirectoryMember } from '@/components/MemberCard';
 import { getMemberStore } from '@/features/members/server';
 import type { Metadata } from 'next';
 
@@ -21,6 +22,23 @@ export const metadata: Metadata = {
  */
 const ORGANISATION_SLUGS = new Set(['focus-4hope', 'mexi-bean']);
 
+const VALID_TIERS = new Set([
+  'free',
+  'paid',
+  'paid_monthly',
+  'paid_annual',
+  'complimentary',
+  'premium',
+  'founder',
+]);
+
+/**
+ * Tier drives the quiet gold accent on a card. Membership the member is paying
+ * for (or founded) is marked; complimentary and free memberships are not, so
+ * the accent keeps meaning something rather than decorating the whole grid.
+ */
+const PREMIUM_TIERS = new Set(['paid', 'paid_monthly', 'paid_annual', 'premium', 'founder']);
+
 function isConfigured(): boolean {
   return Boolean(
     process.env.DATABASE_URL ||
@@ -31,7 +49,33 @@ function isConfigured(): boolean {
   );
 }
 
-async function getMembers() {
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+/** A photograph is only usable if it is a real file, not a blank gravatar. */
+function isUsablePhoto(url: string): boolean {
+  if (!url || url.includes('gravatar.com/avatar')) return false;
+  return url.startsWith('/') || url.startsWith('http');
+}
+
+/**
+ * Collapse a free-text place into a facet the directory can group on:
+ * "Leeds/Wakefield" → "Leeds", "York, North Yorkshire" → "York".
+ */
+function locationFacet(location: string): string {
+  if (!location) return '';
+  return location.split(/[/,]/)[0].trim();
+}
+
+function initialsFor(firstName: string, lastName: string, name: string): string {
+  if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+async function getMembers(): Promise<DirectoryMember[]> {
   try {
     if (!isConfigured()) {
       return [];
@@ -39,52 +83,6 @@ async function getMembers() {
 
     const store = getMemberStore();
     const snapshots = await store.getAll();
-    const docs = snapshots.map((profile) => ({
-      id: profile.clerkId,
-      data: profile,
-    }));
-
-    const mappedMembers = docs.map((doc: any) => {
-      const data = doc.data;
-      
-      // Manually sanitize data to avoid JSON circular issues or other serialization errors
-      const sanitizedData: any = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (value && typeof value === 'object' && value !== null && '_seconds' in value) {
-          sanitizedData[key] = new Date((value as any)._seconds * 1000).toISOString();
-        } else {
-          sanitizedData[key] = value;
-        }
-      }
-
-      // Find the best image URL, preferring storage over gravatar
-      const avatarUrl = sanitizedData.avatarUrl || "";
-      const profileImage = sanitizedData.profileImage || "";
-      const profileImageSource = sanitizedData.profileImageSource || "";
-      const imageCandidates = [avatarUrl, profileImage, profileImageSource, sanitizedData.image];
-      const realPhotosFirst = imageCandidates.filter(url =>
-        url && typeof url === 'string' && (
-          url.startsWith('/uploads/') ||
-          (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
-        )
-      );
-      const image = realPhotosFirst[0] || profileImage || avatarUrl;
-
-      return {
-        ...sanitizedData,
-        // The stable Clerk id must win over any legacy `data.id` in the JSONB
-        // blob, otherwise the directory can hand out an ambiguous link target.
-        id: doc.id,
-        name: sanitizedData.displayName || `${sanitizedData.firstName || ''} ${sanitizedData.lastName || ''}`.trim() || sanitizedData.name,
-        company: sanitizedData.companyName || sanitizedData.company,
-        role: sanitizedData.jobTitle || sanitizedData.role,
-        bio: sanitizedData.bio,
-        location: sanitizedData.location || sanitizedData.city,
-        image: image,
-        linkedin: sanitizedData.linkedinUrl || sanitizedData.linkedin,
-        website: sanitizedData.websiteUrl || sanitizedData.website
-      };
-    });
 
     // Guard against ambiguous slugs. When a member signs up without a name the
     // slug falls back to the email local-part, so several members can share the
@@ -102,37 +100,87 @@ async function getMembers() {
       for (const key of keys) slugCounts.set(key, (slugCounts.get(key) || 0) + 1);
     }
 
-    const members = mappedMembers.map((member: any) => {
-      const slug = typeof member.memberSlug === 'string' ? member.memberSlug.trim() : '';
-      const uniqueSlug = slug && slugCounts.get(slug) === 1 ? slug : undefined;
-      return { ...member, memberSlug: uniqueSlug };
-    }).filter((member: any) => {
+    const members: DirectoryMember[] = [];
+
+    for (const profile of snapshots) {
+      const data = profile as Record<string, unknown>;
+
       // 1. MUST NOT be userInactive
-      const isActiveMember = member.userInactive !== true;
-      
+      if (data.userInactive === true) continue;
+
       // 2. MUST be one of the authorized tiers (or have no tier, treated as free)
-      const isValidTier = !member.membershipTier || ['free', 'paid', 'paid_monthly', 'paid_annual', 'complimentary', 'premium', 'founder'].includes(member.membershipTier);
-      
-      // 3. MUST have a name
-      const hasName = member.name && member.name.trim().length > 0;
+      const rawTier = asString(data.membershipTier);
+      const tier = rawTier || 'free';
+      if (!VALID_TIERS.has(tier)) continue;
 
-      // 4. MUST read as a person. A card renders "<name>, <role/company>", so a
-      // single-token name ("liz", "Amanda") looks broken, and a business-only
-      // sign-up is not a member at all.
-      const looksLikePerson = hasName && /\s/.test(String(member.name).trim());
-      const slugKeys = [member.memberSlug, member.slug, member.id].filter(
-        (v): v is string => typeof v === 'string'
-      );
-      const isOrganisation = slugKeys.some((k) => ORGANISATION_SLUGS.has(k));
+      const firstName = asString(data.firstName);
+      const lastName = asString(data.lastName);
+      const name =
+        asString(data.displayName) ||
+        `${firstName} ${lastName}`.trim() ||
+        asString(data.name);
 
-      return isActiveMember && isValidTier && hasName && looksLikePerson && !isOrganisation;
-    });
+      // 3. MUST have a name that reads as a person. A card renders
+      // "<name>, <role/company>", so a single-token name ("liz", "Amanda")
+      // looks broken.
+      if (!name || !/\s/.test(name)) continue;
+
+      const id = profile.clerkId;
+      const slug = asString(profile.memberSlug);
+      const uniqueSlug = slug && slugCounts.get(slug) === 1 ? slug : '';
+
+      // 4. A business-only sign-up is not a member at all.
+      const slugKeys = [slug, asString(profile.slug), id];
+      if (slugKeys.some((key) => ORGANISATION_SLUGS.has(key))) continue;
+
+      const location = asString(data.location) || asString(data.city);
+
+      const image =
+        [
+          asString(data.avatarUrl),
+          asString(data.profileImage),
+          asString(data.profileImageSource),
+          asString(data.image),
+        ].find(isUsablePhoto) || '';
+
+      members.push({
+        id,
+        linkTarget: uniqueSlug || id,
+        name,
+        firstName,
+        lastName,
+        initials: initialsFor(firstName, lastName, name),
+        role: asString(data.jobTitle) || asString(data.role),
+        company: asString(data.companyName) || asString(data.company),
+        location,
+        locationFacet: locationFacet(location),
+        bio: asString(data.bio),
+        image,
+        hasImage: Boolean(image),
+        tier,
+        isPremium: PREMIUM_TIERS.has(tier),
+        openToMentoring: data.openToMentoring === true,
+        seekingMentorship: data.seekingMentorship === true,
+        openToBoardRoles: data.openToBoardRoles === true,
+        linkedin: asString(data.linkedinUrl) || asString(data.linkedin),
+        website: asString(data.websiteUrl) || asString(data.website),
+      });
+    }
 
     return members;
   } catch (error: any) {
     console.error('Failed to fetch members from newMemberCollection:', error);
     return [];
   }
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <div>
+      <p className="font-serif text-2xl text-foreground">{value}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+    </div>
+  );
 }
 
 export default async function MembersPage() {
@@ -174,29 +222,37 @@ export default async function MembersPage() {
   }
 
   const members = await getMembers();
+  const locationCount = new Set(members.map((member) => member.locationFacet).filter(Boolean)).size;
+  const coachingCount = members.filter((member) => member.openToMentoring).length;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative bg-primary py-24 sm:py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/15 via-transparent to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-6">
+      {/* Masthead */}
+      <section className="border-b border-border bg-secondary/40">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent">
               Our Network
             </p>
-            <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl text-balance">
+            <h1 className="mt-5 font-serif text-4xl font-medium tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance">
               Member Directory
             </h1>
-            <p className="mt-8 text-lg text-primary-foreground/70 max-w-2xl mx-auto leading-relaxed">
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               Connect with inspiring businesswomen across Yorkshire.
             </p>
+
+            {members.length > 0 && (
+              <div className="mt-10 flex flex-wrap items-center gap-x-12 gap-y-6 border-t border-border pt-6">
+                <Stat value={members.length} label="Members listed" />
+                <Stat value={locationCount} label="Yorkshire locations" />
+                <Stat value={coachingCount} label="Open to coaching" />
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Content Section */}
+      {/* Directory */}
       <section className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
         {members.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
