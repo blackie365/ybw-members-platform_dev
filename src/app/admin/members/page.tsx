@@ -67,6 +67,7 @@ type MembershipAuditSummary = {
   rowsWithIssues: number
   ghostMissing: number
   ghostOnlyCount: number
+  eventInterestCount: number
   stripeConfigured: boolean
   ghostConfigured: boolean
 }
@@ -105,6 +106,7 @@ function AdminMembersContent() {
   const [auditRows, setAuditRows] = useState<MembershipAuditRow[]>([])
   const [auditSummary, setAuditSummary] = useState<MembershipAuditSummary | null>(null)
   const [ghostOnlyMembers, setGhostOnlyMembers] = useState<GhostOnlyMember[]>([])
+  const [eventInterestContacts, setEventInterestContacts] = useState<GhostOnlyMember[]>([])
   const [loadingAudit, setLoadingAudit] = useState(false)
   const [auditLoaded, setAuditLoaded] = useState(false)
 
@@ -162,6 +164,7 @@ function AdminMembersContent() {
         setAuditRows((res.data.rows || []) as MembershipAuditRow[])
         setAuditSummary((res.data.summary || null) as MembershipAuditSummary | null)
         setGhostOnlyMembers((res.data.ghostOnlyMembers || []) as GhostOnlyMember[])
+        setEventInterestContacts((res.data.eventInterestContacts || []) as GhostOnlyMember[])
         setAuditLoaded(true)
       } else {
         alert("Failed to load membership audit: " + (res.error || "Unknown error"))
@@ -762,6 +765,7 @@ function AdminMembersContent() {
             rows={auditRows}
             summary={auditSummary}
             ghostOnlyMembers={ghostOnlyMembers}
+            eventInterestContacts={eventInterestContacts}
             loading={loadingAudit}
             onRefresh={fetchMembershipAudit}
           />
