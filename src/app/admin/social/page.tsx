@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -15,6 +17,11 @@ import {
   SkipForward,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DeployStalenessBanner,
+  isActionNotFoundError,
+  useBuildStaleness,
+} from '@/components/admin/DeployStalenessBanner';
 import {
   decideSocialPostAction,
   getSocialOverviewAction,
@@ -63,16 +70,39 @@ export default function SocialAdminPage() {
   const [loading, setLoading] = useState(true);
   const [queueing, setQueueing] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [showHandled, setShowHandled] = useState(false);
+
+  const staleness = useBuildStaleness();
+  const stalenessRef = useRef(staleness);
+  useEffect(() => {
+    stalenessRef.current = staleness;
+  }, [staleness]);
+
+  // A stale build rejects every server action ("Failed to find Server Action").
+  // Surface that in the banner instead of leaving a button spinning forever.
+  const reportActionError = useCallback((error: unknown, fallback: string) => {
+    const stale = isActionNotFoundError(error);
+    if (stale) {
+      stalenessRef.current.markStaleFromError(stale);
+      return;
+    }
+    toast.error(error instanceof Error && error.message ? error.message : fallback);
+  }, []);
 
   const load = useCallback(async () => {
-    const res = await getSocialOverviewAction();
-    if (res.success && res.overview) {
-      setOverview(res.overview);
-    } else {
-      toast.error(res.error || 'Failed to load the social queue');
+    try {
+      const res = await getSocialOverviewAction();
+      if (res.success && res.overview) {
+        setOverview(res.overview);
+      } else {
+        toast.error(res.error || 'Failed to load the social queue');
+      }
+    } catch (error) {
+      reportActionError(error, 'Failed to load the social queue');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, []);
+  }, [reportActionError]);
 
   useEffect(() => {
     load();
@@ -80,18 +110,23 @@ export default function SocialAdminPage() {
 
   const handleQueueNext = async () => {
     setQueueing(true);
-    const res = await queueNextSocialPostAction();
-    if (res.success) {
-      if (res.result?.queued) {
-        toast.success(`Queued “${res.result.article?.title}” — approval email sent.`);
+    try {
+      const res = await queueNextSocialPostAction();
+      if (res.success) {
+        if (res.result?.queued) {
+          toast.success(`Queued “${res.result.article?.title}” — approval email sent.`);
+        } else {
+          toast.info(res.result?.reason || 'Nothing new to queue.');
+        }
+        await load();
       } else {
-        toast.info(res.result?.reason || 'Nothing new to queue.');
+        toast.error(res.error || 'Queueing failed');
       }
-      await load();
-    } else {
-      toast.error(res.error || 'Queueing failed');
+    } catch (error) {
+      reportActionError(error, 'Queueing failed');
+    } finally {
+      setQueueing(false);
     }
-    setQueueing(false);
   };
 
   const handleDecision = async (row: SocialQueueRow, decision: 'approved' | 'skipped') => {
@@ -107,20 +142,25 @@ export default function SocialAdminPage() {
     if (!confirmed) return;
 
     setBusyId(row.id);
-    const res = await decideSocialPostAction(row.id, decision);
-    if (res.success && res.result) {
-      if (res.result.status === 'published' || res.result.status === 'skipped') {
-        toast.success(res.result.message);
-      } else if (res.result.status === 'already-handled') {
-        toast.info(res.result.message);
+    try {
+      const res = await decideSocialPostAction(row.id, decision);
+      if (res.success && res.result) {
+        if (res.result.status === 'published' || res.result.status === 'skipped') {
+          toast.success(res.result.message);
+        } else if (res.result.status === 'already-handled') {
+          toast.info(res.result.message);
+        } else {
+          toast.warning(res.result.message);
+        }
       } else {
-        toast.warning(res.result.message);
+        toast.error(res.error || 'Action failed');
       }
-    } else {
-      toast.error(res.error || 'Action failed');
+      await load();
+    } catch (error) {
+      reportActionError(error, 'Action failed');
+    } finally {
+      setBusyId(null);
     }
-    await load();
-    setBusyId(null);
   };
 
   const handleUnskip = async (row: SocialQueueRow) => {
@@ -128,18 +168,23 @@ export default function SocialAdminPage() {
     if (!window.confirm(`Put “${label}” back in the queue?`)) return;
 
     setBusyId(row.id);
-    const res = await unskipSocialPostAction(row.id);
-    if (res.success && res.result) {
-      if (res.result.status === 'reopened') {
-        toast.success(res.result.message);
+    try {
+      const res = await unskipSocialPostAction(row.id);
+      if (res.success && res.result) {
+        if (res.result.status === 'reopened') {
+          toast.success(res.result.message);
+        } else {
+          toast.info(res.result.message);
+        }
       } else {
-        toast.info(res.result.message);
+        toast.error(res.error || 'Action failed');
       }
-    } else {
-      toast.error(res.error || 'Action failed');
+      await load();
+    } catch (error) {
+      reportActionError(error, 'Action failed');
+    } finally {
+      setBusyId(null);
     }
-    await load();
-    setBusyId(null);
   };
 
   if (loading) {
@@ -152,9 +197,12 @@ export default function SocialAdminPage() {
   }
 
   const rows = overview?.rows ?? [];
+  const handledCount = rows.filter((row) => row.status !== 'pending').length;
+  const visibleRows = showHandled ? rows : rows.filter((row) => row.status === 'pending');
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
+      <DeployStalenessBanner api={staleness} />
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground flex items-center gap-3">
@@ -217,21 +265,43 @@ export default function SocialAdminPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="font-serif">Queue</CardTitle>
-          <CardDescription>
-            Newest first. Each article is queued once — a posted or skipped article is never queued
-            again.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <CardTitle className="font-serif">Queue</CardTitle>
+            <CardDescription>
+              Newest first. Each article is queued once — a posted or skipped article is never queued
+              again. Handled items are cleared from view but kept on record.
+            </CardDescription>
+          </div>
+          {handledCount > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setShowHandled((v) => !v)}
+            >
+              {showHandled ? (
+                <EyeOff className="h-4 w-4 mr-2" />
+              ) : (
+                <Eye className="h-4 w-4 mr-2" />
+              )}
+              {showHandled ? 'Clear handled' : `Show handled (${handledCount})`}
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               Nothing queued yet. Use “Queue next article” to add the most recent story.
             </div>
+          ) : visibleRows.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Nothing waiting for a decision — {handledCount} handled{' '}
+              {handledCount === 1 ? 'item' : 'items'} cleared.
+            </div>
           ) : (
             <ul className="space-y-6">
-              {rows.map((row) => (
+              {visibleRows.map((row) => (
                 <li key={row.id} className="flex gap-5 border-b last:border-b-0 pb-6 last:pb-0">
                   {row.slug ? (
                     // eslint-disable-next-line @next/next/no-img-element

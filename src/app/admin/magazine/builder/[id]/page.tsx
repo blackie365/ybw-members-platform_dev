@@ -37,7 +37,7 @@ import {
   DeployStalenessBanner,
   useBuildStaleness,
   isActionNotFoundError,
-} from '@/app/admin/magazine/builder/_components/DeployStalenessBanner';
+} from '@/components/admin/DeployStalenessBanner';
 
 import { MagazineIssue, MagazinePage } from '@/components/admin/magazine-builder/types';
 import { extractPrintPageNumberFromBuilderPage, mergeDisplayedPages } from '@/features/magazine/domain/builder-to-reader';

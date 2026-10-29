@@ -5,6 +5,18 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
+/**
+ * Detect that the tab is running an older Next.js build than the one on the
+ * server.
+ *
+ * Server Action ids are derived from the build, so after a deploy every action
+ * call from a tab that was open before the restart is rejected with
+ * "Failed to find Server Action <hash>". Nothing is saved, and callers that do
+ * not catch the rejection (or never reset their "busy" flag) look like they
+ * simply hang. Shared by the magazine builder and the admin Social screen —
+ * both are long-lived admin tabs that survive deploys.
+ */
+
 type StalenessAPI = {
   isStale: boolean;
   detectedAt: Date | null;
@@ -13,18 +25,23 @@ type StalenessAPI = {
   markStaleFromError: (reason: string) => void;
 };
 
-const STALE_WINDOW_KEY = '__YBW_MAG_BUILDER_CURRENT_BUILD_ID__';
+const STALE_WINDOW_KEY = '__YBW_CURRENT_BUILD_ID__';
 const POLL_MS = 45_000;
 
-function isActionNotFoundError(err: unknown): string | null {
+// The client throws "Failed to find Server Action <hash>"; the server can also
+// answer "Server action not found." (HTTP 404). Both mean the tab's build is
+// older than the deploy.
+const STALE_ACTION_RE = /Failed to find Server Action|Server action not found|older or newer deployment/i;
+
+export function isActionNotFoundError(err: unknown): string | null {
   if (!err) return null;
   if (typeof err === 'string') {
-    if (/Failed to find Server Action/i.test(err)) return err;
+    if (STALE_ACTION_RE.test(err)) return err;
     return null;
   }
   if (err instanceof Error) {
     const msg = err.message || '';
-    if (/Failed to find Server Action/i.test(msg)) return msg;
+    if (STALE_ACTION_RE.test(msg)) return msg;
   }
   const asObj = err as Record<string, unknown> | null | undefined;
   if (!asObj) return null;
@@ -32,7 +49,7 @@ function isActionNotFoundError(err: unknown): string | null {
   const errMsg = typeof asObj.message === 'string' ? asObj.message : '';
   const errorStr = typeof asObj.error === 'string' ? asObj.error : '';
   const combined = `${digest}\n${errMsg}\n${errorStr}`;
-  if (/Failed to find Server Action/i.test(combined)) return combined;
+  if (STALE_ACTION_RE.test(combined)) return combined;
   return null;
 }
 
@@ -88,9 +105,9 @@ function useBuildStaleness(): StalenessAPI {
     setIsStale(true);
     setDetectedAt(new Date());
     toast.error(
-      'New version deployed — your browser is running an older build and saves will silently fail.',
+      'New version deployed — this tab is running an older build and actions will silently fail.',
       {
-        description: 'Click Reload App in the banner to load the latest version and keep your work safe.',
+        description: 'Click Reload App in the banner to load the latest version, then try again.',
         duration: 12_000,
         closeButton: true,
       },
@@ -134,7 +151,7 @@ function useBuildStaleness(): StalenessAPI {
           `[DeployStaleness] build id changed via poll: was ${base}, now ${latest}`,
         );
         toast.warning(
-          'New magazine builder version is live. Reload soon to avoid save failures from stale action IDs.',
+          'New version is live. Reload soon to avoid failures from stale action IDs.',
           {
             description: 'Use the banner button or Cmd/Ctrl+Shift+R to reload safely.',
             duration: 18_000,
@@ -155,7 +172,7 @@ function useBuildStaleness(): StalenessAPI {
   return { isStale, detectedAt, currentBuildId, newBuildId, markStaleFromError };
 }
 
-export { useBuildStaleness, isActionNotFoundError };
+export { useBuildStaleness };
 export type { StalenessAPI };
 
 export function DeployStalenessBanner({ api }: { api: StalenessAPI }) {
@@ -164,7 +181,7 @@ export function DeployStalenessBanner({ api }: { api: StalenessAPI }) {
     try {
       if (typeof window !== 'object' || !window.location) return;
       setReloading(true);
-      toast.success('Reloading latest magazine builder...');
+      toast.success('Reloading latest version...');
       setTimeout(() => {
         window.location.reload();
       }, 250);
@@ -193,13 +210,12 @@ export function DeployStalenessBanner({ api }: { api: StalenessAPI }) {
         />
         <div className="min-w-0 space-y-0.5">
           <p className="text-sm font-semibold text-amber-900">
-            New magazine builder version deployed
+            New version deployed
             {detectedAtText ? ` · detected ${detectedAtText}` : ''}
           </p>
           <p className="text-xs leading-relaxed text-amber-800/90">
-            Your tab is still running an older build and <strong>saves will silently fail</strong>
-            because Next.js Server Action IDs have changed. Reload once to get the latest
-            fast-save bundle and keep your edits flowing through correctly.
+            This tab is still running an older build and <strong>actions will silently fail</strong>
+            because Next.js Server Action IDs have changed. Reload once, then repeat the action.
           </p>
           {api.currentBuildId || api.newBuildId ? (
             <p className="font-mono text-[10px] tracking-tight text-amber-900/70">
