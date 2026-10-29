@@ -15,7 +15,7 @@ import { Search, Download, Loader2, UserCog, Calendar, Tag, ShieldCheck, Eye, Ey
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts } from "@/lib/ghost";
 import { partitionEventsByDate } from "@/lib/events";
-import { getAllEventsMetadata, updateEventMetadata, getFeaturedHomepageEvent, setFeaturedHomepageEvent as setFeaturedHomepageEventAction, type FeaturedHomepageEvent } from "@/app/actions/eventActions";
+import { getAllEventsMetadata, updateEventMetadata, getFeaturedHomepageEvent, setFeaturedHomepageEvent as setFeaturedHomepageEventAction, getAllEventGuests, setEventGuests, type FeaturedHomepageEvent } from "@/app/actions/eventActions";
 
 // Import domain-specific actions
 import { 
@@ -99,6 +99,7 @@ function AdminMembersContent() {
   const [editingMemberPrice, setEditingMemberPrice] = useState<Record<string, string>>({})
   const [featuredHomepageEvent, setFeaturedHomepageEvent] = useState<FeaturedHomepageEvent | null>(null)
   const [settingFeatured, setSettingFeatured] = useState(false)
+  const [eventsGuests, setEventsGuests] = useState<Record<string, string[]>>({})
 
   // Offers state
   const [offers, setOffers] = useState<Offer[]>([])
@@ -250,10 +251,11 @@ function AdminMembersContent() {
   const fetchEvents = async () => {
     setLoadingEvents(true)
     try {
-      const [ghostEvents, metadataRes, featuredRes] = await Promise.all([
+      const [ghostEvents, metadataRes, featuredRes, guestsRes] = await Promise.all([
         getPosts({ filter: 'tag:events', limit: 'all' }),
         getAllEventsMetadata(),
         getFeaturedHomepageEvent().catch(() => ({ success: false, data: null }) as const),
+        getAllEventGuests().catch(() => ({ success: false, data: undefined }) as const),
       ])
       // Ghost returns events by publish date. Managers expect them in the order
       // they actually happen, with anything already held pushed to the bottom.
@@ -281,6 +283,10 @@ function AdminMembersContent() {
 
       if (featuredRes.success && typeof featuredRes.data !== 'undefined') {
         setFeaturedHomepageEvent(featuredRes.data || null)
+      }
+
+      if (guestsRes.success && guestsRes.data) {
+        setEventsGuests(guestsRes.data)
       }
     } catch (error) {
       console.error("Failed to fetch events:", error)
@@ -311,6 +317,25 @@ function AdminMembersContent() {
       alert("Failed to set featured home-page event")
     } finally {
       setSettingFeatured(false)
+    }
+  }
+
+  const handleSaveGuests = async (slug: string, names: string[]): Promise<boolean> => {
+    try {
+      const res = await setEventGuests(slug, names)
+      if (res.success) {
+        setEventsGuests(prev => ({
+          ...prev,
+          [slug]: names.map(n => n.trim()).filter(Boolean),
+        }))
+        return true
+      }
+      alert("Failed to save sign-ups: " + (res.error || "Unknown error"))
+      return false
+    } catch (err) {
+      console.error("Failed to save sign-ups:", err)
+      alert("Failed to save sign-ups")
+      return false
     }
   }
 
@@ -724,6 +749,8 @@ function AdminMembersContent() {
                   featuredHomepageSlug={featuredHomepageEvent?.slug ?? null}
                   settingFeatured={settingFeatured}
                   onSetFeaturedHomepage={handleSetFeaturedHomepage}
+                  eventsGuests={eventsGuests}
+                  onSaveGuests={handleSaveGuests}
                 />
               )}
             </CardContent>
