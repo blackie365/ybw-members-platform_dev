@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { addBeehiivSubscriber } from '@/lib/beehiiv';
-import { addGhostMember } from '@/lib/ghost-admin';
 import { getMemberStore } from '@/features/members/server';
 import { getPgEventInterestStore } from '@/features/events/server/pg-events-store';
 import { sendEmail } from '@/lib/email';
@@ -132,9 +131,7 @@ export async function POST(request: Request) {
     error?: string;
     httpStatus?: number;
   } = { success: false, alreadyExists: false };
-  let ghostResult = false;
   let adminEmailResult: { success?: boolean; mock?: boolean; id?: string } | null = null;
-
   try {
     const existing = await getPgEventInterestStore().get(interestRecordId);
     const createdAt = new Date().toISOString();
@@ -237,19 +234,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // 3) Ghost member sync (non-critical)
-  try {
-    const ghostRes = await addGhostMember({
-      email,
-      name: firstName || email.split('@')[0],
-      labels: ['event-interest', eventId || 'event-popover'].filter(Boolean),
-    });
-    ghostResult = !!ghostRes;
-  } catch (error: any) {
-    console.warn('[API/Events/Interest] Ghost sync skipped:', error?.message || error);
-  }
-
-  // 4) Admin notification email (non-critical)
+  // 3) Admin notification email (non-critical)
   // Fallback chain: explicit ADMIN_NOTIFICATION_EMAIL override (Vercel secret)
   // → config.adminEmail (ADMIN_EMAIL env var → editor@… default). This matches
   // the pattern used by /api/emails/welcome and ensures we always have a valid
@@ -290,7 +275,6 @@ export async function POST(request: Request) {
       details: {
         interestCreated,
         beehiiv: beehiivResult,
-        ghost: ghostResult,
         adminNotified: adminEmailResult ? adminEmailResult.success || adminEmailResult.mock : false,
       },
     },

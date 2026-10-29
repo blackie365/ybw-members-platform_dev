@@ -1,8 +1,7 @@
-import { addGhostMember } from '@/lib/ghost-admin';
 import { getMemberStore } from '@/features/members/server';
 import { sendEmail, bareEmail } from '@/lib/email';
 import { getNewsletterWelcomeEmailTemplate, getNewsletterSignupAlertTemplate } from '@/lib/email-templates';
-import { addBeehiivSubscriber, isBeehiivConfigured } from '@/lib/beehiiv';
+import { addBeehiivSubscriber } from '@/lib/beehiiv';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { config } from '@/lib/config';
 
@@ -174,24 +173,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 2: Add to Ghost (Non-critical)
-    let ghostResult = false;
-    try {
-      const displayName = [firstName, lastName].filter(Boolean).join(' ').trim();
-      const ghostLabels = ['newsletter-signup'];
-      if (isBeehiivConfigured()) ghostLabels.push('beehiiv-sync');
-      const ghostRes = await addGhostMember({
-        email,
-        name: displayName || undefined,
-        labels: ghostLabels,
-      });
-      ghostResult = !!ghostRes;
-    } catch (ghostError: unknown) {
-      const msg = ghostError instanceof Error ? ghostError.message : String(ghostError);
-      console.warn('⚠️ [API/Newsletter] Ghost sync skipped:', msg);
-    }
-
-    // Step 3: Add to the member profile store (Non-critical)
+    // Step 2: Add to the member profile store (Non-critical)
     try {
       const store = getMemberStore();
 
@@ -405,7 +387,6 @@ export async function POST(request: Request) {
           error: beehiivResult.error,
           httpStatus: beehiivResult.httpStatus,
         },
-        ghost: ghostResult,
         welcomeEmail: {
           sent: welcomeEmail.success && !welcomeEmail.mock,
           mock: Boolean(welcomeEmail.mock),
