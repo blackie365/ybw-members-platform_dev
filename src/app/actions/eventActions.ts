@@ -5,6 +5,8 @@ import { checkAdmin } from '@/lib/server/auth-utils';
 import { currentUser } from '@clerk/nextjs/server';
 import { getSystemStore } from '@/features/system/server/system-store';
 import { getPgEventStore, getPgEventAttendeeStore } from '@/features/events/server/pg-events-store';
+import { getMemberStore } from '@/features/members/server';
+import type { MemberProfile } from '@/features/members/server/member-store';
 
 /**
  * Fetches event metadata from Postgres by its slug.
@@ -67,6 +69,84 @@ export async function getAllEventGuests() {
   }
 }
 
+const HONORIFICS = new Set(['mr', 'mrs', 'miss', 'ms', 'dr', 'sir', 'lady', 'prof', 'professor', 'rev']);
+
+function normaliseName(value: string): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Name tokens with any leading title ("MRS", "Dr") removed. */
+function nameTokens(value: string): string[] {
+  const tokens = normaliseName(value).split(' ').filter(Boolean);
+  while (tokens.length > 1 && HONORIFICS.has(tokens[0])) tokens.shift();
+  return tokens;
+}
+
+interface MemberMatch {
+  clerkId: string;
+  image: string;
+}
+
+interface MemberIndex {
+  byFullName: Map<string, MemberMatch[]>;
+  bySurnameInitial: Map<string, MemberMatch[]>;
+}
+
+/**
+ * Index visible, active members so an off-site guest name can be matched back
+ * to a profile: first on the full name, then on surname + first-name initial
+ * (catches profiles stored as initials, e.g. "C L Strachan").
+ */
+function buildMemberIndex(members: MemberProfile[]): MemberIndex {
+  const byFullName = new Map<string, MemberMatch[]>();
+  const bySurnameInitial = new Map<string, MemberMatch[]>();
+  const add = (map: Map<string, MemberMatch[]>, key: string, match: MemberMatch) => {
+    if (!key) return;
+    const list = map.get(key);
+    if (list) list.push(match);
+    else map.set(key, [match]);
+  };
+
+  for (const profile of members) {
+    const name = String(profile.displayName ?? '').trim();
+    const clerkId = String(profile.clerkId ?? '').trim();
+    if (!name || !clerkId) continue;
+    const tokens = nameTokens(name);
+    if (!tokens.length) continue;
+    const match: MemberMatch = {
+      clerkId,
+      image: typeof profile.profileImage === 'string' ? profile.profileImage : '',
+    };
+    add(byFullName, tokens.join(' '), match);
+    if (tokens.length >= 2) {
+      add(bySurnameInitial, `${tokens[tokens.length - 1]}|${tokens[0][0]}`, match);
+    }
+  }
+  return { byFullName, bySurnameInitial };
+}
+
+/** Only accept an unambiguous match, so we never link the wrong profile. */
+function matchMember(name: string, index: MemberIndex): MemberMatch | null {
+  const tokens = nameTokens(name);
+  if (!tokens.length) return null;
+  const onlyMatch = (list?: MemberMatch[]) => (list && list.length === 1 ? list[0] : null);
+
+  const exact = onlyMatch(index.byFullName.get(tokens.join(' ')));
+  if (exact) return exact;
+  if (tokens.length >= 2) {
+    const byInitial = onlyMatch(
+      index.bySurnameInitial.get(`${tokens[tokens.length - 1]}|${tokens[0][0]}`),
+    );
+    if (byInitial) return byInitial;
+  }
+  return null;
+}
+
 /**
  * Admin UI: replace the off-site guest list for one event.
  * Names already held as a real web RSVP are skipped so they don't appear twice.
@@ -81,19 +161,24 @@ export async function setEventGuests(slug: string, names: string[]) {
     const existingNames = new Set(
       existing
         .filter((a) => !a.attendeeKey.startsWith('guest:'))
-        .map((a) => String(a.data?.name ?? '').trim().toLowerCase())
+        .map((a) => normaliseName(String(a.data?.name ?? '')))
         .filter(Boolean),
     );
 
-    const cleaned: Array<{ name: string }> = [];
+    const memberIndex = buildMemberIndex(await getMemberStore().getAllActive());
+
+    const cleaned: Array<{ name: string; memberUid?: string; image?: string }> = [];
     const seen = new Set<string>();
     for (const raw of Array.isArray(names) ? names : []) {
       const name = String(raw ?? '').trim();
       if (!name) continue;
-      const key = name.toLowerCase();
-      if (seen.has(key) || existingNames.has(key)) continue;
+      const key = normaliseName(name);
+      if (!key || seen.has(key) || existingNames.has(key)) continue;
       seen.add(key);
-      cleaned.push({ name });
+      const match = matchMember(name, memberIndex);
+      cleaned.push(
+        match ? { name, memberUid: match.clerkId, image: match.image } : { name },
+      );
     }
 
     const count = await store.replaceGuests(slug, cleaned);

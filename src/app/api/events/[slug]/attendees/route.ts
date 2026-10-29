@@ -6,6 +6,11 @@ export const dynamic = 'force-dynamic';
 
 interface AttendeePayload {
   uid?: string;
+  /**
+   * Profile of the member this off-site guest was matched to. Kept separate
+   * from `uid` so the RSVP toggle is never triggered for an admin-added guest.
+   */
+  memberUid?: string;
   email?: string;
   name: string;
   image?: string;
@@ -27,6 +32,7 @@ export async function GET(
       const d = r.data;
       return {
         uid: typeof d.uid === 'string' ? d.uid : r.userId,
+        memberUid: typeof d.memberUid === 'string' ? d.memberUid : undefined,
         email: typeof d.email === 'string' ? d.email : r.email,
         name:
           typeof d.name === 'string'

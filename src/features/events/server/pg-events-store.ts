@@ -541,7 +541,7 @@ export class PgEventAttendeeStore {
    */
   async replaceGuests(
     eventSlug: string,
-    guests: Array<{ name: string; email?: string }>,
+    guests: Array<{ name: string; email?: string; memberUid?: string; image?: string }>,
   ): Promise<number> {
     if (!eventSlug) return 0;
     if (!(await ready())) throw new Error('[PgEventAttendeeStore] Postgres schema not ready');
@@ -561,7 +561,14 @@ export class PgEventAttendeeStore {
         const email =
           typeof g.email === 'string' && g.email.trim() ? g.email.trim().toLowerCase() : null;
         const key = `guest:${email ?? name.toLowerCase().replace(/\s+/g, '-')}`;
-        const data = { name, email, source: 'admin', timestamp: now.toISOString() };
+        const data: Record<string, unknown> = {
+          name,
+          email,
+          source: 'admin',
+          timestamp: now.toISOString(),
+        };
+        if (g.memberUid) data.memberUid = g.memberUid;
+        if (g.image) data.image = g.image;
         await client.query(
           `INSERT INTO event_attendees
              (event_slug, attendee_key, user_id, email, has_ticket, created_at, updated_at, data)
