@@ -33,11 +33,11 @@ const VALID_TIERS = new Set([
 ]);
 
 /**
- * Tier drives the quiet gold accent on a card. Membership the member is paying
- * for (or founded) is marked; complimentary and free memberships are not, so
- * the accent keeps meaning something rather than decorating the whole grid.
+ * Tier drives the quiet gold accent on a card: members on a paid membership
+ * (monthly or annual) and those on a complimentary one. Free members never
+ * carry the accent.
  */
-const PREMIUM_TIERS = new Set(['paid', 'paid_monthly', 'paid_annual', 'premium', 'founder']);
+const PREMIUM_TIERS = new Set(['paid', 'paid_monthly', 'paid_annual', 'complimentary']);
 
 function isConfigured(): boolean {
   return Boolean(
