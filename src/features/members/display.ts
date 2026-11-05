@@ -98,10 +98,19 @@ export function locationFacet(location: string): string {
   return location.split(/[/,]/)[0].trim();
 }
 
+/**
+ * The two letters a member is monogrammed with. They come from the name that is
+ * printed under the monogram, not from the stored first/last pair, because many
+ * records carry a middle initial ahead of the surname ("M Beardsell", "M Rhodes")
+ * — read literally that produces the middle initial where the surname's belongs,
+ * so the monogram stops matching the name beside it.
+ *
+ * The stored pair is only a fallback, for the odd single-word display name.
+ */
 export function initialsFor(firstName: string, lastName: string, name: string): string {
-  if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
   const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
 
