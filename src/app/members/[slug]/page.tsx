@@ -1,13 +1,24 @@
-import { getMemberStore } from '@/features/members/server';
-import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, ArrowUpRight, Globe, Instagram, Linkedin, MapPin, Twitter } from 'lucide-react';
+
 import { AdminControlWrapper } from '@/components/AdminControlWrapper';
 import { ConnectButton } from '@/components/ConnectButton';
-import { ArrowLeft, MapPin, Globe, Linkedin, Twitter, Instagram } from 'lucide-react';
+import {
+  AVAILABILITY_FLAGS,
+  asString,
+  displayNameOf,
+  initialsFor,
+  isPremiumTier,
+  resolvePortrait,
+} from '@/features/members/display';
+import { MemberPortrait, type PortraitSubject } from '@/components/MemberCard';
+import { getMemberStore } from '@/features/members/server';
 
 export const dynamic = 'force-dynamic';
+
+const EYEBROW = 'text-[11px] font-medium uppercase tracking-[0.17em] text-ink-muted';
 
 async function getMember(slug: string) {
   try {
@@ -41,7 +52,11 @@ async function getMember(slug: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const resolvedParams = await params;
   const member = await getMember(resolvedParams.slug);
 
@@ -49,29 +64,52 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: 'Member Not Found' };
   }
 
-  const firstName = member.firstName || '';
-  const lastName = member.lastName || '';
-  const fullName = `${firstName} ${lastName}`.trim() || member.displayName || 'Unknown Member';
-  const profileImage = member.avatarUrl || member.profileImage;
-  const title = member.jobTitle ? `${member.jobTitle} at ${member.companyName}` : (member.companyName || '');
-  const description = member.bio || `View ${fullName}'s profile on Yorkshire Businesswoman.`;
+  const data = member as Record<string, unknown>;
+  const fullName = displayNameOf(data) || 'Member';
+  const role = asString(data.jobTitle) || asString(data.role);
+  const company = asString(data.companyName) || asString(data.company);
+  const portrait = resolvePortrait(data);
 
   return {
     title: `${fullName} | Member Directory`,
-    description: description,
+    description: asString(data.bio) || `View ${fullName}'s profile on Yorkshire Businesswoman.`,
     alternates: {
       canonical: `/members/${resolvedParams.slug}`,
     },
     openGraph: {
-      title: `${fullName} - ${title}`,
-      description: description,
+      title: role && company ? `${fullName} - ${role} at ${company}` : `${fullName} - Member Directory`,
+      description: asString(data.bio) || `View ${fullName}'s profile on Yorkshire Businesswoman.`,
       url: `/members/${resolvedParams.slug}`,
       type: 'profile',
-      images: profileImage ? [{ url: profileImage }] : [],
+      images: portrait.hasImage ? [{ url: portrait.image }] : [],
     },
   };
 }
 
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim() !== '');
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h2 className={EYEBROW}>{children}</h2>;
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-5 border-b border-border py-2.5">
+      <dt className="text-[12px] uppercase tracking-[0.13em] text-ink-muted">{label}</dt>
+      <dd className="text-right text-[13.5px] text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * The member's own page, built from the same parts as the directory entry above
+ * it: one large portrait plate, the name in Playfair, and hairline rules doing
+ * the dividing. It is the destination of the register's "Open member profile"
+ * action, so the visitor should not feel they have left the register.
+ */
 export default async function MemberProfilePage({
   params,
 }: {
@@ -84,264 +122,176 @@ export default async function MemberProfilePage({
     notFound();
   }
 
-  // Find the best image URL, preferring storage over gravatar
-  const avatarUrl = member.avatarUrl || "";
-  const profileImageSource = member.profileImage || "";
-  const imageCandidates = [avatarUrl, profileImageSource, member.image];
-  const realPhotosFirst = imageCandidates.filter((url: any) =>
-    url && typeof url === 'string' && (
-      url.startsWith('/uploads/') ||
-      (url.startsWith('http') && !url.includes('gravatar.com/avatar'))
-    )
-  );
-  const profileImage = realPhotosFirst[0] || profileImageSource || avatarUrl;
+  const data = member as Record<string, unknown>;
 
-  // Check if image is a blank gravatar
-  const isBlankGravatar = typeof profileImage === 'string' && profileImage.includes('gravatar.com/avatar') && profileImage.includes('d=blank');
-  const hasRealImage = profileImage && !isBlankGravatar;
+  const firstName = asString(data.firstName);
+  const lastName = asString(data.lastName);
+  const name = displayNameOf(data) || 'Member';
+  const role = asString(data.jobTitle) || asString(data.role);
+  const company = asString(data.companyName) || asString(data.company);
+  const location = asString(data.location) || asString(data.city);
+  const bio = asString(data.bio);
+  const industry = asString(data.industrySector);
+  const services = stringList(data.services);
+  const expertise = stringList(data.tags);
+  const website = asString(data.website) || asString(data.websiteUrl);
+  const linkedin = asString(data.linkedinUrl) || asString(data.linkedin);
+  const twitter = asString(data.twitterUrl);
+  const instagram = asString(data.instagramUrl);
+  const isFeatured = data.isFeatured === true;
+  const tier = asString(data.membershipTier) || 'free';
 
-  const firstName = member.firstName || member.displayName?.split(' ')[0] || '';
-  const lastName = member.lastName || member.displayName?.split(' ').slice(1).join(' ') || '';
-  const initial = firstName ? firstName[0].toUpperCase() : (member.displayName?.[0] || '?').toUpperCase();
-  const bio = member.bio || '';
-  const isFeatured = member.isFeatured === true;
+  const availability = AVAILABILITY_FLAGS.filter((flag) => data[flag.key] === true);
+
+  const portrait: PortraitSubject = {
+    name,
+    initials: initialsFor(firstName, lastName, name),
+    role,
+    company,
+    isPremium: isPremiumTier(tier),
+    ...resolvePortrait(data),
+  };
+
+  const links = [
+    { key: 'website', label: 'Website', href: website, Icon: Globe, display: website.replace(/^https?:\/\/(www\.)?/, '') },
+    { key: 'linkedin', label: 'LinkedIn', href: linkedin, Icon: Linkedin, display: 'LinkedIn' },
+    { key: 'twitter', label: 'Twitter', href: twitter, Icon: Twitter, display: 'Twitter' },
+    { key: 'instagram', label: 'Instagram', href: instagram, Icon: Instagram, display: 'Instagram' },
+  ].filter((link) => Boolean(link.href));
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <div className="relative bg-primary py-16 sm:py-24">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.05),transparent_50%)]" />
-        </div>
-        
-        <div className="relative mx-auto max-w-5xl px-6 lg:px-8">
-          {/* Back link */}
+    <div className="bg-background">
+      <section className="mx-auto w-full max-w-[1180px] px-4 pb-20 pt-10 sm:px-6">
+        <div className="flex items-baseline justify-between gap-6 border-b border-border pb-4">
           <Link
             href="/members"
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary-foreground/70 hover:text-primary-foreground transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.17em] text-ink-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Directory
+            <ArrowLeft className="size-3.5" aria-hidden />
+            All members
           </Link>
+          <p className={EYEBROW}>Member profile</p>
+        </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8">
-            {/* Avatar */}
-            <div className="relative h-32 w-32 sm:h-40 sm:w-40 rounded-full ring-4 ring-background shadow-xl overflow-hidden flex-shrink-0">
-              {hasRealImage ? (
-                <Image
-                  src={profileImage}
-                  alt={firstName}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 128px, 160px"
-                  priority
-                  unoptimized={
-                    typeof profileImage === 'string' &&
-                    (profileImage.includes('gravatar.com') ||
-                      profileImage.startsWith('/uploads/') ||
-                      profileImage.includes('img.clerk.com'))
-                  }
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-4xl sm:text-5xl font-serif font-medium text-accent bg-accent/10">
-                  {initial}
-                </div>
-              )}
-            </div>
+        <div className="mt-9 grid items-start gap-10 lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] lg:gap-16">
+          <div>
+            <MemberPortrait
+              member={portrait}
+              sizes="(min-width: 1024px) 400px, 100vw"
+              monogramSize="lg"
+              className="aspect-[271/264] lg:aspect-[4/5]"
+            />
 
-            {/* Name and title */}
-            <div className="text-center sm:text-left flex-1">
-              <h1 className="font-serif text-3xl sm:text-4xl font-medium text-primary-foreground">
-                {firstName} {lastName}
-              </h1>
-              {(member.jobTitle || member.companyName) && (
-                <p className="mt-2 text-lg text-primary-foreground/80">
-                  {member.jobTitle}{member.jobTitle && member.companyName && ' at '}{member.companyName}
-                </p>
-              )}
-              {member.location && (
-                <p className="mt-2 flex items-center justify-center sm:justify-start gap-1.5 text-sm text-primary-foreground/60">
-                  <MapPin className="w-4 h-4" />
-                  {member.location}
-                </p>
-              )}
-            </div>
+            <dl className="mt-5 border-t border-border">
+              {location && <DetailRow label="Based in" value={location} />}
+              {industry && <DetailRow label="Industry" value={industry} />}
+              {company && <DetailRow label="Company" value={company} />}
+              {isFeatured && <DetailRow label="Listing" value="Featured member" />}
+            </dl>
 
-            {/* Connect button */}
-            <div className="flex-shrink-0">
-              <ConnectButton recipientId={member.id} recipientName={firstName} />
+            <div className="mt-6">
+              <ConnectButton recipientId={member.id} recipientName={firstName || name} />
+              <AdminControlWrapper memberId={member.id} isCurrentlyFeatured={isFeatured} />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Admin controls */}
-      <div className="mx-auto max-w-5xl px-6 lg:px-8 py-4">
-        <AdminControlWrapper memberId={member.id} isCurrentlyFeatured={isFeatured} />
-      </div>
+          <div>
+            <h1 className="font-serif text-[40px] leading-[1.03] tracking-[-0.01em] text-foreground sm:text-[54px]">
+              {name}
+            </h1>
 
-      {/* Content */}
-      <div className="mx-auto max-w-5xl px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-10">
-            {/* Opportunities & Coaching */}
-            {(member.openToMentoring || member.seekingMentorship || member.openToBoardRoles) && (
-              <section className="bg-card border border-border p-6">
-                <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mb-4">
-                  Opportunities & Coaching
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {member.openToMentoring && (
-                    <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/20">
-                      Open to Coaching
-                    </span>
-                  )}
-                  {member.seekingMentorship && (
-                    <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/20">
-                      Seeking a Coach
-                    </span>
-                  )}
-                  {member.openToBoardRoles && (
-                    <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/20">
-                      Board Roles (NED)
-                    </span>
-                  )}
-                </div>
-              </section>
+            {role && <p className="mt-4 text-[15px] leading-[1.45] text-ink-soft">{role}</p>}
+            {company && (
+              <p className="text-[15px] font-medium leading-[1.45] text-foreground">{company}</p>
+            )}
+            {location && (
+              <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-muted">
+                <MapPin className="size-3.5 shrink-0" aria-hidden />
+                {location}
+              </p>
             )}
 
-            {/* About */}
+            {availability.length > 0 && (
+              <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2">
+                {availability.map((flag) => (
+                  <li key={flag.key} className="inline-flex items-center gap-2 text-[13px] text-accent">
+                    <span aria-hidden className="size-[5px] shrink-0 rounded-full bg-accent" />
+                    {flag.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {bio && (
-              <section>
-                <h2 className="font-serif text-2xl font-medium text-foreground mb-4">
-                  About
-                </h2>
-                <div className="prose prose-stone max-w-none">
-                  <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {bio}
-                  </p>
-                </div>
+              <section className="mt-9 border-t border-border pt-6">
+                <SectionLabel>About</SectionLabel>
+                <p className="mt-3 whitespace-pre-line text-[14.5px] leading-[1.7] text-ink-soft">
+                  {bio}
+                </p>
               </section>
             )}
 
-            {/* Services */}
-            {member.services && member.services.length > 0 && (
-              <section>
-                <h2 className="font-serif text-2xl font-medium text-foreground mb-4">
-                  Services
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {member.services.map((service: string, i: number) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-foreground bg-secondary border border-border"
+            {services.length > 0 && (
+              <section className="mt-8 border-t border-border pt-6">
+                <SectionLabel>Services</SectionLabel>
+                <ul className="mt-1">
+                  {services.map((service) => (
+                    <li
+                      key={service}
+                      className="border-b border-border py-2.5 text-[14px] leading-[1.5] text-ink-soft"
                     >
                       {service}
-                    </span>
+                    </li>
                   ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Expertise */}
-            {member.tags && member.tags.length > 0 && (
-              <section className="bg-card border border-border p-6">
-                <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mb-4">
-                  Expertise
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {member.tags.map((tag: string, i: number) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Connect Links */}
-            {(member.website || member.linkedinUrl || member.twitterUrl || member.instagramUrl) && (
-              <section className="bg-card border border-border p-6">
-                <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mb-4">
-                  Connect
-                </h2>
-                <ul className="space-y-4">
-                  {member.website && (
-                    <li>
-                      <a
-                        href={member.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-accent transition-colors"
-                      >
-                        <Globe className="w-5 h-5 flex-shrink-0" />
-                        <span className="truncate">{member.website.replace(/^https?:\/\//, '')}</span>
-                      </a>
-                    </li>
-                  )}
-                  {member.linkedinUrl && (
-                    <li>
-                      <a
-                        href={member.linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-accent transition-colors"
-                      >
-                        <Linkedin className="w-5 h-5 flex-shrink-0" />
-                        LinkedIn
-                      </a>
-                    </li>
-                  )}
-                  {member.twitterUrl && (
-                    <li>
-                      <a
-                        href={member.twitterUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-accent transition-colors"
-                      >
-                        <Twitter className="w-5 h-5 flex-shrink-0" />
-                        Twitter
-                      </a>
-                    </li>
-                  )}
-                  {member.instagramUrl && (
-                    <li>
-                      <a
-                        href={member.instagramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-sm text-muted-foreground hover:text-accent transition-colors"
-                      >
-                        <Instagram className="w-5 h-5 flex-shrink-0" />
-                        Instagram
-                      </a>
-                    </li>
-                  )}
                 </ul>
               </section>
             )}
 
-            {/* Industry/Sector */}
-            {member.industrySector && (
-              <section className="bg-card border border-border p-6">
-                <h2 className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground mb-4">
-                  Industry
-                </h2>
-                <p className="text-sm text-foreground">{member.industrySector}</p>
+            {expertise.length > 0 && (
+              <section className="mt-8 border-t border-border pt-6">
+                <SectionLabel>Expertise</SectionLabel>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {expertise.map((tag) => (
+                    <li
+                      key={tag}
+                      className="border border-rule-strong px-2.5 py-1 text-[12px] uppercase tracking-[0.08em] text-ink-soft"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {links.length > 0 && (
+              <section className="mt-8 border-t border-border pt-6">
+                <SectionLabel>Links</SectionLabel>
+                <ul className="mt-1">
+                  {links.map(({ key, label, href, Icon, display }) => (
+                    <li key={key}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-6 border-b border-border py-3 text-[13.5px] text-ink-soft transition-colors hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      >
+                        <span className="inline-flex items-center gap-2.5">
+                          <Icon className="size-4 shrink-0 text-ink-muted" aria-hidden />
+                          {label}
+                        </span>
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                          <span className="truncate">{display}</span>
+                          <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

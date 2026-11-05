@@ -1,10 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { MessageSquare } from 'lucide-react';
+
 import { useAuth } from '@/lib/AuthContext';
 import { ConnectionRequestModal } from './ConnectionRequestModal';
 
-export function ConnectButton({ recipientId, recipientName }: { recipientId: string, recipientName: string }) {
+/**
+ * The one action a member profile offers. Styled as the register's filled
+ * control rather than a rounded coloured pill, so it reads as part of the
+ * directory rather than a widget dropped into it.
+ */
+export function ConnectButton({ recipientId, recipientName }: { recipientId: string; recipientName: string }) {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -14,21 +21,20 @@ export function ConnectButton({ recipientId, recipientName }: { recipientId: str
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsModalOpen(true)}
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-colors"
+        className="inline-flex h-11 w-full items-center justify-center gap-2 bg-accent px-5 text-[11px] font-medium uppercase tracking-[0.16em] text-accent-foreground transition-colors hover:bg-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-        Request Connection
+        <MessageSquare className="size-4" aria-hidden />
+        Request connection
       </button>
 
       {isModalOpen && (
-        <ConnectionRequestModal 
-          recipientId={recipientId} 
-          recipientName={recipientName} 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <ConnectionRequestModal
+          recipientId={recipientId}
+          recipientName={recipientName}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
         />
       )}
     </>

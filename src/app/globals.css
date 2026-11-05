@@ -61,6 +61,13 @@
   --sidebar-accent-foreground: #1c1917;
   --sidebar-border: #e7e5e4;
   --sidebar-ring: #a3413a;
+
+  /* Member directory — warm paper portrait plates and control rules */
+  --plate: #f3eee4;
+  --plate-edge: #e3dacb;
+  --rule-strong: #ded8cf;
+  --ink-soft: #4a443f;
+  --ink-muted: #7a7168;
 }
 
 .magazine-rocket-theme {
@@ -206,6 +213,13 @@
   --sidebar-accent-foreground: #fafaf9;
   --sidebar-border: #292524;
   --sidebar-ring: #a3413a;
+
+  /* Member directory — deep plate tones for dark mode */
+  --plate: #231810;
+  --plate-edge: #3d2d20;
+  --rule-strong: #3d2d20;
+  --ink-soft: #d6ccc2;
+  --ink-muted: #a89888;
 }
 
 @theme inline {
@@ -248,6 +262,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-plate: var(--plate);
+  --color-plate-edge: var(--plate-edge);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
 
   @keyframes marquee {
     0% { transform: translateX(0%); }
