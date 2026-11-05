@@ -1,7 +1,16 @@
 import { MembersDirectoryClient } from '@/components/MembersDirectoryClient';
 import type { DirectoryMember } from '@/components/MemberCard';
+import {
+  asString,
+  displayNameOf,
+  initialsFor,
+  isPremiumTier,
+  locationFacet,
+  resolvePortrait,
+} from '@/features/members/display';
 import { getMemberStore } from '@/features/members/server';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,13 +41,6 @@ const VALID_TIERS = new Set([
   'founder',
 ]);
 
-/**
- * Tier drives the quiet gold accent on a card: members on a paid membership,
- * monthly or annual. Free and complimentary memberships never carry it, so the
- * accent keeps pointing at the people funding the network.
- */
-const PREMIUM_TIERS = new Set(['paid', 'paid_monthly', 'paid_annual']);
-
 function isConfigured(): boolean {
   return Boolean(
     process.env.DATABASE_URL ||
@@ -47,77 +49,6 @@ function isConfigured(): boolean {
     process.env.PGUSER ||
     process.env.PGPASSWORD,
   );
-}
-
-function asString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-/**
- * A photograph is only usable if it is a real picture of the member. Clerk hands
- * every account a generic grey silhouette, and legacy records often carry a blank
- * gravatar; rendering either produces rows of identical placeholders, which is
- * worse than the typographic monogram we draw instead.
- */
-function isUsablePhoto(url: string): boolean {
-  if (!url) return false;
-  if (url.includes('gravatar.com/avatar')) return false;
-  // Clerk's default avatar is a base64 slug starting `{"type":"default"…`.
-  if (url.includes('img.clerk.com') && url.includes('eyJ0eXBlIjoiZGVmYXVsdCI')) return false;
-  return url.startsWith('/') || url.startsWith('http');
-}
-
-/**
- * Hosts the image optimiser is allowed to fetch, mirroring the
- * `images.remotePatterns` allow-list in next.config.mjs. A photo from any other
- * host has to be served as-is: the optimiser throws on an unknown host.
- */
-const OPTIMIZER_HOSTS = new Set([
-  'yorkshirebusinesswoman.co.uk',
-  'img.clerk.com',
-  'storage.googleapis.com',
-  'images.unsplash.com',
-  'admin.yorkshirebusinesswoman.co.uk',
-  'static.ghost.org',
-  'image.isu.pub',
-  'image.issuu.com',
-  'img.rocket.new',
-]);
-
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
-
-/**
- * Photos we host ourselves are stored as "/uploads/…". The optimiser rejects a
- * relative path with a 400 ("The requested resource isn't a valid image"), so
- * they have to be handed over as an absolute same-origin URL.
- */
-function absolutise(url: string): string {
-  if (!url.startsWith('/')) return url;
-  return SITE_URL ? `${SITE_URL}${url}` : url;
-}
-
-function isOptimizable(url: string): boolean {
-  try {
-    return OPTIMIZER_HOSTS.has(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Collapse a free-text place into a facet the directory can group on:
- * "Leeds/Wakefield" → "Leeds", "York, North Yorkshire" → "York".
- */
-function locationFacet(location: string): string {
-  if (!location) return '';
-  return location.split(/[/,]/)[0].trim();
-}
-
-function initialsFor(firstName: string, lastName: string, name: string): string {
-  if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
 }
 
 async function getMembers(): Promise<DirectoryMember[]> {
@@ -160,10 +91,7 @@ async function getMembers(): Promise<DirectoryMember[]> {
 
       const firstName = asString(data.firstName);
       const lastName = asString(data.lastName);
-      const name =
-        asString(data.displayName) ||
-        `${firstName} ${lastName}`.trim() ||
-        asString(data.name);
+      const name = displayNameOf(data);
 
       // 3. MUST have a name that reads as a person. A card renders
       // "<name>, <role/company>", so a single-token name ("liz", "Amanda")
@@ -179,17 +107,7 @@ async function getMembers(): Promise<DirectoryMember[]> {
       if (slugKeys.some((key) => ORGANISATION_SLUGS.has(key))) continue;
 
       const location = asString(data.location) || asString(data.city);
-
-      // Prefer a photo the member uploaded themselves over the one Clerk supplied,
-      // which is frequently the generic placeholder.
-      const image = absolutise(
-        [
-          asString(data.profileImage),
-          asString(data.profileImageSource),
-          asString(data.image),
-          asString(data.avatarUrl),
-        ].find(isUsablePhoto) || '',
-      );
+      const portrait = resolvePortrait(data);
 
       members.push({
         id,
@@ -203,16 +121,15 @@ async function getMembers(): Promise<DirectoryMember[]> {
         location,
         locationFacet: locationFacet(location),
         bio: asString(data.bio),
-        image,
-        hasImage: Boolean(image),
-        optimizable: Boolean(image) && isOptimizable(image),
+        ...portrait,
         tier,
-        isPremium: PREMIUM_TIERS.has(tier),
+        isPremium: isPremiumTier(tier),
         openToMentoring: data.openToMentoring === true,
         seekingMentorship: data.seekingMentorship === true,
         openToBoardRoles: data.openToBoardRoles === true,
         linkedin: asString(data.linkedinUrl) || asString(data.linkedin),
         website: asString(data.websiteUrl) || asString(data.website),
+        joinedAt: asString(data.createdAt),
       });
     }
 
@@ -223,94 +140,65 @@ async function getMembers(): Promise<DirectoryMember[]> {
   }
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
+const EYEBROW = 'text-[11px] font-medium uppercase tracking-[0.17em] text-ink-muted';
+
+/**
+ * Shown only when the Postgres connection is missing from the environment. A
+ * register with no records is worse than an honest notice, and the connection
+ * details are development-only: a visitor has no use for them.
+ */
+function DirectoryUnavailable() {
+  const showDiagnostics = process.env.NODE_ENV !== 'production';
+
   return (
-    <div>
-      <p className="font-serif text-2xl text-foreground">{value}</p>
-      <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+    <div className="bg-background">
+      <section className="mx-auto w-full max-w-[1180px] px-4 pt-14 sm:px-6">
+        <p className={EYEBROW}>Yorkshire BusinessWoman</p>
+        <h1 className="mt-3 font-serif text-[38px] leading-none tracking-[-0.01em] text-foreground sm:text-[50px]">
+          Member directory
+        </h1>
+
+        <div className="mt-9 max-w-[620px] border border-rule-strong bg-card px-7 py-8">
+          <p className="font-serif text-lg leading-snug text-foreground">
+            The directory is unavailable.
+          </p>
+          <p className="mt-2 text-sm leading-[1.65] text-ink-soft">
+            Member records are read from the site database. This environment has no database
+            connection configured, so there is nothing to list.
+          </p>
+
+          {showDiagnostics && (
+            <div className="mt-5 border-t border-border pt-4">
+              <p className={EYEBROW}>Set one of</p>
+              <ul className="mt-2 space-y-1 font-mono text-[12.5px] text-ink-soft">
+                <li>DATABASE_URL</li>
+                <li>PGHOST / PGDATABASE / PGUSER / PGPASSWORD</li>
+              </ul>
+            </div>
+          )}
+
+          <Link
+            href="/"
+            className="mt-6 inline-flex h-10 items-center border border-foreground px-5 text-[11px] font-medium uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-foreground hover:text-background"
+          >
+            Back to the homepage
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
 
 export default async function MembersPage() {
-  if (!process.env.FIREBASE_PRIVATE_KEY) {
-    return (
-      <div className="min-h-screen bg-background">
-        {/* Hero Section */}
-        <section className="relative bg-primary py-24 sm:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/15 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
-          <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-6">
-                Our Network
-              </p>
-              <h1 className="font-serif text-4xl font-medium tracking-tight text-primary-foreground sm:text-5xl lg:text-6xl text-balance">
-                Member Directory
-              </h1>
-              <p className="mt-8 text-lg text-primary-foreground/70 max-w-2xl mx-auto leading-relaxed">
-                Connect with inspiring businesswomen across Yorkshire.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <div className="mx-auto max-w-3xl px-6 lg:px-8 py-16">
-          <div className="bg-destructive/10 border border-destructive/20 text-destructive p-8 rounded-lg">
-            <h2 className="font-serif text-xl font-medium mb-3">Configuration Required</h2>
-            <p className="text-sm leading-relaxed">
-              The members directory cannot load because the Firebase Admin credentials are missing from this environment.
-            </p>
-            <p className="mt-3 text-xs font-mono opacity-80">
-              Please add FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL to your Vercel Environment Variables.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+  if (!isConfigured()) {
+    return <DirectoryUnavailable />;
   }
 
   const members = await getMembers();
-  const locationCount = new Set(members.map((member) => member.locationFacet).filter(Boolean)).size;
-  const coachingCount = members.filter((member) => member.openToMentoring).length;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Masthead */}
-      <section className="border-b border-border bg-secondary/40">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
-          <div className="max-w-3xl">
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent">
-              Our Network
-            </p>
-            <h1 className="mt-5 font-serif text-4xl font-medium tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance">
-              Member Directory
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              Connect with inspiring businesswomen across Yorkshire.
-            </p>
-
-            {members.length > 0 && (
-              <div className="mt-10 flex flex-wrap items-center gap-x-12 gap-y-6 border-t border-border pt-6">
-                <Stat value={members.length} label="Members listed" />
-                <Stat value={locationCount} label="Yorkshire locations" />
-                <Stat value={coachingCount} label="Open to coaching" />
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Directory */}
-      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-16 sm:py-20">
-        {members.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-border rounded-lg bg-card/50">
-            <p className="text-muted-foreground italic font-serif">No active members found in the directory.</p>
-          </div>
-        ) : (
-          <MembersDirectoryClient initialMembers={members} />
-        )}
-      </section>
+      <MembersDirectoryClient initialMembers={members} />
     </div>
   );
 }
