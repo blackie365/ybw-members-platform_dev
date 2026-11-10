@@ -15,6 +15,7 @@ import { getMemberStore } from "@/features/members/server";
 import Link from "next/link";
 
 // Homepage - Yorkshire BusinessWoman Magazine
+const SHOW_HOMEPAGE_MAGAZINE_EXPERIENCE = false;
 
 function toFeaturedMember(doc: any) {
   const data = doc;
@@ -277,7 +278,7 @@ export default async function MagazinePage() {
         <CategorySection title="Health & Wellbeing" posts={healthRail} />
         <CategoriesSection tags={tags} />
         <HomeEconomicInsights />
-        <MagazineExperience />
+        {SHOW_HOMEPAGE_MAGAZINE_EXPERIENCE ? <MagazineExperience /> : null}
         <NewsletterSection />
         <TestimonialsSection />
       </div>
