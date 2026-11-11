@@ -63,6 +63,7 @@ jobs:
           echo "--- per-binary probe ---"
           for b in git /bin/git /usr/bin/git /bin/cp /usr/bin/cp /bin/chown /bin/chmod \
                    /bin/tee /bin/cat /bin/rm /bin/mkdir /bin/install /bin/tar \
+                   /usr/bin/ln /bin/ln /usr/bin/rsync /bin/rsync \
                    /bin/systemctl /usr/bin/systemctl /bin/systemd-analyze; do
             if sudo -n "$b" --version >/dev/null 2>&1; then
               echo "ALLOWED  $b"
@@ -90,83 +91,44 @@ jobs:
           sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
           echo "re-initialised: $(sudo git -C "$APPDIR" rev-parse --is-inside-work-tree 2>/dev/null || echo failed)"
 
-      - name: git fetch origin/main + reset APPDIR to ${{ github.sha }}
+      - name: git fetch origin/main + stage build + promote to APPDIR
         run: |
           set -euo pipefail
           APPDIR=/srv/ybw-frontend
+          STAGEDIR=/srv/ybw-frontend-stage-${GITHUB_SHA::12}
           LOG="/tmp/ybw-frontend-deploy-$(date +%Y%m%d-%H%M%S).log"
           echo "=== $(date -Is): start deploy (reason: ${{ github.event.inputs.reason || 'push main' }}) ===" | tee -a "$LOG"
 
           sudo git config --global --add safe.directory "$APPDIR" 2>/dev/null || true
 
-          echo "[1/6] git fetch + reset hard to origin/main (sha=${GITHUB_SHA})" | tee -a "$LOG"
-          # Tolerate a repo that the self-heal step just `git init`-ed: it has
-          # no commits yet, so `rev-parse HEAD` legitimately fails. Under
-          # `set -e` that failure would abort the step, so fall back to "none".
+          echo "[1/7] git fetch origin/main into APPDIR metadata (sha=${GITHUB_SHA})" | tee -a "$LOG"
           OLDREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD 2>/dev/null || echo "none")
-          # The repo is private and origin is HTTPS, so an anonymous fetch fails
-          # ("could not read Username"). Authenticate with the Actions token via a
-          # one-off store credential file: the token never lands in the repo config
-          # or the deploy log, and is removed after the fetch.
           CREDFILE=/tmp/ybw-deploy-cred-${GITHUB_SHA}.txt
           trap 'sudo rm -f "$CREDFILE" 2>/dev/null || true' EXIT
           printf 'https://x-access-token:%s@github.com\n' "${GITHUB_TOKEN}" | sudo tee "$CREDFILE" >/dev/null
           sudo chmod 600 "$CREDFILE"
           sudo git -C "$APPDIR" -c "credential.helper=store --file=$CREDFILE" fetch --depth 1 origin main 2>&1 | tee -a "$LOG"
           sudo rm -f "$CREDFILE"
-          sudo git -C "$APPDIR" -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
-          NEWREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
-          echo "old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
-          [ "$(sudo git -C "$APPDIR" rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA"; exit 2; }
+          sudo git -C "$APPDIR" cat-file -e "${GITHUB_SHA}^{commit}" 2>/dev/null || { echo "FATAL: commit ${GITHUB_SHA} not available after fetch"; exit 2; }
+          echo "old=$OLDREV target=${GITHUB_SHA::7}" | tee -a "$LOG"
 
-          echo "[1b/6] purge stray root-level source duplicates (untracked leftovers from past manual sessions; next build type-checks them and they fall out of date with src/)" | tee -a "$LOG"
+          echo "[1b/7] purge stray root-level source duplicates" | tee -a "$LOG"
           for f in profile.ts ghost.ts firebase-admin.ts middleware.ts auth-utils.ts; do
-            # `sudo test` is not on the gha-runner sudo allowlist: it fails
-            # non-interactively, so the `if` was always false and this purge
-            # silently never removed anything. gha-runner is in the www-data
-            # group and these files are 0644, so the builtin check is enough.
             if [ -f "$APPDIR/$f" ]; then
               sudo rm -f "$APPDIR/$f"
               echo "removed stray root file: $f" | tee -a "$LOG"
             fi
           done
 
-          # A whole-app copy of APPDIR ended up nested INSIDE APPDIR at
-          # /srv/ybw-frontend/ybw-frontend (2.6G, including its own .git --
-          # which is how APPDIR lost its own). It is a stale snapshot of
-          # origin/main and nothing writes to it, but `next build` type-checks
-          # `**/*.ts`, so tsconfig has to exclude it (see tsconfig.json).
-          # Purging it here means the exclusion can eventually be dropped and
-          # the 2.6G stops silently accumulating inside the release dir.
-          #
-          # Guarded hard because this is `rm -rf`: the path is a constant, must
-          # resolve to itself (catches a symlink swap), must be a direct child of
-          # APPDIR, and the live uploads/ tree is inode-checked either side of the
-          # delete so a mistake fails loudly instead of taking member photos with
-          # it. Live photos are separate inodes from the nested copy, so this
-          # cannot reclaim or damage them.
-          echo "[1c/6] purge stray self-nested release copy ($STRAY)" | tee -a "$LOG"
+          echo "[1c/7] purge stray self-nested release copy ($STRAY)" | tee -a "$LOG"
           if [ -e "$STRAY" ] || [ -L "$STRAY" ]; then
             [ -L "$STRAY" ] && { echo "FATAL: $STRAY is a symlink - refusing"; exit 3; }
             [ -d "$STRAY" ] || { echo "FATAL: $STRAY is not a directory - refusing"; exit 3; }
             [ "$(readlink -f "$STRAY")" = "$STRAY" ] || { echo "FATAL: $STRAY does not resolve to itself - refusing"; exit 3; }
             [ "$(dirname "$STRAY")" = "$APPDIR" ] || { echo "FATAL: $STRAY is not a direct child of APPDIR - refusing"; exit 3; }
             [ "$(basename "$STRAY")" = "ybw-frontend" ] || { echo "FATAL: unexpected basename - refusing"; exit 3; }
-            # Never silently destroy app config/secrets if this ever points at
-            # something that should not be purged.
             [ -f "$STRAY/.env.local" ] && { echo "FATAL: $STRAY contains .env.local - refusing"; exit 3; }
-            # Only purge something that is provably our own stale copy of this
-            # repo, and that is behind main rather than ahead of it.
-            # STRAY is www-data-owned, so git's "dubious ownership" check makes
-            # it refuse to read the repo and `remote get-url` returns empty --
-            # indistinguishable from a foreign remote, so the guard below would
-            # refuse our own stale copy. Trust it first, exactly as the APPDIR
-            # self-heal step does. (Run 36743717381 failed here for this reason.)
             sudo git config --global --add safe.directory "$STRAY" 2>/dev/null || true
-            # Normalise the optional trailing `.git` on both sides before
-            # comparing: the deployed checkout was seeded with ORIGIN.git while
-            # the nested copy recorded the bare ORIGIN, and a literal string
-            # compare would refuse a copy that is in fact our own repo.
             SREMOTE=$(sudo git -C "$STRAY" remote get-url origin 2>/dev/null || true)
             SREMOTE=${SREMOTE%.git}
             [ "$SREMOTE" = "$ORIGIN" ] || { echo "FATAL: $STRAY origin '$SREMOTE' != '$ORIGIN' - refusing"; exit 3; }
@@ -190,41 +152,35 @@ jobs:
             echo "  no stray nested copy present - nothing to do" | tee -a "$LOG"
           fi
 
-          echo "[2/6] chown checkout to www-data" | tee -a "$LOG"
-          sudo /bin/chown -R www-data:www-data "$APPDIR" || true
+          echo "[2/7] create staged worktree at $STAGEDIR" | tee -a "$LOG"
+          sudo git -C "$APPDIR" worktree remove --force "$STAGEDIR" 2>/dev/null || true
+          sudo /bin/rm -rf "$STAGEDIR" 2>/dev/null || true
+          sudo git -C "$APPDIR" worktree prune 2>/dev/null || true
+          sudo git -C "$APPDIR" worktree add --force --detach "$STAGEDIR" "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
+          sudo git config --global --add safe.directory "$STAGEDIR" 2>/dev/null || true
 
-          echo "[3/6] pnpm install (frozen lockfile, shamefully-hoist, non-interactive CI mode)" | tee -a "$LOG"
-          sudo rm -f "$APPDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG" || true
-          sudo -u www-data -H env CI=true pnpm -C "$APPDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
+          echo "[3/7] chown staged checkout to www-data" | tee -a "$LOG"
+          sudo /bin/chown -R www-data:www-data "$STAGEDIR" || true
+          sudo /bin/rm -f "$STAGEDIR/.env.local" 2>/dev/null || true
+          [ -f "$APPDIR/.env.local" ] && sudo /usr/bin/ln -s "$APPDIR/.env.local" "$STAGEDIR/.env.local"
+          sudo /bin/rm -rf "$STAGEDIR/uploads" 2>/dev/null || true
+          [ -e "$APPDIR/uploads" ] && sudo /usr/bin/ln -s "$APPDIR/uploads" "$STAGEDIR/uploads"
 
-          echo "[4/6] pnpm build (max-old-space 3584 MB, purge stale ISR/cache)" | tee -a "$LOG"
-          echo "[4a/6] kill any stale www-data build workers + purge .next + export leftovers everywhere" | tee -a "$LOG"
-          # Aggressively free resident memory before the build: (a) reap any
-          # www-data build / next / jest orphans from prior runs and (b) stop
-          # the running ybw-frontend.service during build so its 200-500 MB
-          # Node RSS goes back to the OS. The VPS only has 3.7 GiB RAM and
-          # without this stop Next.js 84-page static generation regularly
-          # trips the Linux OOM killer (exit 137) at static page ~42/84.
-          # Service is restarted later in step [6/6].
-          sudo /bin/systemctl stop ybw-frontend.service 2>/dev/null || true
+          echo "[4/7] pnpm install in staged worktree" | tee -a "$LOG"
+          sudo rm -f "$STAGEDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG" || true
+          sudo -u www-data -H env CI=true pnpm -C "$STAGEDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
+
+          echo "[5/7] pnpm build in staged worktree" | tee -a "$LOG"
           sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|node.*build" 2>/dev/null || true
-          sudo pkill -9 -u www-data -f "next-server|node.*server" 2>/dev/null || true
           sleep 3
-          # Drop the kernel page cache / dentries / inodes that the prior
-          # running Next server + node_modules stat storms accumulated into
-          # the buffer cache; harmless, gives ~200-400 MB back immediately.
           sudo /bin/sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
-          sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
-          sudo rm -rf "$APPDIR/.next" "$APPDIR/.next/export" "$APPDIR/.next/cache" \
-                 "$APPDIR/node_modules/.cache" "$APPDIR/.next/static" "$APPDIR/.next/server" "$APPDIR/.next/standalone" 2>/dev/null || true
+          sudo find "$STAGEDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
+          sudo rm -rf "$STAGEDIR/.next" "$STAGEDIR/.next/export" "$STAGEDIR/.next/cache" \
+                 "$STAGEDIR/node_modules/.cache" "$STAGEDIR/.next/static" "$STAGEDIR/.next/server" "$STAGEDIR/.next/standalone" 2>/dev/null || true
           sudo rm -rf /tmp/.next-export* /tmp/next-export* 2>/dev/null || true
-          sudo -u www-data mkdir -p "$APPDIR/.next" 2>/dev/null || true
-          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>/dev/null || true
+          sudo -u www-data mkdir -p "$STAGEDIR/.next" 2>/dev/null || true
+          sudo /bin/chown -R www-data:www-data "$STAGEDIR/.next" "$STAGEDIR/node_modules" 2>/dev/null || true
           set +e
-          # Build under a watchdog: Next can spawn detached jest-worker
-          # processes (processChild.js) that, if the build stalls, hang for
-          # days and starve this 3.8GB box (see 2026-09-01 outage). Time-box
-          # the build and kill the whole www-data build tree on any exit.
           BUILD_TIMEOUT_SECS="${YBW_BUILD_TIMEOUT_SECS:-720}"
           mkdir -p /tmp/ybw-deploy
           WATCHDOG=/tmp/ybw-deploy/build-watchdog-$$.json
@@ -234,14 +190,6 @@ jobs:
             printf '{"timedOut":true}' > "$WATCHDOG"
           ) &
           WATCHDOG_PID=$!
-
-          # Build memory tuning for 3.7 GiB VPS — prevent webpack / turbopack
-          # worker spawning from exhausting resident RAM and being shot by
-          # the OOM killer at static generation phase (exit 137, the actual
-          # root cause of PR #530 deploy RUN 35329004583 failure on
-          # 2026-09-18). NODE_OPTIONS heap raised to 3584 MB; worker cpus
-          # forced to 1; telemetry disabled; SWC minify off (faster + less
-          # RSS); webpack memory-limit enforced.
           sudo -u www-data -H \
             env \
               NODE_OPTIONS="--max-old-space-size=3584" \
@@ -249,36 +197,33 @@ jobs:
               NEXT_PRIVATE_BUILD_WORKER_CONCURRENCY=1 \
               EXPERIMENTAL_CPU_COUNT=1 \
               CI=true \
-              pnpm -C "$APPDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
+              pnpm -C "$STAGEDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
-
-          # Stop the watchdog if the build finished first; then always reap
-          # any orphaned build workers so none can starve the box.
           [ "$(cat "$WATCHDOG" 2>/dev/null || echo '{"timedOut":false}')" = '{"timedOut":false}' ] \
             && kill "$WATCHDOG_PID" 2>/dev/null || true
           sudo pkill -9 -u www-data -f "next/dist/compiled/jest-worker/processChild.js" 2>/dev/null || true
           sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|jest-worker" 2>/dev/null || true
           rm -f "$WATCHDOG"
-
-          echo "[4b/6] post-build purge any leftover .next/export partial dirs (ENOENT rename defense)" | tee -a "$LOG"
-          sudo find "$APPDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
-          sudo rm -rf "$APPDIR/.next/export" 2>/dev/null || true
+          sudo find "$STAGEDIR/.next" -maxdepth 3 -type d -name export -prune -exec rm -rf {} + 2>/dev/null || true
+          sudo rm -rf "$STAGEDIR/.next/export" 2>/dev/null || true
           if [ "$BUILD_EXIT" -ne 0 ]; then
             echo "FATAL: pnpm build exit=$BUILD_EXIT" | tee -a "$LOG"
             exit "$BUILD_EXIT"
           fi
 
-          echo "[5/6] chown build artifacts" | tee -a "$LOG"
-          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
+          echo "[6/7] promote staged build into APPDIR + restart ybw-frontend" | tee -a "$LOG"
+          sudo /bin/systemctl stop ybw-frontend.service 2>/dev/null || true
+          sudo git -C "$APPDIR" -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
+          NEWREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
+          echo "promote old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
+          [ "$(sudo git -C "$APPDIR" rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA after reset"; exit 2; }
+          sudo /usr/bin/rsync -a --delete "$STAGEDIR/node_modules/" "$APPDIR/node_modules/" 2>&1 | tee -a "$LOG" | tail -n 120
+          sudo /bin/rm -rf "$APPDIR/.next" 2>/dev/null || true
+          sudo /usr/bin/rsync -a --delete "$STAGEDIR/.next/" "$APPDIR/.next/" 2>&1 | tee -a "$LOG" | tail -n 120
 
-          echo "[6/6] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
-          # Defense-in-depth: if the unit previously crash-looped past its
-          # StartLimitBurst (e.g. NRestarts=22669 that caused the 2026-09-20
-          # HTTP 502 outage), `systemctl restart` silently refuses to start
-          # it. Reset the rate-limit counters BEFORE restart so a successful
-          # deploy can always bring the service back up regardless of how
-          # badly the prior unit crashed.
+          echo "[6b/7] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
+          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
           sudo /bin/systemctl reset-failed ybw-frontend.service 2>/dev/null || true
           sudo /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
           (sudo systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
@@ -287,13 +232,18 @@ jobs:
 
           sleep 6
 
-          echo "status:" | tee -a "$LOG"
+          echo "[6c/7] status + local health probe:" | tee -a "$LOG"
           sudo /bin/systemctl --no-pager is-active ybw-frontend.service 2>&1 | tee -a "$LOG"
           sudo /bin/systemctl --no-pager is-active ybw-frontend-tls.service 2>&1 | tee -a "$LOG" || true
+          curl -fsS -I --max-time 10 http://127.0.0.1:3003/ 2>&1 | tee -a "$LOG"
 
           MAINPID=$(sudo systemctl show -p MainPID --value ybw-frontend.service)
           echo "MAIN_PID=$MAINPID" | tee -a "$LOG"
           echo "=== $(date -Is): deploy OK <== ($OLDREV -> $NEWREV, pid=$MAINPID)" | tee -a "$LOG"
+
+          echo "[7/7] clean up staged worktree" | tee -a "$LOG"
+          sudo git -C "$APPDIR" worktree remove --force "$STAGEDIR" 2>/dev/null || true
+          sudo git -C "$APPDIR" worktree prune 2>/dev/null || true
 
       - name: Install + enable weekly newsletter systemd timer
         run: |
@@ -313,7 +263,7 @@ jobs:
             < "$APPDIR/deploy/ybw-newsletter.timer" >/dev/null
           sudo /bin/chown root:root /etc/systemd/system/ybw-newsletter.{service,timer}
           sudo /bin/chmod 0644 /etc/systemd/system/ybw-newsletter.{service,timer}
-
+  
           # Rotate the secret used by the timer service on every deploy so the
           # file always matches the repo secret. Root-only read, via the same
           # tee + chmod 600 pattern already used for CREDFILE above.
@@ -322,18 +272,18 @@ jobs:
           printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo /bin/tee /etc/ybw-newsletter.env >/dev/null
           sudo /bin/chown root:root /etc/ybw-newsletter.env
           sudo /bin/chmod 600 /etc/ybw-newsletter.env
-
+  
           sudo /bin/systemctl daemon-reload
           sudo /bin/systemctl enable ybw-newsletter.timer
           sudo /bin/systemctl start  ybw-newsletter.timer
-
+  
           echo "timer state:"
           sudo /bin/systemctl --no-pager is-active ybw-newsletter.timer
           sudo /bin/systemctl --no-pager is-enabled ybw-newsletter.timer
           sudo /bin/systemctl --no-pager list-timers ybw-newsletter.timer
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-
+  
       - name: Install + enable daily social queue timer
         run: |
           set -euo pipefail
@@ -347,15 +297,15 @@ jobs:
             < "$APPDIR/deploy/ybw-social-queue.timer" >/dev/null
           sudo /bin/chown root:root /etc/systemd/system/ybw-social-queue.{service,timer}
           sudo /bin/chmod 0644 /etc/systemd/system/ybw-social-queue.{service,timer}
-
+  
           printf 'CRON_SECRET=%s\n' "${CRON_SECRET}" | sudo /bin/tee /etc/ybw-social.env >/dev/null
           sudo /bin/chown root:root /etc/ybw-social.env
           sudo /bin/chmod 600 /etc/ybw-social.env
-
+  
           sudo /bin/systemctl daemon-reload
           sudo /bin/systemctl enable ybw-social-queue.timer
           sudo /bin/systemctl start  ybw-social-queue.timer
-
+  
           echo "social timer state:"
           sudo /bin/systemctl --no-pager is-active ybw-social-queue.timer
           sudo /bin/systemctl --no-pager is-enabled ybw-social-queue.timer
