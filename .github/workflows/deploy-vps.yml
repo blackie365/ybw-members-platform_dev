@@ -96,6 +96,11 @@ jobs:
           set -euo pipefail
           APPDIR=/srv/ybw-frontend
           STAGEDIR=/srv/ybw-frontend-stage-${GITHUB_SHA::12}
+          RELEASES=/srv/ybw-frontend-releases
+          RELEASEDIR="$RELEASES/${GITHUB_SHA}"
+          CURRENT=/srv/ybw-frontend-current
+          OVERRIDEDIR=/etc/systemd/system/ybw-frontend.service.d
+          OVERRIDE="$OVERRIDEDIR/override.conf"
           LOG="/tmp/ybw-frontend-deploy-$(date +%Y%m%d-%H%M%S).log"
           echo "=== $(date -Is): start deploy (reason: ${{ github.event.inputs.reason || 'push main' }}) ===" | tee -a "$LOG"
 
@@ -212,18 +217,30 @@ jobs:
             exit "$BUILD_EXIT"
           fi
 
-          echo "[6/7] promote staged build into APPDIR + restart ybw-frontend" | tee -a "$LOG"
-          sudo /bin/systemctl stop ybw-frontend.service 2>/dev/null || true
+          echo "[6/7] prepare release dir + switch current symlink + restart ybw-frontend" | tee -a "$LOG"
           sudo git -C "$APPDIR" -c advice.detachedHead=false reset --hard "${GITHUB_SHA}" 2>&1 | tee -a "$LOG"
           NEWREV=$(sudo git -C "$APPDIR" rev-parse --short HEAD)
           echo "promote old=$OLDREV new=$NEWREV expected=${GITHUB_SHA::7}" | tee -a "$LOG"
           [ "$(sudo git -C "$APPDIR" rev-parse HEAD)" = "${GITHUB_SHA}" ] || { echo "FATAL: APPDIR HEAD != GITHUB_SHA after reset"; exit 2; }
-          sudo /usr/bin/rsync -a --delete "$STAGEDIR/node_modules/" "$APPDIR/node_modules/" 2>&1 | tee -a "$LOG" | tail -n 120
-          sudo /bin/rm -rf "$APPDIR/.next" 2>/dev/null || true
-          sudo /usr/bin/rsync -a --delete "$STAGEDIR/.next/" "$APPDIR/.next/" 2>&1 | tee -a "$LOG" | tail -n 120
+          sudo /bin/mkdir -p "$RELEASES" "$OVERRIDEDIR"
+          sudo /bin/rm -rf "$RELEASEDIR" 2>/dev/null || true
+          sudo /bin/mkdir -p "$RELEASEDIR"
+          sudo /usr/bin/rsync -a --delete --exclude=.git "$STAGEDIR/" "$RELEASEDIR/" 2>&1 | tee -a "$LOG" | tail -n 120
+          sudo /bin/chown -R www-data:www-data "$RELEASEDIR" 2>&1 || true
+          printf '%s\n' \
+            '[Service]' \
+            "WorkingDirectory=$CURRENT" \
+            'ExecStart=' \
+            "ExecStart=/usr/bin/env node $CURRENT/node_modules/next/dist/bin/next start -p 3003 -H 127.0.0.1" \
+            | sudo /bin/tee "$OVERRIDE" >/dev/null
+          sudo /bin/chown root:root "$OVERRIDE"
+          sudo /bin/chmod 0644 "$OVERRIDE"
+          sudo /bin/rm -f "$CURRENT" 2>/dev/null || true
+          sudo /usr/bin/ln -s "$RELEASEDIR" "$CURRENT"
+          echo "current_release=$(readlink -f "$CURRENT")" | tee -a "$LOG"
 
           echo "[6b/7] systemctl restart ybw-frontend (+ ybw-frontend-tls when present)" | tee -a "$LOG"
-          sudo /bin/chown -R www-data:www-data "$APPDIR/.next" "$APPDIR/node_modules" 2>&1 || true
+          sudo /bin/systemctl daemon-reload 2>&1 | tee -a "$LOG"
           sudo /bin/systemctl reset-failed ybw-frontend.service 2>/dev/null || true
           sudo /bin/systemctl restart ybw-frontend.service 2>&1 | tee -a "$LOG"
           (sudo systemctl list-unit-files 2>/dev/null | grep -qs ybw-frontend-tls) \
