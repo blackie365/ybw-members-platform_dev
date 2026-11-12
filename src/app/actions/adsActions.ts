@@ -1,7 +1,8 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { checkAdmin } from '@/lib/server/auth-utils';
-import { getSystemStore } from '@/features/system/server/system-store';
+import { getSystemSettingData, getSystemStore } from '@/features/system/server/system-store';
 
 type AdItem = {
   id: string;
@@ -36,6 +37,20 @@ type AdsConfig = {
   sidebarMpu?: AdSlotConfig;
   midArticle?: AdSlotConfig;
 };
+
+function safeRevalidateAds() {
+  try {
+    revalidatePath('/', 'layout');
+  } catch (error) {
+    console.warn('Failed to revalidate root layout after ad update:', error);
+  }
+
+  try {
+    revalidatePath('/admin/ads');
+  } catch (error) {
+    console.warn('Failed to revalidate /admin/ads after ad update:', error);
+  }
+}
 
 function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
   if (!rotation) return undefined;
@@ -72,9 +87,7 @@ function sanitizeRotation(rotation?: AdRotation): AdRotation | undefined {
 export async function getAdsConfigAction(): Promise<{ success: true; data: AdsConfig } | { success: false; error: string }> {
   try {
     await checkAdmin();
-    const store = getSystemStore();
-    const record = await store.get('system:ads');
-    const data = record?.data ?? {};
+    const data = await getSystemSettingData('system:ads');
 
     return {
       success: true,
@@ -114,10 +127,10 @@ export async function updateAdSlotAction(
     };
 
     await store.set('system:ads', merged, { merge: true });
+    safeRevalidateAds();
 
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error?.message || 'Failed to update ad config' };
   }
 }
-

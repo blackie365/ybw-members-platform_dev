@@ -124,39 +124,58 @@ export function getSystemStore(): PgSystemStore {
   return _singleton;
 }
 
-const QC00922_LEADERBOARD_IFRAME_URL =
-  '/ad-creatives/qc00922/HTML5%20-%20Version%201/QC00922%20-%20780x90px%20-%20HTML5_v1.html';
+function normalizeStringField(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
 
-function buildHeaderRotationItems(
-  legacyImageUrl: string,
-  legacyLinkUrl: string,
-  legacyAltText: string,
-) {
-  const cedarCourtLegacyItem = {
-    id: 'cedar-court-legacy-header',
-    enabled: true,
-    imageUrl: legacyImageUrl,
-    iframeUrl: '',
-    linkUrl: legacyLinkUrl,
-    altText: legacyAltText,
+function normalizeAdRotationItem(
+  value: unknown,
+  index: number,
+): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  return {
+    ...item,
+    id: normalizeStringField(item.id) || `header-rotation-${index + 1}`,
+    enabled: item.enabled !== false,
+    imageUrl: fixMagazineImageUrl(normalizeStringField(item.imageUrl)),
+    iframeUrl: normalizeStringField(item.iframeUrl),
+    linkUrl: normalizeStringField(item.linkUrl),
+    altText: normalizeStringField(item.altText),
   };
+}
 
-  const qc00922Html5Item = {
-    id: 'qc00922-780x90-html5-v1',
-    enabled: true,
-    imageUrl: '',
-    iframeUrl: QC00922_LEADERBOARD_IFRAME_URL,
-    linkUrl: '',
-    altText: 'QC00922 Advertisement',
+function normalizeHeaderLeaderboardConfig(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const rotationRaw =
+    value.rotation && typeof value.rotation === 'object' && !Array.isArray(value.rotation)
+      ? (value.rotation as Record<string, unknown>)
+      : null;
+
+  const rotationItems = Array.isArray(rotationRaw?.items)
+    ? rotationRaw.items
+        .map((item, index) => normalizeAdRotationItem(item, index))
+        .filter((item): item is Record<string, unknown> => item !== null)
+    : [];
+
+  return {
+    ...value,
+    enabled: typeof value.enabled === 'boolean' ? value.enabled : true,
+    imageUrl: fixMagazineImageUrl(normalizeStringField(value.imageUrl)),
+    iframeUrl: normalizeStringField(value.iframeUrl),
+    linkUrl: normalizeStringField(value.linkUrl),
+    altText: normalizeStringField(value.altText) || 'Advertisement',
+    rotation: rotationRaw
+      ? {
+          ...rotationRaw,
+          enabled: rotationRaw.enabled === true,
+          intervalSeconds:
+            typeof rotationRaw.intervalSeconds === 'number' ? rotationRaw.intervalSeconds : 30,
+          items: rotationItems,
+        }
+      : undefined,
   };
-
-  const hasCedarCourt = Boolean(cedarCourtLegacyItem.imageUrl);
-  const rotationItems = [];
-  if (hasCedarCourt) rotationItems.push(cedarCourtLegacyItem);
-  rotationItems.push(qc00922Html5Item);
-
-  if (rotationItems.length < 2) return null;
-  return rotationItems;
 }
 
 export async function getSystemSettingData(key: string): Promise<Record<string, unknown>> {
@@ -166,102 +185,16 @@ export async function getSystemSettingData(key: string): Promise<Record<string, 
     : {}) as Record<string, unknown>;
 
   if (key === 'system:ads') {
-    const envImageUrl = process.env.NEXT_PUBLIC_HEADER_AD_IMAGE_URL || '';
-    const envIframeUrl = process.env.NEXT_PUBLIC_HEADER_AD_IFRAME_URL || '';
-    const envLinkUrl = process.env.NEXT_PUBLIC_HEADER_AD_LINK_URL || '';
-    const envAltText = process.env.NEXT_PUBLIC_HEADER_AD_ALT_TEXT || 'Advertisement';
-
-    const dataIsEmpty = Object.keys(data).length === 0;
-
     const existingHeader =
-      !dataIsEmpty && data.headerLeaderboard && typeof data.headerLeaderboard === 'object'
+      data.headerLeaderboard && typeof data.headerLeaderboard === 'object'
         ? (data.headerLeaderboard as Record<string, unknown>)
         : null;
 
-    const shouldSeedHeaderRotation = dataIsEmpty || !!existingHeader;
-
-    if (shouldSeedHeaderRotation) {
-      const existingHeaderImageUrl =
-        existingHeader && typeof existingHeader.imageUrl === 'string' ? existingHeader.imageUrl : '';
-      const legacySavedRotation =
-        existingHeader &&
-        existingHeader.rotation &&
-        typeof (existingHeader.rotation as Record<string, unknown>) === 'object' &&
-        Array.isArray((existingHeader.rotation as Record<string, unknown>).items)
-          ? ((existingHeader.rotation as Record<string, unknown>).items as Array<unknown>)
-          : [];
-      const nestedCedarImage = legacySavedRotation
-        .map((it) =>
-          it && typeof it === 'object' && !Array.isArray(it)
-            ? String((it as Record<string, unknown>).imageUrl ?? '').trim()
-            : '',
-        )
-        .find((s) => s && s.length > 0);
-      const nestedCedarLink = legacySavedRotation
-        .map((it) =>
-          it && typeof it === 'object' && !Array.isArray(it)
-            ? String((it as Record<string, unknown>).linkUrl ?? '').trim()
-            : '',
-        )
-        .find((s) => s && s.length > 0);
-      const nestedCedarAlt = legacySavedRotation
-        .map((it) =>
-          it && typeof it === 'object' && !Array.isArray(it)
-            ? String((it as Record<string, unknown>).altText ?? '').trim()
-            : '',
-        )
-        .find((s) => s && s.length > 0);
-      // A stored `system:ads` row may still carry a legacy Firebase/GCS bucket
-      // URL (the header leaderboard predates the VPS cutover). Those objects now
-      // live under /uploads, so normalise on read — otherwise the raw bucket URL
-      // is rendered straight into the <img srcSet> and the RSC payload.
-      const effectiveImageUrl = fixMagazineImageUrl(
-        nestedCedarImage ||
-          (existingHeaderImageUrl.trim().length > 0 ? existingHeaderImageUrl.trim() : envImageUrl) ||
-          '/uploads/memberPosts/6984d34a6ee5011c6442e15e/public/1773325299854-post.jpg',
-      );
-      const effectiveLinkUrl =
-        nestedCedarLink ||
-        (existingHeader && typeof existingHeader.linkUrl === 'string' && existingHeader.linkUrl.trim().length > 0
-          ? existingHeader.linkUrl.trim()
-          : envLinkUrl) ||
-        'https://cedarcourthotels.co.uk/';
-      const effectiveAltText =
-        nestedCedarAlt ||
-        (existingHeader && typeof existingHeader.altText === 'string' && existingHeader.altText.trim().length > 0 && existingHeader.altText !== 'Advertisement'
-          ? existingHeader.altText.trim()
-          : envAltText) ||
-        'Cedar Court Hotels';
-
-      const rotationItems = buildHeaderRotationItems(
-        effectiveImageUrl,
-        effectiveLinkUrl,
-        effectiveAltText,
-      );
-      if (rotationItems) {
-        const headerEnabled =
-          existingHeader && typeof existingHeader.enabled === 'boolean'
-            ? existingHeader.enabled
-            : true;
-        const upgradedHeader = {
-          ...(existingHeader || {}),
-          enabled: headerEnabled,
-          imageUrl: effectiveImageUrl,
-          iframeUrl: envIframeUrl,
-          linkUrl: effectiveLinkUrl,
-          altText: effectiveAltText,
-          rotation: {
-            enabled: true,
-            intervalSeconds: 30,
-            items: rotationItems,
-          },
-          updatedAt: (existingHeader?.updatedAt as string | undefined) ?? new Date(0).toISOString(),
-        };
-        if (dataIsEmpty) {
-          return { headerLeaderboard: upgradedHeader };
-        }
-        return { ...data, headerLeaderboard: upgradedHeader };
-      }
+    if (existingHeader) {
+      return {
+        ...data,
+        headerLeaderboard: normalizeHeaderLeaderboardConfig(existingHeader),
+      };
     }
   }
 
