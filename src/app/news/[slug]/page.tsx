@@ -1,16 +1,18 @@
 import { getSinglePost, getPosts } from '@/lib/ghost';
-import { sanitizeHtml } from '@/lib/utils';
 import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { notFound } from 'next/navigation';
 import { EventTicketCard } from '@/components/EventTicketCard';
 import { AdSlot } from '@/components/magazine/AdSlot';
+import { ArticleBody } from '@/components/news/ArticleBody';
 import { Metadata } from 'next';
 import { EventRSVP } from '@/components/EventRSVP';
-import { ArrowLeft, Facebook, Linkedin, Lock, Mail, Twitter } from 'lucide-react';
+import { ArrowLeft, Clock3, Facebook, Linkedin, Lock, Mail, Newspaper, Twitter } from 'lucide-react';
 import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
+import { getArticleStandfirst } from '@/lib/news/article-standfirst';
+import { EDITORIAL_IDENTITY } from '@/lib/editorial';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -23,7 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: 'Not Found' };
   }
 
-  const excerpt = post.custom_excerpt || post.excerpt || 'Read this article on Yorkshire BusinessWoman.';
+  const standfirst = getArticleStandfirst(post);
+  const excerpt = standfirst || 'Read this article on Yorkshire BusinessWoman.';
 
   return {
     title: post.title,
@@ -37,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: `/news/${post.slug}`,
       type: 'article',
       publishedTime: post.published_at,
-      authors: post.primary_author ? [post.primary_author.name] : undefined,
+      authors: [EDITORIAL_IDENTITY.personName],
       images: post.feature_image ? [{ url: post.feature_image }] : [],
     },
     twitter: {
@@ -130,7 +133,44 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const canonicalUrl = `${baseUrl}/news/${post.slug}`;
   const shareUrl = encodeURIComponent(canonicalUrl);
   const shareTitle = encodeURIComponent(post.title || 'Yorkshire BusinessWoman');
-  const shareBody = encodeURIComponent(`${canonicalUrl}\n\n${post.custom_excerpt || post.excerpt || ''}`);
+  const standfirst = getArticleStandfirst(post);
+  const shareBody = encodeURIComponent(`${canonicalUrl}\n\n${standfirst}`);
+  const pub = post.published_at ? new Date(post.published_at) : null;
+  const storyMeta = [
+    pub ? format(pub, 'MMMM d, yyyy') : null,
+    post.reading_time ? `${post.reading_time} min read` : null,
+    canonicalUrl ? 'YorkshireBusinessWoman.co.uk' : null,
+  ].filter(Boolean);
+  const shareLinks = [
+    {
+      href: `https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`,
+      label: 'Share on X',
+      tip: 'Share on X',
+      icon: Twitter,
+      external: true,
+    },
+    {
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
+      label: 'Share on LinkedIn',
+      tip: 'Share on LinkedIn',
+      icon: Linkedin,
+      external: true,
+    },
+    {
+      href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
+      label: 'Share on Facebook',
+      tip: 'Share on Facebook',
+      icon: Facebook,
+      external: true,
+    },
+    {
+      href: `mailto:?subject=${shareTitle}&body=${shareBody}`,
+      label: 'Share by email',
+      tip: 'Email a link',
+      icon: Mail,
+      external: false,
+    },
+  ];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -142,8 +182,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     dateModified: post.updated_at || post.published_at,
     author: [{
       '@type': 'Person',
-      name: post.primary_author?.name || 'Yorkshire BusinessWoman',
-      url: post.primary_author?.website || `https://yorkshirebusinesswoman.co.uk`
+      name: EDITORIAL_IDENTITY.personName,
+      url: EDITORIAL_IDENTITY.siteUrl,
     }],
     publisher: {
       '@type': 'Organization',
@@ -182,257 +222,311 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       
-      {/* Hero Section with Feature Image */}
-      {post.feature_image && (
-        <div className="relative h-[50vh] min-h-[400px] max-h-[600px] bg-primary">
-          <Image
-            src={post.feature_image}
-            alt={post.title || 'Feature image'}
-            fill
-            priority
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-        </div>
-      )}
+      <section
+        className={[
+          'relative isolate overflow-hidden border-b border-border',
+          post.feature_image ? 'bg-primary' : 'paper-grad',
+        ].join(' ')}
+      >
+        {post.feature_image ? (
+          <div className="absolute inset-0">
+            <div className="relative h-full w-full min-h-[420px]">
+              <Image
+                src={post.feature_image}
+                alt={post.title || 'Feature image'}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/20" />
+          </div>
+        ) : null}
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12 lg:py-16">
-        {/* Back Link */}
-        <Link 
-          href="/news"
-          className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-accent hover:text-foreground transition-colors mb-8"
+        <div
+          className={[
+            'mx-auto max-w-7xl px-6 lg:px-8 relative',
+            post.feature_image
+              ? 'min-h-[420px] py-12 sm:min-h-[500px] sm:py-16 lg:min-h-[600px] lg:py-24 flex items-end'
+              : 'py-12 lg:py-16',
+          ].join(' ')}
         >
-          <ArrowLeft className="w-4 h-4" />
-          Back to News
-        </Link>
+          <div className={post.feature_image ? 'max-w-4xl text-white' : 'max-w-4xl'}>
+            <Link
+              href="/news"
+              className={[
+                'inline-flex items-center gap-2 kicker text-[10px] mb-6',
+                post.feature_image ? 'text-white/80 hover:text-white' : 'text-accent hover:text-foreground',
+              ].join(' ')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to News
+            </Link>
 
-        <div className="flex flex-col lg:flex-row gap-16">
-          {/* Main Article Content */}
-          <article className="flex-1 lg:max-w-[720px]">
-            <header className="mb-10">
-              {post.primary_tag && (
-                <Link 
-                  href={`/news?tag=${post.primary_tag.slug}`}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-accent bg-accent/10 mb-6"
-                >
-                  {post.primary_tag.name}
-                </Link>
-              )}
-              <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-foreground leading-tight mb-6 text-balance">
-                {post.title}
-              </h1>
+            {post.primary_tag ? (
+              <Link
+                href={`/news?tag=${post.primary_tag.slug}`}
+                className={[
+                  'inline-flex items-center px-3 py-1.5 kicker text-[10px] mb-5 border',
+                  post.feature_image
+                    ? 'border-white/30 bg-white/10 text-white backdrop-blur-sm'
+                    : 'border-accent/20 bg-accent text-white',
+                ].join(' ')}
+              >
+                {post.primary_tag.name}
+              </Link>
+            ) : null}
 
-              <div className="flex items-center gap-x-4 border-t border-b border-border py-6">
-                {post.primary_author?.profile_image ? (
-                  <Image
-                    src={post.primary_author.profile_image}
-                    alt={post.primary_author.name || 'Author'}
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 object-cover bg-muted"
-                  />
-                ) : (
-                  <div className="h-12 w-12 bg-muted flex items-center justify-center">
-                    <span className="text-muted-foreground text-sm font-medium">
-                      {post.primary_author?.name?.charAt(0) || 'A'}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <p className="font-medium text-foreground">
-                    {post.primary_author?.name || 'Yorkshire BusinessWoman'}
-                  </p>
-                  <div className="flex gap-x-2 text-sm text-muted-foreground">
-                    <time dateTime={post.published_at}>
-                      {post.published_at ? format(new Date(post.published_at), 'MMMM d, yyyy') : ''}
-                    </time>
-                    {post.reading_time && (
-                      <>
-                        <span>|</span>
-                        <span>{post.reading_time} min read</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </header>
+            <h1
+              className={[
+                'font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-balance',
+                post.feature_image ? 'leading-[1.02] text-white' : 'leading-[1.08] text-foreground',
+              ].join(' ')}
+            >
+              {post.title}
+            </h1>
 
-            {/* Article body */}
-            {isLocked ? (
-              <div className="bg-accent/5 border border-accent/20 rounded-2xl p-12 text-center my-12">
-                <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">
-                  <Lock className="w-8 h-8 text-accent" />
-                </div>
-                <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Members Only Event</h2>
-                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                  This event details and ticket booking are reserved for registered members of Yorkshire BusinessWoman.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link 
-                    href={`/login?redirect=/news/${post.slug}`}
-                    className="w-full sm:w-auto px-8 py-3 bg-accent text-white font-semibold rounded-xl hover:bg-accent/90 transition-colors"
-                  >
-                    Login to View
-                  </Link>
-                  <Link 
-                    href="/membership"
-                    className="w-full sm:w-auto px-8 py-3 border border-accent text-accent font-semibold rounded-xl hover:bg-accent/5 transition-colors"
-                  >
-                    Become a Member
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div 
-                  className="prose prose-lg max-w-none
-                    prose-headings:font-serif prose-headings:font-medium prose-headings:tracking-tight prose-headings:text-foreground
-                    prose-p:text-muted-foreground prose-p:leading-relaxed
-                    prose-a:text-accent prose-a:no-underline hover:prose-a:underline prose-a:font-medium
-                    prose-strong:text-foreground prose-strong:font-semibold
-                    prose-ul:text-muted-foreground prose-ol:text-muted-foreground
-                    prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:text-foreground/80 prose-blockquote:bg-accent/5 prose-blockquote:border-l-[3px] prose-blockquote:border-l-accent prose-blockquote:px-7 prose-blockquote:py-6 prose-blockquote:rounded-2xl prose-blockquote:my-10
-                    prose-img:rounded-none
-                    [&>p:first-of-type]:text-lg [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-relaxed [&>p:first-of-type]:text-foreground/80 [&>p:first-of-type]:mb-8" 
-                  dangerouslySetInnerHTML={{ 
-                    __html: (() => {
-                      let html = post.html || '';
-                      const customExcerptText = (post.custom_excerpt || '').trim();
-                      
-                      const firstParaMatch = html.match(/^\s*<p>(.*?)<\/p>/i);
-                      if (firstParaMatch && customExcerptText) {
-                        const firstParaText = firstParaMatch[1].replace(/<[^>]+>/g, '').trim();
-                        
-                        if (firstParaText === customExcerptText) {
-                          html = html.replace(/^\s*<p>.*?<\/p>\s*/i, '');
-                        }
-                      }
-                      return sanitizeHtml(html);
-                    })() 
-                  }} 
+            {standfirst ? (
+              <p
+                className={[
+                  'mt-5 max-w-3xl font-serif text-xl sm:text-2xl leading-[1.45]',
+                  post.feature_image ? 'text-white/88' : 'text-ink-soft',
+                ].join(' ')}
+              >
+                {standfirst}
+              </p>
+            ) : null}
+
+            <div
+              className={[
+                'mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm',
+                post.feature_image ? 'text-white/72' : 'text-muted-foreground',
+              ].join(' ')}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Image
+                  src={EDITORIAL_IDENTITY.imageUrl}
+                  alt={EDITORIAL_IDENTITY.personName}
+                  width={34}
+                  height={34}
+                  className="h-8 w-8 rounded-full object-cover bg-white/10"
                 />
-                
-                <div className="mt-12">
-                  <AdSlot
-                    type="mid-article"
-                    imageUrl={midArticleAd?.imageUrl}
-                    linkUrl={midArticleAd?.linkUrl}
-                    altText={midArticleAd?.altText}
-                  />
-                </div>
+                <span className="font-medium">{EDITORIAL_IDENTITY.displayName}</span>
+              </span>
 
-                {isEvent && (
-                  <div className="mt-12 pt-8 border-t border-border">
-                    <EventRSVP eventSlug={post.slug} eventTitle={post.title} />
+              {storyMeta.map((item) => (
+                <span key={item} className="inline-flex items-center gap-3">
+                  <span aria-hidden className="hidden sm:inline">•</span>
+                  <span>{item}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {post.feature_image ? (
+            <div className="absolute right-4 top-4 hidden lg:flex items-center gap-2 border border-white/15 bg-black/20 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-white/78 backdrop-blur-sm">
+              <Newspaper className="h-4 w-4" />
+              Designed for reading, not just scrolling
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-10 lg:py-14">
+        <div className="grid gap-10 xl:grid-cols-[200px_minmax(0,1fr)_320px]">
+          <aside className="hidden xl:block">
+            <div className="sticky top-24 space-y-5">
+              <div className="border border-border bg-card p-5">
+                <p className="kicker text-[10px] text-accent mb-4">Story details</p>
+                <dl className="grid gap-4 text-sm">
+                  <div>
+                    <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-1">Author</dt>
+                    <dd className="font-medium text-foreground">{EDITORIAL_IDENTITY.displayName}</dd>
                   </div>
-                )}
-              </>
-            )}
+                  {pub ? (
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-1">Published</dt>
+                      <dd className="font-medium text-foreground">{format(pub, 'MMMM d, yyyy')}</dd>
+                    </div>
+                  ) : null}
+                  {post.reading_time ? (
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-1">Reading time</dt>
+                      <dd className="inline-flex items-center gap-2 font-medium text-foreground">
+                        <Clock3 className="h-4 w-4 text-accent" />
+                        {post.reading_time} min
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
 
-            <div className="mt-12 pt-8 border-t border-border">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Share this article</p>
-                  <p className="text-sm text-muted-foreground mt-1 break-all">{canonicalUrl}</p>
+              <div className="border border-border bg-card p-5">
+                <p className="kicker text-[10px] text-muted-foreground mb-4">Share</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {shareLinks.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        target={item.external ? '_blank' : undefined}
+                        rel={item.external ? 'noreferrer noopener' : undefined}
+                        aria-label={item.label}
+                        data-tip={item.tip}
+                        className="share-btn !w-full"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    );
+                  })}
                 </div>
+              </div>
+            </div>
+          </aside>
 
+          <article className="min-w-0 max-w-[780px]">
+            <div className="hero-frame bg-card p-5 sm:p-8 lg:p-10">
+              <div className="flex items-center justify-between gap-4 border-b border-border pb-4 mb-6">
+                <div>
+                  <p className="kicker text-[10px] text-accent">Web edition</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Structured for the same calmer reading path as the YBM article view.
+                  </p>
+                </div>
+                <div className="hidden sm:flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  <Newspaper className="h-4 w-4 text-accent" />
+                  Readable digital format
+                </div>
+              </div>
+
+              {isLocked ? (
+                <div className="bg-accent/5 border border-accent/20 rounded-none p-12 text-center my-6">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">
+                    <Lock className="w-8 h-8 text-accent" />
+                  </div>
+                  <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Members Only Event</h2>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                    This event details and ticket booking are reserved for registered members of Yorkshire BusinessWoman.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Link
+                      href={`/login?redirect=/news/${post.slug}`}
+                      className="w-full sm:w-auto px-8 py-3 bg-accent text-white font-semibold rounded-none hover:bg-accent/90 transition-colors"
+                    >
+                      Login to View
+                    </Link>
+                    <Link
+                      href="/membership"
+                      className="w-full sm:w-auto px-8 py-3 border border-accent text-accent font-semibold rounded-none hover:bg-accent/5 transition-colors"
+                    >
+                      Become a Member
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <ArticleBody html={post.html} standfirst={standfirst} />
+
+                  <div className="mt-12">
+                    <AdSlot
+                      type="mid-article"
+                      imageUrl={midArticleAd?.imageUrl}
+                      linkUrl={midArticleAd?.linkUrl}
+                      altText={midArticleAd?.altText}
+                    />
+                  </div>
+
+                  {isEvent ? (
+                    <div className="mt-12 pt-8 border-t border-border">
+                      <EventRSVP eventSlug={post.slug} eventTitle={post.title} />
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+
+            <div className="mt-10 border-t border-border pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="min-w-0 max-w-full">
+                  <p className="kicker text-[10px] text-muted-foreground">Share this article</p>
+                  <p className="text-sm text-muted-foreground mt-1 break-all font-mono text-[12px]">
+                    {canonicalUrl}
+                  </p>
+                </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Share on X"
-                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                  >
-                    <Twitter className="h-4 w-4" />
-                  </a>
-                  <a
-                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Share on LinkedIn"
-                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                  >
-                    <Linkedin className="h-4 w-4" />
-                  </a>
-                  <a
-                    href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Share on Facebook"
-                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                  >
-                    <Facebook className="h-4 w-4" />
-                  </a>
-                  <a
-                    href={`mailto:?subject=${shareTitle}&body=${shareBody}`}
-                    aria-label="Share by email"
-                    className="inline-flex items-center justify-center h-11 w-11 border border-border bg-card hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                  >
-                    <Mail className="h-4 w-4" />
-                  </a>
+                  {shareLinks.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        target={item.external ? '_blank' : undefined}
+                        rel={item.external ? 'noreferrer noopener' : undefined}
+                        aria-label={item.label}
+                        data-tip={item.tip}
+                        className="share-btn"
+                      >
+                        <Icon className="h-4 w-4" />
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </article>
 
-          {/* Sidebar */}
-          <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-            <div className="sticky top-24 flex flex-col gap-8">
-              {isEvent && !isLocked && ticketCardEnabled && <EventTicketCard post={post} />}
+          <aside className="w-full lg:w-80 shrink-0">
+            <div className="lg:sticky lg:top-20 flex flex-col gap-6">
+              <div className="border border-border bg-card p-6 xl:hidden">
+                <p className="kicker text-[10px] text-accent mb-3">Story details</p>
+                <div className="grid gap-3 text-sm text-ink-soft">
+                  <p><span className="text-muted-foreground">Author:</span> {EDITORIAL_IDENTITY.displayName}</p>
+                  {pub ? <p><span className="text-muted-foreground">Published:</span> {format(pub, 'MMMM d, yyyy')}</p> : null}
+                  {post.reading_time ? <p><span className="text-muted-foreground">Reading time:</span> {post.reading_time} min</p> : null}
+                </div>
+              </div>
+
+              {isEvent && !isLocked && ticketCardEnabled ? <EventTicketCard post={post} /> : null}
+
               <AdSlot
                 type="sidebar-mpu"
                 imageUrl={sidebarMpuAd?.imageUrl}
                 linkUrl={sidebarMpuAd?.linkUrl}
                 altText={sidebarMpuAd?.altText}
               />
+
+              {relatedPosts.length > 0 ? (
+                <div className="border border-border bg-card p-6">
+                  <div className="kicker text-[10px] text-accent mb-2 flex items-center gap-2">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent pulse-wire" />
+                    Related Articles
+                  </div>
+                  <p className="font-serif text-xl mb-4">Continue the story</p>
+                  <ul className="divide-y divide-border">
+                    {relatedPosts.map((relatedPost: any, index: number) => (
+                      <li key={relatedPost.id}>
+                        <Link href={`/news/${relatedPost.slug}`} className="group flex gap-3 py-3 items-start">
+                          <span className="pillar-num text-[1.6rem] leading-none mt-0.5">{String(index + 1).padStart(2, '0')}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                              {relatedPost.primary_tag?.name || 'News'}
+                            </span>
+                            <span className="font-serif block text-[0.95rem] font-medium leading-snug group-hover:text-accent line-clamp-3">
+                              {relatedPost.title}
+                            </span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           </aside>
         </div>
       </div>
-
-      {/* Related Posts Section */}
-      {relatedPosts.length > 0 && (
-        <div className="bg-muted/50 border-t border-border">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
-            <h2 className="font-serif text-2xl font-medium text-foreground mb-10">Related Articles</h2>
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {relatedPosts.map((relatedPost: any) => (
-                <article key={relatedPost.id} className="group flex flex-col bg-card border border-border hover:border-accent/30 transition-colors">
-                  <div className="relative w-full overflow-hidden">
-                    {relatedPost.feature_image ? (
-                      <Image
-                        src={relatedPost.feature_image}
-                        alt={relatedPost.title}
-                        width={600}
-                        height={400}
-                        className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="aspect-[16/10] w-full bg-muted flex items-center justify-center">
-                        <span className="text-muted-foreground text-xs uppercase tracking-wider">No image</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-6 flex-1 flex flex-col">
-                    <time dateTime={relatedPost.published_at} className="text-xs uppercase tracking-wider text-accent font-medium mb-3">
-                      {relatedPost.published_at ? format(new Date(relatedPost.published_at), 'MMMM d, yyyy') : ''}
-                    </time>
-                    <h3 className="font-serif text-lg font-medium leading-snug text-foreground group-hover:text-accent transition-colors mb-3">
-                      <Link href={`/news/${relatedPost.slug}`}>
-                        <span className="line-clamp-2">{relatedPost.title}</span>
-                      </Link>
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                      {relatedPost.custom_excerpt || relatedPost.excerpt}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

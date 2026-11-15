@@ -1,6 +1,7 @@
 import Image from "next/image";
  import Link from"next/link";
 import { ArrowRight } from "lucide-react";
+import { EDITORIAL_IDENTITY } from "@/lib/editorial";
 
 export function ArticleGrid({ posts }: { posts: any[] }) {
   if (!posts || posts.length === 0) return null;
@@ -92,19 +93,13 @@ function ArticleCard({ article, index }: { article: any; index: number }) {
           {/* Footer */}
           <div className="mt-6 flex items-center justify-between pt-4 border-t border-border">
             <div className="flex items-center gap-2">
-              {article.primary_author?.profile_image ? (
-                <Image
-                  src={article.primary_author.profile_image}
-                  alt={article.primary_author.name || "Author"}
-                  width={24}
-                  height={24}
-                  className="h-6 w-6 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-[10px] font-medium text-accent">
-                  {(article.primary_author?.name || "Y")[0]}
-                </div>
-              )}
+              <Image
+                src={EDITORIAL_IDENTITY.imageUrl}
+                alt={EDITORIAL_IDENTITY.personName}
+                width={24}
+                height={24}
+                className="h-6 w-6 rounded-full object-cover"
+              />
               <span className="text-xs text-muted-foreground">
                 {publishedDate}
               </span>
