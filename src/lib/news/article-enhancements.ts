@@ -61,7 +61,7 @@ export const ArticleEnhancementRecordSchema = z.object({
   sourceHash: z.string().min(1),
   generatedAt: z.string().min(1),
   generator: z.object({
-    mode: z.enum(['heuristic', 'openai']),
+    mode: z.enum(['heuristic', 'openai', 'gemini']),
     model: z.string().min(1).optional(),
   }),
   insertions: z.array(ArticleEnhancementInsertionSchema).max(6),
