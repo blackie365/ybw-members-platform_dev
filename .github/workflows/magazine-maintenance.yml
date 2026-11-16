@@ -61,7 +61,11 @@ jobs:
           # The scripts call dotenv.config('.env.local'), so we must NOT
           # bash-source the file (dotenv lines are not always valid shell).
           set -f
-          sudo -n --preserve-env=INJECT_GHOST_ADMIN_API_KEY,INJECT_GEMINI_API_KEY -u www-data -H env CI=true pnpm -C "$APPDIR" exec tsx "$SCRIPT" ${ARGS}
+          sudo -n -u www-data -H env \
+            CI=true \
+            INJECT_GHOST_ADMIN_API_KEY="$INJECT_GHOST_ADMIN_API_KEY" \
+            INJECT_GEMINI_API_KEY="$INJECT_GEMINI_API_KEY" \
+            pnpm -C "$APPDIR" exec tsx "$SCRIPT" ${ARGS}
           set +f
 
       - name: Report
