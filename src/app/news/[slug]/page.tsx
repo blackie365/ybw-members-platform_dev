@@ -289,6 +289,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               {post.title}
             </h1>
 
+            {standfirst ? (
+              <p
+                className={[
+                  'mt-5 max-w-3xl font-serif text-xl sm:text-2xl leading-[1.45]',
+                  post.feature_image ? 'text-white/88' : 'text-ink-soft',
+                ].join(' ')}
+              >
+                {standfirst}
+              </p>
+            ) : null}
+
             <div
               className={[
                 'mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm',

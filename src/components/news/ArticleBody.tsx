@@ -48,14 +48,6 @@ export function ArticleBody({ html, standfirst, enhancement, className, proseCla
 
   return (
     <div className={cn(className)}>
-      {standfirst ? (
-        <div className="mb-8 border-b border-border pb-6">
-          <p className="font-serif text-[20px] font-medium leading-[1.72] text-foreground sm:text-[22px]">
-            {standfirst}
-          </p>
-        </div>
-      ) : null}
-
       {topStatBlocks.map((segment, index) => (
         <ArticleEnhancementBlockRenderer key={`top-stat-${index}`} block={segment.block} />
       ))}
