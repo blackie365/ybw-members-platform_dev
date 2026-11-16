@@ -1,12 +1,11 @@
 import { config as dotenvConfig } from 'dotenv';
 import { resolve } from 'node:path';
 
-import { getPosts } from '../src/lib/ghost';
-import { maybeGenerateAndStoreArticleEnhancement } from '../src/lib/news/article-enhancement-generator';
-
 dotenvConfig({ path: resolve(process.cwd(), '.env.local'), override: false });
 
 async function main() {
+  const { getPosts } = await import('../src/lib/ghost');
+  const { maybeGenerateAndStoreArticleEnhancement } = await import('../src/lib/news/article-enhancement-generator');
   const limit = Math.max(1, Number.parseInt(process.env.BACKFILL_ARTICLE_LIMIT || '50', 10) || 50);
   const pageSize = Math.min(15, limit);
   const filter = String(process.env.BACKFILL_GHOST_FILTER || '').trim() || undefined;
