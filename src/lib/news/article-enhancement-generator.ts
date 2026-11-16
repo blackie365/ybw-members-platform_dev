@@ -23,10 +23,22 @@ type EnhancementDraft = {
   }>;
 };
 
+type ArticleEnhancementGeneratorMode = 'heuristic' | 'openai' | 'gemini';
+
+type GeneratedEnhancementDraft = {
+  draft: EnhancementDraft;
+  generator: {
+    mode: Exclude<ArticleEnhancementGeneratorMode, 'heuristic'>;
+    model: string;
+  };
+};
+
 const EnhancementDraftSchema = ArticleEnhancementRecordSchema.pick({ insertions: true });
 
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/responses';
-const DEFAULT_MODEL = 'gpt-4.1-mini';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 
 export async function maybeGenerateAndStoreArticleEnhancement(post: GhostPostLike) {
   const slug = String(post?.slug || '').trim();
@@ -45,14 +57,11 @@ export async function maybeGenerateAndStoreArticleEnhancement(post: GhostPostLik
     };
   }
 
-  const aiDraft = await generateOpenAiEnhancementDraft(post).catch((error) => {
-    console.warn(`[article-enhancements] OpenAI draft failed for ${slug}:`, error);
-    return null;
-  });
+  const aiDraft = await generateAiEnhancementDraft(post, slug);
+  const fallbackDraft = generateHeuristicEnhancementDraft(post);
 
-  const validated = validateEnhancementDraft(post, aiDraft || generateHeuristicEnhancementDraft(post), {
-    mode: aiDraft ? 'openai' : 'heuristic',
-    model: aiDraft ? getArticleEnhancementModel() : undefined,
+  const validated = validateEnhancementDraft(post, aiDraft?.draft || fallbackDraft, aiDraft?.generator || {
+    mode: 'heuristic',
   });
 
   await saveArticleEnhancement(validated);
@@ -120,7 +129,7 @@ export function generateHeuristicEnhancementDraft(post: GhostPostLike): Enhancem
 function validateEnhancementDraft(
   post: GhostPostLike,
   draft: EnhancementDraft,
-  generator: { mode: 'heuristic' | 'openai'; model?: string },
+  generator: { mode: ArticleEnhancementGeneratorMode; model?: string },
 ) {
   const html = String(post.html || '');
   const slug = String(post.slug || '').trim();
@@ -162,6 +171,33 @@ function validateEnhancementDraft(
     generator,
     insertions,
   });
+}
+
+async function generateAiEnhancementDraft(
+  post: GhostPostLike,
+  slug: string,
+): Promise<GeneratedEnhancementDraft | null> {
+  const provider = getArticleEnhancementProvider();
+  const attempts: Array<() => Promise<GeneratedEnhancementDraft | null>> = [];
+
+  if (provider === 'gemini' || provider === 'auto') {
+    attempts.push(() => generateGeminiEnhancementDraft(post));
+  }
+
+  if (provider === 'openai' || provider === 'auto') {
+    attempts.push(() => generateOpenAiEnhancementDraft(post));
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt();
+      if (result) return result;
+    } catch (error) {
+      console.warn(`[article-enhancements] AI draft failed for ${slug}:`, error);
+    }
+  }
+
+  return null;
 }
 
 function normalizeBlock(
@@ -232,32 +268,36 @@ function normalizeBlock(
   }
 }
 
-async function generateOpenAiEnhancementDraft(post: GhostPostLike): Promise<EnhancementDraft | null> {
+async function generateOpenAiEnhancementDraft(post: GhostPostLike): Promise<GeneratedEnhancementDraft | null> {
   const apiKey = String(process.env.OPENAI_API_KEY || '').trim();
   if (!apiKey) return null;
 
   const sourceText = extractSourceText(post);
   if (!sourceText) return null;
 
+  const model = getOpenAiEnhancementModel();
+  const requestPayload = {
+    title: post.title || '',
+    slug: post.slug,
+    primaryTag: post.primary_tag?.name || '',
+    standfirst: getArticleStandfirst(post as never) || '',
+    paragraphCount: extractParagraphs(post.html).length,
+    articleText: trimForModel(sourceText, 12_000),
+  };
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25_000);
 
   try {
     const payload = {
-      model: getArticleEnhancementModel(),
+      model,
       input: [
         {
           role: 'system',
           content: [
             {
               type: 'input_text',
-              text:
-                'You are preparing article enhancement blocks for a newspaper-style website. ' +
-                'Return JSON only. Never invent facts, quotes, names, numbers, or commentary. ' +
-                'Allowed block types: subhead, pull_quote, fact_box, key_points, stat_grid. ' +
-                'For pull_quote.quote, fact_box.items, key_points.points, and stat_grid.detail, copy exact wording from the article wherever possible. ' +
-                'For stat_grid.value, use exact values from the article text. ' +
-                'If the article does not clearly support a block, omit it. Keep the result lean: 0-4 insertions, max 5 blocks total.',
+              text: getArticleEnhancementSystemPrompt(),
             },
           ],
         },
@@ -266,14 +306,7 @@ async function generateOpenAiEnhancementDraft(post: GhostPostLike): Promise<Enha
           content: [
             {
               type: 'input_text',
-              text: JSON.stringify({
-                title: post.title || '',
-                slug: post.slug,
-                primaryTag: post.primary_tag?.name || '',
-                standfirst: getArticleStandfirst(post as never) || '',
-                paragraphCount: extractParagraphs(post.html).length,
-                articleText: trimForModel(sourceText, 12_000),
-              }),
+              text: JSON.stringify(requestPayload),
             },
           ],
         },
@@ -301,14 +334,135 @@ async function generateOpenAiEnhancementDraft(post: GhostPostLike): Promise<Enha
 
     const parsed = parseJsonObject(rawText);
     const validated = EnhancementDraftSchema.safeParse(parsed);
-    return validated.success ? validated.data : null;
+    return validated.success
+      ? {
+          draft: validated.data,
+          generator: {
+            mode: 'openai',
+            model,
+          },
+        }
+      : null;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function getArticleEnhancementModel(): string {
-  return String(process.env.ARTICLE_ENHANCEMENT_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+async function generateGeminiEnhancementDraft(post: GhostPostLike): Promise<GeneratedEnhancementDraft | null> {
+  const apiKey = String(process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || '').trim();
+  if (!apiKey) return null;
+
+  const sourceText = extractSourceText(post);
+  if (!sourceText) return null;
+
+  const model = getGeminiEnhancementModel();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
+
+  try {
+    const payload = {
+      systemInstruction: {
+        parts: [
+          {
+            text: getArticleEnhancementSystemPrompt(),
+          },
+        ],
+      },
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: JSON.stringify({
+                title: post.title || '',
+                slug: post.slug,
+                primaryTag: post.primary_tag?.name || '',
+                standfirst: getArticleStandfirst(post as never) || '',
+                paragraphCount: extractParagraphs(post.html).length,
+                articleText: trimForModel(sourceText, 12_000),
+              }),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 1600,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    const response = await fetch(
+      `${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini responded ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    const rawText = extractGeminiResponseText(json);
+    if (!rawText) return null;
+
+    const parsed = parseJsonObject(rawText);
+    const validated = EnhancementDraftSchema.safeParse(parsed);
+    return validated.success
+      ? {
+          draft: validated.data,
+          generator: {
+            mode: 'gemini',
+            model,
+          },
+        }
+      : null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getArticleEnhancementProvider(): 'auto' | 'openai' | 'gemini' {
+  const provider = String(process.env.ARTICLE_ENHANCEMENT_PROVIDER || 'auto')
+    .trim()
+    .toLowerCase();
+
+  if (provider === 'openai' || provider === 'gemini') return provider;
+  return 'auto';
+}
+
+function getOpenAiEnhancementModel(): string {
+  return (
+    String(process.env.OPENAI_ARTICLE_ENHANCEMENT_MODEL || process.env.ARTICLE_ENHANCEMENT_MODEL || DEFAULT_OPENAI_MODEL).trim() ||
+    DEFAULT_OPENAI_MODEL
+  );
+}
+
+function getGeminiEnhancementModel(): string {
+  return (
+    String(
+      process.env.GEMINI_ARTICLE_ENHANCEMENT_MODEL ||
+        process.env.ARTICLE_ENHANCEMENT_MODEL ||
+        DEFAULT_GEMINI_MODEL,
+    ).trim() || DEFAULT_GEMINI_MODEL
+  );
+}
+
+function getArticleEnhancementSystemPrompt(): string {
+  return (
+    'You are preparing article enhancement blocks for a newspaper-style website. ' +
+    'Return JSON only. Never invent facts, quotes, names, numbers, or commentary. ' +
+    'Allowed block types: subhead, pull_quote, fact_box, key_points, stat_grid. ' +
+    'For pull_quote.quote, fact_box.items, key_points.points, and stat_grid.detail, copy exact wording from the article wherever possible. ' +
+    'For stat_grid.value, use exact values from the article text. ' +
+    'If the article does not clearly support a block, omit it. Keep the result lean: 0-4 insertions, max 5 blocks total.'
+  );
 }
 
 function extractResponseText(responseJson: any): string {
@@ -319,6 +473,18 @@ function extractResponseText(responseJson: any): string {
   const text = Array.isArray(responseJson?.output)
     ? responseJson.output
         .flatMap((item: any) => (Array.isArray(item?.content) ? item.content : []))
+        .map((part: any) => part?.text)
+        .filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
+        .join('\n')
+    : '';
+
+  return text.trim();
+}
+
+function extractGeminiResponseText(responseJson: any): string {
+  const text = Array.isArray(responseJson?.candidates)
+    ? responseJson.candidates
+        .flatMap((candidate: any) => (Array.isArray(candidate?.content?.parts) ? candidate.content.parts : []))
         .map((part: any) => part?.text)
         .filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
         .join('\n')
