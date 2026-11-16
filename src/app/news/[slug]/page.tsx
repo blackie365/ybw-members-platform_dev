@@ -289,17 +289,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               {post.title}
             </h1>
 
-            {standfirst ? (
-              <p
-                className={[
-                  'mt-5 max-w-3xl font-serif text-xl sm:text-2xl leading-[1.45]',
-                  post.feature_image ? 'text-white/88' : 'text-ink-soft',
-                ].join(' ')}
-              >
-                {standfirst}
-              </p>
-            ) : null}
-
             <div
               className={[
                 'mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm',
@@ -390,19 +379,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
           <article className="min-w-0 max-w-[780px]">
             <div className="hero-frame bg-card p-5 sm:p-8 lg:p-10">
-              <div className="flex items-center justify-between gap-4 border-b border-border pb-4 mb-6">
-                <div>
-                  <p className="kicker text-[10px] text-accent">Web edition</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Structured for the same calmer reading path as the YBM article view.
-                  </p>
-                </div>
-                <div className="hidden sm:flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  <Newspaper className="h-4 w-4 text-accent" />
-                  Readable digital format
-                </div>
-              </div>
-
               {isLocked ? (
                 <div className="bg-accent/5 border border-accent/20 rounded-none p-12 text-center my-6">
                   <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-6">

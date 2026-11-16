@@ -30,18 +30,37 @@ const BASE_PROSE_CLASSES = [
 ].join(' ');
 
 const LEAD_PROSE_CLASSES = [
-  '[&>p:first-of-type]:mb-9 [&>p:first-of-type]:border-b [&>p:first-of-type]:border-border [&>p:first-of-type]:pb-6',
+  '[&>p:first-of-type]:mb-9',
   '[&>p:first-of-type]:font-serif [&>p:first-of-type]:text-[20px] [&>p:first-of-type]:font-medium [&>p:first-of-type]:leading-[1.72] [&>p:first-of-type]:text-foreground',
 ].join(' ');
 
 export function ArticleBody({ html, standfirst, enhancement, className, proseClassName }: ArticleBodyProps) {
   const safeHtml = prepareArticleBodyHtml(html, standfirst);
   const segments = buildArticleBodySegments(safeHtml, enhancement);
+  const topStatBlocks = segments.filter(
+    (segment): segment is Extract<(typeof segments)[number], { kind: 'block' }> =>
+      segment.kind === 'block' && segment.block.type === 'stat_grid',
+  );
+  const contentSegments = segments.filter(
+    (segment) => !(segment.kind === 'block' && segment.block.type === 'stat_grid'),
+  );
   let seenFirstHtml = false;
 
   return (
     <div className={cn(className)}>
-      {segments.map((segment, index) => {
+      {standfirst ? (
+        <div className="mb-8 border-b border-border pb-6">
+          <p className="font-serif text-[20px] font-medium leading-[1.72] text-foreground sm:text-[22px]">
+            {standfirst}
+          </p>
+        </div>
+      ) : null}
+
+      {topStatBlocks.map((segment, index) => (
+        <ArticleEnhancementBlockRenderer key={`top-stat-${index}`} block={segment.block} />
+      ))}
+
+      {contentSegments.map((segment, index) => {
         if (segment.kind === 'block') {
           return <ArticleEnhancementBlockRenderer key={`block-${index}`} block={segment.block} />;
         }
