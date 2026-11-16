@@ -1,5 +1,10 @@
+import { config as dotenvConfig } from 'dotenv';
+import { resolve } from 'node:path';
+
 import { getPosts } from '../src/lib/ghost';
 import { maybeGenerateAndStoreArticleEnhancement } from '../src/lib/news/article-enhancement-generator';
+
+dotenvConfig({ path: resolve(process.cwd(), '.env.local'), override: false });
 
 async function main() {
   const limit = Math.max(1, Number.parseInt(process.env.BACKFILL_ARTICLE_LIMIT || '50', 10) || 50);
