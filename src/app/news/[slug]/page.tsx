@@ -12,6 +12,7 @@ import { ArrowLeft, Clock3, Facebook, Linkedin, Lock, Mail, Newspaper, Twitter }
 import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
 import { getArticleStandfirst } from '@/lib/news/article-standfirst';
+import { getStoredArticleEnhancement } from '@/lib/news/article-enhancements';
 import { EDITORIAL_IDENTITY } from '@/lib/editorial';
 
 export const dynamic = 'force-dynamic';
@@ -134,6 +135,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const shareUrl = encodeURIComponent(canonicalUrl);
   const shareTitle = encodeURIComponent(post.title || 'Yorkshire BusinessWoman');
   const standfirst = getArticleStandfirst(post);
+  const enhancement = await getStoredArticleEnhancement(post.slug, post.html);
   const shareBody = encodeURIComponent(`${canonicalUrl}\n\n${standfirst}`);
   const pub = post.published_at ? new Date(post.published_at) : null;
   const storyMeta = [
@@ -427,7 +429,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </div>
               ) : (
                 <>
-                  <ArticleBody html={post.html} standfirst={standfirst} />
+                  <ArticleBody html={post.html} standfirst={standfirst} enhancement={enhancement} />
 
                   <div className="mt-12">
                     <AdSlot

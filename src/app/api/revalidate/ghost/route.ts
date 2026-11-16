@@ -1,6 +1,8 @@
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { addGhostMember } from '@/lib/ghost-admin';
+import { getSinglePost } from '@/lib/ghost';
+import { maybeGenerateAndStoreArticleEnhancement } from '@/lib/news/article-enhancement-generator';
 import { getMemberStore } from '@/features/members/server';
 
 // You can find this secret in your .env.local file
@@ -83,9 +85,23 @@ export async function POST(req: Request) {
       revalidatePath(`/news/${payload.post.slug}`);
     }
 
+    const postSlug = payload?.post?.current?.slug || payload?.post?.slug || '';
+    let enhancement: Awaited<ReturnType<typeof maybeGenerateAndStoreArticleEnhancement>> | null = null;
+
+    if (postSlug) {
+      try {
+        const post = await getSinglePost(String(postSlug));
+        if (post?.html) {
+          enhancement = await maybeGenerateAndStoreArticleEnhancement(post);
+        }
+      } catch (error) {
+        console.warn(`[Webhook] Article enhancement generation failed for ${postSlug}:`, error);
+      }
+    }
+
     console.log('[Webhook] Successfully revalidated Ghost content and paths');
-    
-    return NextResponse.json({ revalidated: true, now: Date.now() });
+
+    return NextResponse.json({ revalidated: true, enhancement, now: Date.now() });
   } catch (err: any) {
     console.error('[Webhook] Error revalidating:', err.message);
     return NextResponse.json({ message: 'Error revalidating' }, { status: 500 });
