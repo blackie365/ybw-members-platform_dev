@@ -127,8 +127,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  const session = await auth();
-  const isLocked = accessLevel === 'members-only' && !session.userId;
+  const session = accessLevel === 'members-only' ? await auth() : null;
+  const isLocked = accessLevel === 'members-only' && !session?.userId;
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://yorkshirebusinesswoman.co.uk').replace(/\/$/, '');
   const canonicalUrl = `${baseUrl}/news/${post.slug}`;
   const shareUrl = encodeURIComponent(canonicalUrl);
