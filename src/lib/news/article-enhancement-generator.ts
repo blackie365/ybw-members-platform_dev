@@ -40,7 +40,10 @@ const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models
 const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 
-export async function maybeGenerateAndStoreArticleEnhancement(post: GhostPostLike) {
+export async function maybeGenerateAndStoreArticleEnhancement(
+  post: GhostPostLike,
+  options?: { skipAi?: boolean },
+) {
   const slug = String(post?.slug || '').trim();
   const html = String(post?.html || '');
   if (!slug || !html) {
@@ -57,7 +60,7 @@ export async function maybeGenerateAndStoreArticleEnhancement(post: GhostPostLik
     };
   }
 
-  const aiDraft = await generateAiEnhancementDraft(post, slug);
+  const aiDraft = options?.skipAi ? null : await generateAiEnhancementDraft(post, slug);
   const fallbackDraft = generateHeuristicEnhancementDraft(post);
 
   const validated = validateEnhancementDraft(post, aiDraft?.draft || fallbackDraft, aiDraft?.generator || {

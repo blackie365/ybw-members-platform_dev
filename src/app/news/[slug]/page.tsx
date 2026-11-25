@@ -13,6 +13,7 @@ import { auth } from '@clerk/nextjs/server';
 import { getEventMetadata } from '@/app/actions/eventActions';
 import { getArticleStandfirst } from '@/lib/news/article-standfirst';
 import { getStoredArticleEnhancement } from '@/lib/news/article-enhancements';
+import { maybeGenerateAndStoreArticleEnhancement } from '@/lib/news/article-enhancement-generator';
 import { EDITORIAL_IDENTITY } from '@/lib/editorial';
 
 export const dynamic = 'force-dynamic';
@@ -135,7 +136,15 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const shareUrl = encodeURIComponent(canonicalUrl);
   const shareTitle = encodeURIComponent(post.title || 'Yorkshire BusinessWoman');
   const standfirst = getArticleStandfirst(post);
-  const enhancement = await getStoredArticleEnhancement(post.slug, post.html);
+  let enhancement = await getStoredArticleEnhancement(post.slug, post.html);
+  if (!enhancement && post.html) {
+    try {
+      await maybeGenerateAndStoreArticleEnhancement(post, { skipAi: true });
+      enhancement = await getStoredArticleEnhancement(post.slug, post.html);
+    } catch (error) {
+      console.warn(`[ArticlePage] failed to backfill enhancement for ${post.slug}:`, error);
+    }
+  }
   const shareBody = encodeURIComponent(`${canonicalUrl}\n\n${standfirst}`);
   const pub = post.published_at ? new Date(post.published_at) : null;
   const storyMeta = [
