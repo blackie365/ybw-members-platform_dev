@@ -9,9 +9,7 @@ on:
 jobs:
   test:
     name: Vitest
-    runs-on:
-      - self-hosted
-      - deploy
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -31,4 +29,3 @@ jobs:
 
       - name: Run tests
         run: pnpm test
-

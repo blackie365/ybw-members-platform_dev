@@ -173,7 +173,9 @@ jobs:
 
           echo "[4/7] pnpm install in staged worktree" | tee -a "$LOG"
           sudo rm -f "$STAGEDIR/pnpm-workspace.yaml" 2>&1 | tee -a "$LOG" || true
-          sudo -u www-data -H env CI=true pnpm -C "$STAGEDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
+          sudo -u www-data -H env CI=true \
+            nice -n 15 ionice -c3 \
+            pnpm -C "$STAGEDIR" install --shamefully-hoist --frozen-lockfile --prod=false 2>&1 | tee -a "$LOG" | tail -n 250
 
           echo "[5/7] pnpm build in staged worktree" | tee -a "$LOG"
           sudo pkill -9 -u www-data -f "next.*build|pnpm.*build|node.*build" 2>/dev/null || true
@@ -202,6 +204,7 @@ jobs:
               NEXT_PRIVATE_BUILD_WORKER_CONCURRENCY=1 \
               EXPERIMENTAL_CPU_COUNT=1 \
               CI=true \
+              nice -n 15 ionice -c3 \
               pnpm -C "$STAGEDIR" build 2>&1 | tee -a "$LOG" | tail -n 250
           BUILD_EXIT=${PIPESTATUS[0]}
           set -e
