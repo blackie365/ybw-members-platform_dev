@@ -11,6 +11,8 @@ const PUBLIC_URL = (
   process.env.SITE_URL ||
   ""
 ).replace(/\/$/, "");
+const ENABLE_MIDDLEWARE_REWRITE_DEBUG =
+  process.env.DEBUG_MIDDLEWARE_REWRITES === "1";
 
 function isLoopbackIp(ip: string | undefined | null): boolean {
   if (!ip) return false;
@@ -110,9 +112,11 @@ function postProcess(
   // x-middleware-request-* headers below.  If present, skip rewrite post-process
   // entirely this second pass and let the request flow down to the RSC.
   if (req.headers.get("x-middleware-sentinel") === "postprocess-sameroute") {
-    console.debug(
-      "[middleware] sameRoute second pass — skipping rewrite post-process to break loop"
-    );
+    if (ENABLE_MIDDLEWARE_REWRITE_DEBUG) {
+      console.debug(
+        "[middleware] sameRoute second pass — skipping rewrite post-process to break loop"
+      );
+    }
     return NextResponse.next({ request: { headers: req.headers } });
   }
 
@@ -197,9 +201,11 @@ function postProcess(
         "postprocess-sameroute"
       );
 
-      console.info(
-        `[middleware] sameRoute canonical rewrite ${rewrite} -> ${rewritten.toString()}`
-      );
+      if (ENABLE_MIDDLEWARE_REWRITE_DEBUG) {
+        console.info(
+          `[middleware] sameRoute canonical rewrite ${rewrite} -> ${rewritten.toString()}`
+        );
+      }
       return out as NextResponse;
     } catch (err) {
       console.warn(
